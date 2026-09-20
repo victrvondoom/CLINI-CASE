@@ -1,0 +1,54 @@
+# Linkerd control-plane Helm values for ClinCase.
+# Production-grade, HA, restricted-egress.
+
+# High-availability control plane (3 replicas of each control-plane component).
+# At our scale we could run with 1, but HA is the right default for any
+# deployment a Cognizant TriZetto customer would run.
+controllerReplicas: 3
+enablePodAntiAffinity: true
+
+# Use AWS ECR-cached images instead of public Docker Hub (avoids rate limits +
+# data exfiltration audit concerns)
+controllerImage: 123456789012.dkr.ecr.ap-south-1.amazonaws.com/linkerd/controller
+proxy:
+  image:
+    name: 123456789012.dkr.ecr.ap-south-1.amazonaws.com/linkerd/proxy
+  resources:
+    cpu:
+      limit: "1"
+      request: 100m
+    memory:
+      limit: 250Mi
+      request: 50Mi
+
+# Tap is the API for "live request inspection" — extremely useful for the
+# first 30 days but disable in mature production for security.
+tap:
+  enabled: true
+
+# Identity controller — the SPIFFE-equivalent that makes mTLS work.
+identity:
+  externalCA: false   # use the in-cluster CA for the first month; rotate via cert-manager later
+  issuer:
+    scheme: linkerd.io/tls
+    clockSkewAllowance: 20s
+    issuanceLifetime: 24h0m0s
+
+# Inject sidecars into clincase namespace only — NOT cluster-wide
+proxyInjector:
+  externalSecret: false
+  caBundle: ""
+
+# CNI plugin — required when running on EKS without privileged init containers
+cniEnabled: true
+
+# Webhook failure policy — fail-closed in prod (block deploys if Linkerd is down)
+proxyInjector:
+  failurePolicy: Fail
+
+# Linkerd's own observability — emits to its OWN Prometheus, not ClinCase's
+prometheus:
+  enabled: false  # we use ClinCase's existing /metrics; no need for a parallel Prometheus
+
+# Cluster networks — restrict to the VPC CIDR + Kubernetes service CIDR
+clusterNetworks: "10.0.0.0/16,172.20.0.0/16"

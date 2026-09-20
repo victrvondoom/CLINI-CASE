@@ -1,0 +1,106 @@
+{
+  "resourceType": "Bundle",
+  "id": "demo-case-001",
+  "type": "collection",
+  "entry": [
+    {
+      "fullUrl": "urn:uuid:patient-001",
+      "resource": {
+        "resourceType": "Patient",
+        "id": "patient-001",
+        "gender": "female",
+        "birthDate": "1972-08-14",
+        "name": [{"family": "Demo", "given": ["Jane"]}]
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:condition-primary",
+      "resource": {
+        "resourceType": "Condition",
+        "id": "condition-primary",
+        "subject": {"reference": "Patient/patient-001"},
+        "clinicalStatus": {"coding": [{"system": "http://terminology.hl7.org/CodeSystem/condition-clinical", "code": "active"}]},
+        "verificationStatus": {"coding": [{"system": "http://terminology.hl7.org/CodeSystem/condition-ver-status", "code": "confirmed"}]},
+        "code": {
+          "coding": [
+            {"system": "http://hl7.org/fhir/sid/icd-10-cm", "code": "C50.911", "display": "Malignant neoplasm of unspecified site of right female breast"}
+          ],
+          "text": "Stage IIIA invasive ductal carcinoma of right breast"
+        },
+        "stage": [
+          {
+            "summary": {
+              "coding": [{"system": "http://snomed.info/sct", "code": "261614003", "display": "Stage IIIA"}],
+              "text": "IIIA"
+            }
+          }
+        ],
+        "onsetDateTime": "2026-02-12"
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:obs-her2",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "obs-her2",
+        "status": "final",
+        "category": [{"coding": [{"system": "http://terminology.hl7.org/CodeSystem/observation-category", "code": "laboratory"}]}],
+        "code": {
+          "coding": [{"system": "http://loinc.org", "code": "85319-2", "display": "HER2 [Presence] in Breast cancer specimen by Immunohistochemistry"}],
+          "text": "HER2 IHC"
+        },
+        "subject": {"reference": "Patient/patient-001"},
+        "effectiveDateTime": "2026-02-22",
+        "valueCodeableConcept": {
+          "coding": [{"system": "http://loinc.org", "code": "LA6577-6"}],
+          "text": "Positive (3+)"
+        }
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:obs-er",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "obs-er",
+        "status": "final",
+        "code": {
+          "coding": [{"system": "http://loinc.org", "code": "16112-5", "display": "Estrogen receptor"}],
+          "text": "ER status"
+        },
+        "subject": {"reference": "Patient/patient-001"},
+        "effectiveDateTime": "2026-02-22",
+        "valueCodeableConcept": {"text": "Negative"}
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:obs-pr",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "obs-pr",
+        "status": "final",
+        "code": {
+          "coding": [{"system": "http://loinc.org", "code": "16113-3", "display": "Progesterone receptor"}],
+          "text": "PR status"
+        },
+        "subject": {"reference": "Patient/patient-001"},
+        "effectiveDateTime": "2026-02-22",
+        "valueCodeableConcept": {"text": "Negative"}
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:obs-ecog",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "obs-ecog",
+        "status": "final",
+        "code": {
+          "coding": [{"system": "http://loinc.org", "code": "89247-1", "display": "ECOG Performance Status score"}],
+          "text": "ECOG Performance Status"
+        },
+        "subject": {"reference": "Patient/patient-001"},
+        "effectiveDateTime": "2026-03-05",
+        "valueInteger": 1
+      }
+    }
+  ]
+}

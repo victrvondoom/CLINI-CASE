@@ -1,0 +1,28 @@
+{
+  "_meta": {
+    "description": "FDA companion diagnostic + NCCN biomarker-to-regimen mapping. Production should source from FDA's CDx table + NCCN structured feed.",
+    "version": "demo-2026.05"
+  },
+  "mappings": {
+    "EGFR_L858R":      {"variants": ["EGFR L858R", "EGFR exon 21 p.L858R"],          "fda_approved": ["osimertinib", "erlotinib", "gefitinib", "afatinib"], "nccn_preferred": "osimertinib", "evidence": "1", "tumor_types": ["NSCLC"], "guideline_ref": "NSCL-26"},
+    "EGFR_EXON19DEL":  {"variants": ["EGFR exon 19 deletion", "EGFR del19"],         "fda_approved": ["osimertinib", "erlotinib", "gefitinib", "afatinib"], "nccn_preferred": "osimertinib", "evidence": "1", "tumor_types": ["NSCLC"], "guideline_ref": "NSCL-26"},
+    "EGFR_EXON20INS":  {"variants": ["EGFR exon 20 insertion"],                       "fda_approved": ["amivantamab + lazertinib", "amivantamab"],            "nccn_preferred": "amivantamab + lazertinib", "evidence": "1", "tumor_types": ["NSCLC"]},
+    "ALK_FUSION":      {"variants": ["ALK fusion", "EML4-ALK"],                       "fda_approved": ["alectinib", "brigatinib", "lorlatinib"],             "nccn_preferred": "alectinib", "evidence": "1", "tumor_types": ["NSCLC"]},
+    "ROS1_FUSION":     {"variants": ["ROS1 fusion"],                                  "fda_approved": ["entrectinib", "crizotinib", "repotrectinib"],        "nccn_preferred": "entrectinib", "evidence": "1", "tumor_types": ["NSCLC"]},
+    "BRAF_V600E":      {"variants": ["BRAF V600E"],                                   "fda_approved": ["dabrafenib + trametinib", "encorafenib + binimetinib"], "nccn_preferred": "dabrafenib + trametinib", "evidence": "1", "tumor_types": ["Melanoma", "NSCLC", "Colorectal"]},
+    "KRAS_G12C":       {"variants": ["KRAS G12C"],                                    "fda_approved": ["sotorasib", "adagrasib"],                            "nccn_preferred": "sotorasib", "evidence": "1", "tumor_types": ["NSCLC", "Colorectal"]},
+    "BRCA1_GERM":      {"variants": ["BRCA1 germline", "gBRCA1"],                     "fda_approved": ["olaparib", "talazoparib"],                           "nccn_preferred": "olaparib", "evidence": "1", "tumor_types": ["Breast", "Ovarian", "Pancreatic", "Prostate"], "guideline_ref": "BINV-Q"},
+    "BRCA2_GERM":      {"variants": ["BRCA2 germline", "gBRCA2"],                     "fda_approved": ["olaparib", "talazoparib"],                           "nccn_preferred": "olaparib", "evidence": "1", "tumor_types": ["Breast", "Ovarian", "Pancreatic", "Prostate"], "guideline_ref": "BINV-Q"},
+    "HER2_AMPLIFIED":  {"variants": ["HER2 amplification", "ERBB2 amplified", "IHC 3+"], "fda_approved": ["trastuzumab", "pertuzumab", "T-DM1", "T-DXd", "tucatinib"], "nccn_preferred": "trastuzumab + pertuzumab + chemo", "evidence": "1", "tumor_types": ["Breast", "Gastric"], "guideline_ref": "BINV-K"},
+    "HER2_LOW":        {"variants": ["HER2-low", "IHC 1+", "IHC 2+ ISH-"],            "fda_approved": ["T-DXd (trastuzumab deruxtecan)"],                    "nccn_preferred": "T-DXd",     "evidence": "1", "tumor_types": ["Breast"]},
+    "MSI_HIGH":        {"variants": ["MSI-H", "MSS-H", "dMMR", "MMR deficient"],       "fda_approved": ["pembrolizumab", "nivolumab", "dostarlimab"],         "nccn_preferred": "pembrolizumab", "evidence": "1", "tumor_types": ["any"], "guideline_ref": "MSI-H-AGNOSTIC"},
+    "TMB_HIGH":        {"variants": ["TMB-H", "TMB ≥ 10 mut/Mb"],                     "fda_approved": ["pembrolizumab"],                                     "nccn_preferred": "pembrolizumab", "evidence": "2A", "tumor_types": ["any"], "guideline_ref": "TMB-H-AGNOSTIC"},
+    "NTRK_FUSION":     {"variants": ["NTRK1 fusion", "NTRK2 fusion", "NTRK3 fusion"], "fda_approved": ["larotrectinib", "entrectinib"],                      "nccn_preferred": "larotrectinib", "evidence": "1", "tumor_types": ["any"]},
+    "RET_FUSION":      {"variants": ["RET fusion"],                                   "fda_approved": ["selpercatinib", "pralsetinib"],                      "nccn_preferred": "selpercatinib", "evidence": "1", "tumor_types": ["NSCLC", "Thyroid"]},
+    "MET_EX14":        {"variants": ["MET exon 14 skipping"],                         "fda_approved": ["capmatinib", "tepotinib"],                           "nccn_preferred": "capmatinib", "evidence": "1", "tumor_types": ["NSCLC"]},
+    "FGFR2_FUSION":    {"variants": ["FGFR2 fusion"],                                 "fda_approved": ["pemigatinib", "futibatinib"],                        "nccn_preferred": "pemigatinib", "evidence": "1", "tumor_types": ["Cholangiocarcinoma"]},
+    "PIK3CA":          {"variants": ["PIK3CA mutation"],                              "fda_approved": ["alpelisib + fulvestrant"],                           "nccn_preferred": "alpelisib + fulvestrant", "evidence": "1", "tumor_types": ["Breast"]},
+    "ESR1":            {"variants": ["ESR1 mutation"],                                "fda_approved": ["elacestrant"],                                       "nccn_preferred": "elacestrant", "evidence": "2A", "tumor_types": ["Breast"]},
+    "HRD_POSITIVE":    {"variants": ["HRD positive", "homologous recombination deficiency"], "fda_approved": ["olaparib", "niraparib"],                     "nccn_preferred": "olaparib", "evidence": "1", "tumor_types": ["Ovarian", "Prostate"], "guideline_ref": "OVAR-PARP"}
+  }
+}

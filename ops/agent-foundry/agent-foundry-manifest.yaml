@@ -1,0 +1,195 @@
+﻿# =============================================================================
+# Cognizant Agent Foundry â€” ClinCase bundle manifest
+# =============================================================================
+#
+# Cognizant Agent Foundry was launched Jul 10, 2025 with an explicit
+# "Discover -> Design -> Build -> Scale" lifecycle and an Agent Marketplace
+# catalog. Cognizant has not yet published a public manifest schema; this
+# file follows AgentSpec conventions (https://agents-oss.github.io/agentspec/)
+# extended with Cognizant-specific lifecycle + vertical fields, so a Foundry
+# ingest tool or a partner-platform converter can consume it directly.
+#
+# Foundry press release:
+#   https://news.cognizant.com/2025-07-10-Cognizant-Introduces-Agent-Foundry-Powering-Agentic-AI-at-Enterprise-Scale
+#
+# Pair this file with:
+#   ../neuro-san-integration/clincase-network.hocon  (Neuro-SAN AAOSA topology)
+#   ../aws/agentcore/deployment.yaml          (Bedrock AgentCore runtime map)
+#   ../../backend/app/api/foundry.py          (live /api/v1/foundry/manifest endpoint)
+
+apiVersion: cognizant.foundry/v1
+kind: AgentBundle
+metadata:
+  name: clincase
+  display_name: "ClinCase â€” Oncology Prior-Authorization Specialty Agent Bundle"
+  version: 0.1.0
+  vendor: AeroFyta Health Sciences
+  vertical: healthcare-payer-operations
+  marketplace_category: "Specialty Agent Bundles / Healthcare / Prior Authorization"
+  cost_center: AEROFYTA-CLINCASE
+  license: proprietary
+
+lifecycle:
+  current_stage: Build              # Discover | Design | Build | Scale
+  next_milestone:
+    stage: Scale
+    target_iso: 2026-08-01
+    blockers: ["one Cognizant Facets/QNXT pilot customer"]
+
+# ---- Business-value claims (what Cognizant sales attaches to the bundle) ----
+business_value:
+  benchmarks:
+    elevance_health_os_denial_reduction_pct: 70   # public 2026 benchmark to meet/beat
+    summit_health_pa_time_reduction_pct: 42        # HIMSS 2026
+    ahip_pa_eliminated_pct_6mo_in: 11              # AHIP 2026 progress report
+  clincase_per_case:
+    manual_baseline_usd: 1500
+    clincase_cost_usd: { approve: 0.25, deny_with_appeal: 0.45 }
+    savings_usd: 1499.55
+    minutes_saved_per_case: 18
+    speedup_factor_x: 20
+  star_ratings:
+    revenue_per_half_star_per_10k_members_usd: 2_100_000
+    humana_scale_per_half_star_usd: 1_260_000_000
+    projected_lift_low: 0.2
+    projected_lift_high: 0.4
+    sources: ["Lilac Software 2025", "KFF MA Quality Bonus 2025/2026"]
+  provider_abrasion:
+    physician_pa_hrs_per_week: 13
+    burnout_attribution_pct: 95          # AMA 2025
+    physician_turnover_cost_usd: [250000, 1200000]   # AMN / SimpliMD
+  pricing_motion:
+    per_case_usd: 5
+    customer_headroom_x: 300
+    bundling: "TriZetto subscription specialty SKU"
+
+# ---- Agent inventory ----
+agents:
+  parents_total: 7
+  sub_agents_total: 22
+  llm_backed_sub_agents: 15
+  deterministic_sub_agents: 7
+  reflection_enabled_sub_agents: 3
+  parents:
+    - name: clinical_extractor
+      role: extraction
+      model_size: sonnet
+      sub_agents: [phi_sanitizer, fhir_resource_validator, biomarker_specialist]
+    - name: policy_retriever
+      role: retrieval
+      model_size: sonnet
+      sub_agents: [keyword_filter, q_business_retriever, llm_reranker, citation_resolver]
+    - name: necessity_reasoner
+      role: reasoning
+      model_size: sonnet
+      reflection_threshold: 0.80
+      sub_agents: [criterion_splitter, evidence_matcher, confidence_calibrator]
+    - name: decision_composer
+      role: synthesis
+      model_size: sonnet
+      sub_agents: [verdict_synthesizer, rationale_writer, citation_linker]
+    - name: denial_forecaster
+      role: prediction
+      model_size: sonnet
+      gated_to: DENY_path
+      sub_agents: [probability_estimator, reason_predictor, appeal_path_recommender]
+    - name: appeals_drafter
+      role: drafting
+      model_size: sonnet
+      gated_to: DENY_path
+      reflection_threshold: 0.80
+      sub_agents: [nccn_reference_specialist, counter_evidence_finder, letter_composer]
+    - name: patient_communicator
+      role: communication
+      model_size: sonnet-letter
+      sub_agents: [empathy_layer, action_step_writer, reading_level_tuner]
+
+# ---- Compatibility with the Cognizant + AWS stack ----
+compatibility:
+  cognizant_neuro_san:
+    artifact: ops/neuro-san-integration/clincase-network.hocon
+    routing_protocol: AAOSA
+    multi_agent_accelerator: true
+  trizetto_ai_gateway:
+    launched: 2025-08-06
+    mcp_native: true
+    fanout_targets: [facets-pa-workflow, qnxt-case-events]
+    submit_endpoint: /api/v1/integrations/trizetto/submit
+    facets_event_schema: "prior_auth_event v3"
+    qnxt_event_schema: "qnxt_case_event v2"
+  aws_bedrock:
+    region: ap-south-1
+    primary_model: apac.anthropic.claude-sonnet-4-6-20251022-v1:0
+    fallback_model: apac.anthropic.claude-haiku-4-5-20251001-v1:0
+    guardrails: bedrock-guardrails
+    knowledge_base_supported: true
+  aws_bedrock_agentcore:
+    ga: 2025-10
+    deployment_yaml: ops/aws/agentcore/deployment.yaml
+    primitives_used: [Runtime, Memory, Gateway, Identity, Observability]
+  amazon_q_business:
+    optional: true
+    toggle_env_var: USE_AMAZON_Q
+    drop_in_for: bedrock_kb
+  kiro_ide:
+    spec_root: .kiro/specs
+    spec_files_count: 85
+    spec_format: "EARS-format requirements + design + tasks markdown"
+  anthropic_partnership:
+    cognizant_announced: 2025-11-04
+    claude_models_used: [claude-sonnet-4-6, claude-haiku-4-5]
+    agent_sdk: anthropic-agent-sdk
+    mcp_protocol_version: "2024-11-05"
+
+# ---- Compliance + governance ----
+compliance:
+  cms_0057f:
+    in_force_clauses_today: ["Â§ IV.A", "Â§ IV.B.1", "Â§ IV.B.2", "Â§ IV.C", "Â§ IV.D"]
+    upcoming_clauses:
+      - id: "Â§ IV.A FHIR PARDA"
+        effective: 2027-01-01
+      - id: "Â§ IV.E Patient Access API"
+        effective: 2027-01-01
+    live_scorecard: /api/v1/compliance/case/{case_id}
+  state_ai_laws:
+    - "CA SB 1120 (Physicians Make Decisions Act, eff. 2025-01-01)"
+    - "CO AI Act (eff. 2026-02-01)"
+    - "TX Responsible AI Governance Act (eff. 2026-01-01)"
+  eu_ai_act:
+    annex_iii_classification: "high-risk healthcare access decisions"
+    effective: 2026-08-02
+    declaration: /api/v1/responsible-ai/model-card
+  ahip_bcbsa_commitment:
+    announced: 2026-04-24
+    insurers_signatories_count: 50
+    fhir_pa_apis_in_ehrs_target: 2026-01
+  responsible_ai:
+    nist_ai_rmf: 1.0
+    iso_42001: 2023
+    model_card: /api/v1/responsible-ai/model-card
+    evidence_pack: /api/v1/cases/{case_id}/evidence-pack
+
+# ---- Observability + ops ----
+observability:
+  metrics_endpoint: /metrics
+  metrics_format: Prometheus
+  sse_endpoint: /api/v1/cases/{case_id}/stream
+  audit_endpoint: /api/v1/cases/{case_id}/audit
+  trace_format: AgentTrace (parent_span_id chain â€” X-Ray-mappable)
+  alert_routing: PagerDuty SNS
+
+deployment:
+  k8s_manifests: ops/k8s/
+  scaling_capacity_model: ops/SCALING.md
+  multi_region_terraform: ops/terraform/multi-region/
+  provisioned_throughput_terraform: ops/terraform/provisioned-throughput/
+  aws_migration_runbook: ops/aws/MIGRATION_RUNBOOK.md
+  go_to_market: ops/demo/GO_TO_MARKET.md
+
+# ---- Marketplace listing fields ----
+marketplace_listing:
+  short_description: "First specialty-medicine agent bundle for TriZetto AI Gateway. Oncology PA in <90 seconds, CMS-0057-F-evidenced, $1,499.55 saved per case."
+  long_description_md: ops/demo/GO_TO_MARKET.md
+  hero_metric: "$1.26B per half-star at Humana scale"
+  demo_video: TBD
+  contact_email: preethisivachandran0@gmail.com

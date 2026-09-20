@@ -1,0 +1,114 @@
+{
+  "_meta": {
+    "description": "Curated NCCN-style guideline corpus for the OncoGuideline Engine demo. Each entry mirrors the structure of an NCCN Compendium recommendation. Production deployments must replace this with the licensed NCCN feed.",
+    "license_note": "DEMO ONLY. NCCN guidelines are copyrighted; production use requires an NCCN Compendium subscription (~$25K/yr).",
+    "version": "demo-2026.05",
+    "source_emulated": "NCCN Clinical Practice Guidelines in Oncology"
+  },
+  "guidelines": [
+    {
+      "id": "NSCL-26",
+      "guideline": "NCCN NSCL Non-Small Cell Lung Cancer v.5.2025",
+      "tumor_type": "NSCLC",
+      "stage": "IV",
+      "biomarker": "EGFR L858R",
+      "line_of_therapy": "first",
+      "regimen": "osimertinib",
+      "evidence_category": "1",
+      "section_heading": "Adenocarcinoma · EGFR Sensitizing Mutations · Stage IV",
+      "excerpt": "For patients with stage IV NSCLC harboring sensitizing EGFR mutations (exon 19 deletion or L858R substitution), osimertinib 80 mg orally once daily is the preferred first-line therapy regardless of PD-L1 expression. Category 1 evidence per FLAURA trial (NCT02296125, NEJM 2018, 378:113-125).",
+      "reference_pmid": "29151359"
+    },
+    {
+      "id": "BINV-K",
+      "guideline": "NCCN Breast Cancer v.4.2024",
+      "tumor_type": "Breast",
+      "stage": "IIIA",
+      "biomarker": "HER2-positive",
+      "line_of_therapy": "neoadjuvant",
+      "regimen": "TCHP (docetaxel + carboplatin + trastuzumab + pertuzumab)",
+      "evidence_category": "1",
+      "section_heading": "HER2-Positive Disease · Preoperative Therapy",
+      "excerpt": "For patients with stage II-III HER2+ breast cancer, neoadjuvant TCHP for 6 cycles (docetaxel 75 mg/m² + carboplatin AUC 6 + trastuzumab 8 mg/kg loading then 6 mg/kg + pertuzumab 840 mg loading then 420 mg, all q3w) is preferred. Category 1 per TRYPHAENA, NeoSphere.",
+      "reference_pmid": "23704196"
+    },
+    {
+      "id": "BINV-Q",
+      "guideline": "NCCN Breast Cancer v.4.2024",
+      "tumor_type": "Breast",
+      "stage": "IV",
+      "biomarker": "BRCA1/BRCA2 germline mutation",
+      "line_of_therapy": "any",
+      "regimen": "olaparib",
+      "evidence_category": "1",
+      "section_heading": "HER2-Negative Metastatic Disease · BRCA-Mutated · PARP Inhibition",
+      "excerpt": "Olaparib 300 mg PO BID is recommended for patients with germline BRCA1/BRCA2 mutations and HER2-negative metastatic breast cancer who have received prior chemotherapy. Category 1 per OlympiAD trial.",
+      "reference_pmid": "28578601"
+    },
+    {
+      "id": "BREAST-MET-CDK46",
+      "guideline": "NCCN Breast Cancer v.4.2024",
+      "tumor_type": "Breast",
+      "stage": "IV",
+      "biomarker": "HR+, HER2-negative",
+      "line_of_therapy": "first",
+      "regimen": "palbociclib + letrozole",
+      "evidence_category": "1",
+      "section_heading": "HR+/HER2- Metastatic · CDK4/6 Inhibition",
+      "excerpt": "First-line palbociclib 125 mg PO daily x21d/28d cycle + letrozole 2.5 mg PO daily for postmenopausal HR+/HER2- mBC. Category 1 per PALOMA-2 (HR 0.58, mPFS 24.8 mo vs 14.5 mo).",
+      "reference_pmid": "27959613"
+    },
+    {
+      "id": "MSI-H-AGNOSTIC",
+      "guideline": "NCCN Tumor-Agnostic v.1.2025",
+      "tumor_type": "any",
+      "stage": "advanced/metastatic",
+      "biomarker": "MSI-H or dMMR",
+      "line_of_therapy": "any",
+      "regimen": "pembrolizumab",
+      "evidence_category": "2A",
+      "section_heading": "Tumor-Agnostic · MSI-H/dMMR · PD-1 Inhibition",
+      "excerpt": "Pembrolizumab 200 mg q3w (or 400 mg q6w) is recommended for unresectable/metastatic MSI-H or dMMR solid tumors that have progressed following prior treatment and have no satisfactory alternative options. Tissue-agnostic FDA approval based on KEYNOTE-158, KEYNOTE-164.",
+      "reference_pmid": "30614181"
+    },
+    {
+      "id": "TMB-H-AGNOSTIC",
+      "guideline": "NCCN Tumor-Agnostic v.1.2025",
+      "tumor_type": "any",
+      "stage": "advanced/metastatic",
+      "biomarker": "TMB ≥ 10 mut/Mb",
+      "line_of_therapy": "any",
+      "regimen": "pembrolizumab",
+      "evidence_category": "2A",
+      "section_heading": "Tumor-Agnostic · TMB-H · PD-1 Inhibition",
+      "excerpt": "Pembrolizumab is approved for unresectable/metastatic TMB-H (≥10 mutations/Mb) solid tumors. Per KEYNOTE-158 cohort, ORR 29% in TMB-H vs 6% in non-TMB-H.",
+      "reference_pmid": "32919526"
+    },
+    {
+      "id": "COL-1",
+      "guideline": "NCCN Colon Cancer v.5.2025",
+      "tumor_type": "Colorectal",
+      "stage": "IV",
+      "biomarker": "KRAS/NRAS/BRAF wild-type, left-sided",
+      "line_of_therapy": "first",
+      "regimen": "FOLFIRINOX + cetuximab or panitumumab",
+      "evidence_category": "1",
+      "section_heading": "Metastatic · RAS/RAF Wild-Type Left-Sided · Anti-EGFR + Chemo",
+      "excerpt": "First-line FOLFIRINOX (oxaliplatin 85 mg/m² + irinotecan 180 mg/m² + leucovorin 400 mg/m² + 5-FU 400 mg/m² bolus then 2400 mg/m² CIVI 46h, q14d) + anti-EGFR for left-sided RAS/RAF WT mCRC.",
+      "reference_pmid": "21602441"
+    },
+    {
+      "id": "OVAR-PARP",
+      "guideline": "NCCN Ovarian Cancer v.2.2025",
+      "tumor_type": "Ovarian",
+      "stage": "III/IV",
+      "biomarker": "BRCA1/2 mutation OR HRD-positive",
+      "line_of_therapy": "maintenance",
+      "regimen": "olaparib maintenance",
+      "evidence_category": "1",
+      "section_heading": "Maintenance · BRCA-mutated or HRD+ · PARP Inhibition",
+      "excerpt": "Olaparib 300 mg PO BID for 2 years as maintenance after response to first-line platinum-based chemo in BRCA1/2-mutated stage III/IV ovarian cancer. Per SOLO1 (HR 0.30, 7-yr OS 67% vs 47%).",
+      "reference_pmid": "30345884"
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+# Copy to prod.tfvars and fill in real values. NEVER commit prod.tfvars.
+
+primary_region   = "ap-south-1"
+secondary_region = "us-east-1"
+environment      = "prod"
+cost_center      = "AEROFYTA-CLINCASE-PROD"
+
+# RDS
+global_cluster_identifier = "clincase"
+engine_version            = "15.4"
+primary_instance_class    = "db.r6g.xlarge"
+secondary_instance_class  = "db.r6g.large"
+
+# These should come from the existing VPC / SG provisioning step
+primary_db_subnet_ids        = ["subnet-aaaa", "subnet-bbbb", "subnet-cccc"]
+secondary_db_subnet_ids      = ["subnet-dddd", "subnet-eeee", "subnet-ffff"]
+primary_security_group_ids   = ["sg-1111"]
+secondary_security_group_ids = ["sg-2222"]
+
+# Pulled from AWS Secrets Manager in real deploys; placeholder here.
+master_username = "clincase_admin"
+master_password = "REPLACE_ME_FROM_SECRETS_MANAGER"
+
+backup_retention_period_days = 35
+deletion_protection          = true
+
+# Route 53
+hosted_zone_id         = "Z00000000ABCDEFGH"
+service_dns_name       = "api.clincase.example.com"
+primary_alb_dns_name   = "k8s-clincase-aps1-abc.elb.ap-south-1.amazonaws.com"
+primary_alb_zone_id    = "ZP97RAFLXTNZK"
+secondary_alb_dns_name = "k8s-clincase-use1-xyz.elb.us-east-1.amazonaws.com"
+secondary_alb_zone_id  = "Z35SXDOTRQ7X7K"
+
+# S3 audit
+primary_audit_bucket   = "clincase-audit-aps1"
+secondary_audit_bucket = "clincase-audit-use1"

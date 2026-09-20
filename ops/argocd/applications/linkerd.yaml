@@ -1,0 +1,38 @@
+---
+# Argo CD application that owns the Linkerd control plane install.
+# Round-10 shipped values.yaml + mTLS-strict policy; this Application makes
+# them GitOps-managed.
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: linkerd-control-plane
+  namespace: argocd
+spec:
+  project: default
+  sources:
+  - repoURL: https://helm.linkerd.io/stable
+    chart: linkerd-control-plane
+    targetRevision: 1.16.4
+    helm:
+      releaseName: linkerd-control-plane
+      valueFiles:
+      - $values/ops/k8s/linkerd/values.yaml
+  - repoURL: https://github.com/aerofyta/clincase.git
+    targetRevision: main
+    ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: linkerd
+  syncPolicy:
+    automated:
+      prune: false                # Linkerd control plane = never auto-prune
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+    - ServerSideApply=true
+  ignoreDifferences:
+  - group: ""
+    kind: Secret
+    name: linkerd-identity-issuer
+    jsonPointers: ["/data"]       # cert-manager rotates this

@@ -1,0 +1,56 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pgbouncer-config
+  namespace: clincase
+data:
+  pgbouncer.ini: |
+    [databases]
+    ; Writer pool — Aurora primary
+    clincase_writer = host=clincase-aurora-primary.cluster-xxx.ap-south-1.rds.amazonaws.com \
+                     port=5432 dbname=clincase auth_user=pgbouncer
+
+    ; Reader pool — Aurora reader endpoint
+    clincase_reader = host=clincase-aurora-primary.cluster-ro-xxx.ap-south-1.rds.amazonaws.com \
+                     port=5432 dbname=clincase auth_user=pgbouncer
+
+    [pgbouncer]
+    listen_addr = 0.0.0.0
+    listen_port = 6432
+
+    ; Auth — userlist.txt mounted from a Secret populated by External Secrets
+    ; Operator pulling from AWS Secrets Manager.
+    auth_type = scram-sha-256
+    auth_file = /etc/pgbouncer/userlist.txt
+
+    ; Transaction pooling — required for asyncpg compatibility
+    pool_mode = transaction
+
+    ; Capacity
+    max_client_conn = 1000
+    default_pool_size = 25
+    reserve_pool_size = 5
+    reserve_pool_timeout = 3
+    max_db_connections = 100
+    max_user_connections = 100
+
+    ; Timeouts (seconds)
+    server_reset_query = DISCARD ALL
+    server_check_delay = 30
+    server_check_query = SELECT 1
+    query_wait_timeout = 5
+    server_idle_timeout = 600
+
+    ; Encrypt the backend hop to Aurora
+    server_tls_sslmode = require
+
+    ; Health + admin
+    admin_users = pgbouncer-admin
+    stats_users = pgbouncer-stats
+
+    ; Logging — JSON for Loki/CloudWatch
+    log_connections = 0          ; too noisy at 1000 client conns; flip in incident
+    log_disconnections = 0
+    log_pooler_errors = 1
+    syslog = 0

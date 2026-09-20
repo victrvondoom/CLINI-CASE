@@ -1,0 +1,191 @@
+# =============================================================================
+# ClinCase Service-Level Objectives + Error Budgets
+# =============================================================================
+#
+# Standards: Google SRE Workbook + Datadog SLO templates + Honeycomb's "SLOs
+# for LLM-backed services" 2025 patterns. Every SLO has:
+#   • a Service Level Indicator (SLI) — what we measure
+#   • a target (the SLO line)
+#   • an error budget consequence (what fires when we burn it)
+#   • a Prometheus query the alert rule key off
+#
+# Apply these via prometheus-operator's PrometheusRule CRD; the alert routing
+# goes to PagerDuty (via the SNS topic configured in
+# ops/terraform/provisioned-throughput/variables.tf).
+#
+# WHY THIS MATTERS for Cognizant industrialization:
+#   • Cognizant solution architects expect every production service to declare
+#     its SLOs explicitly — this is how "production-grade" is defined.
+#   • The error-budget pattern lets product + engineering trade off velocity
+#     against reliability without arguing in every PR.
+#   • For a CMS-0057-F-regulated service, SLO breaches feed quarterly audit
+#     evidence directly.
+
+version: v1
+service: clincase
+owner: aerofyta-engineering@clincase.example.com
+escalation:
+  primary_pagerduty: PD-CLINCASE-PRIMARY
+  business_owner: cmo@clincase.example.com
+
+slos:
+
+  # =========================================================================
+  # 1. API availability — judged on synthetic uptime probes, not user error
+  # =========================================================================
+  - id: api-availability
+    title: "API availability — 99.9% over 30 days"
+    sli:
+      description: "Fraction of synthetic /healthz probes returning 2xx"
+      prometheus: |
+        sum(rate(probe_success{job="blackbox", instance="https://api.clincase.example.com/api/v1/healthz"}[1m]))
+        / count(probe_success{job="blackbox", instance="https://api.clincase.example.com/api/v1/healthz"})
+    target: 0.999
+    window: 30d
+    error_budget_minutes_per_30d: 43.2   # 0.1% × 30d
+    burn_rate_alerts:
+      - severity: P2
+        burn_rate: 14.4   # 1h budget burn → 30d budget exhausted in ~2 days
+        window: 1h
+      - severity: P3
+        burn_rate: 6
+        window: 6h
+
+  # =========================================================================
+  # 2. Decision turnaround time — directly maps to CMS-0057-F § IV.B.1
+  # =========================================================================
+  - id: decision-tat
+    title: "p95 case decision TAT < 90 seconds (CMS-0057-F § IV.B.1 hard floor: 7 days)"
+    sli:
+      description: "p95 case latency from POST /run-async to /jobs/{id}.status='done'"
+      prometheus: |
+        histogram_quantile(0.95, sum by (le) (rate(clincase_case_duration_seconds_bucket[5m])))
+    target: 90    # seconds — internal SLO; CMS hard floor is 604800 (7 days)
+    window: 30d
+    burn_rate_alerts:
+      - severity: P2
+        condition: "p95 > 120s for 5m"
+      - severity: P3
+        condition: "p95 > 90s for 1h"
+
+  # =========================================================================
+  # 3. Decision quality — accuracy vs gold-labeled fixture cohort
+  # =========================================================================
+  - id: decision-quality
+    title: "Cohort macro-F1 vs gold labels >= 0.85"
+    sli:
+      description: "Daily eval harness macro-F1 on the fixture cohort"
+      prometheus: |
+        clincase_eval_cohort_macro_f1
+    target: 0.85
+    window: 7d
+    error_budget_consequence: "If F1 dips below 0.85, freeze prod deploys until eval restored."
+    burn_rate_alerts:
+      - severity: P2
+        condition: "F1 < 0.80 on any daily run"
+
+  # =========================================================================
+  # 4. PHI / Guardrail safety — zero tolerance
+  # =========================================================================
+  - id: phi-safety
+    title: "Zero PHI guardrail blocks bypassed in production"
+    sli:
+      description: "Count of agent invocations where PHIInputGuardrail was disabled or returned null"
+      prometheus: |
+        sum(rate(clincase_guardrail_blocked_total{guardrail="phi_input"}[5m]))
+    target: 0
+    window: ever     # zero tolerance
+    burn_rate_alerts:
+      - severity: P1
+        condition: "any single bypass ever"
+        notification: "PagerDuty + email CMO + email security@"
+
+  # =========================================================================
+  # 5. LLM cost — error budget = $$ overage from forecast, not pure %
+  # =========================================================================
+  - id: llm-cost
+    title: "Daily Bedrock cost <= 1.2× baseline (rolling 7d median)"
+    sli:
+      description: "Daily clincase_llm_cost_usd_total vs rolling 7-day median"
+      prometheus: |
+        sum(rate(clincase_llm_cost_usd_total[1d]))
+        /
+        avg_over_time(sum(rate(clincase_llm_cost_usd_total[1d]))[7d:1d])
+    target: 1.2
+    window: rolling-7d
+    burn_rate_alerts:
+      - severity: P2
+        condition: "ratio > 1.5 for 1h"
+      - severity: P3
+        condition: "ratio > 1.2 for 6h"
+
+  # =========================================================================
+  # 6. Queue depth — backlog warning before users notice
+  # =========================================================================
+  - id: queue-depth
+    title: "Queue depth < 200 queued jobs (auto-scale headroom OK)"
+    sli:
+      description: "Current clincase_jobs_queue_depth{status=queued}"
+      prometheus: |
+        max(clincase_jobs_queue_depth{status="queued"})
+    target: 200
+    window: instant
+    burn_rate_alerts:
+      - severity: P2
+        condition: "queue_depth > 200 for 5m"
+      - severity: P3
+        condition: "queue_depth > 500 for 1m"
+
+  # =========================================================================
+  # 7. HITL signoff completeness — SB 1120 / CMS § IV.C
+  # =========================================================================
+  - id: hitl-signoff
+    title: "100% of adverse determinations carry a reviewer signoff (SB 1120)"
+    sli:
+      description: "denies_with_review / total_denies (org-level, daily)"
+      prometheus: |
+        clincase_compliance_sb1120_compliance_pct
+    target: 100
+    window: 1d
+    error_budget_consequence: "Any miss here is a regulatory event; manual review of the case."
+    burn_rate_alerts:
+      - severity: P1
+        condition: "ratio < 100% on any day"
+
+  # =========================================================================
+  # 8. Per-agent performance budget breach rate (round-10 deepening)
+  # =========================================================================
+  - id: agent-perf-budget
+    title: "Per-agent breach rate < 5% over 5 minutes"
+    sli:
+      description: "Fraction of recent agent runs that exceeded their declared p95_latency_budget_ms"
+      prometheus: |
+        sum(rate(clincase_agent_perf_budget_breach_total[5m])) by (agent)
+        /
+        sum(rate(clincase_agent_invocations_total{status="ok"}[5m])) by (agent)
+    target: 0.05
+    window: 5m
+    error_budget_consequence: "An agent that breaches its perf budget consistently is a candidate for either prompt-tuning, model escalation, or budget revision."
+    burn_rate_alerts:
+      - severity: P3
+        condition: "breach rate > 0.05 on any agent for 15m"
+      - severity: P2
+        condition: "breach rate > 0.20 on any agent for 5m"
+
+  # =========================================================================
+  # 9. Per-model circuit breaker open state (round-10 deepening)
+  # =========================================================================
+  - id: circuit-breaker-open
+    title: "No Bedrock model breaker stays OPEN > 5 minutes"
+    sli:
+      description: "Time any breaker spends in state=2 (OPEN) per 5-minute window"
+      prometheus: |
+        clincase_circuit_breaker_state == 2
+    target: 0
+    window: 5m
+    error_budget_consequence: "Sustained OPEN state means Bedrock is unavailable from this region; trigger DR-02 (Bedrock-only outage runbook)."
+    burn_rate_alerts:
+      - severity: P2
+        condition: "any breaker OPEN for > 5m"
+      - severity: P1
+        condition: "all configured Sonnet model breakers OPEN simultaneously"

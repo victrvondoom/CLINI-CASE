@@ -1,0 +1,27 @@
+# Copy to prod.tfvars and fill in real values. NEVER commit prod.tfvars.
+
+aws_region   = "ap-south-1"
+environment  = "prod"
+cost_center  = "AEROFYTA-CLINCASE-PROD"
+
+# Network (output of your VPC + EKS module)
+vpc_id                       = "vpc-0xxxxxxxxxxxxxxxx"
+private_subnet_ids           = ["subnet-aaaa", "subnet-bbbb", "subnet-cccc"]
+eks_node_security_group_id   = "sg-0xxxxxxxxxxxxxxxx"
+
+# EKS cluster identity
+eks_cluster_name             = "clincase-prod"
+k8s_namespace                = "clincase"
+k8s_service_accounts         = ["clincase-api", "clincase-worker"]
+
+# Bedrock model allowlist — ANY new model requires a Terraform change.
+allowed_model_arns = [
+  "arn:aws:bedrock:ap-south-1::foundation-model/apac.anthropic.claude-sonnet-4-6-20251022-v1:0",
+  "arn:aws:bedrock:ap-south-1::foundation-model/apac.anthropic.claude-haiku-4-5-20251001-v1:0",
+]
+
+# Per-tenant Bedrock Guardrail (PHI redaction policy)
+guardrail_arn = "arn:aws:bedrock:ap-south-1:123456789012:guardrail/clincase-phi-redact"
+
+# Audit log retention — CMS-0057-F § IV.D minimum is 7 years
+model_invocation_log_retention_days = 2557

@@ -1,0 +1,48 @@
+{
+  "_meta": {
+    "description": "Site-of-care cost matrix per drug. Production should pull from payer fee schedules + manufacturer copay programs.",
+    "version": "demo-2026.05",
+    "currency": "USD",
+    "source_disclaimer": "DEMO data approximating Magellan Medical Pharmacy Report 2024 + CMS Hospital Outpatient PPS"
+  },
+  "drugs": {
+    "pembrolizumab_200mg_q3w": {
+      "name": "Pembrolizumab 200 mg q3w",
+      "j_code": "J9271",
+      "wac_per_admin_usd": 11500,
+      "sites": {
+        "hospital_outpatient": {"total_cost": 14500, "patient_oop_typical": 2900, "facility_fee": 3850, "site_label": "Hospital outpatient infusion"},
+        "physician_office":    {"total_cost":  9200, "patient_oop_typical":  920, "facility_fee":    0, "site_label": "Community oncology office"},
+        "home_infusion":       {"total_cost":  8400, "patient_oop_typical":  600, "facility_fee":    0, "site_label": "Home infusion (per RN visit)", "eligibility_notes": "Most payers exclude pembro from home infusion due to infusion-reaction monitoring"}
+      }
+    },
+    "trastuzumab_6mgkg_q3w": {
+      "name": "Trastuzumab 6 mg/kg q3w (post-loading)",
+      "j_code": "J9355",
+      "wac_per_admin_usd": 3850,
+      "sites": {
+        "hospital_outpatient": {"total_cost": 5400, "patient_oop_typical": 1080, "facility_fee": 1200, "site_label": "Hospital outpatient infusion"},
+        "physician_office":    {"total_cost": 4100, "patient_oop_typical":  410, "facility_fee":    0, "site_label": "Community oncology office"},
+        "home_infusion":       {"total_cost": 3950, "patient_oop_typical":  395, "facility_fee":    0, "site_label": "Home infusion", "eligibility_notes": "Eligible after first 3 doses for home infusion under most payers"}
+      }
+    },
+    "rituximab_375mgm2_q3w": {
+      "name": "Rituximab 375 mg/m² q3w",
+      "j_code": "J9312",
+      "wac_per_admin_usd": 6800,
+      "sites": {
+        "hospital_outpatient": {"total_cost": 9500, "patient_oop_typical": 1900, "facility_fee": 2100, "site_label": "Hospital outpatient infusion"},
+        "physician_office":    {"total_cost": 7200, "patient_oop_typical":  720, "facility_fee":    0, "site_label": "Community oncology office"},
+        "home_infusion":       {"total_cost": 6900, "patient_oop_typical":  690, "facility_fee":    0, "site_label": "Home infusion", "eligibility_notes": "Eligible after 4th cycle"}
+      }
+    },
+    "olaparib_300mg_bid": {
+      "name": "Olaparib 300 mg PO BID (oral, monthly supply)",
+      "j_code": "J8999",
+      "wac_per_admin_usd": 17000,
+      "sites": {
+        "specialty_pharmacy": {"total_cost": 17000, "patient_oop_typical": 3400, "facility_fee": 0, "site_label": "Specialty pharmacy", "eligibility_notes": "Oral; specialty pharmacy is the only site"}
+      }
+    }
+  }
+}

@@ -1,0 +1,80 @@
+{
+  "_meta": {
+    "description": "Snapshot of recent payer policy changes for oncology drugs. Production should be populated by a scheduled crawler.",
+    "version": "demo-2026.05",
+    "snapshots_taken_at": "2026-05-06T14:32:00Z"
+  },
+  "diffs": [
+    {
+      "payer": "UnitedHealthcare",
+      "treatment": "pembrolizumab",
+      "policy_id": "UHC-MNG-1027",
+      "version_old": "v2024.11",
+      "version_new": "v2026.05",
+      "changed_at": "2026-05-05T14:32:00Z",
+      "summary": "Added TMB-H tumor-agnostic indication; removed prior step-therapy with chemotherapy for MSI-H solid tumors.",
+      "diff": [
+        {"action": "added",   "section": "Indications", "text": "TMB-H (≥10 mut/Mb) solid tumors per FDA tumor-agnostic approval (KEYNOTE-158)."},
+        {"action": "removed", "section": "Step Therapy","text": "Trial of platinum-based chemotherapy required prior to pembrolizumab for MSI-H tumors."},
+        {"action": "modified","section": "Documentation","text": "Now requires MSI/dMMR or TMB report from CLIA-certified lab; FoundationOne CDx, MSK-IMPACT, or Tempus xT accepted."}
+      ],
+      "in_flight_pas_affected": 47
+    },
+    {
+      "payer": "Aetna",
+      "treatment": "olaparib",
+      "policy_id": "AETNA-CPB-0084",
+      "version_old": "v2024.08",
+      "version_new": "v2026.04",
+      "changed_at": "2026-04-29T09:15:00Z",
+      "summary": "Expanded BRCA testing requirement to include somatic + germline; HRD positivity now sufficient for ovarian.",
+      "diff": [
+        {"action": "added",   "section": "Indications", "text": "HRD-positive ovarian cancer maintenance (post-platinum response), independent of BRCA status."},
+        {"action": "modified","section": "Testing",     "text": "BRCA1/2 testing now accepts germline OR somatic; previously germline-only."},
+        {"action": "added",   "section": "References",  "text": "Cite NCCN OVAR-PARP and FDA approval (Dec 2018, expanded 2022)."}
+      ],
+      "in_flight_pas_affected": 12
+    },
+    {
+      "payer": "BCBS",
+      "treatment": "palbociclib",
+      "policy_id": "BCBS-RX-PAL-04",
+      "version_old": "v2025.01",
+      "version_new": "v2026.03",
+      "changed_at": "2026-03-18T11:00:00Z",
+      "summary": "Now accepts ribociclib or abemaciclib as alternative CDK4/6i; second-line eligibility expanded.",
+      "diff": [
+        {"action": "added",   "section": "Alternatives", "text": "Ribociclib + AI and abemaciclib + AI accepted as therapeutically equivalent first-line."},
+        {"action": "modified","section": "Line of Therapy", "text": "Second-line eligibility no longer requires endocrine resistance documentation; progression-on-prior-line is sufficient."}
+      ],
+      "in_flight_pas_affected": 19
+    },
+    {
+      "payer": "Anthem",
+      "treatment": "trastuzumab deruxtecan (T-DXd)",
+      "policy_id": "ANTHEM-MED-T-DXD-2026",
+      "version_old": "v2025.06",
+      "version_new": "v2026.04",
+      "changed_at": "2026-04-22T16:45:00Z",
+      "summary": "HER2-low (IHC 1+ or IHC 2+/ISH-) breast cancer indication added.",
+      "diff": [
+        {"action": "added", "section": "Indications", "text": "HER2-low metastatic breast cancer (≥1 prior chemo); IHC 1+ or IHC 2+/ISH- accepted per DESTINY-Breast04."},
+        {"action": "added", "section": "Documentation", "text": "Pathology report with HER2 IHC + ISH (if IHC 2+) required."}
+      ],
+      "in_flight_pas_affected": 8
+    },
+    {
+      "payer": "Cigna",
+      "treatment": "adagrasib",
+      "policy_id": "CIGNA-COV-ADAG-2026",
+      "version_old": "v2025.03",
+      "version_new": "v2026.04",
+      "changed_at": "2026-04-15T08:00:00Z",
+      "summary": "First-line use restricted to KRAS G12C-mutant NSCLC patients ineligible for sotorasib (rare).",
+      "diff": [
+        {"action": "modified","section": "Step Therapy","text": "Sotorasib is now preferred first-line; adagrasib reserved for sotorasib intolerance or progression."}
+      ],
+      "in_flight_pas_affected": 3
+    }
+  ]
+}

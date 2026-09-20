@@ -1,0 +1,190 @@
+# =============================================================================
+# AWS Bedrock AgentCore — ClinCase deployment manifest
+# =============================================================================
+#
+# AWS Bedrock AgentCore went GA October 2025; available in ap-south-1 (Mumbai)
+# as of early 2026. Unlike raw Bedrock Agents, AgentCore is framework-agnostic
+# (LangGraph, CrewAI, LlamaIndex, Strands all supported) and ships seven
+# production primitives: Runtime, Memory, Gateway, Identity, Observability,
+# Browser tool, Code Interpreter.
+#
+# This manifest maps ClinCase's 7 LangGraph parents onto AgentCore Runtime
+# resources and wraps the ClinCase MCP server with AgentCore Gateway. It is
+# intentionally a stub — the production application of this requires the
+# AWS account team to enable AgentCore in the target region. Apply via:
+#
+#   ../../terraform/agentcore/   (TODO once accounts are provisioned)
+#
+# References:
+#   https://aws.amazon.com/about-aws/whats-new/2025/10/amazon-bedrock-agentcore-available/
+#   https://aws.amazon.com/bedrock/agentcore/
+#   https://repost.aws/questions/QUjkf4WbikQ6WrpuH9sppjnw/bedrock-agents-vs-bedrock-agentcore
+#
+# Why ship this even before applying:
+#   • reviewers asking "what's the AWS-native production deployment
+#     story?" get a concrete artifact, not a hand-wave.
+#   • Pre-stub future-proofs the migration — when AWS account team flips
+#     AgentCore on for our region, this is `terraform apply` away.
+
+apiVersion: bedrock-agentcore/v1
+kind: AgentDeployment
+metadata:
+  name: clincase
+  region: ap-south-1
+  account_id: "REPLACE_AT_APPLY"
+  tags:
+    Project: ClinCase
+    Environment: prod
+    CostCenter: AEROFYTA-CLINCASE
+
+# =============================================================================
+# AgentCore Runtime — one Runtime resource per LangGraph parent agent
+# =============================================================================
+#
+# Why one Runtime per parent (not per sub-agent):
+#   • A Runtime is the fault-isolation boundary. Putting a parent + its
+#     sub-agents in the same Runtime means a sub-agent crash doesn't take
+#     down a sibling parent's invocation.
+#   • AgentCore Runtimes support up to 8-hour long-running workloads —
+#     more than enough for any single ClinCase case (p99 ~90 seconds).
+#   • Sub-agents stay co-located in the parent's Runtime via the LangGraph
+#     orchestrator's _execute_deterministic dispatch (cheap intra-process call).
+
+runtimes:
+  - name: clincase-clinical-extractor
+    framework: langgraph
+    image: 123456789012.dkr.ecr.ap-south-1.amazonaws.com/clincase/worker:latest
+    entrypoint: ["python", "-m", "app.agents.clinical_extractor"]
+    cpu: 1024
+    memory_mb: 2048
+    session_timeout_seconds: 600
+    max_concurrent_sessions: 50
+    iam_role_arn: arn:aws:iam::REPLACE_AT_APPLY:role/clincase-agentcore-runtime
+  - name: clincase-policy-retriever
+    framework: langgraph
+    image: 123456789012.dkr.ecr.ap-south-1.amazonaws.com/clincase/worker:latest
+    entrypoint: ["python", "-m", "app.agents.policy_retriever"]
+    cpu: 1024
+    memory_mb: 2048
+    session_timeout_seconds: 600
+    max_concurrent_sessions: 100
+  - name: clincase-necessity-reasoner
+    framework: langgraph
+    image: 123456789012.dkr.ecr.ap-south-1.amazonaws.com/clincase/worker:latest
+    entrypoint: ["python", "-m", "app.agents.necessity_reasoner"]
+    cpu: 2048
+    memory_mb: 4096
+    session_timeout_seconds: 600
+    max_concurrent_sessions: 50
+  - name: clincase-decision-composer
+    framework: langgraph
+    image: 123456789012.dkr.ecr.ap-south-1.amazonaws.com/clincase/worker:latest
+    entrypoint: ["python", "-m", "app.agents.decision_composer"]
+    cpu: 1024
+    memory_mb: 2048
+    session_timeout_seconds: 600
+    max_concurrent_sessions: 50
+  - name: clincase-denial-forecaster
+    framework: langgraph
+    image: 123456789012.dkr.ecr.ap-south-1.amazonaws.com/clincase/worker:latest
+    entrypoint: ["python", "-m", "app.agents.denial_forecaster"]
+    cpu: 1024
+    memory_mb: 2048
+    session_timeout_seconds: 600
+    max_concurrent_sessions: 25
+  - name: clincase-appeals-drafter
+    framework: langgraph
+    image: 123456789012.dkr.ecr.ap-south-1.amazonaws.com/clincase/worker:latest
+    entrypoint: ["python", "-m", "app.agents.appeals_drafter"]
+    cpu: 2048
+    memory_mb: 4096
+    session_timeout_seconds: 600
+    max_concurrent_sessions: 25
+  - name: clincase-patient-communicator
+    framework: langgraph
+    image: 123456789012.dkr.ecr.ap-south-1.amazonaws.com/clincase/worker:latest
+    entrypoint: ["python", "-m", "app.agents.patient_communicator"]
+    cpu: 1024
+    memory_mb: 2048
+    session_timeout_seconds: 300
+    max_concurrent_sessions: 50
+
+# =============================================================================
+# AgentCore Memory — per-case session + long-term cohort
+# =============================================================================
+memory:
+  session:
+    name: clincase-case-session
+    ttl_hours: 24
+    purpose: "Per-case scratch shared by all 7 parent runtimes during one DAG run."
+  long_term:
+    name: clincase-cohort
+    purpose: "Cross-case patterns surfaced to denial_forecaster's probability_estimator (payer-specific priors)."
+    retention_days: 730
+    encryption_kms_key: arn:aws:kms:ap-south-1:REPLACE_AT_APPLY:key/clincase-multi-region
+
+# =============================================================================
+# AgentCore Gateway — wraps the ClinCase MCP server
+# =============================================================================
+gateway:
+  name: clincase-mcp-gateway
+  upstream:
+    type: mcp
+    endpoint: https://api.clincase.example.com/mcp
+    protocol_version: "2024-11-05"
+    auth: bearer  # token sourced from AWS Secrets Manager
+  exposed_tools:
+    - policy_lookup
+    - clinical_extract
+    - decision_check
+    - appeal_draft
+    - audit_query
+  consumers:
+    - cognizant-trizetto-ai-gateway
+    - claude-desktop-cognizant-internal
+    - amazon-q-business-clincase-app
+
+# =============================================================================
+# AgentCore Identity — IAM Identity Center federation
+# =============================================================================
+identity:
+  provider: AWS IAM Identity Center
+  trusted_principals:
+    - "arn:aws:iam::COGNIZANT_TRIZETTO_AWS_ACCT:role/trizetto-ai-gateway-role"
+    - "arn:aws:iam::COGNIZANT_NEURO_AWS_ACCT:role/neuro-multi-agent-accelerator-role"
+  delegation_policy: "least-privilege per agent (per AgentCore Identity docs)"
+
+# =============================================================================
+# AgentCore Observability — CloudWatch + AWS Distro for OpenTelemetry
+# =============================================================================
+observability:
+  cloudwatch_namespace: AWS/AgentCore/ClinCase
+  custom_metrics:
+    - clincase_jobs_queue_depth
+    - clincase_agent_invocations_total
+    - clincase_llm_cost_usd_total
+    - clincase_compliance_in_force_satisfied
+  trace_export: aws-distro-opentelemetry  # X-Ray + CloudWatch Logs Insights
+  log_retention_days: 2555  # 7-year HIPAA
+
+# =============================================================================
+# Bedrock provisioned throughput pinning
+# =============================================================================
+provisioned_throughput:
+  terraform_module: ../../terraform/provisioned-throughput/
+  sonnet_model_units: 1
+  haiku_model_units: 1
+  commitment_duration: OneMonth
+
+# =============================================================================
+# Apply order (when AWS account team enables AgentCore in our region)
+# =============================================================================
+apply_order:
+  - "1. Terraform — provisioned-throughput (ops/terraform/provisioned-throughput/)"
+  - "2. Terraform — IAM Identity Center trust + KMS multi-region key"
+  - "3. AgentCore Memory resources (session + long-term)"
+  - "4. AgentCore Runtimes (one per parent)"
+  - "5. AgentCore Gateway (wraps existing /mcp endpoint)"
+  - "6. AgentCore Observability (CloudWatch namespace + alarms)"
+  - "7. Smoke test against ap-south-1 with one synthetic oncology case"
+  - "8. Cut over from raw Bedrock InvokeModel to AgentCore Runtime via env var"

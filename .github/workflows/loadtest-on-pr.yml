@@ -1,0 +1,59 @@
+name: loadtest-on-pr
+
+# Triggered manually or when a PR carries the `loadtest` label.
+# Runs k6 scenarios against staging; comments the report back on the PR.
+
+on:
+  pull_request:
+    types: [labeled, synchronize]
+  workflow_dispatch:
+
+jobs:
+  k6:
+    if: contains(github.event.pull_request.labels.*.name, 'loadtest') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents:      read
+      pull-requests: write
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Run healthz_burst
+      uses: grafana/k6-action@v0.3.1
+      with:
+        filename: ops/loadtest/scenarios/healthz_burst.js
+      env:
+        API_BASE: ${{ secrets.STAGING_API_URL }}
+
+    - name: Run architecture_layers
+      uses: grafana/k6-action@v0.3.1
+      with:
+        filename: ops/loadtest/scenarios/architecture_layers.js
+      env:
+        API_BASE: ${{ secrets.STAGING_API_URL }}
+        USER:     ${{ secrets.LOADTEST_USER }}
+        PASS:     ${{ secrets.LOADTEST_PASS }}
+
+    - name: Run case_create_steady
+      uses: grafana/k6-action@v0.3.1
+      with:
+        filename: ops/loadtest/scenarios/case_create_steady.js
+      env:
+        API_BASE: ${{ secrets.STAGING_API_URL }}
+        USER:     ${{ secrets.LOADTEST_USER }}
+        PASS:     ${{ secrets.LOADTEST_PASS }}
+
+    - name: Comment summary on PR
+      if: always() && github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const summary = "k6 load tests completed for this PR. See workflow logs for thresholds.";
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: summary,
+          });

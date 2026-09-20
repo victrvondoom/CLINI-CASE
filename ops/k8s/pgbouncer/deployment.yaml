@@ -1,0 +1,104 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pgbouncer-writer
+  namespace: clincase
+  labels:
+    app.kubernetes.io/name: pgbouncer
+    app.kubernetes.io/component: writer-pool
+spec:
+  replicas: 2                          # HA, behind PDB
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pgbouncer
+      app.kubernetes.io/component: writer-pool
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: pgbouncer
+        app.kubernetes.io/component: writer-pool
+    spec:
+      containers:
+      - name: pgbouncer
+        image: edoburu/pgbouncer:1.23.1
+        ports: [{ containerPort: 6432, name: pg }]
+        env:
+        - { name: DB_USER,          valueFrom: { secretKeyRef: { name: clincase-db-master, key: username } } }
+        - { name: DB_PASSWORD,      valueFrom: { secretKeyRef: { name: clincase-db-master, key: password } } }
+        volumeMounts:
+        - { name: config,    mountPath: /etc/pgbouncer/pgbouncer.ini, subPath: pgbouncer.ini }
+        - { name: userlist,  mountPath: /etc/pgbouncer/userlist.txt,  subPath: userlist.txt }
+        livenessProbe:
+          tcpSocket: { port: 6432 }
+          periodSeconds: 10
+        readinessProbe:
+          exec:
+            command: ["psql", "-h", "127.0.0.1", "-p", "6432", "-U", "pgbouncer", "-d", "pgbouncer", "-c", "SHOW POOLS"]
+          periodSeconds: 5
+        resources:
+          requests: { cpu: "100m",  memory: "64Mi" }
+          limits:   { cpu: "500m",  memory: "256Mi" }
+      volumes:
+      - { name: config,   configMap: { name: pgbouncer-config } }
+      - { name: userlist, secret:    { secretName: pgbouncer-userlist } }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pgbouncer-reader
+  namespace: clincase
+  labels:
+    app.kubernetes.io/name: pgbouncer
+    app.kubernetes.io/component: reader-pool
+spec:
+  replicas: 2
+  strategy: { type: RollingUpdate, rollingUpdate: { maxSurge: 1, maxUnavailable: 0 } }
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pgbouncer
+      app.kubernetes.io/component: reader-pool
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: pgbouncer
+        app.kubernetes.io/component: reader-pool
+    spec:
+      containers:
+      - name: pgbouncer
+        image: edoburu/pgbouncer:1.23.1
+        ports: [{ containerPort: 6432, name: pg }]
+        env:
+        - { name: DB_USER,     valueFrom: { secretKeyRef: { name: clincase-db-master, key: username } } }
+        - { name: DB_PASSWORD, valueFrom: { secretKeyRef: { name: clincase-db-master, key: password } } }
+        volumeMounts:
+        - { name: config,    mountPath: /etc/pgbouncer/pgbouncer.ini, subPath: pgbouncer.ini }
+        - { name: userlist,  mountPath: /etc/pgbouncer/userlist.txt,  subPath: userlist.txt }
+        readinessProbe:
+          exec: { command: ["psql", "-h", "127.0.0.1", "-p", "6432", "-U", "pgbouncer", "-d", "pgbouncer", "-c", "SHOW POOLS"] }
+          periodSeconds: 5
+        resources:
+          requests: { cpu: "100m",  memory: "64Mi" }
+          limits:   { cpu: "500m",  memory: "256Mi" }
+      volumes:
+      - { name: config,   configMap: { name: pgbouncer-config } }
+      - { name: userlist, secret:    { secretName: pgbouncer-userlist } }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: { name: pgbouncer-writer, namespace: clincase }
+spec:
+  minAvailable: 1
+  selector: { matchLabels: { app.kubernetes.io/name: pgbouncer, app.kubernetes.io/component: writer-pool } }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: { name: pgbouncer-reader, namespace: clincase }
+spec:
+  minAvailable: 1
+  selector: { matchLabels: { app.kubernetes.io/name: pgbouncer, app.kubernetes.io/component: reader-pool } }

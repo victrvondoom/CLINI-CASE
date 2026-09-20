@@ -1,0 +1,434 @@
+{
+  "_note": "ClinCase demo policy corpus. Hand-curated, NCCN-aligned criteria. Not verbatim from any payer's CPB. For demo use only. Coverage: 4 payers (Aetna, UHC, BCBS, Anthem) × top oncology treatments. Cross-payer coverage of trastuzumab, pembrolizumab, and osimertinib enables real multi-payer arbitration in the Compare flow.",
+  "policies": [
+    {
+      "payer_id": "aetna",
+      "policy_id": "0048",
+      "policy_title": "Trastuzumab (Herceptin) for HER2-Positive Breast Cancer",
+      "source_url": "https://www.aetna.com/cpb/medical/data/0048.html",
+      "treatment_keywords": ["trastuzumab", "herceptin"],
+      "sections": [
+        {
+          "heading": "Initial Authorization Criteria",
+          "page_number": 2,
+          "text": "Aetna considers trastuzumab medically necessary for the treatment of patients with HER2-positive breast cancer when ALL of the following criteria are met: (1) Pathologic confirmation of breast cancer with HER2 overexpression, defined as immunohistochemistry (IHC) score of 3+, OR in-situ hybridization (ISH) demonstrating HER2 gene amplification (HER2:CEP17 ratio greater than or equal to 2.0, OR average HER2 copy number greater than or equal to 6.0 signals per cell). (2) For early-stage (Stage I-III) disease, treatment is given in the adjuvant or neoadjuvant setting in combination with chemotherapy. (3) For metastatic (Stage IV) disease, trastuzumab may be given as a single agent or in combination with chemotherapy or endocrine therapy. (4) Adequate baseline cardiac function defined as left ventricular ejection fraction (LVEF) greater than or equal to 50 percent by echocardiogram or MUGA scan, performed within 60 days of treatment initiation. If patient has prior anthracycline exposure, LVEF assessment required within 30 days. (5) ECOG performance status of 0, 1, or 2."
+        },
+        {
+          "heading": "Continuation Criteria",
+          "page_number": 4,
+          "text": "Continuation of trastuzumab beyond initial authorization requires ALL of the following: (1) Documented stable or improving disease on imaging at the most recent re-evaluation. (2) LVEF reassessment every 3 months during therapy showing LVEF greater than or equal to 45 percent with no symptomatic heart failure. (3) Adjuvant duration is limited to 12 months total unless the patient is enrolled in an approved extended-duration protocol."
+        },
+        {
+          "heading": "Exclusions",
+          "page_number": 5,
+          "text": "Trastuzumab is not considered medically necessary in the following circumstances: HER2-negative tumors (IHC 0 or 1+, OR ISH non-amplified); patients with baseline LVEF below 50 percent; symptomatic heart failure (NYHA class II-IV) at baseline; concurrent anthracycline chemotherapy administration in the metastatic setting; uncontrolled hypertension."
+        }
+      ]
+    },
+    {
+      "payer_id": "aetna",
+      "policy_id": "0468",
+      "policy_title": "Fam-Trastuzumab Deruxtecan (Enhertu, T-DXd) for HER2-Positive Breast Cancer",
+      "source_url": "https://www.aetna.com/cpb/medical/data/0468.html",
+      "treatment_keywords": ["trastuzumab deruxtecan", "T-DXd", "enhertu", "fam-trastuzumab"],
+      "sections": [
+        {
+          "heading": "Indications and Initial Criteria",
+          "page_number": 2,
+          "text": "Aetna considers trastuzumab deruxtecan (T-DXd) medically necessary for adult patients with unresectable or metastatic HER2-positive breast cancer when ALL of the following are met: (1) Confirmed HER2-positive status per IHC 3+ or ISH amplified, OR HER2-low (IHC 1+ or 2+/ISH-negative) for the HER2-low indication. (2) Patient has received at least one prior anti-HER2-based regimen in the metastatic setting (typically trastuzumab plus pertuzumab plus a taxane), OR developed metastatic disease within 6 months of completing adjuvant therapy that included trastuzumab. (3) Adequate baseline cardiac function with LVEF greater than or equal to 50 percent. (4) ECOG performance status 0-2. (5) No history of interstitial lung disease (ILD) requiring steroids."
+        },
+        {
+          "heading": "Monitoring and ILD Risk",
+          "page_number": 4,
+          "text": "All patients receiving T-DXd require pulmonary surveillance: baseline chest CT, monitoring for new respiratory symptoms (cough, dyspnea, fever) at every cycle. ILD/pneumonitis suspicion mandates immediate hold and pulmonology consultation. Grade 2 or higher ILD requires permanent discontinuation."
+        }
+      ]
+    },
+    {
+      "payer_id": "aetna",
+      "policy_id": "0421",
+      "policy_title": "Olaparib (Lynparza) for BRCA-Mutated Cancers",
+      "source_url": "https://www.aetna.com/cpb/medical/data/0421.html",
+      "treatment_keywords": ["olaparib", "lynparza"],
+      "sections": [
+        {
+          "heading": "Ovarian Cancer Maintenance Therapy",
+          "page_number": 2,
+          "text": "Aetna considers olaparib medically necessary as maintenance therapy in adult patients with epithelial ovarian, fallopian tube, or primary peritoneal cancer when ALL of the following are met: (1) Deleterious or suspected deleterious germline OR somatic BRCA1/2 mutation, confirmed by FDA-approved companion diagnostic. (2) Complete or partial response to first-line platinum-based chemotherapy. (3) Initiation no later than 8 weeks after completing the last dose of platinum chemotherapy. (4) ECOG performance status 0-2. (5) Adequate hematologic, renal, and hepatic function (specifically: ANC greater than or equal to 1500/uL, platelets greater than or equal to 100000/uL, hemoglobin greater than or equal to 10 g/dL, creatinine clearance greater than or equal to 51 mL/min)."
+        },
+        {
+          "heading": "Breast and Prostate Indications",
+          "page_number": 4,
+          "text": "For HER2-negative metastatic breast cancer with germline BRCA1/2 mutation: prior chemotherapy in the neoadjuvant, adjuvant, or metastatic setting required. For metastatic castration-resistant prostate cancer with HRR mutation: progression on prior enzalutamide or abiraterone required."
+        }
+      ]
+    },
+    {
+      "payer_id": "aetna",
+      "policy_id": "0721",
+      "policy_title": "Ribociclib (Kisqali) for HR+/HER2- Advanced Breast Cancer",
+      "source_url": "https://www.aetna.com/cpb/medical/data/0721.html",
+      "treatment_keywords": ["ribociclib", "kisqali", "cdk4/6"],
+      "sections": [
+        {
+          "heading": "First-Line Combination Therapy Criteria",
+          "page_number": 2,
+          "text": "Aetna considers ribociclib in combination with an aromatase inhibitor or fulvestrant medically necessary for HR-positive, HER2-negative locally advanced or metastatic breast cancer when ALL of the following are met: (1) ER-positive and/or PR-positive by IHC (greater than or equal to 1 percent positive nuclei). (2) HER2-negative by IHC (0 or 1+) or ISH non-amplified. (3) Postmenopausal status, OR pre/perimenopausal women receiving concurrent ovarian suppression with an LHRH agonist. (4) ECOG performance status 0-2. (5) Adequate hepatic function (ALT/AST less than 3x ULN). (6) Baseline ECG with QTcF less than 450 ms."
+        },
+        {
+          "heading": "Cardiac Monitoring",
+          "page_number": 4,
+          "text": "All patients require ECG at baseline, day 14 of cycle 1, and start of cycle 2. Ribociclib should be held for QTcF greater than 480 ms and discontinued for QTcF greater than 500 ms or torsade de pointes."
+        }
+      ]
+    },
+    {
+      "payer_id": "aetna",
+      "policy_id": "0556",
+      "policy_title": "Pembrolizumab (Keytruda) for Solid Tumors",
+      "source_url": "https://www.aetna.com/cpb/medical/data/0556.html",
+      "treatment_keywords": ["pembrolizumab", "keytruda"],
+      "sections": [
+        {
+          "heading": "Initial Criteria - Indication-Specific",
+          "page_number": 1,
+          "text": "Aetna considers pembrolizumab medically necessary for ANY of the following indications when accompanying criteria are met: (A) Metastatic NSCLC with PD-L1 TPS greater than or equal to 50 percent (first-line monotherapy) OR PD-L1 TPS greater than or equal to 1 percent (combination with chemotherapy), no EGFR/ALK/ROS1 alterations. (B) Microsatellite instability-high (MSI-H) or dMMR unresectable or metastatic solid tumors after progression on prior systemic therapy. (C) Unresectable or metastatic melanoma, BRAF status notwithstanding. (D) Tumor mutational burden-high (TMB-H, greater than or equal to 10 mutations per megabase). (E) Triple-negative breast cancer with PD-L1 CPS greater than or equal to 10 (combination with chemotherapy)."
+        },
+        {
+          "heading": "Baseline Workup and Exclusions",
+          "page_number": 3,
+          "text": "Required baseline: CBC, CMP, TSH and free T4, serum cortisol, ECOG 0-2. Exclusions: active autoimmune disease requiring systemic immunosuppression greater than 10 mg prednisone equivalent daily; symptomatic interstitial lung disease; active untreated CNS metastases (treated/stable allowed); prior allogeneic stem cell or solid organ transplant."
+        }
+      ]
+    },
+    {
+      "payer_id": "aetna",
+      "policy_id": "0613",
+      "policy_title": "Osimertinib (Tagrisso) for EGFR-Mutated NSCLC",
+      "source_url": "https://www.aetna.com/cpb/medical/data/0613.html",
+      "treatment_keywords": ["osimertinib", "tagrisso"],
+      "sections": [
+        {
+          "heading": "Authorization Criteria",
+          "page_number": 2,
+          "text": "Aetna considers osimertinib medically necessary for adult patients with non-small cell lung cancer when ALL of the following are met: (1) Pathologic diagnosis of NSCLC. (2) Tumor harbors a sensitizing EGFR mutation: exon 19 deletion, exon 21 L858R substitution, or T790M resistance mutation, confirmed by FDA-approved companion diagnostic on tumor tissue or plasma cfDNA. (3) For first-line: locally advanced (Stage III, ineligible for definitive chemoradiation) or metastatic (Stage IV) disease. (4) For adjuvant after curative-intent resection: Stage IB-IIIA NSCLC with EGFR exon 19del or L858R; completion of adjuvant chemotherapy if indicated. (5) ECOG performance status 0-2. (6) No active interstitial lung disease."
+        }
+      ]
+    },
+    {
+      "payer_id": "uhc",
+      "policy_id": "OnCG-2025-D045",
+      "policy_title": "Osimertinib (Tagrisso) for EGFR-Mutated Non-Small Cell Lung Cancer",
+      "source_url": "https://www.uhcprovider.com/policies/oncology/osimertinib",
+      "treatment_keywords": ["osimertinib", "tagrisso"],
+      "sections": [
+        {
+          "heading": "Medical Necessity Criteria",
+          "page_number": 1,
+          "text": "UnitedHealthcare considers osimertinib medically necessary for adult patients with non-small cell lung cancer (NSCLC) meeting ALL of the following: (1) Pathologic diagnosis of NSCLC. (2) Tumor harbors a sensitizing EGFR mutation (specifically, exon 19 deletion OR L858R substitution OR T790M resistance mutation), confirmed by FDA-approved companion diagnostic. (3) For first-line therapy: locally advanced (Stage III) or metastatic (Stage IV) disease. (4) For adjuvant therapy after curative-intent resection: Stage IB-IIIA NSCLC with EGFR exon 19 deletion or L858R, completion of adjuvant chemotherapy if indicated. (5) ECOG performance status 0-2. (6) No active interstitial lung disease."
+        },
+        {
+          "heading": "Discontinuation",
+          "page_number": 3,
+          "text": "Discontinue osimertinib for: progressive disease per RECIST 1.1; severe interstitial lung disease (Grade 3 or higher); QTc prolongation greater than 500 ms not resolving with management; symptomatic cardiac failure with LVEF decline greater than 10 percent from baseline."
+        }
+      ]
+    },
+    {
+      "payer_id": "uhc",
+      "policy_id": "OnCG-2025-D012",
+      "policy_title": "Trastuzumab (Herceptin) for HER2-Positive Breast and Gastric Cancer",
+      "source_url": "https://www.uhcprovider.com/policies/oncology/trastuzumab",
+      "treatment_keywords": ["trastuzumab", "herceptin"],
+      "sections": [
+        {
+          "heading": "Initial Authorization - Breast Cancer",
+          "page_number": 2,
+          "text": "UnitedHealthcare considers trastuzumab medically necessary for HER2-positive breast cancer when ALL apply: (1) HER2 positivity confirmed by IHC 3+ or by ISH HER2:CEP17 ratio greater than or equal to 2.0 (or HER2 copy number greater than or equal to 6.0). Concurrent re-test required if initial test was indeterminate (IHC 2+/ISH not performed). (2) For Stage I-III: combined with neoadjuvant or adjuvant chemotherapy backbone (typically taxane-containing). (3) For Stage IV (metastatic): permitted as monotherapy or in combination with chemotherapy/endocrine therapy/pertuzumab. (4) Baseline LVEF greater than or equal to 50 percent by echocardiogram or MUGA, within 90 days of initiation. (5) ECOG 0-2. (6) Submission of HER2 pathology report and most recent imaging."
+        },
+        {
+          "heading": "Gastric Cancer Indication",
+          "page_number": 4,
+          "text": "For HER2-positive metastatic gastric or gastroesophageal junction adenocarcinoma: trastuzumab in combination with cisplatin and a fluoropyrimidine (5-FU or capecitabine) is medically necessary as first-line systemic therapy. HER2 confirmation by IHC 3+ or ISH amplified per gastric-specific scoring."
+        },
+        {
+          "heading": "Continuation and Cardiac Surveillance",
+          "page_number": 5,
+          "text": "Authorization renews every 6 months. LVEF reassessment every 3 months. Hold trastuzumab for asymptomatic LVEF drop of greater than or equal to 16 percent from baseline OR LVEF below 50 percent with greater than or equal to 10 percent decline. Resumption requires LVEF recovery."
+        }
+      ]
+    },
+    {
+      "payer_id": "uhc",
+      "policy_id": "OnCG-2025-D098",
+      "policy_title": "Pembrolizumab (Keytruda) for Multi-Tumor Immunotherapy",
+      "source_url": "https://www.uhcprovider.com/policies/oncology/pembrolizumab",
+      "treatment_keywords": ["pembrolizumab", "keytruda"],
+      "sections": [
+        {
+          "heading": "Tumor-Specific Authorization",
+          "page_number": 2,
+          "text": "UnitedHealthcare considers pembrolizumab medically necessary for ANY of the following with required biomarker documentation: (A) Metastatic or unresectable NSCLC with PD-L1 TPS greater than or equal to 1 percent (combination with platinum-based chemotherapy) OR TPS greater than or equal to 50 percent (first-line monotherapy); EGFR/ALK/ROS1 wild-type. (B) Recurrent or metastatic head and neck squamous cell carcinoma with PD-L1 CPS greater than or equal to 1 (first-line, with or without platinum + 5-FU). (C) Microsatellite instability-high (MSI-H) or mismatch repair deficient (dMMR) solid tumor of any origin, after at least one prior line of therapy or as first-line for colorectal. (D) Unresectable or metastatic melanoma. (E) Advanced renal cell carcinoma (combination with axitinib OR lenvatinib)."
+        },
+        {
+          "heading": "Required Submissions",
+          "page_number": 3,
+          "text": "Authorization requests must include: pathology report with IHC for PD-L1 (Dako 22C3 assay or equivalent FDA-approved diagnostic) showing TPS or CPS as applicable, OR MSI/MMR testing results; ECOG performance status; baseline labs (CBC, CMP, TSH, free T4); statement on autoimmune disease history; relevant imaging documenting unresectable or metastatic status."
+        }
+      ]
+    },
+    {
+      "payer_id": "uhc",
+      "policy_id": "OnCG-2025-D108",
+      "policy_title": "Enzalutamide (Xtandi) for Castration-Resistant Prostate Cancer",
+      "source_url": "https://www.uhcprovider.com/policies/oncology/enzalutamide",
+      "treatment_keywords": ["enzalutamide", "xtandi"],
+      "sections": [
+        {
+          "heading": "Authorization Criteria",
+          "page_number": 1,
+          "text": "UnitedHealthcare considers enzalutamide medically necessary for adult men with prostate cancer when ANY of the following indications apply, with criteria below met: (A) Metastatic castration-resistant prostate cancer (mCRPC). (B) Non-metastatic castration-resistant prostate cancer (nmCRPC) with PSA doubling time of 10 months or less. (C) Metastatic castration-sensitive prostate cancer (mCSPC) in combination with androgen deprivation therapy. ALL: (1) Histologic confirmation of prostate adenocarcinoma. (2) Surgical or chemical castration ongoing (testosterone less than 50 ng/dL). (3) ECOG 0-2. (4) No history of seizures or factors predisposing to seizures (significant brain injury, stroke within 6 months)."
+        },
+        {
+          "heading": "Concurrent Therapy Restrictions",
+          "page_number": 2,
+          "text": "Enzalutamide must NOT be used concurrently with abiraterone or other novel hormonal agents (apalutamide, darolutamide). Sequential use after progression on one of these agents is generally not covered without exception based on documented mechanism of resistance."
+        }
+      ]
+    },
+    {
+      "payer_id": "uhc",
+      "policy_id": "OnCG-2025-D211",
+      "policy_title": "Lorlatinib (Lorbrena) for ALK-Positive NSCLC",
+      "source_url": "https://www.uhcprovider.com/policies/oncology/lorlatinib",
+      "treatment_keywords": ["lorlatinib", "lorbrena", "alk"],
+      "sections": [
+        {
+          "heading": "Initial Authorization",
+          "page_number": 1,
+          "text": "UnitedHealthcare considers lorlatinib medically necessary for metastatic NSCLC with ALK rearrangement when ALL apply: (1) Pathologic NSCLC diagnosis. (2) ALK rearrangement confirmed by FDA-approved companion diagnostic (FISH, IHC, or NGS). (3) For first-line: stage IV disease. (4) For second-line and beyond: progression on or intolerance of one or more prior ALK tyrosine kinase inhibitors (alectinib, brigatinib, ceritinib, or crizotinib). (5) ECOG 0-2. (6) Adequate hepatic and lipid function (LDL less than 190 mg/dL or actively managed)."
+        },
+        {
+          "heading": "CNS and Lipid Monitoring",
+          "page_number": 2,
+          "text": "Baseline brain MRI required prior to initiation. Lipid panel at baseline and every 2 weeks for the first 2 months. Cognitive assessment at baseline; document and reassess if behavioral or mood changes occur. Hold for Grade 3 or higher CNS effects, severe hyperlipidemia, or AV block."
+        }
+      ]
+    },
+    {
+      "payer_id": "bcbs",
+      "policy_id": "PA-2025-014",
+      "policy_title": "Pembrolizumab (Keytruda) for Solid Tumors",
+      "source_url": "https://www.bcbs.com/provider/policy/pa-2025-014",
+      "treatment_keywords": ["pembrolizumab", "keytruda"],
+      "sections": [
+        {
+          "heading": "Approved Indications - Initial Criteria",
+          "page_number": 1,
+          "text": "BCBS considers pembrolizumab medically necessary for ANY of the following indications when accompanying criteria are met: (A) Microsatellite instability-high (MSI-H) or mismatch repair-deficient (dMMR) unresectable or metastatic solid tumors that have progressed after prior systemic therapy and have no satisfactory alternative treatment options; MSI-H or dMMR confirmed by FDA-approved test. (B) Metastatic non-small cell lung cancer with PD-L1 tumor proportion score (TPS) greater than or equal to 50 percent and no EGFR or ALK genomic alterations, as first-line therapy. (C) Unresectable or metastatic melanoma, BRAF status notwithstanding. (D) Advanced renal cell carcinoma, in combination with axitinib, as first-line therapy."
+        },
+        {
+          "heading": "Required Baseline Workup",
+          "page_number": 2,
+          "text": "All patients require baseline: complete blood count, comprehensive metabolic panel, thyroid function tests (TSH and free T4), serum cortisol, ECOG performance status assessment. ECOG 0, 1, or 2 required for initial authorization. Patients with active autoimmune disease requiring systemic immunosuppression are excluded."
+        }
+      ]
+    },
+    {
+      "payer_id": "bcbs",
+      "policy_id": "PA-2025-022",
+      "policy_title": "Trastuzumab (Herceptin) for HER2-Positive Malignancies",
+      "source_url": "https://www.bcbs.com/provider/policy/pa-2025-022",
+      "treatment_keywords": ["trastuzumab", "herceptin"],
+      "sections": [
+        {
+          "heading": "Approval Criteria",
+          "page_number": 2,
+          "text": "BCBS considers trastuzumab medically necessary when ALL of the following are documented: (1) Histologic diagnosis of HER2-positive breast cancer (any stage), HER2-positive metastatic gastric/GEJ adenocarcinoma, OR HER2-amplified colorectal cancer (compendia-supported). (2) HER2-positive defined as IHC 3+, OR IHC 2+ with ISH amplification (HER2/CEP17 ratio greater than or equal to 2.0 OR HER2 copy number greater than or equal to 6.0). Equivocal IHC 2+ requires confirmatory ISH. (3) Pretreatment LVEF greater than or equal to 55 percent (note: BCBS uses a stricter threshold than CMS-mandated 50 percent due to long-term cardiotoxicity data). (4) ECOG 0-2. (5) For early-stage breast: combined with chemotherapy and limited to 12 months adjuvant duration unless protocol-specified extension."
+        },
+        {
+          "heading": "Cardiotoxicity Surveillance",
+          "page_number": 4,
+          "text": "Mandatory LVEF reassessment every 3 months on therapy. Trastuzumab must be held for symptomatic CHF, asymptomatic LVEF decline greater than or equal to 16 percent from baseline, or absolute LVEF less than 50 percent. Cardiology consultation required prior to resumption. Concurrent anthracyclines contraindicated outside clinical trial."
+        }
+      ]
+    },
+    {
+      "payer_id": "bcbs",
+      "policy_id": "PA-2025-027",
+      "policy_title": "Osimertinib (Tagrisso) for EGFR-Mutated NSCLC",
+      "source_url": "https://www.bcbs.com/provider/policy/pa-2025-027",
+      "treatment_keywords": ["osimertinib", "tagrisso"],
+      "sections": [
+        {
+          "heading": "Coverage Criteria",
+          "page_number": 1,
+          "text": "BCBS considers osimertinib medically necessary for NSCLC when ALL of the following: (1) Histologic NSCLC diagnosis. (2) EGFR sensitizing mutation (exon 19 deletion, L858R, or T790M) by FDA-approved companion diagnostic on tumor or plasma. (3) For first-line metastatic: stage IV disease. (4) For adjuvant: completely resected stage IB to IIIA EGFR-mutant NSCLC; adjuvant osimertinib limited to 3 years. (5) For locally advanced unresectable stage III after definitive chemoradiation: maintenance therapy permitted under the LAURA indication. (6) ECOG 0-2. (7) No active ILD or pneumonitis."
+        },
+        {
+          "heading": "Step-Therapy and Sequencing",
+          "page_number": 3,
+          "text": "First-line osimertinib is preferred over earlier-generation EGFR TKIs (gefitinib, erlotinib, afatinib) per BCBS sequencing algorithm. Second-line osimertinib after first-generation TKI requires documentation of T790M-positive resistance."
+        }
+      ]
+    },
+    {
+      "payer_id": "bcbs",
+      "policy_id": "PA-2025-029",
+      "policy_title": "Brentuximab Vedotin (Adcetris) for Classical Hodgkin Lymphoma",
+      "source_url": "https://www.bcbs.com/provider/policy/pa-2025-029",
+      "treatment_keywords": ["brentuximab", "adcetris", "cd30"],
+      "sections": [
+        {
+          "heading": "Indications and Criteria",
+          "page_number": 1,
+          "text": "BCBS considers brentuximab vedotin medically necessary for ANY of: (A) Previously untreated stage III or IV classical Hodgkin lymphoma in combination with doxorubicin, vinblastine, and dacarbazine (A+AVD regimen). (B) Classical Hodgkin lymphoma at high risk of relapse or progression following autologous stem cell transplant, as consolidation. (C) Relapsed or refractory classical Hodgkin lymphoma after autologous SCT failure or in patients ineligible for SCT. (D) Systemic anaplastic large cell lymphoma, primary cutaneous ALCL, and CD30-expressing mycosis fungoides. CD30 expression by IHC required for non-Hodgkin indications."
+        },
+        {
+          "heading": "Pre-Treatment Workup",
+          "page_number": 2,
+          "text": "Required: pathology with CD30 IHC; baseline neuropathy assessment; CBC with ANC greater than or equal to 1500/uL; LFTs; pregnancy test (if applicable). Concurrent bleomycin contraindicated due to severe pulmonary toxicity."
+        },
+        {
+          "heading": "Neuropathy Management",
+          "page_number": 3,
+          "text": "Peripheral neuropathy is the dose-limiting toxicity. Hold or dose-reduce for Grade 2-3 neuropathy. Discontinue for Grade 4. Document neuropathy grade at every cycle."
+        }
+      ]
+    },
+    {
+      "payer_id": "bcbs",
+      "policy_id": "PA-2025-035",
+      "policy_title": "Nivolumab (Opdivo) for Solid Tumors and Hematologic Malignancies",
+      "source_url": "https://www.bcbs.com/provider/policy/pa-2025-035",
+      "treatment_keywords": ["nivolumab", "opdivo"],
+      "sections": [
+        {
+          "heading": "Approved Indications",
+          "page_number": 1,
+          "text": "BCBS considers nivolumab medically necessary for: (A) Unresectable or metastatic melanoma (monotherapy or with ipilimumab). (B) Metastatic NSCLC after platinum-based chemotherapy progression, OR first-line with ipilimumab and 2 cycles platinum chemotherapy. (C) Advanced renal cell carcinoma, intermediate or poor risk, with ipilimumab as first-line. (D) Classical Hodgkin lymphoma after autologous SCT and brentuximab vedotin failure. (E) Recurrent or metastatic squamous cell carcinoma of the head and neck after platinum-based therapy. (F) Locally advanced or metastatic urothelial carcinoma after platinum failure."
+        },
+        {
+          "heading": "Combination Therapy Criteria",
+          "page_number": 2,
+          "text": "Nivolumab plus ipilimumab combinations require: dual-agent ECOG 0-1 (more restrictive than monotherapy); structured monitoring for immune-mediated adverse events at every cycle; corticosteroid taper protocol available."
+        },
+        {
+          "heading": "Immune-Related Toxicity Protocol",
+          "page_number": 4,
+          "text": "Comprehensive irAE protocol required. Pneumonitis: Grade 2 hold + corticosteroids; Grade 3-4 permanent discontinuation. Colitis: anti-diarrheal first-line, then steroids/infliximab. Endocrinopathies: hormone replacement; not always a reason to discontinue. Hepatitis: monitor LFTs every cycle."
+        }
+      ]
+    },
+    {
+      "payer_id": "anthem",
+      "policy_id": "MED-2026-014",
+      "policy_title": "Bevacizumab (Avastin) for Multi-Tumor Indications",
+      "source_url": "https://www.anthem.com/medicalpolicies/MED-2026-014.html",
+      "treatment_keywords": ["bevacizumab", "avastin", "vegf"],
+      "sections": [
+        {
+          "heading": "Approved Indications",
+          "page_number": 1,
+          "text": "Anthem considers bevacizumab medically necessary for ANY of the following with criteria below: (A) Metastatic colorectal cancer (first or second line, with fluoropyrimidine-based chemotherapy). (B) Recurrent glioblastoma. (C) Metastatic non-squamous NSCLC (with carboplatin/paclitaxel as first-line). (D) Metastatic renal cell carcinoma (with interferon alfa). (E) Recurrent or persistent ovarian, fallopian tube, or primary peritoneal cancer (with chemotherapy). (F) Metastatic cervical cancer. (G) Recurrent or metastatic HER2-negative breast cancer is NOT covered (per FDA label withdrawal for that indication)."
+        },
+        {
+          "heading": "Pre-Treatment Requirements",
+          "page_number": 2,
+          "text": "Required: blood pressure controlled (less than 150/100 mmHg, with or without medication); urinalysis showing proteinuria of 2+ or less, OR 24-hour urine protein less than 2 g; no major surgery within 28 days, no minor surgery within 7 days; no history of GI perforation, fistula formation, or significant arterial thromboembolic event within 6 months."
+        },
+        {
+          "heading": "Hypertension and Thrombosis Monitoring",
+          "page_number": 3,
+          "text": "Blood pressure monitored every 2-3 weeks. Hold for hypertensive crisis or Grade 4 hypertension. Discontinue permanently for hypertensive encephalopathy, nephrotic syndrome, GI perforation, severe arterial thromboembolic event, or wound dehiscence requiring intervention."
+        },
+        {
+          "heading": "Pediatric and Combination Restrictions",
+          "page_number": 4,
+          "text": "Not approved for pediatric solid tumors outside clinical trials. Combination with sunitinib (in any indication) excluded due to severe microangiopathic hemolytic anemia signal."
+        }
+      ]
+    },
+    {
+      "payer_id": "anthem",
+      "policy_id": "MED-2026-019",
+      "policy_title": "Imatinib (Gleevec) for CML and GIST",
+      "source_url": "https://www.anthem.com/medicalpolicies/MED-2026-019.html",
+      "treatment_keywords": ["imatinib", "gleevec", "tki"],
+      "sections": [
+        {
+          "heading": "Indications",
+          "page_number": 1,
+          "text": "Anthem considers imatinib medically necessary for: (A) Newly diagnosed Philadelphia chromosome-positive (Ph+) chronic myeloid leukemia (CML) in chronic phase, accelerated phase, or blast crisis. Cytogenetic or molecular confirmation of BCR-ABL1 required. (B) Ph+ acute lymphoblastic leukemia (ALL). (C) Kit-positive (CD117+) unresectable or metastatic gastrointestinal stromal tumor (GIST). (D) Adjuvant treatment of Kit+ GIST after complete surgical resection in patients at significant risk of recurrence (tumor size greater than 3 cm or mitotic rate greater than 5 per 50 HPF)."
+        },
+        {
+          "heading": "Treatment Response Monitoring",
+          "page_number": 2,
+          "text": "CML treatment response monitored by quantitative BCR-ABL PCR every 3 months. Suboptimal response (failure to achieve major molecular response by 12 months, or loss of MMR) prompts evaluation for kinase domain mutations and possible switch to second-generation TKI (dasatinib, nilotinib, bosutinib)."
+        }
+      ]
+    },
+    {
+      "payer_id": "anthem",
+      "policy_id": "MED-2026-031",
+      "policy_title": "Trastuzumab (Herceptin) for HER2-Positive Cancers",
+      "source_url": "https://www.anthem.com/medicalpolicies/MED-2026-031.html",
+      "treatment_keywords": ["trastuzumab", "herceptin"],
+      "sections": [
+        {
+          "heading": "Initial Authorization",
+          "page_number": 2,
+          "text": "Anthem considers trastuzumab medically necessary when ALL of the following are met: (1) HER2-positive breast cancer (any stage) OR HER2-positive metastatic gastric/GEJ adenocarcinoma. (2) HER2 positivity defined as IHC 3+ OR ISH amplified (HER2:CEP17 ratio greater than or equal to 2.0 OR HER2 copy number greater than or equal to 6.0). IHC 2+ requires reflex ISH. (3) Baseline LVEF greater than or equal to 50 percent measured within 90 days, with documentation of method (echo or MUGA). (4) ECOG 0-2. (5) For early breast cancer: trastuzumab combined with chemotherapy backbone, total adjuvant duration 12 months. (6) For metastatic: monotherapy or combination per provider discretion. (7) For neoadjuvant: combined with pertuzumab + chemotherapy if patient has Stage II-III HER2-positive disease."
+        },
+        {
+          "heading": "Continuation Renewal",
+          "page_number": 4,
+          "text": "Renewal every 6 months requires: stable or responding disease on most recent imaging; LVEF greater than or equal to 45 percent within last 90 days; absence of NYHA Class II-IV symptoms. Anthem requires submission of recent imaging report and most recent echocardiogram or MUGA."
+        }
+      ]
+    },
+    {
+      "payer_id": "anthem",
+      "policy_id": "MED-2026-038",
+      "policy_title": "Pembrolizumab (Keytruda) for Solid Tumor Immunotherapy",
+      "source_url": "https://www.anthem.com/medicalpolicies/MED-2026-038.html",
+      "treatment_keywords": ["pembrolizumab", "keytruda"],
+      "sections": [
+        {
+          "heading": "Coverage Criteria",
+          "page_number": 1,
+          "text": "Anthem considers pembrolizumab medically necessary for ALL approved FDA indications when biomarker and clinical criteria are documented, including but not limited to: (A) Metastatic NSCLC, PD-L1 TPS greater than or equal to 1 percent (combination with platinum/pemetrexed or carboplatin/paclitaxel) OR TPS greater than or equal to 50 percent (monotherapy first-line); EGFR/ALK/ROS1/BRAF wild-type. (B) MSI-H or dMMR solid tumors after one prior line; first-line eligible for metastatic colorectal. (C) HNSCC recurrent or metastatic, PD-L1 CPS greater than or equal to 1, in combination with platinum + 5-FU OR monotherapy. (D) Triple-negative breast cancer with PD-L1 CPS greater than or equal to 10, neoadjuvant or first-line metastatic in combination with chemotherapy. (E) Esophageal or gastroesophageal junction carcinoma. (F) Cervical cancer with PD-L1 CPS greater than or equal to 1."
+        },
+        {
+          "heading": "Step Edit and Re-Authorization",
+          "page_number": 2,
+          "text": "Anthem requires step edit for tumors where pembrolizumab is not first-line standard. Re-authorization at 6 months requires CT or PET imaging showing stable, partial, or complete response. Pseudoprogression evaluation may extend assessment by 4-8 weeks if confirmatory imaging is pending."
+        },
+        {
+          "heading": "irAE Monitoring",
+          "page_number": 4,
+          "text": "Standard immune-related adverse event monitoring. Hold for Grade 2 toxicity; permanent discontinuation for Grade 3-4 pneumonitis, hepatitis, encephalitis, Stevens-Johnson syndrome, or any life-threatening irAE. Endocrinopathies typically managed with hormone replacement without discontinuation."
+        }
+      ]
+    },
+    {
+      "payer_id": "anthem",
+      "policy_id": "MED-2026-044",
+      "policy_title": "Olaparib (Lynparza) for HRR-Mutated Cancers",
+      "source_url": "https://www.anthem.com/medicalpolicies/MED-2026-044.html",
+      "treatment_keywords": ["olaparib", "lynparza"],
+      "sections": [
+        {
+          "heading": "Approved Indications",
+          "page_number": 1,
+          "text": "Anthem considers olaparib medically necessary for: (A) Maintenance therapy in BRCA-mutated advanced ovarian cancer following response to first-line platinum chemotherapy. (B) HER2-negative metastatic breast cancer with germline BRCA1/2 mutation, after prior chemotherapy. (C) Metastatic castration-resistant prostate cancer with deleterious or suspected deleterious germline or somatic HRR gene mutations (including ATM, BRCA1, BRCA2, BRIP1, CDK12, CHEK1, CHEK2, FANCL, PALB2, RAD51B, RAD51C, RAD51D, RAD54L), after progression on enzalutamide or abiraterone. (D) Adjuvant therapy in germline BRCA-mutated, HER2-negative high-risk early breast cancer."
+        },
+        {
+          "heading": "Hematologic Safety",
+          "page_number": 3,
+          "text": "Baseline CBC with differential. Hold for Grade 2-4 cytopenia. Permanent discontinuation if MDS or AML develops, or if hematologic recovery does not occur within 4 weeks of dose interruption. Quarterly CBC monitoring beyond cycle 2."
+        }
+      ]
+    }
+  ]
+}

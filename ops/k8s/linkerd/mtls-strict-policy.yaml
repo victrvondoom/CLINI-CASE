@@ -1,0 +1,54 @@
+# mTLS-strict mode for the clincase namespace.
+# APPLY ONLY AFTER Step 7 of ops/k8s/linkerd/README.md.
+#
+# This refuses any unauthenticated request to clincase pods. Set to "permissive"
+# during the first week of operation; flip to "strict" once observed traffic
+# confirms all callers are mesh-enrolled.
+
+apiVersion: policy.linkerd.io/v1beta1
+kind: Server
+metadata:
+  name: clincase-api
+  namespace: clincase
+spec:
+  podSelector:
+    matchLabels: { app: clincase, tier: api }
+  port: 8000
+  proxyProtocol: HTTP/2
+---
+apiVersion: policy.linkerd.io/v1beta1
+kind: ServerAuthorization
+metadata:
+  name: clincase-api-mesh-only
+  namespace: clincase
+spec:
+  server:
+    name: clincase-api
+  client:
+    meshTLS:
+      identities:
+        - "*.clincase.serviceaccount.identity.linkerd.cluster.local"
+---
+apiVersion: policy.linkerd.io/v1beta1
+kind: Server
+metadata:
+  name: clincase-worker
+  namespace: clincase
+spec:
+  podSelector:
+    matchLabels: { app: clincase, tier: worker }
+  port: 8000
+  proxyProtocol: HTTP/2
+---
+apiVersion: policy.linkerd.io/v1beta1
+kind: ServerAuthorization
+metadata:
+  name: clincase-worker-mesh-only
+  namespace: clincase
+spec:
+  server:
+    name: clincase-worker
+  client:
+    meshTLS:
+      identities:
+        - "*.clincase.serviceaccount.identity.linkerd.cluster.local"

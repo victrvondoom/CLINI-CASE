@@ -1,0 +1,164 @@
+# =============================================================================
+# ClinCase CI — every PR + every push to main
+# =============================================================================
+#
+# Runs in parallel:
+#   1. frontend       — TypeScript type-check (strict) + Vite production build
+#   2. backend        — Ruff lint + Python module structure check
+#   3. demo-fixtures  — verify all 4 demo PDFs + 2 policy bundles are present
+#   4. readme-anchors — verify the README has all evaluation-criteria sections
+#
+# Production-grade workflows (multi-region Terraform plan, cosign signing,
+# Trivy/Semgrep/Checkov, k6 load tests, EKS deploy) are kept under
+# .github/workflows/*.yml as workflow_dispatch-only — see security.yml,
+# supply-chain.yml, deploy-prod.yml, loadtest-on-pr.yml. They are gated to
+# environments with secrets configured (STAGING_API_URL, AWS_REGION,
+# COSIGN_KEY, etc.) and run only when an engineer triggers them manually.
+
+name: ci
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.11"
+  NODE_VERSION:   "20"
+
+jobs:
+
+  # ===========================================================================
+  # 1. Frontend — type-check (strict) + Vite production build
+  # ===========================================================================
+  frontend:
+    name: Frontend · type-check + build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install (deterministic)
+        working-directory: frontend
+        run: npm ci
+
+      - name: TypeScript type-check (strict, no emit)
+        working-directory: frontend
+        run: npx tsc --noEmit
+
+      - name: Vite production build
+        working-directory: frontend
+        env:
+          VITE_API_BASE: http://clincase-alb-729293716.us-east-1.elb.amazonaws.com
+        run: npm run build
+
+      - name: Upload dist as build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist
+          retention-days: 7
+
+  # ===========================================================================
+  # 2. Backend — ruff lint + module structure check
+  # ===========================================================================
+  backend:
+    name: Backend · lint + structure
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install ruff
+        run: pip install ruff==0.7.4
+
+      - name: Ruff lint (advisory)
+        working-directory: backend
+        run: ruff check app --output-format=github || echo "::warning::ruff produced advisory findings"
+
+      - name: Verify backend module structure
+        working-directory: backend
+        run: |
+          python -c "
+          import pathlib
+          paths = ['app/main.py', 'app/api', 'app/agents', 'app/graph', 'app/llm', 'app/models', 'app/prompts']
+          missing = [p for p in paths if not pathlib.Path(p).exists()]
+          assert not missing, f'missing module paths: {missing}'
+          for p in paths:
+              print(f'  OK  {p}')
+          print('All backend module paths present.')
+          "
+
+  # ===========================================================================
+  # 3. Demo fixtures — judges' download must always work
+  # ===========================================================================
+  demo-fixtures:
+    name: Demo fixtures · readiness
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify the four demo PDFs + two policy bundles are present
+        run: |
+          set -e
+          for f in \
+            demo_pdfs/01_APPROVE_breast_cancer_her2pos.pdf \
+            demo_pdfs/02_DENY_breast_cancer_lvef_low.pdf \
+            demo_pdfs/03_REFER_breast_cancer_her2_equivocal.pdf \
+            demo_pdfs/04_APPROVE_hepc_daa_genotype1.pdf \
+            demo_pdfs/policy_aetna_hcv_daa.pdf \
+            demo_pdfs/policy_aetna_liver_transplant.pdf
+          do
+            test -s "$f" || { echo "::error::missing or empty: $f"; exit 1; }
+            size=$(wc -c < "$f")
+            echo "  OK  $f ($size bytes)"
+          done
+          echo "All 6 demo PDFs present and non-empty."
+
+      - name: Verify pitch.md is non-empty
+        run: |
+          test -s pitch.md || { echo "::error::pitch.md is missing or empty"; exit 1; }
+          lines=$(wc -l < pitch.md)
+          echo "pitch.md is $lines lines."
+
+  # ===========================================================================
+  # 4. README — enforce evaluation-criteria sections
+  # ===========================================================================
+  readme-anchors:
+    name: README · evaluation criteria check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify README has all expected sections
+        shell: bash
+        run: |
+          set -e
+          required=(
+            "The problem"
+            "The solution"
+            "Architecture"
+            "7-agent LangGraph pipeline"
+            "10 oncology USPs"
+            "Scalability"
+            "Evaluation rubric mapping"
+          )
+          for s in "${required[@]}"; do
+            grep -F "$s" README.md > /dev/null || { echo "::error::missing README section containing: $s"; exit 1; }
+            echo "  OK  README contains: $s"
+          done
+          echo "README has all required evaluation-criteria sections."

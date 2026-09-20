@@ -1,0 +1,26 @@
+# Copy to prod.tfvars and fill in real values. NEVER commit prod.tfvars.
+
+primary_region          = "ap-south-1"
+secondary_region        = "us-east-1"
+enable_secondary_region = false   # flip to true once multi-region module is applied
+environment             = "prod"
+cost_center             = "AEROFYTA-CLINCASE-PROD"
+
+# Model selection — these are the May 6 Pune migration targets
+sonnet_model_id = "apac.anthropic.claude-sonnet-4-6-20251022-v1:0"
+haiku_model_id  = "apac.anthropic.claude-haiku-4-5-20251001-v1:0"
+
+# Capacity — start with 1 MU each. Scale up via -var=sonnet_model_units_primary=N
+sonnet_model_units_primary = 1
+haiku_model_units_primary  = 1
+sonnet_model_units_secondary = 1
+haiku_model_units_secondary  = 1
+
+# Commitment tier — OneMonth gets ~30% off, SixMonths gets ~51% off.
+# For pilot → real customer, OneMonth is the right starting point.
+commitment_duration = "OneMonth"
+
+# CloudWatch alarms — wire to PagerDuty SNS topic that already exists
+alarm_sns_topic_arn       = "arn:aws:sns:ap-south-1:123456789012:clincase-pagerduty"
+utilization_p3_threshold  = 80
+utilization_p2_threshold  = 95

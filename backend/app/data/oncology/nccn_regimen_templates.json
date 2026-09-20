@@ -1,0 +1,93 @@
+{
+  "_meta": {
+    "description": "NCCN-style chemotherapy regimen templates. Each regimen is a bundle of drugs+supportive care that gets a single PA. Production should license the NCCN Templates feed (~$25K/yr).",
+    "version": "demo-2026.05"
+  },
+  "regimens": {
+    "TCHP": {
+      "name": "TCHP — Neoadjuvant HER2+ Breast",
+      "indication": "Stage II-III HER2+ Breast Cancer",
+      "schedule": "q3w x 6 cycles",
+      "drugs": [
+        {"name": "docetaxel",   "dose": "75 mg/m²",                   "route": "IV", "cycle_day": "D1", "j_code": "J9171"},
+        {"name": "carboplatin", "dose": "AUC 6",                      "route": "IV", "cycle_day": "D1", "j_code": "J9045"},
+        {"name": "trastuzumab", "dose": "8 mg/kg load, 6 mg/kg maint","route": "IV", "cycle_day": "D1", "j_code": "J9355"},
+        {"name": "pertuzumab",  "dose": "840 mg load, 420 mg maint",  "route": "IV", "cycle_day": "D1", "j_code": "J9306"}
+      ],
+      "supportive_care": [
+        {"name": "pegfilgrastim", "indication": "G-CSF prophylaxis (FN risk >20%)", "j_code": "J2506"}
+      ],
+      "guideline_ref": "BINV-K",
+      "evidence": "1"
+    },
+    "FOLFIRINOX": {
+      "name": "FOLFIRINOX — Pancreatic / Colorectal",
+      "indication": "Metastatic Pancreatic Adenocarcinoma; mCRC",
+      "schedule": "q14d",
+      "drugs": [
+        {"name": "oxaliplatin",  "dose": "85 mg/m²",                "route": "IV", "cycle_day": "D1",     "j_code": "J9263"},
+        {"name": "irinotecan",   "dose": "180 mg/m²",               "route": "IV", "cycle_day": "D1",     "j_code": "J9206"},
+        {"name": "leucovorin",   "dose": "400 mg/m²",               "route": "IV", "cycle_day": "D1",     "j_code": "J0640"},
+        {"name": "fluorouracil", "dose": "400 mg/m² bolus + 2400 mg/m² CIVI 46h", "route": "IV", "cycle_day": "D1-D3", "j_code": "J9190"}
+      ],
+      "supportive_care": [
+        {"name": "ondansetron",   "indication": "antiemetic",  "j_code": "J2405"},
+        {"name": "fosaprepitant", "indication": "NK1 antagonist","j_code": "J1453"},
+        {"name": "pegfilgrastim", "indication": "G-CSF",        "j_code": "J2506"}
+      ],
+      "guideline_ref": "COL-1",
+      "evidence": "1"
+    },
+    "RCHOP": {
+      "name": "R-CHOP — DLBCL First-Line",
+      "indication": "Diffuse Large B-Cell Lymphoma",
+      "schedule": "q21d x 6 cycles",
+      "drugs": [
+        {"name": "rituximab",       "dose": "375 mg/m²",   "route": "IV", "cycle_day": "D1", "j_code": "J9312"},
+        {"name": "cyclophosphamide","dose": "750 mg/m²",   "route": "IV", "cycle_day": "D1", "j_code": "J9070"},
+        {"name": "doxorubicin",     "dose": "50 mg/m²",    "route": "IV", "cycle_day": "D1", "j_code": "J9000"},
+        {"name": "vincristine",     "dose": "1.4 mg/m² (cap 2 mg)", "route": "IV", "cycle_day": "D1", "j_code": "J9370"},
+        {"name": "prednisone",      "dose": "100 mg PO",   "route": "PO", "cycle_day": "D1-D5", "j_code": "J7506"}
+      ],
+      "supportive_care": [
+        {"name": "pegfilgrastim", "indication": "G-CSF (FN risk)", "j_code": "J2506"},
+        {"name": "allopurinol",   "indication": "TLS prophylaxis", "j_code": "—"}
+      ],
+      "evidence": "1"
+    },
+    "OSIMERTINIB_MONO": {
+      "name": "Osimertinib — EGFR-mutated NSCLC First-Line",
+      "indication": "Stage IV NSCLC, EGFR L858R or exon 19 deletion",
+      "schedule": "continuous PO until progression",
+      "drugs": [
+        {"name": "osimertinib", "dose": "80 mg PO daily", "route": "PO", "cycle_day": "continuous", "j_code": "J8999"}
+      ],
+      "supportive_care": [],
+      "guideline_ref": "NSCL-26",
+      "evidence": "1"
+    },
+    "PALBOCICLIB_LETROZOLE": {
+      "name": "Palbociclib + Letrozole — HR+ HER2- mBC First-Line",
+      "indication": "Postmenopausal HR+/HER2- metastatic breast cancer",
+      "schedule": "28-day cycle",
+      "drugs": [
+        {"name": "palbociclib", "dose": "125 mg PO daily x21d/28d", "route": "PO", "cycle_day": "D1-D21", "j_code": "J8999"},
+        {"name": "letrozole",   "dose": "2.5 mg PO daily",          "route": "PO", "cycle_day": "continuous", "j_code": "J8999"}
+      ],
+      "supportive_care": [],
+      "guideline_ref": "BREAST-MET-CDK46",
+      "evidence": "1"
+    },
+    "OLAPARIB_MAINT": {
+      "name": "Olaparib Maintenance — BRCA-mutated Ovarian",
+      "indication": "Stage III/IV BRCA-mutated ovarian cancer, post-platinum",
+      "schedule": "continuous x 2 yr or PD",
+      "drugs": [
+        {"name": "olaparib", "dose": "300 mg PO BID", "route": "PO", "cycle_day": "continuous", "j_code": "J8999"}
+      ],
+      "supportive_care": [],
+      "guideline_ref": "OVAR-PARP",
+      "evidence": "1"
+    }
+  }
+}

@@ -1,0 +1,26 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pgbouncer-writer
+  namespace: clincase
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: pgbouncer
+    app.kubernetes.io/component: writer-pool
+  ports:
+  - { name: pg, port: 5432, targetPort: 6432, protocol: TCP }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pgbouncer-reader
+  namespace: clincase
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: pgbouncer
+    app.kubernetes.io/component: reader-pool
+  ports:
+  - { name: pg, port: 5432, targetPort: 6432, protocol: TCP }

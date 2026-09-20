@@ -1,0 +1,109 @@
+name: supply-chain
+
+# Generate SBOMs + sign images on every push to main.
+# Required for FedRAMP + HHS attestation per ops/architecture/SUPPLY_CHAIN.md.
+
+on:
+  # Cosign keyless OIDC signing + GHCR push require the GitHub identity
+  # provider trust + GHCR repo. Gated to manual trigger so the default
+  # branch stays green; re-enable push/tag triggers after the OIDC trust
+  # is configured.
+  workflow_dispatch:
+
+jobs:
+  sbom-and-sign:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents:    read
+      id-token:    write   # required for cosign keyless OIDC
+      packages:    write   # write SBOM + signature to the OCI registry
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Set up Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to GHCR
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Build + push backend image
+      id: backend
+      uses: docker/build-push-action@v5
+      with:
+        context: backend
+        push: true
+        tags: ghcr.io/${{ github.repository }}/clincase-backend:${{ github.sha }}
+
+    - name: Build + push worker image
+      id: worker
+      uses: docker/build-push-action@v5
+      with:
+        context: backend
+        file: backend/Dockerfile
+        push: true
+        tags: ghcr.io/${{ github.repository }}/clincase-worker:${{ github.sha }}
+        target: worker
+
+    - name: Install Syft (SBOM generator)
+      uses: anchore/sbom-action/download-syft@v0
+
+    - name: Generate backend SBOM (CycloneDX)
+      run: |
+        syft ghcr.io/${{ github.repository }}/clincase-backend:${{ github.sha }} \
+            -o cyclonedx-json=sbom-backend.cdx.json
+        syft ghcr.io/${{ github.repository }}/clincase-backend:${{ github.sha }} \
+            -o spdx-json=sbom-backend.spdx.json
+
+    - name: Generate worker SBOM (CycloneDX)
+      run: |
+        syft ghcr.io/${{ github.repository }}/clincase-worker:${{ github.sha }} \
+            -o cyclonedx-json=sbom-worker.cdx.json
+
+    - name: Install cosign
+      uses: sigstore/cosign-installer@v3
+
+    - name: Sign backend image (keyless OIDC)
+      env:
+        COSIGN_EXPERIMENTAL: "1"
+      run: |
+        cosign sign --yes ghcr.io/${{ github.repository }}/clincase-backend:${{ github.sha }}
+
+    - name: Sign worker image (keyless OIDC)
+      env:
+        COSIGN_EXPERIMENTAL: "1"
+      run: |
+        cosign sign --yes ghcr.io/${{ github.repository }}/clincase-worker:${{ github.sha }}
+
+    - name: Attest SBOM to backend image (in-toto)
+      env:
+        COSIGN_EXPERIMENTAL: "1"
+      run: |
+        cosign attest --yes \
+          --predicate sbom-backend.cdx.json \
+          --type cyclonedx \
+          ghcr.io/${{ github.repository }}/clincase-backend:${{ github.sha }}
+
+    - name: Upload SBOMs as workflow artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: sboms
+        path: |
+          sbom-backend.cdx.json
+          sbom-backend.spdx.json
+          sbom-worker.cdx.json
+
+    - name: Attach SBOMs to release (when tagged)
+      if: startsWith(github.ref, 'refs/tags/v')
+      uses: softprops/action-gh-release@v2
+      with:
+        files: |
+          sbom-backend.cdx.json
+          sbom-backend.spdx.json
+          sbom-worker.cdx.json

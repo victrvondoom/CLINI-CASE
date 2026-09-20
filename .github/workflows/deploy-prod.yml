@@ -1,0 +1,168 @@
+# =============================================================================
+# ClinCase production deploy — manual trigger, environment-gated
+# =============================================================================
+#
+# Why manual + gated:
+#   • This deploys to production EKS in ap-south-1.
+#   • Touches Bedrock Provisioned Throughput (paid AWS resource).
+#   • Touches RDS Aurora Global (cross-region replication).
+#   • Requires an approver from the configured production environment.
+#
+# Stages:
+#   1. Verify the SHA was built + pushed to ECR by ci.yml
+#   2. Smoke-test the SHA on the staging EKS cluster
+#   3. Production environment GATE (manual approval)
+#   4. Run terraform apply for any infra drift
+#   5. Helm-upgrade the clincase chart on prod EKS
+#   6. Post-deploy smoke test against /api/v1/healthz + /metrics + a synthetic case
+#   7. Tag the ECR images :prod and :prod-{date}
+#   8. Slack #releases announcement
+
+name: deploy-prod
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: "Git SHA to deploy (must already be built by ci.yml)"
+        required: true
+        type: string
+      skip_terraform:
+        description: "Skip terraform apply (use only for app-only deploys)"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false   # never cancel a running prod deploy
+
+jobs:
+  verify-image:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    outputs:
+      backend_image: ${{ steps.tags.outputs.backend }}
+      frontend_image: ${{ steps.tags.outputs.frontend }}
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ECR_READ_ROLE_ARN }}
+          aws-region: ap-south-1
+      - uses: aws-actions/amazon-ecr-login@v2
+        id: ecr
+      - id: tags
+        run: |
+          BE="${{ steps.ecr.outputs.registry }}/clincase/backend:${{ inputs.sha }}"
+          FE="${{ steps.ecr.outputs.registry }}/clincase/frontend:${{ inputs.sha }}"
+          aws ecr describe-images --repository-name clincase/backend --image-ids imageTag=${{ inputs.sha }}
+          aws ecr describe-images --repository-name clincase/frontend --image-ids imageTag=${{ inputs.sha }}
+          echo "backend=$BE"  >> $GITHUB_OUTPUT
+          echo "frontend=$FE" >> $GITHUB_OUTPUT
+
+  smoke-staging:
+    needs: verify-image
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_EKS_DEPLOY_ROLE_ARN }}
+          aws-region: ap-south-1
+      - run: aws eks update-kubeconfig --name clincase-staging
+      - name: helm upgrade --wait staging
+        run: |
+          helm upgrade --install clincase-staging ./ops/k8s/chart \
+            --namespace clincase-staging --create-namespace \
+            --set backend.image=${{ needs.verify-image.outputs.backend_image }} \
+            --set frontend.image=${{ needs.verify-image.outputs.frontend_image }} \
+            --wait --timeout=10m
+      - name: Smoke /healthz + synthetic case
+        run: |
+          curl -f https://staging.clincase.example.com/api/v1/healthz
+          # synthetic case run gated to staging
+          ./ops/sre/scripts/smoke-synthetic-case.sh staging
+
+  approve-prod:
+    needs: smoke-staging
+    runs-on: ubuntu-22.04
+    environment: production-approval     # GitHub environment with required reviewers
+    timeout-minutes: 60
+    steps:
+      - run: echo "Production deploy approved by $GITHUB_ACTOR"
+
+  terraform-apply:
+    needs: approve-prod
+    if: ${{ !inputs.skip_terraform }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.6.6"
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_TERRAFORM_APPLY_ROLE_ARN }}
+          aws-region: ap-south-1
+      - name: terraform apply (multi-region)
+        run: |
+          cd ops/terraform/multi-region
+          terraform init -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" -backend-config="key=multi-region/terraform.tfstate" -backend-config="region=ap-south-1"
+          terraform apply -auto-approve -var-file=prod.tfvars
+      - name: terraform apply (provisioned-throughput)
+        run: |
+          cd ops/terraform/provisioned-throughput
+          terraform init -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" -backend-config="key=provisioned-throughput/terraform.tfstate" -backend-config="region=ap-south-1"
+          terraform apply -auto-approve -var-file=prod.tfvars
+
+  deploy-prod:
+    needs: [verify-image, approve-prod, terraform-apply]
+    if: always() && needs.approve-prod.result == 'success'
+    runs-on: ubuntu-22.04
+    environment: production
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_EKS_DEPLOY_ROLE_ARN }}
+          aws-region: ap-south-1
+      - run: aws eks update-kubeconfig --name clincase-prod
+      - name: helm upgrade --wait prod (canary 10%)
+        run: |
+          helm upgrade --install clincase ./ops/k8s/chart \
+            --namespace clincase --create-namespace \
+            --set backend.image=${{ needs.verify-image.outputs.backend_image }} \
+            --set frontend.image=${{ needs.verify-image.outputs.frontend_image }} \
+            --set canary.weight=10 \
+            --wait --timeout=15m
+      - name: Post-deploy smoke
+        run: |
+          curl -f https://api.clincase.example.com/api/v1/healthz
+          ./ops/sre/scripts/smoke-synthetic-case.sh production
+      - name: Promote canary to 100% after 5 min
+        run: |
+          sleep 300
+          ./ops/sre/scripts/check-error-budget.sh production || exit 1
+          helm upgrade clincase ./ops/k8s/chart \
+            --namespace clincase \
+            --set canary.weight=100 \
+            --reuse-values --wait --timeout=10m
+      - name: Tag ECR :prod
+        run: |
+          aws ecr put-image --repository-name clincase/backend  --image-tag prod --image-manifest "$(aws ecr batch-get-image --repository-name clincase/backend  --image-ids imageTag=${{ inputs.sha }} --query 'images[0].imageManifest' --output text)"
+          aws ecr put-image --repository-name clincase/frontend --image-tag prod --image-manifest "$(aws ecr batch-get-image --repository-name clincase/frontend --image-ids imageTag=${{ inputs.sha }} --query 'images[0].imageManifest' --output text)"
+      - name: Slack #releases
+        uses: slackapi/slack-github-action@v1.27.0
+        with:
+          payload: |
+            { "text": ":rocket: ClinCase prod deploy complete · sha `${{ inputs.sha }}` · approved by ${{ github.actor }}" }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_RELEASES_WEBHOOK }}

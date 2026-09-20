@@ -1,0 +1,96 @@
+# ─── ClinCase shared config + secrets + RBAC ─────────────────────────────────
+# Per-tenant config / secrets in production come from External Secrets Operator
+# pulling from AWS Secrets Manager. This file shows the SHAPE — values are
+# placeholders for the hackathon.
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: clincase
+  labels:
+    name: clincase
+    workload: regulated-healthcare
+    pii-handling: bedrock-guardrails
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: clincase-config
+  namespace: clincase
+data:
+  LLM_PROVIDER: "bedrock"
+  AWS_REGION: "ap-south-1"
+  BEDROCK_MODEL_ID: "apac.anthropic.claude-sonnet-4-6-20251022-v1:0"
+  BEDROCK_HAIKU_MODEL_ID: "apac.anthropic.claude-haiku-4-5-20251001-v1:0"
+  HITL_CONFIDENCE_THRESHOLD: "0.75"
+  USE_BEDROCK_KB: "true"
+  BEDROCK_KB_ID: "clincase-policies-prod"
+  LOG_LEVEL: "INFO"
+  # Connection pool sized for the ratio of replicas: 5 × 4 conns = 20 per worker pod;
+  # 3 × 8 conns = 24 per api pod; total = 5×20 + 3×8 = 124 — well under RDS limit.
+  DATABASE_POOL_MIN: "4"
+  DATABASE_POOL_MAX: "8"
+---
+# Secrets are a placeholder. In production these come from AWS Secrets Manager
+# via External Secrets Operator (kind: ExternalSecret) — never committed.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: clincase-secrets
+  namespace: clincase
+type: Opaque
+stringData:
+  DATABASE_URL: "postgresql://clincase:CHANGEME@clincase-db.cluster-xxx.ap-south-1.rds.amazonaws.com:5432/clincase"
+  JWT_SECRET: "CHANGEME-rotate-quarterly"
+  BEDROCK_GUARDRAIL_ID: "clincase-phi-redact"
+  BEDROCK_GUARDRAIL_VERSION: "1"
+  MCP_AUTH_TOKEN: "CHANGEME"
+---
+# IRSA (IAM Roles for Service Accounts) so pods get scoped AWS perms without
+# sharing a node-level role. The api role can call Bedrock InvokeModel +
+# RDS connect. The worker role gets the same plus Bedrock KB Retrieve.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: clincase-api
+  namespace: clincase
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/clincase-api-role
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: clincase-worker
+  namespace: clincase
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/clincase-worker-role
+---
+# NetworkPolicy: workers + API can ONLY talk to RDS, Bedrock VPC endpoint,
+# and SSE clients. No public egress (PHI never leaves the VPC).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: clincase-egress-only-vpc
+  namespace: clincase
+spec:
+  podSelector: { matchLabels: { app: clincase } }
+  policyTypes: ["Egress"]
+  egress:
+    # RDS Aurora
+    - to:
+        - ipBlock: { cidr: 10.0.0.0/16 }
+      ports:
+        - { protocol: TCP, port: 5432 }
+    # Bedrock + S3 PrivateLink endpoints (VPC endpoint IPs vary by AZ)
+    - to:
+        - ipBlock: { cidr: 10.0.128.0/20 }   # bedrock-runtime VPCe
+        - ipBlock: { cidr: 10.0.144.0/20 }   # bedrock-agent-runtime VPCe
+        - ipBlock: { cidr: 10.0.160.0/20 }   # s3 gateway
+      ports:
+        - { protocol: TCP, port: 443 }
+    # DNS
+    - to:
+        - namespaceSelector: { matchLabels: { name: kube-system } }
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }

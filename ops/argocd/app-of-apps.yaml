@@ -1,0 +1,38 @@
+---
+# ClinCase — root Argo CD Application (the "app of apps").
+#
+# Apply once during bootstrap. Argo CD then watches `ops/argocd/applications/`
+# and auto-creates every nested Application as a new file is committed.
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: clincase-root
+  namespace: argocd
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/aerofyta/clincase.git
+    targetRevision: main
+    path: ops/argocd/applications
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+    - CreateNamespace=true
+    - PrunePropagationPolicy=foreground
+    retry:
+      limit: 5
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m

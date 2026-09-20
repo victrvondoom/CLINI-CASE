@@ -1,0 +1,84 @@
+{
+  "case_id": "DEMO-001",
+  "clinical_snapshot": {
+    "patient_initials": "JD",
+    "primary_diagnosis": {
+      "icd10_code": "C50.911",
+      "description": "Malignant neoplasm of unspecified site of right female breast",
+      "stage": "IIIa"
+    },
+    "biomarkers": [
+      {"name": "HER2", "value": "IHC 3+", "method": "IHC", "loinc_code": "85319-2", "interpretation": "POSITIVE"},
+      {"name": "ER",   "value": "85% positive", "interpretation": "POSITIVE"},
+      {"name": "PR",   "value": "70% positive", "interpretation": "POSITIVE"}
+    ],
+    "performance_status": "ECOG 1",
+    "prior_therapies": ["AC chemotherapy"],
+    "requested_treatment": {
+      "name": "trastuzumab",
+      "j_code": "J9355",
+      "indication": "HER2-positive breast cancer (adjuvant setting)",
+      "dose_mg_per_kg": 6,
+      "site_of_service": "outpatient_hospital"
+    }
+  },
+  "policy_excerpts": [
+    {
+      "policy_id": "AETNA-MED-2024-007",
+      "policy_title": "Aetna Oncology Medical Policy — Trastuzumab",
+      "section_heading": "Coverage Criteria — HER2-positive breast cancer (adjuvant)",
+      "page_number": 2,
+      "source_url": "sharepoint://aetna/medical-policy/oncology/trastuzumab.pdf#page=2",
+      "excerpt_text": "Trastuzumab is medically necessary when ALL: (1) HER2-positive confirmed by IHC 3+ or FISH-amplified, (2) adjuvant or neoadjuvant setting, (3) ECOG performance status 0-2, (4) baseline LVEF ≥ 50%."
+    },
+    {
+      "policy_id": "AETNA-MED-2024-007",
+      "policy_title": "Aetna Oncology Medical Policy — Trastuzumab",
+      "section_heading": "Authorization Period",
+      "page_number": 3,
+      "source_url": "sharepoint://aetna/medical-policy/oncology/trastuzumab.pdf#page=3",
+      "excerpt_text": "Initial authorization: 6 months. Renewal: every 12 months contingent on documented response and ECHO/MUGA-confirmed LVEF ≥ 50%."
+    }
+  ],
+  "necessity_assessment": {
+    "criteria": [
+      {"criterion": "HER2-positive confirmed by IHC 3+ or FISH", "outcome": "MET", "evidence": "IHC 3+ on submitted pathology"},
+      {"criterion": "Adjuvant or neoadjuvant setting", "outcome": "MET", "evidence": "Stage IIIa, completed AC chemo, post-op"},
+      {"criterion": "ECOG performance status 0-2", "outcome": "MET", "evidence": "ECOG 1"},
+      {"criterion": "Baseline LVEF ≥ 50%", "outcome": "MET", "evidence": "ECHO 12 days ago: LVEF 62%"}
+    ],
+    "overall_confidence": 0.94,
+    "triggered_hitl": false,
+    "summary": "All four criteria met with strong evidence. Standard adjuvant trastuzumab indication."
+  },
+  "decision": {
+    "verdict": "APPROVE",
+    "rationale": "Patient meets all four coverage criteria for trastuzumab in HER2-positive breast cancer (adjuvant). HER2 IHC 3+ confirmed (criterion 1, AETNA-MED-2024-007 § Coverage Criteria). Adjuvant setting after AC chemotherapy (criterion 2). ECOG 1 (criterion 3). LVEF 62% from echocardiogram 12 days prior (criterion 4). Authorization for 6 months per AETNA-MED-2024-007 § Authorization Period.",
+    "citations": [
+      {"policy_id": "AETNA-MED-2024-007", "section": "Coverage Criteria", "page": 2},
+      {"policy_id": "AETNA-MED-2024-007", "section": "Authorization Period", "page": 3}
+    ],
+    "confidence": 0.94
+  },
+  "denial_forecast": null,
+  "appeal_draft": null,
+  "patient_communication": {
+    "summary_text": "Good news. Your insurance has approved your trastuzumab treatment for the next 6 months. You'll need an echocardiogram every 12 months to renew the authorization.",
+    "next_action_steps": [
+      "Schedule first trastuzumab infusion within 7 days",
+      "Confirm next ECHO date (currently scheduled for 11 months out)",
+      "Call your care coordinator with any side-effect questions"
+    ],
+    "reading_level_grade": 8.1
+  },
+  "paused_for_review": false,
+  "pause_reason": null,
+  "metadata": {
+    "decision_run_id": "00000000-0000-0000-0000-000000000001",
+    "primary_model_id": "apac.anthropic.claude-sonnet-4-6-20251022-v1:0",
+    "duration_seconds": 49,
+    "cost_usd": 0.25,
+    "agent_runs_count": 12,
+    "savings_vs_manual_usd": 1499.75
+  }
+}

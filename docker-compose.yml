@@ -1,0 +1,73 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: clincase-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: clincase
+      POSTGRES_PASSWORD: clincase
+      POSTGRES_DB: clincase
+    ports:
+      - "15432:5432"   # host 15432 → container 5432 (5432-5434 are claimed by local Postgres)
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./backend/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U clincase -d clincase"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # SCALE-7 — Redis pub/sub for multi-replica SSE fan-out.
+  # Optional in dev (REDIS_URL unset → in-process backend); required when
+  # the API tier scales past one replica so SSE consumers see live events
+  # regardless of which replica is running the case worker.
+  redis:
+    image: redis:7-alpine
+    container_name: clincase-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "no", "--save", ""]
+    ports:
+      - "16379:6379"   # host 16379 → container 6379 (avoid local 6379 collision)
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: clincase-backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://clincase:clincase@postgres:5432/clincase
+      REDIS_URL: redis://redis:6379/0
+      CORS_ORIGINS: http://localhost:5173
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    profiles:
+      - full     # `docker compose --profile full up` runs everything
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: clincase-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "5173:5173"
+    profiles:
+      - full
+
+volumes:
+  pgdata:

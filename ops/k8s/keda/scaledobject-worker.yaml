@@ -1,0 +1,78 @@
+---
+# ClinCase — KEDA ScaledObject for the worker Deployment
+#
+# Polls the case_jobs queue every 30s; scales workers between 2 and 50 pods
+# based on a target of "≤ 5 queued jobs per pod."
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: clincase-keda-postgres-conn
+  namespace: clincase
+type: Opaque
+stringData:
+  # In production this is overridden via Sealed Secrets / External Secrets
+  # Operator pulling from AWS Secrets Manager. The value is a libpq DSN.
+  connection: "postgresql://clincase:clincase@clincase-postgres.clincase.svc.cluster.local:5432/clincase?sslmode=disable"
+
+---
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: clincase-postgres
+  namespace: clincase
+spec:
+  secretTargetRef:
+  - parameter: connection
+    name: clincase-keda-postgres-conn
+    key: connection
+
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: clincase-worker
+  namespace: clincase
+  labels:
+    app.kubernetes.io/part-of: clincase
+    app.kubernetes.io/component: queue-autoscaler
+  annotations:
+    description: "Scales clincase-worker on case_jobs queue depth"
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: clincase-worker
+  pollingInterval: 30        # poll Postgres every 30s
+  cooldownPeriod: 300        # wait 5 min before scaling down
+  idleReplicaCount: 0        # if you want pods to scale to zero (commented out below)
+  minReplicaCount: 2         # always-warm pool
+  maxReplicaCount: 50        # per-cell hard cap, matches Aurora connection budget
+  fallback:
+    failureThreshold: 3
+    replicas: 5              # if KEDA can't reach Postgres, hold at 5 pods
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleUp:
+          stabilizationWindowSeconds: 30
+          policies:
+          - type: Pods
+            value: 4
+            periodSeconds: 30
+        scaleDown:
+          stabilizationWindowSeconds: 300
+          policies:
+          - type: Percent
+            value: 25
+            periodSeconds: 60
+  triggers:
+  - type: postgresql
+    metadata:
+      query: |
+        SELECT GREATEST(0, COUNT(*))::INT
+          FROM case_jobs
+         WHERE status = 'queued'
+      targetQueryValue: "5"   # target: ≤ 5 queued jobs per worker pod
+    authenticationRef:
+      name: clincase-postgres

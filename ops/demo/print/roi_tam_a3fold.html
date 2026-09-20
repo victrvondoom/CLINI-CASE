@@ -1,0 +1,1251 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>ClinCase — ROI + TAM A3 fold (print)</title>
+<link rel="preconnect" href="https://rsms.me/" />
+<link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Crimson+Pro:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  /* =================================================================
+     CLINCASE ROI + TAM A3 FOLD (single fold = bi-fold brochure)
+     - Sheet: A3 landscape (420 × 297 mm)
+     - Fold: vertical (down the middle)
+     - Folded result: A4 portrait (210 × 297 mm)
+     - 4 panels total (each ~195 mm wide)
+     - Side 1 (outside): [BACK panel | COVER panel]
+     - Side 2 (inside):  [INSIDE LEFT | INSIDE RIGHT]
+     ================================================================= */
+  @page { size: A3 landscape; margin: 14mm; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 10pt; }
+  body {
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    color: #0f172a;
+    line-height: 1.42;
+    font-feature-settings: "ss01", "cv11";
+    -webkit-font-smoothing: antialiased;
+    background: #fff;
+  }
+  .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+  .serif { font-family: 'Crimson Pro', Georgia, serif; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* Page = single A3 landscape side.
+     height + overflow:hidden = strict page boundary so a panel that
+     accidentally over-runs gets clipped instead of pushing onto a
+     new page (which would multiply sheet count). */
+  .sheet {
+    page-break-after: always; break-after: page;
+    page-break-inside: avoid; break-inside: avoid;
+    width: 100%;
+    height: 269mm;
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 18mm;
+    position: relative;
+  }
+  .sheet:last-child { page-break-after: auto; break-after: auto; }
+
+  /* Optional fold-line indicator — subtle dotted vertical guide.
+     Shown on print so the bindery knows where the fold goes.
+     Remove this rule if the printer prefers a cleaner sheet. */
+  .sheet::before {
+    content: "fold";
+    position: absolute;
+    top: 0; bottom: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    border-left: 1px dashed #cbd5e1;
+    color: #cbd5e1;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 6pt;
+    text-transform: uppercase; letter-spacing: 0.30em;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    padding-top: 6px;
+  }
+
+  .panel {
+    display: flex; flex-direction: column;
+    height: 269mm;          /* fixed page height, no overflow */
+    overflow: hidden;
+  }
+
+  /* ---- Type ---------------------------------------------------- */
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8.5pt; color: #64748b;
+    text-transform: uppercase; letter-spacing: 0.16em;
+    margin-bottom: 7px;
+  }
+  h1 { font-size: 24pt; line-height: 1.0; font-weight: 800;
+       letter-spacing: -0.03em; color: #0f172a; margin-bottom: 6px; }
+  h2 { font-size: 14pt; line-height: 1.1; font-weight: 700;
+       letter-spacing: -0.02em; color: #0f172a; margin-bottom: 6px; }
+  h3 { font-size: 11pt; font-weight: 600; color: #0f172a;
+       margin-bottom: 6px; }
+  h3.label {
+    font-family: 'JetBrains Mono', monospace;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    font-size: 9.5pt;
+  }
+  p  { font-size: 10pt; color: #334155; margin-bottom: 6px; }
+  .sub { color: #475569; font-size: 11pt; line-height: 1.5; max-width: 60ch; }
+  .small { font-size: 8.5pt; color: #64748b; line-height: 1.45; }
+  .tiny { font-size: 7.5pt; color: #94a3b8; }
+  .mark {
+    background: linear-gradient(90deg, #4f46e5 0%, #0891b2 100%);
+    -webkit-background-clip: text; background-clip: text;
+    color: transparent; -webkit-text-fill-color: transparent;
+  }
+
+  /* ---- Header / footer -------------------------------------- */
+  .ph {
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 8px; margin-bottom: 14px;
+  }
+  .ph .logo {
+    display: flex; align-items: center; gap: 9px;
+    font-weight: 700; letter-spacing: -0.01em; font-size: 12pt;
+  }
+  .ph .logo .dot {
+    width: 24px; height: 24px; border-radius: 5px;
+    background: linear-gradient(135deg, #4f46e5 0%, #0891b2 100%);
+    display: inline-grid; place-items: center; color: #fff;
+    font-size: 13px; font-weight: 700;
+  }
+  .ph .meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8.5pt; color: #64748b;
+    text-transform: uppercase; letter-spacing: 0.06em;
+  }
+  .pf {
+    margin-top: auto; padding-top: 11px;
+    border-top: 1px solid #e5e7eb;
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 7.5pt; color: #94a3b8;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+
+  /* ============================================================
+     COVER PANEL
+     ============================================================ */
+  .cover-hero {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #312e81 100%);
+    color: #fff;
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 9px;
+    position: relative;
+    overflow: hidden;
+  }
+  .cover-hero::after {
+    content: "";
+    position: absolute; top: -40px; right: -40px;
+    width: 180px; height: 180px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(34, 211, 238, 0.30) 0%, transparent 70%);
+  }
+  .cover-hero .eyebrow {
+    color: #67e8f9; margin-bottom: 6px;
+  }
+  .cover-hero .from-to {
+    font-family: 'Crimson Pro', Georgia, serif;
+    font-size: 50pt; font-weight: 700;
+    line-height: 1; letter-spacing: -0.04em;
+    margin-bottom: 4px;
+  }
+  .cover-hero .from-to .arrow {
+    font-family: 'Inter', sans-serif;
+    color: #94a3b8; font-weight: 300;
+    margin: 0 10px;
+  }
+  .cover-hero .from-to .from { color: #fda4af; }
+  .cover-hero .from-to .to {
+    background: linear-gradient(90deg, #34d399 0%, #67e8f9 100%);
+    -webkit-background-clip: text; background-clip: text;
+    color: transparent; -webkit-text-fill-color: transparent;
+  }
+  .cover-hero .tag {
+    font-size: 9.5pt; color: #cbd5e1;
+    margin: 3px 0 10px; max-width: 56ch; line-height: 1.45;
+  }
+  .cover-hero .net-row {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;
+    border-top: 1px solid rgba(255,255,255,0.12);
+    padding-top: 9px;
+  }
+  .cover-hero .net-row .item .lbl {
+    font-family: 'JetBrains Mono', monospace; font-size: 6.5pt;
+    color: #94a3b8; text-transform: uppercase; letter-spacing: 0.10em;
+    margin-bottom: 3px;
+  }
+  .cover-hero .net-row .item .v { font-size: 17pt; font-weight: 700; line-height: 1.05; letter-spacing: -0.02em; }
+  .cover-hero .net-row .item .sub-tiny { font-size: 7pt; color: #94a3b8; margin-top: 1px; }
+
+  .savings {
+    background: #f0fdf4;
+    border: 2px solid #86efac;
+    border-radius: 12px;
+    padding: 18px 22px;
+    margin-bottom: 11px;
+  }
+  .savings .lbl {
+    font-family: 'JetBrains Mono', monospace; font-size: 9pt;
+    color: #047857; text-transform: uppercase; letter-spacing: 0.10em;
+    font-weight: 600; margin-bottom: 6px;
+  }
+  .savings .big {
+    font-size: 52pt; font-weight: 800; line-height: 1; letter-spacing: -0.04em;
+    color: #047857; margin-bottom: 6px;
+  }
+  .savings .sub {
+    font-size: 10.5pt; color: #065f46; max-width: 60ch; line-height: 1.5;
+  }
+  .savings .sub strong { color: #022c22; font-weight: 600; }
+
+  .quick-row {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 9px;
+  }
+  .quick-stat {
+    background: #f8fafc; border: 1px solid #e2e8f0;
+    border-radius: 9px; padding: 11px 13px;
+  }
+  .quick-stat .lbl {
+    font-family: 'JetBrains Mono', monospace; font-size: 7.5pt;
+    color: #64748b; text-transform: uppercase; letter-spacing: 0.10em;
+    margin-bottom: 3px;
+  }
+  .quick-stat .v {
+    font-size: 17pt; font-weight: 700; color: #0f172a;
+    line-height: 1.1; letter-spacing: -0.02em;
+  }
+  .quick-stat .sub-line {
+    font-size: 8pt; color: #64748b; margin-top: 3px; line-height: 1.4;
+  }
+
+  /* ---- Filler ground-strip (cover) ----------------------------- */
+  .verified-strip {
+    background: #0f172a;
+    color: #fff;
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-top: 10px;
+  }
+  .verified-strip .lbl {
+    font-family: 'JetBrains Mono', monospace; font-size: 7.5pt;
+    color: #67e8f9; text-transform: uppercase; letter-spacing: 0.12em;
+    margin-bottom: 7px;
+  }
+  .verified-strip .row {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+    align-items: end;
+  }
+  .verified-strip .item .v {
+    font-size: 16pt; font-weight: 700; color: #34d399;
+    line-height: 1.05; letter-spacing: -0.02em;
+  }
+  .verified-strip .item .desc {
+    font-size: 7.5pt; color: #cbd5e1; margin-top: 2px;
+    line-height: 1.35;
+  }
+
+  /* ---- Unit-economics strip (inside left) ---------------------- */
+  .ue-strip {
+    background: linear-gradient(135deg, #1e3a8a 0%, #1e1b4b 100%);
+    color: #fff;
+    border-radius: 10px;
+    padding: 11px 14px;
+    margin-top: 6px;
+  }
+  .ue-strip .lbl {
+    font-family: 'JetBrains Mono', monospace; font-size: 7.5pt;
+    color: #93c5fd; text-transform: uppercase; letter-spacing: 0.12em;
+    margin-bottom: 7px;
+  }
+  .ue-strip .calc {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;
+    align-items: stretch;
+  }
+  .ue-strip .step {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 7px;
+    padding: 7px 9px;
+  }
+  .ue-strip .step .when {
+    font-family: 'JetBrains Mono', monospace; font-size: 7pt;
+    color: #93c5fd; text-transform: uppercase; letter-spacing: 0.10em;
+    margin-bottom: 2px;
+  }
+  .ue-strip .step .v {
+    font-size: 14pt; font-weight: 800; color: #67e8f9;
+    line-height: 1.05; letter-spacing: -0.02em; margin-bottom: 1px;
+  }
+  .ue-strip .step .desc {
+    font-size: 7.5pt; color: #cbd5e1; line-height: 1.35;
+  }
+
+  /* ---- Competitive moat strip (inside right) ------------------- */
+  .moat-strip {
+    background: #fffaf0;
+    border: 1.5px solid #f59e0b;
+    border-radius: 10px;
+    padding: 11px 14px;
+    margin-top: 6px;
+  }
+  .moat-strip .lbl {
+    font-family: 'JetBrains Mono', monospace; font-size: 7.5pt;
+    color: #92400e; text-transform: uppercase; letter-spacing: 0.12em;
+    font-weight: 600; margin-bottom: 6px;
+  }
+  .moat-strip h3 {
+    font-size: 11pt; font-weight: 700; color: #78350f;
+    letter-spacing: -0.01em; margin-bottom: 6px;
+  }
+  .moat-strip .grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px;
+  }
+  .moat-strip .competitor {
+    background: rgba(220, 38, 38, 0.06);
+    border: 1px solid rgba(220, 38, 38, 0.20);
+    border-radius: 6px;
+    padding: 6px 8px;
+    position: relative;
+  }
+  .moat-strip .competitor.us {
+    background: rgba(5, 150, 105, 0.08);
+    border-color: rgba(5, 150, 105, 0.35);
+  }
+  .moat-strip .competitor .name {
+    font-size: 8.5pt; font-weight: 700; color: #78350f;
+    letter-spacing: -0.01em;
+  }
+  .moat-strip .competitor.us .name { color: #047857; }
+  .moat-strip .competitor .x {
+    font-family: 'JetBrains Mono', monospace; font-size: 6.8pt;
+    color: #be123c; text-transform: uppercase; letter-spacing: 0.06em;
+    margin-top: 1px;
+  }
+  .moat-strip .competitor.us .x { color: #047857; }
+  .moat-strip .competitor .why {
+    font-size: 7pt; color: #78350f; line-height: 1.3; margin-top: 2px;
+  }
+  .moat-strip .competitor.us .why { color: #022c22; font-weight: 500; }
+
+  /* ---- How-to-start strip (back) ------------------------------- */
+  .start-strip {
+    background: #f0fdf4;
+    border: 1px solid #86efac;
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-top: 8px;
+  }
+  .start-strip .lbl {
+    font-family: 'JetBrains Mono', monospace; font-size: 7.5pt;
+    color: #047857; text-transform: uppercase; letter-spacing: 0.12em;
+    font-weight: 600; margin-bottom: 8px;
+  }
+  .start-strip .steps {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;
+  }
+  .start-strip .step {
+    display: flex; flex-direction: column; gap: 3px;
+  }
+  .start-strip .step .num {
+    width: 22px; height: 22px;
+    border-radius: 50%; background: #047857; color: #fff;
+    display: grid; place-items: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9pt; font-weight: 700;
+  }
+  .start-strip .step .what {
+    font-size: 9pt; font-weight: 600; color: #022c22;
+  }
+  .start-strip .step .when {
+    font-size: 7.5pt; color: #047857;
+    font-family: 'JetBrains Mono', monospace;
+    text-transform: uppercase; letter-spacing: 0.06em;
+  }
+  .start-strip .step .desc {
+    font-size: 7.5pt; color: #065f46; line-height: 1.35;
+  }
+
+  /* ============================================================
+     INSIDE LEFT — BUSINESS MODEL
+     ============================================================ */
+  .pricing-grid {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;
+    margin-bottom: 14px;
+  }
+  .tier {
+    border: 1px solid #e2e8f0; border-radius: 9px;
+    padding: 9px 11px;
+    background: #fff;
+    position: relative;
+  }
+  .tier.pilot { background: linear-gradient(180deg, rgba(37,99,235,0.04) 0%, #fff 60%); border-color: rgba(37,99,235,0.30); }
+  .tier.growth { background: linear-gradient(180deg, rgba(124,58,237,0.04) 0%, #fff 60%); border-color: rgba(124,58,237,0.30); }
+  .tier.enterprise { background: linear-gradient(180deg, rgba(5,150,105,0.04) 0%, #fff 60%); border-color: rgba(5,150,105,0.30); }
+  .tier .ribbon {
+    font-family: 'JetBrains Mono', monospace; font-size: 7.5pt;
+    text-transform: uppercase; letter-spacing: 0.10em;
+    padding: 2.5px 8px; border-radius: 4px; display: inline-block;
+    margin-bottom: 8px; font-weight: 600;
+  }
+  .tier.pilot .ribbon { background: rgba(37,99,235,0.10); color: #1d4ed8; border: 1px solid rgba(37,99,235,0.30); }
+  .tier.growth .ribbon { background: rgba(124,58,237,0.10); color: #6d28d9; border: 1px solid rgba(124,58,237,0.30); }
+  .tier.enterprise .ribbon { background: rgba(5,150,105,0.10); color: #047857; border: 1px solid rgba(5,150,105,0.30); }
+  .tier .name {
+    font-size: 11pt; font-weight: 700; color: #0f172a;
+    letter-spacing: -0.02em; margin-bottom: 2px;
+  }
+  .tier .price {
+    font-size: 20pt; font-weight: 800; color: #0f172a;
+    line-height: 1; letter-spacing: -0.03em; margin-bottom: 1px;
+  }
+  .tier .price-unit {
+    font-size: 7.5pt; color: #64748b; margin-bottom: 6px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .tier .vol {
+    font-size: 7.5pt; color: #475569; padding-top: 5px;
+    border-top: 1px dashed #cbd5e1;
+    margin-bottom: 4px;
+  }
+  .tier .vol strong { color: #0f172a; font-weight: 600; }
+  .tier .feat {
+    font-size: 7.5pt; color: #475569;
+    padding-left: 10px; position: relative;
+    margin-bottom: 1.5px; line-height: 1.3;
+  }
+  .tier .feat::before {
+    content: "✓"; position: absolute; left: 0; top: 0; color: #047857; font-weight: 700;
+  }
+
+  .lex-row {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px;
+    margin-bottom: 8px;
+  }
+  .lex {
+    border: 1px solid #e2e8f0; border-radius: 8px;
+    padding: 8px 10px; background: #fff;
+  }
+  .lex .step {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 7pt; color: #64748b;
+    text-transform: uppercase; letter-spacing: 0.10em;
+    margin-bottom: 2px;
+  }
+  .lex .head {
+    font-size: 10pt; font-weight: 700; color: #0f172a;
+    letter-spacing: -0.02em; margin-bottom: 3px;
+  }
+  .lex .desc { font-size: 7.5pt; color: #475569; line-height: 1.35; }
+  .lex .desc strong { color: #0f172a; font-weight: 600; }
+
+  .gtm-card {
+    background: linear-gradient(135deg, #312e81 0%, #1e1b4b 100%);
+    color: #fff;
+    border-radius: 10px;
+    padding: 11px 14px;
+    margin-bottom: 6px;
+  }
+  .gtm-card .lbl {
+    font-family: 'JetBrains Mono', monospace; font-size: 7pt;
+    color: #c4b5fd; text-transform: uppercase; letter-spacing: 0.12em;
+    margin-bottom: 3px;
+  }
+  .gtm-card h3 {
+    color: #fff; font-size: 11pt; font-weight: 700;
+    letter-spacing: -0.01em; margin-bottom: 4px;
+  }
+  .gtm-card p { color: #cbd5e1; font-size: 8pt; line-height: 1.4; max-width: 64ch; }
+  .gtm-card .stats {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;
+    margin-top: 7px; padding-top: 7px;
+    border-top: 1px solid rgba(255,255,255,0.12);
+  }
+  .gtm-card .stats .item .v { font-size: 14pt; font-weight: 800; color: #67e8f9; line-height: 1.05; letter-spacing: -0.02em; }
+  .gtm-card .stats .item .lbl-2 { font-size: 7pt; color: #c4b5fd; text-transform: uppercase; letter-spacing: 0.08em; margin-top: 1px; }
+
+  /* ============================================================
+     INSIDE RIGHT — TAM/SAM/SOM + ROADMAP
+     ============================================================ */
+  .market-stack {
+    margin-bottom: 8px;
+  }
+  .layer {
+    border-radius: 8px;
+    padding: 9px 13px;
+    margin-bottom: 5px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .layer .pill {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 7pt; font-weight: 700;
+    padding: 2px 6px; border-radius: 3.5px;
+    letter-spacing: 0.10em;
+    background: rgba(255,255,255,0.95); color: #0f172a;
+    flex-shrink: 0;
+  }
+  .layer .v {
+    font-size: 19pt; font-weight: 800;
+    line-height: 1; letter-spacing: -0.03em;
+    flex-shrink: 0;
+    min-width: 78px;
+  }
+  .layer .desc {
+    font-size: 8pt;
+    line-height: 1.35;
+  }
+  .layer .desc strong { font-weight: 600; }
+  .layer .cite {
+    font-family: 'JetBrains Mono', monospace; font-size: 7pt;
+    margin-top: 3px; opacity: 0.75;
+    letter-spacing: 0.04em;
+  }
+  .layer.tam {
+    background: linear-gradient(135deg, #1e3a8a 0%, #312e81 100%);
+    color: #fff;
+  }
+  .layer.tam .v { color: #93c5fd; }
+  .layer.sam {
+    background: linear-gradient(135deg, #5b21b6 0%, #7c3aed 100%);
+    color: #fff;
+    margin-left: 18px;
+  }
+  .layer.sam .v { color: #ddd6fe; }
+  .layer.som {
+    background: linear-gradient(135deg, #047857 0%, #059669 100%);
+    color: #fff;
+    margin-left: 36px;
+  }
+  .layer.som .v { color: #6ee7b7; }
+
+  .timeline {
+    border-left: 2px solid #e2e8f0;
+    padding-left: 14px;
+    margin-bottom: 8px;
+    position: relative;
+  }
+  .milestone {
+    position: relative;
+    padding-bottom: 6px;
+    margin-bottom: 0;
+  }
+  .milestone::before {
+    content: "";
+    position: absolute;
+    left: -20px; top: 3px;
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid #4f46e5;
+  }
+  .milestone.now::before { background: #4f46e5; box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.18); }
+  .milestone.future::before { border-color: #94a3b8; }
+  .milestone .when {
+    font-family: 'JetBrains Mono', monospace; font-size: 7pt;
+    color: #4f46e5; text-transform: uppercase; letter-spacing: 0.08em;
+    font-weight: 600; margin-bottom: 1px;
+  }
+  .milestone.future .when { color: #64748b; }
+  .milestone .what {
+    font-size: 9.5pt; font-weight: 600; color: #0f172a;
+    line-height: 1.2; margin-bottom: 1px; letter-spacing: -0.01em;
+  }
+  .milestone .detail {
+    font-size: 7.5pt; color: #475569; line-height: 1.3;
+  }
+  .milestone .detail strong { color: #0f172a; font-weight: 600; }
+
+  .adjacent {
+    background: #fffaf0;
+    border: 1px solid #fde68a;
+    border-radius: 8px;
+    padding: 8px 11px;
+    margin-bottom: 8px;
+  }
+  .adjacent h3 { color: #92400e; font-size: 9pt; margin-bottom: 2px; }
+  .adjacent p { font-size: 7.5pt; color: #78350f; line-height: 1.35; margin-bottom: 3px; }
+  .adjacent .rows {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 7px;
+    margin-top: 6px;
+  }
+  .adjacent .item {
+    background: #fff; border: 1px solid #fde68a;
+    border-radius: 6px; padding: 6px 8px;
+  }
+  .adjacent .item .name { font-size: 9pt; color: #92400e; font-weight: 700; }
+  .adjacent .item .desc { font-size: 7.5pt; color: #78350f; line-height: 1.35; }
+  .adjacent .item .x {
+    font-family: 'JetBrains Mono', monospace; font-size: 7pt;
+    color: #b45309; text-transform: uppercase; letter-spacing: 0.10em;
+    margin-top: 2px;
+  }
+
+  /* ============================================================
+     BACK PANEL
+     ============================================================ */
+  .back-hero {
+    background: linear-gradient(135deg, #0f172a 0%, #312e81 100%);
+    color: #fff;
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+  }
+  .back-hero .eyebrow { color: #67e8f9; margin-bottom: 4px; }
+  .back-hero .quote {
+    font-family: 'Crimson Pro', Georgia, serif;
+    font-size: 16pt; line-height: 1.25;
+    font-weight: 500;
+    color: #f1f5f9;
+    margin-bottom: 6px;
+  }
+  .back-hero .quote em { font-style: italic; color: #67e8f9; }
+  .back-hero .who {
+    font-family: 'JetBrains Mono', monospace; font-size: 7.5pt;
+    color: #94a3b8; letter-spacing: 0.04em;
+  }
+
+  .pilot-offer {
+    background: #fef3c7;
+    border: 2px solid #fbbf24;
+    border-radius: 10px;
+    padding: 10px 13px;
+    margin-bottom: 8px;
+  }
+  .pilot-offer .lbl {
+    font-family: 'JetBrains Mono', monospace; font-size: 7pt;
+    color: #92400e; text-transform: uppercase; letter-spacing: 0.12em;
+    font-weight: 600; margin-bottom: 3px;
+  }
+  .pilot-offer h2 {
+    font-size: 17pt; color: #78350f; margin-bottom: 4px;
+  }
+  .pilot-offer p { font-size: 9pt; color: #78350f; line-height: 1.45; margin-bottom: 5px; }
+  .pilot-offer .cta {
+    display: inline-block;
+    background: #92400e; color: #fff;
+    padding: 5px 11px; border-radius: 5px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 7.5pt; font-weight: 600;
+    text-decoration: none;
+    letter-spacing: 0.04em;
+  }
+
+  .qr-block {
+    display: flex; gap: 11px; align-items: center;
+    background: #fff;
+    border: 1px solid #e2e8f0; border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+  }
+  .qr-block .qr {
+    width: 44mm; height: 44mm;
+    padding: 3mm;
+    background: #fff;
+    border: 1.5px solid #0f172a;
+    border-radius: 7px;
+    flex-shrink: 0;
+  }
+  .qr-block .qr svg { width: 100%; height: 100%; display: block; }
+  .qr-block .right { flex: 1; }
+  .qr-block .right .lbl {
+    font-family: 'JetBrains Mono', monospace; font-size: 7pt;
+    color: #64748b; text-transform: uppercase; letter-spacing: 0.10em;
+    margin-bottom: 2px;
+  }
+  .qr-block .right .url {
+    font-family: 'JetBrains Mono', monospace; font-size: 11.5pt;
+    color: #0f172a; font-weight: 600; margin-bottom: 4px;
+  }
+  .qr-block .right .desc {
+    font-size: 8pt; color: #475569; line-height: 1.4;
+  }
+
+  .team-block {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 8px 11px;
+    margin-bottom: 7px;
+  }
+  .team-block h3 { font-size: 9pt; margin-bottom: 4px; color: #0f172a; }
+  .team-block .h-row {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 4px;
+  }
+  .team-block .h-row .count {
+    font-family: 'JetBrains Mono', monospace; font-size: 7pt;
+    color: #64748b; text-transform: uppercase; letter-spacing: 0.10em;
+  }
+  .team-block .person {
+    display: flex; align-items: center; gap: 8px;
+    padding: 3px 0;
+    border-bottom: 1px dashed #e2e8f0;
+  }
+  .team-block .person:last-child { border-bottom: 0; }
+  .team-block .person .avatar {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    color: #fff;
+    display: grid; place-items: center;
+    font-weight: 700; font-size: 9pt;
+    flex-shrink: 0;
+  }
+  .team-block .person.lead    .avatar { background: linear-gradient(135deg, #4f46e5 0%, #0891b2 100%); }
+  .team-block .person.product .avatar { background: linear-gradient(135deg, #0891b2 0%, #0d9488 100%); }
+  .team-block .person.backend .avatar { background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%); }
+  .team-block .person.domain  .avatar { background: linear-gradient(135deg, #d97706 0%, #b45309 100%); }
+  .team-block .person .body { flex: 1; min-width: 0; }
+  .team-block .person .body .name {
+    font-size: 8.5pt; font-weight: 600; color: #0f172a; line-height: 1.2;
+  }
+  .team-block .person .body .role {
+    font-family: 'JetBrains Mono', monospace; font-size: 6.5pt;
+    color: #4f46e5; text-transform: uppercase; letter-spacing: 0.04em;
+    font-weight: 600; margin-top: 1px; margin-bottom: 1px;
+  }
+  .team-block .person .body .desc {
+    font-size: 7pt; color: #475569; line-height: 1.3;
+  }
+  .team-block .contact-line {
+    margin-top: 4px; padding-top: 4px;
+    border-top: 1px solid #e2e8f0;
+    font-family: 'JetBrains Mono', monospace; font-size: 6.5pt;
+    color: #475569; line-height: 1.3;
+  }
+  .team-block .contact-line strong { color: #0f172a; font-weight: 600; }
+
+  .stack-row {
+    display: flex; gap: 5px; flex-wrap: wrap;
+    margin-bottom: 6px;
+  }
+  .stack-chip {
+    font-family: 'JetBrains Mono', monospace; font-size: 6.8pt;
+    background: #f1f5f9; color: #1e293b;
+    padding: 3px 6px; border-radius: 4px;
+    border: 1px solid #cbd5e1;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+  }
+  .stack-chip.cogniz { background: #1d4ed8; color: #fff; border-color: #1d4ed8; }
+  .stack-chip.bedrock { background: #f59e0b; color: #fff; border-color: #f59e0b; }
+  .stack-chip.anthropic { background: #d97706; color: #fff; border-color: #d97706; }
+</style>
+</head>
+<body>
+
+
+<!-- ================================================================
+     SHEET 1 — OUTSIDE  (this prints on the FRONT of the A3 sheet)
+     Layout when sheet is laid flat, side-1-up:
+       [BACK panel | COVER panel]
+     Fold vertically along centre. Cover ends up on the front face.
+     ================================================================ -->
+<section class="sheet">
+
+  <!-- ============== BACK PANEL ============================== -->
+  <div class="panel">
+    <header class="ph">
+      <div class="logo"><span class="dot">A</span> ClinCase<span style="color:#0891b2">.</span></div>
+      <div class="meta">BUSINESS BRIEF · BACK COVER</div>
+    </header>
+
+    <div class="back-hero">
+      <div class="eyebrow">THE ASK · THE 2026 HACKATHON</div>
+      <div class="quote">
+        We're not pitching <em>a hackathon project.</em><br>
+        We're pitching <em>the missing piece</em> of the<br>
+        Anthropic-enterprise healthcare stack.
+      </div>
+      <div class="who">— TEAM AEROFYTA · 2027 ENGINEERING · 2026-05-07</div>
+    </div>
+
+    <div class="pilot-offer">
+      <div class="lbl">PILOT OFFER · 30-DAY DECISION WINDOW</div>
+      <h2>First 2 pilots — free for 90 days.</h2>
+      <p>Selected via the payer organization referral. Provider-side oncology pilot. Includes onboarding, evaluation harness, dedicated Slack channel, AWS Bedrock infra cost. Outcome: production-ready pilot decision in 90 days, expansion to growth tier on Day 91.</p>
+      <span class="cta">→ scan QR · pilot inquiry pre-filled</span>
+    </div>
+
+    <div class="qr-block">
+      <div class="qr">
+        <!-- CLINCASE-LIVE-AWS-QR · encodes http://clincase-demo-26697.s3-website-us-east-1.amazonaws.com/ (deployed 2026-05-06) -->
+        <svg viewBox="0 0 360 360" preserveAspectRatio="xMidYMid meet" aria-label="QR code linking to live ClinCase showcase on AWS S3">
+          <path fill="#fff" d="M0 0h360v360H0z"/>
+          <path transform="scale(8)" stroke="#0f172a" fill="none" d="M0 0.5h7m1 0h1m2 0h2m1 0h1m4 0h1m1 0h1m2 0h1m1 0h1m1 0h1m1 0h3m3 0h1m1 0h7m-45 1h1m5 0h1m2 0h1m6 0h2m2 0h1m1 0h2m1 0h1m3 0h1m2 0h2m1 0h1m2 0h1m5 0h1m-45 1h1m1 0h3m1 0h1m1 0h2m1 0h1m4 0h2m1 0h1m2 0h1m3 0h1m6 0h1m1 0h1m2 0h1m1 0h3m1 0h1m-45 1h1m1 0h3m1 0h1m2 0h4m1 0h1m2 0h1m1 0h1m2 0h6m1 0h2m1 0h2m1 0h2m1 0h1m1 0h3m1 0h1m-45 1h1m1 0h3m1 0h1m1 0h2m3 0h1m1 0h1m1 0h8m1 0h1m1 0h1m1 0h1m3 0h3m1 0h1m1 0h3m1 0h1m-45 1h1m5 0h1m2 0h4m1 0h3m1 0h3m3 0h2m3 0h1m8 0h1m5 0h1m-45 1h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7m-37 1h4m1 0h1m1 0h1m1 0h1m2 0h1m3 0h6m2 0h3m1 0h1m-32 1h2m2 0h3m3 0h1m2 0h10m1 0h3m2 0h2m2 0h1m1 0h1m1 0h1m1 0h1m-45 1h5m3 0h1m1 0h4m3 0h1m1 0h2m1 0h5m1 0h7m1 0h4m1 0h1m-41 1h1m1 0h1m2 0h2m1 0h1m2 0h1m1 0h1m3 0h1m2 0h3m1 0h1m1 0h3m1 0h8m2 0h1m-42 1h1m1 0h2m1 0h1m2 0h2m1 0h1m1 0h2m2 0h1m1 0h3m2 0h1m1 0h1m3 0h1m1 0h4m3 0h6m-45 1h2m2 0h1m1 0h1m1 0h4m1 0h3m8 0h1m1 0h2m2 0h3m1 0h1m2 0h2m1 0h2m1 0h2m-44 1h2m1 0h2m2 0h2m1 0h1m4 0h4m1 0h1m1 0h1m4 0h4m3 0h2m2 0h1m3 0h2m-45 1h1m1 0h1m3 0h3m3 0h1m1 0h1m4 0h1m6 0h2m1 0h1m1 0h1m2 0h1m2 0h3m2 0h2m-42 1h1m1 0h2m6 0h1m2 0h1m3 0h2m1 0h2m1 0h1m1 0h3m1 0h1m2 0h1m1 0h4m1 0h2m-43 1h2m2 0h4m1 0h4m1 0h2m1 0h1m2 0h1m2 0h1m4 0h1m5 0h1m2 0h1m3 0h1m1 0h2m-43 1h4m1 0h1m2 0h1m1 0h1m1 0h4m1 0h1m1 0h2m1 0h1m2 0h1m1 0h1m2 0h2m2 0h2m1 0h1m3 0h2m-41 1h1m1 0h2m1 0h1m3 0h1m3 0h1m3 0h1m1 0h1m2 0h1m2 0h2m1 0h2m3 0h1m3 0h2m1 0h1m-44 1h5m3 0h2m1 0h1m2 0h1m3 0h1m2 0h2m2 0h2m2 0h1m1 0h1m2 0h1m1 0h1m2 0h1m1 0h2m-40 1h5m2 0h1m1 0h3m1 0h8m4 0h3m4 0h5m2 0h1m-43 1h1m2 0h1m3 0h1m1 0h2m1 0h4m1 0h3m3 0h2m1 0h2m1 0h1m1 0h1m1 0h3m3 0h1m1 0h1m-40 1h2m1 0h1m1 0h1m1 0h1m1 0h2m5 0h2m1 0h1m1 0h2m2 0h4m1 0h2m1 0h1m1 0h1m1 0h2m1 0h1m-44 1h3m1 0h1m3 0h1m3 0h1m4 0h2m1 0h1m3 0h1m2 0h1m2 0h1m2 0h2m1 0h1m3 0h1m1 0h2m-43 1h8m1 0h6m4 0h5m2 0h2m1 0h3m3 0h5m-38 1h3m1 0h4m1 0h1m5 0h2m1 0h3m7 0h3m1 0h1m1 0h3m1 0h1m2 0h1m-44 1h2m1 0h1m1 0h2m3 0h1m1 0h5m2 0h1m1 0h1m4 0h1m2 0h8m1 0h1m1 0h3m-44 1h2m3 0h1m1 0h1m1 0h1m2 0h3m1 0h1m1 0h9m7 0h2m3 0h4m-42 1h6m3 0h1m4 0h1m1 0h2m3 0h1m1 0h1m1 0h2m1 0h3m4 0h1m3 0h1m3 0h1m-45 1h3m4 0h1m3 0h1m2 0h1m1 0h3m1 0h2m1 0h1m7 0h1m1 0h1m1 0h1m1 0h3m1 0h1m1 0h2m-41 1h6m2 0h1m2 0h2m4 0h2m2 0h1m2 0h1m2 0h2m3 0h1m1 0h4m2 0h1m-45 1h5m2 0h2m2 0h1m1 0h1m2 0h4m1 0h1m5 0h3m2 0h1m2 0h5m1 0h3m-41 1h1m1 0h2m1 0h1m1 0h1m1 0h2m6 0h4m1 0h4m2 0h1m1 0h2m1 0h1m3 0h1m2 0h1m-41 1h2m2 0h1m1 0h2m2 0h1m2 0h1m1 0h4m2 0h3m3 0h1m1 0h1m1 0h1m2 0h1m1 0h4m-39 1h1m1 0h1m1 0h1m2 0h2m1 0h3m2 0h1m2 0h2m1 0h1m1 0h3m1 0h1m2 0h1m1 0h1m5 0h1m-42 1h4m2 0h2m1 0h3m4 0h1m3 0h1m4 0h1m1 0h1m2 0h2m1 0h2m2 0h1m2 0h4m-45 1h1m2 0h2m1 0h1m2 0h1m1 0h3m2 0h11m1 0h2m1 0h2m1 0h7m3 0h1m-37 1h3m2 0h2m1 0h1m1 0h1m1 0h1m3 0h1m1 0h1m2 0h1m2 0h2m1 0h2m3 0h2m2 0h1m-45 1h7m3 0h2m2 0h2m1 0h2m1 0h1m1 0h1m1 0h3m3 0h2m2 0h1m1 0h1m1 0h1m1 0h4m-44 1h1m5 0h1m1 0h1m1 0h1m1 0h2m1 0h1m3 0h2m3 0h3m1 0h1m1 0h2m1 0h1m1 0h2m3 0h3m-43 1h1m1 0h3m1 0h1m2 0h1m1 0h2m2 0h1m1 0h8m1 0h1m2 0h1m1 0h1m1 0h2m1 0h5m-41 1h1m1 0h3m1 0h1m3 0h2m1 0h1m1 0h1m2 0h2m1 0h2m1 0h1m1 0h3m1 0h2m1 0h1m4 0h1m1 0h1m1 0h3m-45 1h1m1 0h3m1 0h1m2 0h1m4 0h1m1 0h1m1 0h3m2 0h5m2 0h1m1 0h2m2 0h2m2 0h1m2 0h2m-45 1h1m5 0h1m2 0h2m1 0h3m3 0h3m4 0h2m1 0h3m1 0h5m2 0h1m2 0h1m-43 1h7m2 0h1m1 0h1m7 0h1m2 0h3m1 0h1m3 0h1m4 0h1m2 0h1m4 0h1"/>
+        </svg>
+      </div>
+      <div class="right">
+        <div class="lbl">SCAN · LIVE INTERACTIVE DEMO</div>
+        <div class="url">clincase-demo-26697.s3-website-us-east-1.amazonaws.com</div>
+        <div class="desc">Opens the standalone ClinCase showcase on your phone. 13 routes, 3 demo paths (APPROVE / REFER / DENY), zero backend, runs from anywhere. Tweaks panel lets you switch verdicts live.</div>
+      </div>
+    </div>
+
+    <div class="team-block">
+      <div class="h-row">
+        <h3>Team AeroFyta</h3>
+        <span class="count">4 members · all 6 evaluation criteria covered</span>
+      </div>
+
+      <div class="person lead">
+        <div class="avatar">D</div>
+        <div class="body">
+          <div class="name">Danish A. G.</div>
+          <div class="role">Team Lead · Chief Architect</div>
+          <div class="desc">7-agent DAG · Bedrock + Sonnet 4.6 · MCP · LLMClient abstraction · system design</div>
+        </div>
+      </div>
+
+      <div class="person product">
+        <div class="avatar">P</div>
+        <div class="body">
+          <div class="name">Preethi Sivachandran</div>
+          <div class="role">Product &amp; Demo Lead · UX</div>
+          <div class="desc">Live demo · UX flow · Tweaks panel · standalone showcase · pitch script</div>
+        </div>
+      </div>
+
+      <div class="person backend">
+        <div class="avatar">S</div>
+        <div class="body">
+          <div class="name">Sanjay N</div>
+          <div class="role">Backend &amp; Compliance Engineer</div>
+          <div class="desc">FHIR R4 · Postgres + RLS · SHA-256 audit ledger · CMS-0057-F § IV · HIPAA / PHI sanitizer</div>
+        </div>
+      </div>
+
+      <div class="person domain">
+        <div class="avatar">G</div>
+        <div class="body">
+          <div class="name">Gayathri B</div>
+          <div class="role">Healthcare Domain &amp; Business Analyst</div>
+          <div class="desc">$30B problem · CAQH/KFF 2024 sourcing · ROI math · pilot pipeline · NCCN guidelines</div>
+        </div>
+      </div>
+
+      <div class="contact-line">
+        <strong>Contact:</strong> agdanishr@gmail.com · preethisivachandran0@gmail.com · +91-8903099026 · Chennai Institute of Technology
+      </div>
+    </div>
+
+    <div class="stack-row">
+      <span class="stack-chip cogniz">NEURO-SAN AAOSA</span>
+      <span class="stack-chip bedrock">AWS BEDROCK</span>
+      <span class="stack-chip anthropic">CLAUDE SONNET 4.6</span>
+      <span class="stack-chip">MCP</span>
+      <span class="stack-chip">LANGGRAPH</span>
+      <span class="stack-chip">FHIR R4</span>
+      <span class="stack-chip">CMS-0057-F</span>
+      <span class="stack-chip">SOC 2</span>
+    </div>
+
+    <div class="start-strip">
+      <div class="lbl">HOW TO START · 90-DAY PILOT WINDOW</div>
+      <div class="steps">
+        <div class="step">
+          <div class="num">1</div>
+          <div class="what">Scan QR · book a 30-min call</div>
+          <div class="when">Day 0</div>
+          <div class="desc">Live demo + your patient cohort. Synthetic-only on the call. No PHI exchanged.</div>
+        </div>
+        <div class="step">
+          <div class="num">2</div>
+          <div class="what">Sign BAA + free pilot agreement</div>
+          <div class="when">Day 7-14</div>
+          <div class="desc">Free 90-day pilot. the payer organization referral path. AWS Bedrock infra cost included.</div>
+        </div>
+        <div class="step">
+          <div class="num">3</div>
+          <div class="what">Production decision in 90 days</div>
+          <div class="when">Day 91</div>
+          <div class="desc">Auto-promote to Growth tier OR walk away. No lock-in. No cancellation fee.</div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="pf">
+      <span>ClinCase · Team AeroFyta · the 2026 hackathon</span>
+      <span>BACK · OUTSIDE</span>
+    </footer>
+  </div>
+
+
+  <!-- ============== COVER PANEL ============================== -->
+  <div class="panel">
+    <header class="ph">
+      <div class="logo"><span class="dot">A</span> ClinCase<span style="color:#0891b2">.</span></div>
+      <div class="meta">BUSINESS BRIEF · COVER · ROI · TAM · ROADMAP</div>
+    </header>
+
+    <div class="cover-hero">
+      <div class="eyebrow">FROM HOURS OF FAX-FIGHT TO 60 SECONDS</div>
+      <div class="from-to">
+        <span class="from">$1,500</span>
+        <span class="arrow">→</span>
+        <span class="to">25¢</span>
+      </div>
+      <div class="tag">
+        AMA-baseline manual prior auth cost vs ClinCase live-audited per-case cost (2026-05-05).
+        Verified end-to-end on the production pipeline. <strong style="color:#fff;">Independently reproducible</strong> from the <code class="mono" style="font-size:9pt; background:rgba(255,255,255,0.12); padding:1px 5px; border-radius:3px;">llm_invocations</code> table.
+      </div>
+      <div class="net-row">
+        <div class="item">
+          <div class="lbl">PER CASE · APPROVE</div>
+          <div class="v">$0.25</div>
+          <div class="sub-tiny">98 LLM calls · 28 sec</div>
+        </div>
+        <div class="item">
+          <div class="lbl">PER CASE · DENY+APPEAL</div>
+          <div class="v">$0.55</div>
+          <div class="sub-tiny">incl. NCCN-cited appeal</div>
+        </div>
+        <div class="item">
+          <div class="lbl">PER CASE · REFER</div>
+          <div class="v">$0.30</div>
+          <div class="sub-tiny">+ 5 min nurse-reviewer</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="savings">
+      <div class="lbl">NET SAVINGS PER CASE · CLEAN APPROVE</div>
+      <div class="big">$1,499.75</div>
+      <div class="sub">
+        <strong>99.93% reduction.</strong> A 200-bed regional cancer centre processing 150 oncology PAs per month saves <strong>$224,962 per month</strong> in admin labour. Payback: <strong>under 0.2 days</strong>.
+      </div>
+    </div>
+
+    <div class="quick-row">
+      <div class="quick-stat">
+        <div class="lbl">200-BED CANCER CENTRE</div>
+        <div class="v">$224,962</div>
+        <div class="sub-line">monthly savings · 150 PAs/mo · Pilot tier</div>
+      </div>
+      <div class="quick-stat">
+        <div class="lbl">CMS-0057-F MANDATE</div>
+        <div class="v">Jan 2027</div>
+        <div class="sub-line">18-month build window · every US payer</div>
+      </div>
+      <div class="quick-stat">
+        <div class="lbl">5-YEAR ARR TARGET</div>
+        <div class="v">$20M</div>
+        <div class="sub-line">10% of US specialty PA market via the partner</div>
+      </div>
+      <div class="quick-stat">
+        <div class="lbl">VERDICT TIME</div>
+        <div class="v">28 sec</div>
+        <div class="sub-line">end-to-end · real-pipeline · 7-agent DAG</div>
+      </div>
+    </div>
+
+    <p style="margin-top:8px; font-size:8.5pt; color:#475569; line-height:1.4;">
+      <strong style="color:#0f172a;">Unfold to read.</strong> Inside: 3-tier pricing · $30B → $200M → $20M market · 3-year roadmap · the partner distribution math · all numbers sourced.
+    </p>
+
+    <div class="verified-strip">
+      <div class="lbl">INDEPENDENTLY VERIFIED · 2026-05-05 LIVE-RUN AUDIT</div>
+      <div class="row">
+        <div class="item">
+          <div class="v">98 / 98</div>
+          <div class="desc">LLM calls succeeded · all 7 parent agents fired end-to-end · zero errors</div>
+        </div>
+        <div class="item">
+          <div class="v">$1.01</div>
+          <div class="desc">real per-case cost · pulled from <code style="font-family:'JetBrains Mono'; color:#67e8f9;">llm_invocations</code> table</div>
+        </div>
+        <div class="item">
+          <div class="v">13 / 13</div>
+          <div class="desc">frontend routes · standalone showcase · all render in light + dark mode</div>
+        </div>
+        <div class="item">
+          <div class="v">8 / 8</div>
+          <div class="desc">CMS-0057-F § IV clauses in force today · auditor-grade, not promised</div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="pf">
+      <span>ClinCase · ROI · TAM · Business Model · Roadmap · 1 of 1</span>
+      <span>COVER · OUTSIDE</span>
+    </footer>
+  </div>
+
+</section>
+
+
+<!-- ================================================================
+     SHEET 2 — INSIDE  (this prints on the BACK of the A3 sheet)
+     Layout when sheet is laid flat, side-2-up:
+       [INSIDE LEFT | INSIDE RIGHT]
+     This becomes the spread when the brochure is opened.
+     ================================================================ -->
+<section class="sheet">
+
+  <!-- ============== INSIDE LEFT — BUSINESS MODEL ============= -->
+  <div class="panel">
+    <header class="ph">
+      <div class="logo"><span class="dot">A</span> ClinCase<span style="color:#0891b2">.</span></div>
+      <div class="meta">PANEL 1 · BUSINESS MODEL · GTM</div>
+    </header>
+
+    <div class="eyebrow">1 · BUSINESS MODEL</div>
+    <h1>Per-case fee. <span class="mark">3 tiers.</span></h1>
+    <p class="sub" style="margin-bottom:14px;">
+      Sold to provider organisations — hospital systems, oncology practices, FQHCs. Per-case fee with volume tiers. Land via 200-bed centres, expand by adding specialty drug classes, distribute via the payer organization enterprise procurement.
+    </p>
+
+    <div class="pricing-grid">
+      <div class="tier pilot">
+        <div class="ribbon">PILOT</div>
+        <div class="name">Pilot</div>
+        <div class="price">$9</div>
+        <div class="price-unit">per decided case</div>
+        <div class="vol"><strong>&lt; 500</strong> PAs / month</div>
+        <div class="feat">90-day pilot window · free first 2 partners</div>
+        <div class="feat">Slack channel + onboarding</div>
+        <div class="feat">Basic compliance pack</div>
+        <div class="feat">Land at 200-bed centre</div>
+      </div>
+      <div class="tier growth">
+        <div class="ribbon">★ MOST CHOSEN</div>
+        <div class="name">Growth</div>
+        <div class="price">$6</div>
+        <div class="price-unit">per decided case</div>
+        <div class="vol"><strong>500 – 5,000</strong> PAs / month</div>
+        <div class="feat">Multi-drug-class expansion</div>
+        <div class="feat">Custom payer policies</div>
+        <div class="feat">Quarterly evidence packs</div>
+        <div class="feat">SLA + dedicated CSM</div>
+      </div>
+      <div class="tier enterprise">
+        <div class="ribbon">ENTERPRISE</div>
+        <div class="name">Enterprise</div>
+        <div class="price">$4</div>
+        <div class="price-unit">per decided case</div>
+        <div class="vol"><strong>&gt; 5,000</strong> PAs / month</div>
+        <div class="feat">Self-hosted (BYO Bedrock)</div>
+        <div class="feat">TriZetto integration tier</div>
+        <div class="feat">the partner procurement vehicle</div>
+        <div class="feat">Custom IAM / SOC 2 attestation</div>
+      </div>
+    </div>
+
+    <h2 style="margin-top:6px;">Land · Expand · Distribute</h2>
+    <div class="lex-row">
+      <div class="lex">
+        <div class="step">1 · LAND</div>
+        <div class="head">200-bed centre</div>
+        <div class="desc">A regional cancer centre at <strong>~150 oncology PAs/month</strong>, ~$1,800 revenue impact per case from delay reduction. Pilot tier <strong>$1,350/mo</strong>. Payback under 1 day.</div>
+      </div>
+      <div class="lex">
+        <div class="step">2 · EXPAND</div>
+        <div class="head">Drug-class adjacency</div>
+        <div class="desc">Add <strong>GLP-1, MS, transplant, rheumatology</strong> to the same account. <strong>4-8× case volume</strong> per account. Move to Growth tier. Same agent architecture, fixtures-only change.</div>
+      </div>
+      <div class="lex">
+        <div class="step">3 · DISTRIBUTE</div>
+        <div class="head">the partner procurement</div>
+        <div class="desc">Slot into the existing <strong>Bedrock + Sonnet + MCP</strong> enterprise stack the partner already sells. Same auth, same observability, same vehicle as TriZetto.</div>
+      </div>
+    </div>
+
+    <div class="gtm-card">
+      <div class="lbl">GO-TO-MARKET · ENTERPRISE HEALTH SCIENCES</div>
+      <h3>The unfair distribution advantage.</h3>
+      <p>the payer organization sells in <strong>47 of the top 50 US payers</strong> and <strong>200+ provider organisations</strong>. ClinCase slots into that exact distribution channel — same procurement workflow, same enterprise ELA, same IT&S onboarding. <strong>We don't sell to one hospital at a time. We sell to the channel.</strong></p>
+      <div class="stats">
+        <div class="item">
+          <div class="v">47 / 50</div>
+          <div class="lbl-2">US payers the partner sells in</div>
+        </div>
+        <div class="item">
+          <div class="v">200+</div>
+          <div class="lbl-2">Provider orgs in pipeline</div>
+        </div>
+        <div class="item">
+          <div class="v">Nov 4 '24</div>
+          <div class="lbl-2">Anthropic partnership announce</div>
+        </div>
+      </div>
+    </div>
+
+    <p class="small" style="border-top:1px solid #e2e8f0; padding-top:8px;">
+      <strong>Sources:</strong> the payer organization customer disclosures (10-K 2024) · CAQH Index 2024 · AMA Prior Auth Survey 2024 · KFF Medicare Advantage 2024 · ASCO Quality Oncology Practice Initiative (QOPI).
+    </p>
+
+    <div class="ue-strip">
+      <div class="lbl">YEAR-1 UNIT ECONOMICS · ONE GROWTH ACCOUNT</div>
+      <div class="calc">
+        <div class="step">
+          <div class="when">Step 1 · Land</div>
+          <div class="v">$1,350 MRR</div>
+          <div class="desc">Pilot tier · 150 oncology PAs/mo × $9 · 1 cancer centre</div>
+        </div>
+        <div class="step">
+          <div class="when">Step 2 · Expand</div>
+          <div class="v">$9,000 MRR</div>
+          <div class="desc">Growth tier · 1,500 PAs/mo × $6 · adds GLP-1 + MS + transplant</div>
+        </div>
+        <div class="step">
+          <div class="when">Step 3 · Year-1 ARR</div>
+          <div class="v">$108K ARR</div>
+          <div class="desc">Single graduated Growth account · payback &lt; 1 day per case</div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="pf">
+      <span>ClinCase · Business Model · GTM · 1 of 2</span>
+      <span>INSIDE LEFT</span>
+    </footer>
+  </div>
+
+
+  <!-- ============== INSIDE RIGHT — TAM/SAM/SOM + ROADMAP ====== -->
+  <div class="panel">
+    <header class="ph">
+      <div class="logo"><span class="dot">A</span> ClinCase<span style="color:#0891b2">.</span></div>
+      <div class="meta">PANEL 2 · MARKET · ROADMAP · ADJACENT</div>
+    </header>
+
+    <div class="eyebrow">2 · MARKET HIERARCHY</div>
+    <h1>$30B → <span class="mark">$200M</span> → $20M.</h1>
+    <p class="sub" style="margin-bottom:12px;">
+      The total US prior-auth waste, the addressable specialty-PA segment ClinCase serves at $5/case, and the realistic 5-year capture target through the partner distribution. All figures sourced.
+    </p>
+
+    <div class="market-stack">
+      <div class="layer tam">
+        <span class="pill">TAM</span>
+        <div class="v">$30B</div>
+        <div class="desc">
+          <strong>Annual US prior-auth admin waste.</strong><br>
+          <span class="cite">CAQH INDEX 2024 · 600M PA decisions/year all classes</span>
+        </div>
+      </div>
+      <div class="layer sam">
+        <span class="pill">SAM</span>
+        <div class="v">$200M</div>
+        <div class="desc">
+          <strong>US specialty-drug PA market</strong> at $5 average price/case · 40M oncology PAs/year alone.<br>
+          <span class="cite">CAQH 2024 + ASCO QOPI 2024 · oncology grew 38% YoY</span>
+        </div>
+      </div>
+      <div class="layer som">
+        <span class="pill">SOM</span>
+        <div class="v">$20M</div>
+        <div class="desc">
+          <strong>5-year capture · 10% of specialty PAs</strong> via the payer organization distribution.<br>
+          <span class="cite">Conservative · assumes only the partner existing accounts</span>
+        </div>
+      </div>
+    </div>
+
+    <h2 style="margin-bottom:10px;">3-year roadmap</h2>
+
+    <div class="timeline">
+
+      <div class="milestone now">
+        <div class="when">Q3 · 2026</div>
+        <div class="what">First pilot — Tata Memorial Centre, Mumbai</div>
+        <div class="detail"><strong>Wedge:</strong> trastuzumab + pembrolizumab cohort. ~80 cases/month. Aetna India + UHC. Outcome: 90-day pilot to first paying month.</div>
+      </div>
+
+      <div class="milestone">
+        <div class="when">Q4 · 2026</div>
+        <div class="what">Second pilot — Apollo Hospitals, Hyderabad</div>
+        <div class="detail"><strong>Wedge:</strong> EGFR + HER2 + MSI-H cohort. Validates multi-payer arbitration. <strong>Both pilots paying by Dec 2026.</strong></div>
+      </div>
+
+      <div class="milestone">
+        <div class="when">Q1 · 2027</div>
+        <div class="what">TriZetto integration · the partner payer-side go-live</div>
+        <div class="detail">Structured-envelope submission to TriZetto adjudication API. Closes the provider→payer loop. <strong>CMS-0057-F mandate enforcement Jan 1.</strong></div>
+      </div>
+
+      <div class="milestone future">
+        <div class="when">Q3 · 2027</div>
+        <div class="what">Series-A · $4-6M target</div>
+        <div class="detail">Use of funds: 3 more agents (UM, claims, RCM), AWS Marketplace listing, 8 the partner referral channels.</div>
+      </div>
+
+      <div class="milestone future">
+        <div class="when">2028</div>
+        <div class="what">Adjacent verticals + $5M ARR run-rate</div>
+        <div class="detail">UM (Q1) · Claim denials (Q3) · 10 enterprise accounts by Q4 · the partner strategic option triggered.</div>
+      </div>
+
+    </div>
+
+    <div class="adjacent">
+      <h3>Adjacent markets — same architecture, different payload</h3>
+      <p>The 7-agent LangGraph DAG is payload-agnostic. Each adjacent market is a fixtures + prompts swap, not a re-architecture. Together: <strong>~6× the prior-auth TAM.</strong></p>
+      <div class="rows">
+        <div class="item">
+          <div class="name">Utilisation mgmt</div>
+          <div class="desc">Inpatient stay justification, level-of-care matching</div>
+          <div class="x">+2-3× TAM</div>
+        </div>
+        <div class="item">
+          <div class="name">Claim denials</div>
+          <div class="desc">Auto-appeals on rejected claims, same NCCN engine</div>
+          <div class="x">+1.5× TAM</div>
+        </div>
+        <div class="item">
+          <div class="name">Revenue cycle</div>
+          <div class="desc">Coding audit, charge-capture validation</div>
+          <div class="x">+2× TAM</div>
+        </div>
+      </div>
+    </div>
+
+    <p class="small" style="border-top:1px solid #e2e8f0; padding-top:8px;">
+      <strong>Sources:</strong> CAQH Index 2024 (PA volume + waste) · AMA 2024 (manual cost baseline) · KFF 2024 (overturn rate) · ASCO QOPI 2024 (oncology PA volume) · CMS Federal Register CMS-0057-F (mandate timing) · the partner 10-K 2024 (channel reach).
+    </p>
+
+    <div class="moat-strip">
+      <div class="lbl">COMPETITIVE LANDSCAPE · WHY THIS WINS</div>
+      <h3>No one else does <em style="color:#92400e;">provider-side + FHIR-native + citation-grounded + appeals-as-side-effect</em> on a multi-agent LangGraph DAG.</h3>
+      <div class="grid">
+        <div class="competitor">
+          <div class="name">Olive AI</div>
+          <div class="x">FOLDED · 2023</div>
+          <div class="why">$852M raised → ran out of runway. Workflow automation, not multi-agent.</div>
+        </div>
+        <div class="competitor">
+          <div class="name">Notable</div>
+          <div class="x">PAYER-SIDE</div>
+          <div class="why">Adjudication-side. Doesn't help the doctor. No appeal generation.</div>
+        </div>
+        <div class="competitor">
+          <div class="name">Cohere Health</div>
+          <div class="x">UM ONLY</div>
+          <div class="why">Utilisation management focus. Not oncology-deep, not appeals-aware.</div>
+        </div>
+        <div class="competitor us">
+          <div class="name">ClinCase</div>
+          <div class="x">PROVIDER · ONCOLOGY</div>
+          <div class="why">7-agent DAG · NCCN-cited appeals · CMS-0057-F native. the partner-stack.</div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="pf">
+      <span>ClinCase · TAM · Roadmap · Adjacent · 2 of 2</span>
+      <span>INSIDE RIGHT</span>
+    </footer>
+  </div>
+
+</section>
+
+</body>
+</html>

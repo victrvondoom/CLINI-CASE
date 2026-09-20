@@ -1,0 +1,67 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+ENV/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+
+# Node
+node_modules/
+dist/
+build/
+.vite/
+*.tsbuildinfo
+
+# Env / secrets — NEVER commit
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Docker
+.docker/
+
+# OS / misc
+*.log
+*.bak
+*.tmp
+.aider*
+
+# Claude Code agent metadata (local only)
+.claude/
+.claude
+**/.claude/
+CLAUDE.md
+
+# Synthea local outputs (we only commit hand-curated seeds)
+backend/app/synthea/output/
+
+# Generated OpenAPI types
+frontend/src/lib/types.gen.ts
+
+# Legacy PPT screenshot dump (583 MB; superseded by ops/demo/pptx/)
+PPT-images-archive/
+
+# CloudShell-side Lambda artefact (rebuilt by ops/aws/_build_qr.py-style flow)
+ops/aws/function.zip

@@ -1,0 +1,79 @@
+{
+  "case_id": "DEMO-003",
+  "clinical_snapshot": {
+    "patient_initials": "AK",
+    "primary_diagnosis": {
+      "icd10_code": "C61",
+      "description": "Malignant neoplasm of prostate",
+      "stage": "IV (mCRPC)"
+    },
+    "biomarkers": [
+      {"name": "BRCA1", "value": "Variant of unknown significance (VUS)", "method": "germline panel", "interpretation": "INDETERMINATE"},
+      {"name": "BRCA2", "value": "Wild-type", "interpretation": "NEGATIVE"},
+      {"name": "ATM",   "value": "Pathogenic variant detected", "interpretation": "POSITIVE"}
+    ],
+    "performance_status": "ECOG 2",
+    "prior_therapies": ["enzalutamide", "abiraterone", "docetaxel"],
+    "requested_treatment": {
+      "name": "olaparib",
+      "j_code": "J9351",
+      "indication": "mCRPC with HRR-gene mutation, post-novel-hormonal-agent",
+      "dose_mg_flat": 300,
+      "dose_frequency": "BID PO",
+      "site_of_service": "office"
+    }
+  },
+  "policy_excerpts": [
+    {
+      "policy_id": "AETNA-MED-2024-022",
+      "policy_title": "Aetna Oncology Medical Policy — PARP Inhibitors in Prostate Cancer",
+      "section_heading": "Olaparib in mCRPC with HRR-mutated disease",
+      "page_number": 2,
+      "source_url": "sharepoint://aetna/medical-policy/oncology/parp-prostate.pdf#page=2",
+      "excerpt_text": "Olaparib is medically necessary for mCRPC patients with deleterious or suspected deleterious germline or somatic HRR-gene mutation, post-novel-hormonal-agent. Acceptable HRR genes include BRCA1/2, ATM, BARD1, BRIP1, CDK12, CHEK1/2, FANCL, PALB2, RAD51B/C/D, RAD54L."
+    },
+    {
+      "policy_id": "AETNA-MED-2024-022",
+      "policy_title": "Aetna Oncology Medical Policy — PARP Inhibitors in Prostate Cancer",
+      "section_heading": "Variants of Unknown Significance (VUS)",
+      "page_number": 4,
+      "source_url": "sharepoint://aetna/medical-policy/oncology/parp-prostate.pdf#page=4",
+      "excerpt_text": "VUS findings alone do not establish HRR-mutated disease. Clinician judgment + molecular tumor board recommendation may support coverage on case-by-case basis."
+    }
+  ],
+  "necessity_assessment": {
+    "criteria": [
+      {"criterion": "mCRPC diagnosis", "outcome": "MET", "evidence": "Stage IV mCRPC documented; PSA progression on castration-resistant therapy"},
+      {"criterion": "Post-novel-hormonal-agent (NHA)", "outcome": "MET", "evidence": "Prior enzalutamide and abiraterone documented"},
+      {"criterion": "HRR-gene pathogenic mutation", "outcome": "AMBIGUOUS", "evidence": "ATM pathogenic variant detected (qualifies). BRCA1 VUS does not (per § Variants of Unknown Significance). Single-criterion assessment inconclusive without clinician review."},
+      {"criterion": "ECOG 0-2", "outcome": "MET", "evidence": "ECOG 2"}
+    ],
+    "overall_confidence": 0.62,
+    "triggered_hitl": true,
+    "hitl_reason": "ATM pathogenic variant alone qualifies under coverage criteria, but BRCA1 VUS in same panel introduces clinical interpretation question requiring oncology pharmacist or molecular tumor board judgment. Defer to clinician.",
+    "summary": "Patient has clear ATM pathogenic mutation that qualifies. BRCA1 VUS introduces an interpretive question that exceeds the necessity reasoner's confidence threshold."
+  },
+  "decision": null,
+  "denial_forecast": null,
+  "appeal_draft": null,
+  "patient_communication": null,
+  "paused_for_review": true,
+  "pause_reason": "Necessity Reasoner overall_confidence 0.62 < HITL_CONFIDENCE_THRESHOLD (0.75). Routing to qualified clinician per CMS-0057-F § IV.C and CA SB 1120 — ATM mutation alone qualifies under § Olaparib in mCRPC, but BRCA1 VUS introduces an interpretive question. Awaiting clinician signoff via POST /api/v1/cases/DEMO-003/resume.",
+  "reviewer_action_required": {
+    "endpoint": "POST /api/v1/cases/DEMO-003/resume",
+    "expected_body": {
+      "verdict": "APPROVE | DENY | REFER",
+      "reviewer_note": "Clinical justification (will appear in audit trail)"
+    },
+    "regulatory_context": "CMS-0057-F § IV.C requires qualified-clinician review on adverse determinations; CA SB 1120 requires physician sign-off on AI-assisted decisions"
+  },
+  "metadata": {
+    "decision_run_id": "00000000-0000-0000-0000-000000000003",
+    "primary_model_id": "apac.anthropic.claude-sonnet-4-6-20251022-v1:0",
+    "duration_seconds": 28,
+    "cost_usd": 0.18,
+    "agent_runs_count": 8,
+    "savings_vs_manual_usd": 1499.82,
+    "hitl_pause_at_iso": "2026-05-07T10:30:00Z"
+  }
+}

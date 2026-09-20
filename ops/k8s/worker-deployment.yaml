@@ -1,0 +1,102 @@
+# ─── ClinCase worker tier ─────────────────────────────────────────────────────
+# Consumes from case_jobs queue, runs the 7-agent DAG. Independent scaling
+# from the API tier — judges asking "how do you handle a 10x burst?" get a
+# real answer: HPA scales workers on queue depth (custom metric).
+#
+# Resource sizing is RAM-dominant (LLM responses + Pydantic parse) and
+# CPU-light (most time is awaiting Bedrock). 1 worker pod = 1 in-flight case
+# at a time (sequential within process); horizontal replicas = concurrency.
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: clincase-worker
+  namespace: clincase
+  labels: { app: clincase, tier: worker }
+spec:
+  replicas: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 2
+      maxUnavailable: 1
+  selector:
+    matchLabels: { app: clincase, tier: worker }
+  template:
+    metadata:
+      labels: { app: clincase, tier: worker }
+    spec:
+      serviceAccountName: clincase-worker
+      # 60s grace so a worker mid-DAG can finish + heartbeat-fail safely.
+      # Cases that don't finish in 60s requeue automatically (the janitor
+      # in queue.py reaps stale heartbeats).
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: worker
+          image: 123456789012.dkr.ecr.ap-south-1.amazonaws.com/clincase/worker:latest
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-m", "app.workers.case_runner"]
+          envFrom:
+            - secretRef: { name: clincase-secrets }
+            - configMapRef: { name: clincase-config }
+          resources:
+            requests: { cpu: "250m",  memory: "768Mi" }
+            limits:   { cpu: "1000m", memory: "2Gi"  }
+          # No HTTP port. Healthcheck via process liveness only — if the
+          # worker stops claiming jobs, K8s restart-on-crash kicks in.
+          livenessProbe:
+            exec: { command: ["python", "-c", "import sys; sys.exit(0)"] }
+            initialDelaySeconds: 30
+            periodSeconds: 60
+            failureThreshold: 3
+---
+# HPA scales workers on the QUEUE DEPTH (a custom metric exposed via
+# /metrics: clincase_jobs_queue_depth{status="queued"}). Backpressure from
+# Bedrock is handled by Bedrock's own throttling — workers retry with
+# exponential backoff.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: clincase-worker-hpa
+  namespace: clincase
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: clincase-worker
+  minReplicas: 5
+  maxReplicas: 100
+  metrics:
+    # Custom metric — requires prometheus-adapter to expose it to HPA
+    - type: External
+      external:
+        metric:
+          name: clincase_jobs_queue_depth
+          selector:
+            matchLabels: { status: "queued" }
+        # Scale up when there's > 5 queued jobs PER replica
+        target: { type: AverageValue, averageValue: "5" }
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 600  # don't thrash workers — drain slowly
+      policies:
+        - { type: Percent, value: 25, periodSeconds: 120 }
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+        - { type: Pods,    value: 10, periodSeconds: 30 }
+        - { type: Percent, value: 100, periodSeconds: 30 }
+      selectPolicy: Max
+---
+# PodDisruptionBudget — at least 80% of workers stay healthy during voluntary
+# disruptions (e.g. node drain for OS patching). Critical for SLA on case
+# turnaround time.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: clincase-worker-pdb
+  namespace: clincase
+spec:
+  minAvailable: "80%"
+  selector:
+    matchLabels: { app: clincase, tier: worker }

@@ -1,0 +1,216 @@
+# =============================================================================
+# ClinCase agent network — Cognizant Neuro-SAN compatible
+# =============================================================================
+#
+# Drop-in network definition for `cognizant-ai-lab/neuro-san` (the open-source
+# core of Cognizant Neuro AI Multi-Agent Orchestration). Defines ClinCase's
+# 7-parent / 22-sub-agent oncology PA DAG in AAOSA (Adaptive Agent-Oriented
+# Software Architecture) format. Each agent advertises its `function`
+# (capabilities) so the AAOSA router can decide whether to handle, decline,
+# or delegate without a central controller.
+#
+# Repo:    https://github.com/cognizant-ai-lab/neuro-san-studio
+# Spec:    https://www.cognizant.com/us/en/ai-lab/neuro-san
+# Loader:  neuro_san.session.HocondSession.load_network("clincase")
+#
+# Usage from a Cognizant Neuro AI Decisioning deployment:
+#   from neuro_san.session import HoconSession
+#   sess = HoconSession.from_file("clincase-network.hocon")
+#   verdict = await sess.run({"case_id": "C-12345"})
+#
+# ClinCase's LangGraph runtime is the *implementation*; this file is the
+# *Cognizant Neuro contract* it conforms to. A Neuro Agent Foundry deployment
+# can ingest this file and drop it into the Multi-Agent Accelerator runtime
+# without re-coding.
+# =============================================================================
+
+# ---- Top-level metadata ----
+"clincase" {
+    "description": "Oncology prior-authorization specialty agent bundle"
+    "version": "0.1.0"
+    "vertical": "Healthcare / Payer Operations"
+    "lifecycle_stage": "Build"          # Cognizant Agent Foundry stages: Discover | Design | Build | Scale
+    "compliance": ["CMS-0057-F", "HIPAA", "CA SB 1120", "EU AI Act Annex III high-risk"]
+    "tracing": "AAOSA + ClinCase AgentTrace (parent_span_id)"
+
+    # The AAOSA "front door" agent — first to receive any external request.
+    # Receives the case_id and routes by job_type. Mirrors LangGraph entry node.
+    "front_man": "case_intake_router"
+
+    "agents": [
+
+        # =====================================================================
+        # 0. Front-door router (Neuro-SAN convention)
+        # =====================================================================
+        {
+            "name": "case_intake_router"
+            "function": {
+                "description": "Front-door for the ClinCase agent bundle. Routes a case to the correct top-level orchestrator (run_full | resume_after_review | draft_appeal_only)."
+                "parameters": {
+                    "case_id": "string"
+                    "job_type": "string"   # one of: run_full | resume_after_review | draft_appeal_only
+                }
+            }
+            "tools": ["clinical_extractor", "policy_retriever", "necessity_reasoner", "decision_composer", "denial_forecaster", "appeals_drafter", "patient_communicator"]
+        }
+
+        # =====================================================================
+        # 1. Clinical Extractor (parent)
+        # =====================================================================
+        {
+            "name": "clinical_extractor"
+            "function": {
+                "description": "Reads FHIR R4 bundle + physician note; produces a structured ClinicalSnapshot (diagnosis, biomarkers, performance status, treatment request)."
+                "parameters": {
+                    "fhir_bundle": "object"
+                    "physician_note": "string"
+                    "requested_treatment": "object"
+                }
+            }
+            "tools": ["phi_sanitizer", "fhir_resource_validator", "biomarker_specialist"]
+            "model_size": "sonnet-4-6"
+        }
+        { "name": "phi_sanitizer",            "function": "Redact PHI from physician note before downstream LLM calls; deterministic regex + LLM fallback." }
+        { "name": "fhir_resource_validator",  "function": "Validate FHIR R4 resource shapes; emit structured concept extractions." }
+        { "name": "biomarker_specialist",     "function": "Extract HER2 / EGFR / PD-L1 / BRAF / MSI status from labs + pathology with LOINC bindings." }
+
+        # =====================================================================
+        # 2. Policy Retriever (parent)
+        # =====================================================================
+        {
+            "name": "policy_retriever"
+            "function": {
+                "description": "Retrieve top-k payer-specific PA policy passages relevant to this case. Two backends: file corpus or Amazon Q Business."
+                "parameters": {
+                    "snapshot": "object"
+                    "payer_id": "string"
+                }
+            }
+            "tools": ["keyword_filter", "q_business_retriever", "llm_reranker", "citation_resolver"]
+            "model_size": "sonnet-4-6"
+        }
+        { "name": "keyword_filter",          "function": "Deterministic candidate filter over the curated policy corpus." }
+        { "name": "q_business_retriever",    "function": "Amazon Q Business semantic search over customer's M365/SharePoint/Confluence policy library." }
+        { "name": "llm_reranker",            "function": "LLM rerank of >5 candidates against the clinical context." }
+        { "name": "citation_resolver",       "function": "Resolve to fully-pointered PolicyExcerpt (page + section + URL)." }
+
+        # =====================================================================
+        # 3. Necessity Reasoner (parent)
+        # =====================================================================
+        {
+            "name": "necessity_reasoner"
+            "function": {
+                "description": "Per-criterion medical-necessity reasoning over the snapshot + retrieved policy excerpts. Calibrates overall confidence."
+                "parameters": {
+                    "snapshot": "object"
+                    "excerpts": "array"
+                }
+            }
+            "tools": ["criterion_splitter", "evidence_matcher", "confidence_calibrator"]
+            "model_size": "sonnet-4-6"
+            "reflection_threshold": 0.80   # quality_threshold; LLMGrader retries below this
+        }
+        { "name": "criterion_splitter",       "function": "Split policy excerpts into atomic, individually-evaluable criteria." }
+        { "name": "evidence_matcher",         "function": "Per-criterion MET / NOT_MET / AMBIGUOUS judgment with cited supporting evidence; reflection-enabled." }
+        { "name": "confidence_calibrator",    "function": "Assemble per-criterion verdicts into a single overall_confidence; routes to HITL gate when below threshold." }
+
+        # =====================================================================
+        # 4. Decision Composer (parent)
+        # =====================================================================
+        {
+            "name": "decision_composer"
+            "function": {
+                "description": "Compose final verdict + rationale + citation chain. Output is the Decision row persisted to RDS + emitted to TriZetto AI Gateway."
+                "parameters": { "necessity_assessment": "object", "snapshot": "object", "excerpts": "array" }
+            }
+            "tools": ["verdict_synthesizer", "rationale_writer", "citation_linker"]
+            "model_size": "sonnet-4-6"
+        }
+        { "name": "verdict_synthesizer",      "function": "APPROVE / DENY / REFER decision from per-criterion outcomes." }
+        { "name": "rationale_writer",         "function": "Plain-English rationale paragraph satisfying CMS-0057-F § IV.B.2 specific-reason notice." }
+        { "name": "citation_linker",          "function": "Bind every claim in the rationale to a PolicyExcerpt or clinical evidence pointer." }
+
+        # =====================================================================
+        # 5. Denial Forecaster (parent; gated to DENY path)
+        # =====================================================================
+        {
+            "name": "denial_forecaster"
+            "function": {
+                "description": "Predict likelihood of payer denial + best appeal path; runs only on DENY verdict to prep the appeals workflow."
+                "parameters": { "decision": "object", "necessity_assessment": "object" }
+            }
+            "tools": ["probability_estimator", "reason_predictor", "appeal_path_recommender"]
+            "model_size": "sonnet-4-6"
+        }
+        { "name": "probability_estimator",    "function": "Deterministic Bayesian estimator with payer-specific priors." }
+        { "name": "reason_predictor",         "function": "LLM classification of likely denial reasons grounded in past payer decisions." }
+        { "name": "appeal_path_recommender",  "function": "Recommend internal appeal vs IRO vs state external review based on payer + state." }
+
+        # =====================================================================
+        # 6. Appeals Drafter (parent; gated to DENY path)
+        # =====================================================================
+        {
+            "name": "appeals_drafter"
+            "function": {
+                "description": "Draft NCCN-grounded appeal letter with structured arguments + counter-evidence. Reflection-enabled on letter quality."
+                "parameters": { "decision": "object", "necessity_assessment": "object", "denial_forecast": "object" }
+            }
+            "tools": ["nccn_reference_specialist", "counter_evidence_finder", "letter_composer"]
+            "model_size": "sonnet-4-6"
+            "reflection_threshold": 0.80
+        }
+        { "name": "nccn_reference_specialist", "function": "Pull NCCN-aligned guideline citations for the diagnosis + treatment combination." }
+        { "name": "counter_evidence_finder",   "function": "Find clinical-evidence patterns the payer's denial reasoning ignored; reflection-enabled." }
+        { "name": "letter_composer",           "function": "Compose the appeal letter body with structured arguments; reflection-enabled at quality 0.80." }
+
+        # =====================================================================
+        # 7. Patient Communicator (parent)
+        # =====================================================================
+        {
+            "name": "patient_communicator"
+            "function": {
+                "description": "Patient-facing communication: empathy layer + concrete action steps + grade-8 reading-level tuning."
+                "parameters": { "decision": "object", "appeal_draft": "object" }
+            }
+            "tools": ["empathy_layer", "action_step_writer", "reading_level_tuner"]
+            "model_size": "sonnet-letter"
+        }
+        { "name": "empathy_layer",             "function": "Emotional framing tuned to the case verdict." }
+        { "name": "action_step_writer",        "function": "Concrete next-steps the patient can act on this week." }
+        { "name": "reading_level_tuner",       "function": "Adjust text to ~grade-8 reading level (Flesch-Kincaid)." }
+
+    ]
+
+    # ---- AAOSA routing rules ----
+    "routing": {
+        "protocol": "AAOSA"        # Adaptive Agent-Oriented Software Architecture
+        "delegation": "decentralized — each agent decides handle/decline/delegate"
+        "central_controller": false
+        "tracing": "every prompt, inter-agent message, tool call, response logged via ClinCase AgentTrace"
+        "hitl_gate": {
+            "node": "review_gate"
+            "trigger": "necessity_reasoner.overall_confidence < 0.75"
+            "compliance": "CMS-0057-F § IV.C + CA SB 1120"
+        }
+    }
+
+    # ---- Cognizant deployment metadata (Agent Foundry / Marketplace ingest) ----
+    "cognizant_deployment": {
+        "neuro_ai_decisioning": "compatible"
+        "multi_agent_accelerator": "compatible"
+        "agent_foundry_stage": "Build"
+        "marketplace_listing": "specialty-agent-bundle"
+        "trizetto_ai_gateway": {
+            "compatible": true
+            "fanout_targets": ["facets-pa-workflow", "qnxt-case-events"]
+            "mcp_endpoint": "/mcp"
+            "submit_endpoint": "/api/v1/integrations/trizetto/submit"
+        }
+        "bedrock": {
+            "region": "ap-south-1"
+            "primary": "apac.anthropic.claude-sonnet-4-6-20251022-v1:0"
+            "fallback": "apac.anthropic.claude-haiku-4-5-20251001-v1:0"
+            "agentcore_deployment_yaml": "../aws/agentcore/deployment.yaml"
+        }
+    }
+}

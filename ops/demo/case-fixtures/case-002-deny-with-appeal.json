@@ -1,0 +1,98 @@
+{
+  "case_id": "DEMO-002",
+  "clinical_snapshot": {
+    "patient_initials": "MR",
+    "primary_diagnosis": {
+      "icd10_code": "C34.10",
+      "description": "Malignant neoplasm of upper lobe, unspecified bronchus or lung",
+      "stage": "IV"
+    },
+    "biomarkers": [
+      {"name": "PD-L1", "value": "Pending; specimen insufficient", "method": "IHC 22C3", "loinc_code": "85318-4", "interpretation": "INDETERMINATE"},
+      {"name": "EGFR", "value": "Wild-type", "interpretation": "NEGATIVE"},
+      {"name": "ALK",  "value": "Negative",   "interpretation": "NEGATIVE"}
+    ],
+    "performance_status": "ECOG 1",
+    "prior_therapies": [],
+    "requested_treatment": {
+      "name": "pembrolizumab",
+      "j_code": "J9271",
+      "indication": "First-line metastatic NSCLC monotherapy",
+      "dose_mg_per_kg": null,
+      "dose_mg_flat": 200,
+      "site_of_service": "outpatient_hospital"
+    }
+  },
+  "policy_excerpts": [
+    {
+      "policy_id": "AETNA-MED-2024-014",
+      "policy_title": "Aetna Oncology Medical Policy — Pembrolizumab",
+      "section_heading": "First-line metastatic NSCLC monotherapy",
+      "page_number": 4,
+      "source_url": "sharepoint://aetna/medical-policy/oncology/pembrolizumab.pdf#page=4",
+      "excerpt_text": "Pembrolizumab monotherapy is medically necessary for first-line metastatic NSCLC when ALL: (1) Stage IV NSCLC, (2) PD-L1 expression ≥ 1% by IHC 22C3 (or pending if specimen indeterminate, see § Specimen Inadequacy), (3) EGFR wild-type AND ALK-negative, (4) ECOG 0-1."
+    },
+    {
+      "policy_id": "AETNA-MED-2024-014",
+      "policy_title": "Aetna Oncology Medical Policy — Pembrolizumab",
+      "section_heading": "Specimen Inadequacy",
+      "page_number": 6,
+      "source_url": "sharepoint://aetna/medical-policy/oncology/pembrolizumab.pdf#page=6",
+      "excerpt_text": "When PD-L1 specimen is indeterminate, repeat biopsy is preferred. If repeat is not feasible, NCCN-aligned exception may be considered."
+    }
+  ],
+  "necessity_assessment": {
+    "criteria": [
+      {"criterion": "Stage IV NSCLC", "outcome": "MET", "evidence": "Stage IV per submitted staging"},
+      {"criterion": "PD-L1 expression ≥ 1%", "outcome": "NOT_MET", "evidence": "PD-L1 indeterminate; specimen insufficient (page 3 of pathology report)"},
+      {"criterion": "EGFR wild-type AND ALK-negative", "outcome": "MET", "evidence": "Both confirmed negative on submitted molecular panel"},
+      {"criterion": "ECOG 0-1", "outcome": "MET", "evidence": "ECOG 1"}
+    ],
+    "overall_confidence": 0.88,
+    "triggered_hitl": false,
+    "summary": "Three of four criteria met. PD-L1 expression criterion fails because specimen was insufficient — see § Specimen Inadequacy for the exception path."
+  },
+  "decision": {
+    "verdict": "DENY",
+    "rationale": "Pembrolizumab is denied because the PD-L1 expression criterion (AETNA-MED-2024-014 § First-line metastatic NSCLC monotherapy, criterion 2) is not met — the submitted PD-L1 IHC 22C3 specimen was insufficient and returned indeterminate. The other three criteria (Stage IV, EGFR/ALK status, ECOG) are met. Per § Specimen Inadequacy, repeat biopsy is preferred; if not feasible, an NCCN-aligned exception may be considered via the appeal path.",
+    "citations": [
+      {"policy_id": "AETNA-MED-2024-014", "section": "First-line metastatic NSCLC monotherapy", "page": 4},
+      {"policy_id": "AETNA-MED-2024-014", "section": "Specimen Inadequacy", "page": 6}
+    ],
+    "confidence": 0.88
+  },
+  "denial_forecast": {
+    "likelihood_of_appeal_success": 0.72,
+    "primary_reason_code": "SPECIMEN_INSUFFICIENT_PDL1",
+    "recommended_path": "internal_appeal",
+    "reasoning": "The denial is on a procedural criterion (specimen) rather than a clinical contraindication. Repeat biopsy or NCCN-aligned exception under § Specimen Inadequacy has a high overturn rate per Aetna 2025 internal-appeal data."
+  },
+  "appeal_draft": {
+    "appeal_body": "RE: Appeal of Pembrolizumab Denial — Patient MR — ClinCase case DEMO-002\n\nDear Aetna Medical Reviewer,\n\nThis appeal is filed under Aetna Medical Policy AETNA-MED-2024-014 § Specimen Inadequacy (page 6). The initial denial cited insufficient PD-L1 IHC 22C3 specimen — an indeterminate result, not a confirmed PD-L1 < 1% expression. The other three criteria for first-line pembrolizumab monotherapy are met: (1) Stage IV NSCLC confirmed, (3) EGFR wild-type and ALK-negative, (4) ECOG 1.\n\nNCCN Clinical Practice Guidelines in Oncology — Non-Small Cell Lung Cancer v.3.2025 § NSCL-G recommends pembrolizumab monotherapy for first-line metastatic NSCLC when PD-L1 IHC is unavailable AND EGFR/ALK are negative — the exact clinical scenario for this patient.\n\nWe respectfully request reconsideration under the NCCN-aligned exception path explicitly permitted by § Specimen Inadequacy. The patient's stage IV status, performance status, and molecular profile all support pembrolizumab as the first-line standard-of-care treatment.\n\nAttached: Pathology report (showing specimen insufficiency), molecular profile, NCCN NSCL-G guideline excerpt, ECOG status notation.\n\nRespectfully submitted,\n[Provider name and credentials]",
+    "structured_arguments": [
+      {"argument": "PD-L1 status is indeterminate, not negative", "evidence_citation": "Pathology report page 3"},
+      {"argument": "Three of four criteria are MET", "evidence_citation": "AETNA-MED-2024-014 § First-line metastatic NSCLC monotherapy"},
+      {"argument": "NCCN-aligned exception explicitly permitted", "evidence_citation": "AETNA-MED-2024-014 § Specimen Inadequacy"},
+      {"argument": "NCCN NSCL-G recommends pembrolizumab monotherapy in this scenario", "evidence_citation": "NCCN Clinical Practice Guidelines in Oncology — NSCLC v.3.2025"}
+    ]
+  },
+  "patient_communication": {
+    "summary_text": "Your insurance has not yet approved pembrolizumab. The reason is a lab test (PD-L1) that didn't have enough tissue to read. Your doctor is filing an appeal that explains why pembrolizumab is still the right treatment based on your other test results and national guidelines. Most appeals like this are approved within 14 days.",
+    "next_action_steps": [
+      "Wait for the appeal decision (typically 14 days)",
+      "Your doctor may also request a repeat biopsy as a backup path",
+      "Call your care coordinator if you have questions about treatment timing"
+    ],
+    "reading_level_grade": 7.8
+  },
+  "paused_for_review": false,
+  "pause_reason": null,
+  "metadata": {
+    "decision_run_id": "00000000-0000-0000-0000-000000000002",
+    "primary_model_id": "apac.anthropic.claude-sonnet-4-6-20251022-v1:0",
+    "duration_seconds": 78,
+    "cost_usd": 0.45,
+    "agent_runs_count": 18,
+    "savings_vs_manual_usd": 1499.55
+  }
+}
