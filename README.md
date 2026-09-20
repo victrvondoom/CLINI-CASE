@@ -445,7 +445,7 @@ The frontend does not yet have an automated test suite (`package.json` defines `
 
 ---
 
-## 🎯 How ClinCase maps to the judging criteria
+## 🎯 How ClinCase maps to the judging criteria (Evaluation rubric mapping)
 
 Built for **First Commit** (Bharat Builds Tour, AWS + WeMakeDevs) — healthcare, a real problem we didn't have to invent.
 

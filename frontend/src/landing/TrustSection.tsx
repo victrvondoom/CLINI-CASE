@@ -1,0 +1,102 @@
+import Reveal from "./Reveal";
+import { COMPLIANCE_MARKS } from "./tokens";
+
+export default function TrustSection() {
+  return (
+    <section style={{ position: "relative", zIndex: 1, padding: "6rem 1.5rem" }}>
+      <div style={{ maxWidth: "720px", margin: "0 auto", textAlign: "center" }}>
+        <p
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: "0.78rem",
+            letterSpacing: "0.14em",
+            color: "var(--cyan)",
+            marginBottom: "0.75rem",
+          }}
+        >
+          GOVERNED BY DEFAULT
+        </p>
+        <h2
+          style={{
+            fontFamily: "var(--font-display)",
+            fontSize: "clamp(1.6rem, 3vw, 2.2rem)",
+            fontWeight: 400,
+            marginBottom: "0.75rem",
+          }}
+        >
+          Every decision, accounted for.
+        </h2>
+        <p style={{ opacity: 0.7, fontSize: "0.95rem", lineHeight: 1.7, marginBottom: "2rem" }}>
+          PHI is redacted before inference and receipted afterwards. Low-confidence cases
+          route to a named human reviewer rather than auto-approving. Every case carries a
+          timeline you can hand to an auditor.
+        </p>
+
+        <div
+          style={{
+            display: "flex",
+            gap: "1rem",
+            justifyContent: "center",
+            flexWrap: "wrap",
+            marginBottom: "2.5rem",
+          }}
+        >
+          {COMPLIANCE_MARKS.map((mark) => (
+            <div
+              key={mark.label}
+              className="aperture-glass"
+              style={{ borderRadius: "6px", padding: "0.6rem 1rem", textAlign: "left" }}
+            >
+              <div
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "0.78rem",
+                  color: "var(--bone)",
+                }}
+              >
+                {mark.label}
+              </div>
+              <div
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "0.68rem",
+                  color: "var(--violet)",
+                  opacity: 0.8,
+                }}
+              >
+                {mark.status}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <Reveal
+          className="aperture-glass"
+          style={{
+            borderRadius: "8px",
+            padding: "1.25rem",
+            textAlign: "left",
+            fontFamily: "var(--font-mono)",
+            fontSize: "0.8rem",
+          }}
+        >
+          <div style={{ opacity: 0.5, marginBottom: "0.5rem" }}>
+            # actual case-timeline event schema
+          </div>
+          <pre style={{ margin: 0, whiteSpace: "pre-wrap", opacity: 0.8, lineHeight: 1.6 }}>
+            {JSON.stringify(
+              {
+                actor: "system",
+                event_type: "document_uploaded",
+                title: "Document uploaded: pathology_report.pdf",
+                body: "PHI redacted: true · indexed: true",
+              },
+              null,
+              2,
+            )}
+          </pre>
+        </Reveal>
+      </div>
+    </section>
+  );
+}

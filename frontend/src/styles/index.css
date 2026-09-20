@@ -1,0 +1,678 @@
+﻿@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =============================================================================
+   ClinCase design system — "First Commit" token set.
+
+   Developer-tool / technical-editorial aesthetic: near-black navy text on an
+   off-white surface, one burnt-orange accent, hairline borders everywhere,
+   sharp (small) radii, and restrained shadows. Token format: space-separated
+   RGB triplets so Tailwind's `<alpha-value>` substitution still works
+   (`bg-accent-brand/20` etc.).
+
+   Light values on :root (default). Dark mode = .dark on <html>.
+   ============================================================================= */
+
+:root {
+  /* Surfaces */
+  --surface-bg:        248 250 252;  /* #fafafa — near-white, faint cool tint */
+  --surface-raised:    255 255 255;  /* #ffffff */
+  --surface-raised-hi: 245 245 245;  /* #f5f5f5 */
+  --surface-border:    178 183 190;  /* slate-navy hairline (~32% on white) */
+  --surface-border-hi: 157 157 157;  /* slate-navy hairline, stronger (~45%) */
+  --surface-panel:     241 245 249;  /* #f5f5f5 — sidebar / muted strips */
+
+  /* Ink */
+  --ink-primary: 13 13 13;      /* #0d0d0d — near-black navy, headings */
+  --ink-body:    38 52 73;     /* body copy (ink-primary @ ~80%) */
+  --ink-muted:   100 116 139;  /* #757575 — labels */
+  --ink-faint:   148 163 184;  /* #a1a1a1 — placeholders */
+  --ink-invert:  255 255 255;  /* on accent backgrounds */
+
+  /* Accent — strict monochrome. All "accent" tokens are grayscale weights,
+     not hues. Distinctions between semantic states (approve/deny/refer,
+     citation types, decorative washes) are carried by weight + icon/label,
+     never by color. */
+  --accent-brand:      17 24 39;     /* #121212 — near-black, primary accent */
+  --accent-brand-soft: 244 244 244;  /* #f4f4f4 — accent-soft wash */
+  --accent-brand-glow: 82 82 82;     /* #525252 — hover/secondary weight */
+  --accent-cyan:       107 114 128;  /* #737373 — mid-gray (status use only) */
+  --accent-green:      55 65 81;     /* #404040 — APPROVE (dark gray) */
+  --accent-red:        17 24 39;     /* #121212 — DENY (near-black) */
+  --accent-amber:      107 114 128;  /* #737373 — REFER (mid gray) */
+  --accent-blue:       55 65 81;     /* #404040 — clinical citations */
+  --accent-violet:     156 163 175;  /* #9e9e9e — light gray, decorative only */
+
+  /* Brand ramp — neutral navy scale (monochrome system; orange is the only chroma) */
+  --brand-50:  248 250 252;  /* #fafafa */
+  --brand-100: 245 245 245;  /* #f5f5f5 */
+  --brand-200: 232 232 232;  /* #e8e8e8 */
+  --brand-300: 214 214 214;  /* #d6d6d6 */
+  --brand-400: 161 161 161;  /* #a1a1a1 */
+  --brand-500: 117 117 117;  /* #757575 */
+  --brand-600: 71 85 105;    /* #565656 */
+  --brand-700: 51 65 85;     /* #424242 */
+  --brand-800: 30 41 59;     /* #2a2a2a */
+  --brand-900: 13 13 13;      /* #0d0d0d */
+
+  /* Aurora / mesh tints — very low-opacity ambient wash only, grayscale */
+  --aurora-a: rgba(18, 18, 18, 0.05);
+  --aurora-b: rgba(115, 115, 115, 0.08);
+  --aurora-c: rgba(115, 115, 115, 0.05);
+  --aurora-blur: 120px;
+
+  /* Grid background lines */
+  --grid-line: rgba(13, 13, 13, 0.05);
+  --grid-dot:  rgba(13, 13, 13, 0.10);
+
+  /* Evidence flash (citation hover) */
+  --evidence-flash-bg:   rgba(18, 18, 18, 0.06);
+  --evidence-flash-ring: rgba(18, 18, 18, 0.45);
+  --selection-bg:        rgba(18, 18, 18, 0.18);
+
+  /* Citation tints — differentiated by weight, not hue */
+  --citation-clinical: #121212;
+  --citation-policy:   #525252;
+
+  /* Scrollbar */
+  --scrollbar-thumb:       #b8b8b8;
+  --scrollbar-thumb-hover: #9a9a9a;
+  --scrollbar-track:       transparent;
+
+  /* Top bar */
+  --topbar-bg-plain:   rgba(250, 250, 250, 0.5);
+  --topbar-bg-frosted: rgba(250, 250, 250, 0.7);
+
+  /* Restrained shadows — hairline borders carry most of the depth, not shadow */
+  --shadow-card:  0 1px 2px rgba(13, 13, 13, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  --shadow-raise: 0 1px 2px rgba(13, 13, 13, 0.06), 0 2px 8px -4px rgba(13, 13, 13, 0.10);
+  --shadow-pop:   0 1px 2px rgba(13, 13, 13, 0.07), 0 4px 14px -6px rgba(13, 13, 13, 0.14);
+}
+
+/* Dark mode = genuine black + white. Every value below is a pure neutral
+   (R == G == B): no navy surfaces, no blue-gray text, no cool borders, no
+   tinted glows. Semantic states stay differentiated by weight and by their
+   icon/label, exactly as in light mode -- never by hue. */
+.dark {
+  --surface-bg:        10 10 10;   /* #0a0a0a — near-black */
+  --surface-raised:    20 20 20;   /* #141414 — cards */
+  --surface-raised-hi: 28 28 28;   /* #1c1c1c — hover / elevated */
+  --surface-border:    48 48 48;   /* hairline on dark */
+  --surface-border-hi: 72 72 72;
+  --surface-panel:     18 18 18;   /* #121212 — sidebar / muted strips */
+
+  --ink-primary: 245 245 245;  /* near-white */
+  --ink-body:    209 209 209;
+  --ink-muted:   153 153 153;
+  --ink-faint:   107 107 107;
+  --ink-invert:  10 10 10;
+
+  --accent-brand:      235 235 235;  /* near-white, lightened for dark bg */
+  --accent-brand-soft: 38 38 38;     /* accent tint on dark */
+  --accent-brand-glow: 158 158 158;
+  --accent-cyan:       158 158 158;
+  --accent-green:      212 212 212;  /* APPROVE (light neutral) */
+  --accent-red:        235 235 235;  /* DENY (near-white) */
+  --accent-amber:      158 158 158;  /* REFER (mid neutral) */
+  --accent-blue:       212 212 212;  /* clinical citations */
+  --accent-violet:     115 115 115;  /* decorative only */
+
+  /* Brand ramp — the light ramp inverted, in pure neutrals. */
+  --brand-50:  10 10 10;
+  --brand-100: 23 23 23;
+  --brand-200: 38 38 38;
+  --brand-300: 64 64 64;
+  --brand-400: 82 82 82;
+  --brand-500: 115 115 115;
+  --brand-600: 163 163 163;
+  --brand-700: 212 212 212;
+  --brand-800: 229 229 229;
+  --brand-900: 250 250 250;
+
+  --aurora-a: rgba(235, 235, 235, 0.10);
+  --aurora-b: rgba(158, 158, 158, 0.12);
+  --aurora-c: rgba(158, 158, 158, 0.08);
+  --aurora-blur: 120px;
+
+  --grid-line: rgba(160, 160, 160, 0.07);
+  --grid-dot:  rgba(160, 160, 160, 0.16);
+
+  --evidence-flash-bg:   rgba(235, 235, 235, 0.16);
+  --evidence-flash-ring: rgba(235, 235, 235, 0.5);
+  --selection-bg:        rgba(235, 235, 235, 0.28);
+
+  --citation-clinical: #ebebeb;
+  --citation-policy:   #9e9e9e;
+
+  --scrollbar-thumb:       #333333;
+  --scrollbar-thumb-hover: #4a4a4a;
+
+  --topbar-bg-plain:   rgba(10, 10, 10, 0.55);
+  --topbar-bg-frosted: rgba(10, 10, 10, 0.85);
+
+  /* Pure black shadows — on a near-black surface, depth comes from the
+     hairline border, not from a tinted glow. */
+  --shadow-card:  0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-raise: 0 1px 2px rgba(0, 0, 0, 0.55), 0 4px 14px -6px rgba(0, 0, 0, 0.6);
+  --shadow-pop:   0 1px 2px rgba(0, 0, 0, 0.6), 0 6px 20px -8px rgba(0, 0, 0, 0.7);
+}
+
+/* =============================================================================
+   Base layer
+   ============================================================================= */
+@layer base {
+  html {
+    font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    color-scheme: light;
+    scrollbar-gutter: stable;
+  }
+  html.dark { color-scheme: dark; }
+  body {
+    background-color: rgb(var(--surface-bg));
+    color: rgb(var(--ink-body));
+    font-feature-settings: "ss01", "cv11";
+    transition: background-color 200ms ease, color 200ms ease;
+  }
+  *:focus-visible {
+    outline: 2px solid rgb(var(--accent-brand) / 0.6);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  ::selection {
+    background-color: var(--selection-bg);
+    color: rgb(var(--ink-primary));
+  }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 8px;
+    border: 2px solid rgb(var(--surface-bg));
+  }
+  ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
+  ::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+}
+
+/* =============================================================================
+   Keyframes — defined in raw CSS so they're guaranteed to load regardless of
+   Tailwind JIT inclusion. Tailwind config also references these by name.
+   ============================================================================= */
+@keyframes pulse-soft       { 0%,100% { opacity: 1; } 50% { opacity: 0.55; } }
+@keyframes slide-in-right   { 0% { transform: translateX(20px); opacity: 0; } 100% { transform: translateX(0); opacity: 1; } }
+@keyframes slide-in-down    { 0% { transform: translateY(-12px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+@keyframes fade-in          { 0% { opacity: 0; transform: translateY(4px); } 100% { opacity: 1; transform: translateY(0); } }
+@keyframes decision-reveal  { 0% { opacity: 0; transform: scale(0.94); } 100% { opacity: 1; transform: scale(1); } }
+@keyframes decision-pulse   { 0% { opacity: 0; transform: scale(0.6); } 40% { opacity: 0.55; transform: scale(1.05); } 100% { opacity: 0; transform: scale(1.4); } }
+@keyframes shield-spin      { 0% { transform: rotate(0); } 100% { transform: rotate(360deg); } }
+@keyframes phi-backdrop     { 0% { opacity: 0; } 40% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes word-up          { 0% { opacity: 0; transform: translateY(14px); } 100% { opacity: 1; transform: translateY(0); } }
+@keyframes aurora-a         { 0%,100% { transform: translate3d(-10%, -8%, 0) scale(1); }    50% { transform: translate3d(8%, 6%, 0) scale(1.1); } }
+@keyframes aurora-b         { 0%,100% { transform: translate3d(12%, 4%, 0) scale(1.05); }   50% { transform: translate3d(-6%, -10%, 0) scale(0.95); } }
+@keyframes aurora-c         { 0%,100% { transform: translate3d(-4%, 14%, 0) scale(1); }     50% { transform: translate3d(10%, -8%, 0) scale(1.15); } }
+@keyframes sweep            { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+@keyframes logo-spin        { 0% { transform: rotate(0deg) scale(0.92); opacity: 0; } 40% { opacity: 1; } 100% { transform: rotate(360deg) scale(1); opacity: 1; } }
+@keyframes kbd-glow         { 0%,100% { box-shadow: 0 0 0 0 rgba(82,82,82,0), 0 0 0 0 rgba(115,115,115,0); } 50% { box-shadow: 0 0 0 1px rgba(82,82,82,0.35), 0 0 14px -2px rgba(82,82,82,0.45); } }
+@keyframes gradient-shift   { 0%,100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+@keyframes edge-flow        { 0% { stroke-dashoffset: 80; } 100% { stroke-dashoffset: 0; } }
+@keyframes particle-drift   { 0% { transform: translate(0, 0); opacity: 0; } 20% { opacity: 0.7; } 80% { opacity: 0.7; } 100% { transform: translate(var(--dx, 40px), var(--dy, -30px)); opacity: 0; } }
+@keyframes ring-burst       { 0% { transform: scale(0.6); opacity: 0.6; } 100% { transform: scale(2.4); opacity: 0; } }
+@keyframes reveal-up        { 0% { opacity: 0; transform: translateY(18px) scale(0.98); filter: blur(6px); } 100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); } }
+@keyframes float-y          { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+@keyframes float-soft       { 0%,100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-10px) rotate(0.6deg); } }
+@keyframes glow-pulse       { 0%,100% { opacity: 0.35; } 50% { opacity: 0.85; } }
+@keyframes orbit            { 0% { transform: rotate(0) translateX(var(--r, 40px)) rotate(0); } 100% { transform: rotate(360deg) translateX(var(--r, 40px)) rotate(-360deg); } }
+@keyframes count-flip       { 0% { transform: translateY(100%); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+@keyframes status-pulse     { 0%,100% { box-shadow: 0 0 0 0 rgba(64,64,64,0.55); } 50% { box-shadow: 0 0 0 6px rgba(64,64,64,0); } }
+@keyframes marquee-x        { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@keyframes fab-pulse        { 0%,100% { box-shadow: 0 0 0 0 rgba(18,18,18,0.45), 0 18px 40px -12px rgba(18,18,18,0.55); } 50% { box-shadow: 0 0 0 14px rgba(18,18,18,0), 0 18px 40px -12px rgba(18,18,18,0.55); } }
+@keyframes stagger-word {
+  /* Transform-only — opacity stays at .kinetic-word base value (1) so the
+     word is ALWAYS readable, even when the tab is hidden. */
+  0% { transform: translateY(8px); }
+  100% { transform: translateY(0); }
+}
+@keyframes aurora-drift {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50%      { transform: translate3d(40px, -30px, 0) scale(1.05); }
+}
+@property --conic-angle { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+@keyframes conic-spin   { to { --conic-angle: 360deg; } }
+
+/* =============================================================================
+   Typography system — 9 semantic roles, each mapped to one Google Font.
+   Apply the class matching the element's ROLE, not its tag name.
+   ============================================================================= */
+@layer components {
+  /* 1. Display Primary — hero / major page headlines */
+  .text-display-primary {
+    font-family: "Source Serif 4", Georgia, serif;
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: -0.01em;
+  }
+  /* 2. Display Secondary — secondary headings, section intros */
+  .text-display-secondary {
+    font-family: "Playfair Display", Georgia, serif;
+    font-weight: 700;
+    line-height: 1.15;
+  }
+  /* 3. UI Primary — nav, buttons, primary body text, standard interface */
+  .text-ui-primary {
+    font-family: "Outfit", system-ui, sans-serif;
+    font-weight: 500;
+    line-height: 1.4;
+  }
+  /* 4. UI Secondary — descriptions, secondary labels, card copy, metadata */
+  .text-ui-secondary {
+    font-family: "Work Sans", system-ui, sans-serif;
+    font-weight: 400;
+    line-height: 1.55;
+  }
+  /* 5. Compact/Condensed — small nav labels, tags, dense UI, section markers */
+  .text-compact {
+    font-family: "Barlow Condensed", system-ui, sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  /* 6. Editorial Italic — quotes, emphasis, highlighted words, annotations */
+  .text-editorial-italic {
+    font-family: "Cormorant", Georgia, serif;
+    font-style: italic;
+    font-weight: 500;
+    line-height: 1.4;
+  }
+  /* 7. Technical Monospace — technical info, IDs, developer labels, metadata */
+  .text-mono-tech {
+    font-family: "JetBrains Mono", Menlo, monospace;
+    font-weight: 400;
+    letter-spacing: 0;
+  }
+  /* 8. Micro/Footnote — footnotes, tiny annotations, fine print (11-12px, tight tracking) */
+  .text-micro {
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    font-weight: 400;
+    font-size: 11px;
+    line-height: 1.4;
+    letter-spacing: 0.01em;
+  }
+  /* 9. Data/Numeric — numbers, stats, metrics, dates, counters, dashboard values */
+  .text-data-numeric {
+    font-family: "Space Grotesk", system-ui, sans-serif;
+    font-weight: 700;
+    font-feature-settings: "tnum" 1, "lnum" 1;
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+}
+
+/* =============================================================================
+   Component / utility classes — ported from the deployed reference.
+   Defined OUTSIDE @layer utilities so Tailwind JIT can't purge them when
+   they aren't yet referenced in source files. (Inside @layer utilities,
+   unused custom classes are stripped by content-aware tree-shaking.)
+   ============================================================================= */
+
+  /* ---------- Numeric / type ---------- */
+  .nums-tabular,
+  .tabular-nums { font-variant-numeric: tabular-nums; }
+  .display-tight { letter-spacing: -0.04em; }
+
+  /* --- Editorial hero -------------------------------------------------------
+     The dashboard's headline sentence, and only that.
+
+     A true drawn italic (Source Serif 4, SIL OFL) rather than a synthesised
+     oblique -- that is what gives the line its hand-set, magazine-deck
+     quality instead of a slanted sans. Optical sizing lets the face switch to
+     its display cut at this size, so the serifs stay fine and the contrast
+     stays high. Letter-spacing is left near-neutral on purpose: at 40-60px a
+     serif italic needs air, and the -0.04em that display-tight applies to the
+     sans headings would crush it. line-height sits at 1.12 so descenders and
+     the italic's steeper angle have room to breathe across two lines. */
+  .editorial-hero {
+    font-family: "Source Serif 4", ui-serif, Georgia, "Times New Roman", serif;
+    font-style: italic;
+    font-weight: 600;
+    font-optical-sizing: auto;
+    letter-spacing: -0.005em;
+    line-height: 1.12;
+    text-wrap: balance;
+    font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+  }
+
+  /* The accented word carries slightly more weight so the sentence has one
+     clear focal point without raising its voice. */
+  .editorial-hero .gradient-text-anim {
+    font-weight: 700;
+  }
+
+
+  /* ---------- Grid backgrounds ---------- */
+  .grid-bg {
+    background-image:
+      radial-gradient(circle at 1px 1px, var(--grid-dot) 1px, transparent 1.5px),
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size: 28px 28px, 28px 28px, 28px 28px;
+    background-position: 0 0, 0 0, 0 0;
+  }
+  .grid-bg-fade::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(900px 600px at 30% 0%, transparent 0%, rgb(var(--surface-bg)) 75%);
+  }
+
+  /* ---------- Premium card (institutional shadow + hover lift) ---------- */
+  .card-premium {
+    box-shadow: var(--shadow-card);
+    transition: box-shadow 220ms ease, transform 220ms ease, border-color 220ms ease;
+  }
+  .card-premium:hover {
+    box-shadow: var(--shadow-raise);
+    transform: translateY(-2px);
+  }
+  .card-pop { box-shadow: var(--shadow-pop); }
+
+  /* ---------- 3D lift on cards ---------- */
+  .lift-3d {
+    transition: transform 280ms cubic-bezier(0.16,1,0.3,1), box-shadow 280ms ease;
+    transform-style: preserve-3d;
+  }
+  .lift-3d:hover {
+    transform: translateY(-2px) translateZ(0);
+    box-shadow: var(--shadow-pop);
+  }
+
+  /* ---------- Status dot pulse (live indicator) ---------- */
+  .status-dot-live { animation: status-pulse 2.4s ease-in-out infinite; }
+
+  /* ---------- Marquee for ticker ---------- */
+  .marquee-track { animation: marquee-x 38s linear infinite; }
+  .marquee-track:hover { animation-play-state: paused; }
+
+  /* ---------- Floating action button ---------- */
+  .fab-pulse { animation: fab-pulse 2.6s ease-in-out infinite; }
+
+  /* ---------- Aurora blob (legacy React component) ---------- */
+  .aurora-blob {
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(120px);
+    pointer-events: none;
+    will-change: transform;
+  }
+
+  /* ---------- Kinetic word (staggered fade+rise; opacity-safe) ---------- */
+  .kinetic-word {
+    display: inline-block;
+    opacity: 1;
+    animation: stagger-word 0.45s cubic-bezier(0.2, 0, 0, 1) both;
+    animation-delay: var(--delay, 0ms);
+  }
+
+  /* ---------- Static gradient text (safe fallback) ---------- */
+  .gradient-text,
+  .text-gradient-brand {
+    color: rgb(var(--accent-brand));
+    background-image: linear-gradient(
+      90deg,
+      rgb(var(--accent-brand)) 0%,
+      rgb(var(--accent-cyan)) 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  @supports not (background-clip: text) {
+    .gradient-text,
+    .text-gradient-brand { -webkit-text-fill-color: rgb(var(--accent-brand)); }
+  }
+
+  /* ---------- Animated gradient text — slow shift across brand spectrum ---------- */
+  .gradient-text-anim {
+    background: linear-gradient(
+      90deg,
+      rgb(var(--accent-brand))      0%,
+      rgb(var(--accent-brand-glow)) 30%,
+      rgb(var(--accent-cyan))       60%,
+      rgb(var(--accent-violet))     90%,
+      rgb(var(--accent-brand))      100%
+    );
+    background-size: 220% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+    animation: gradient-shift 12s ease-in-out infinite;
+  }
+  /* When kinetic-word + gradient-text-anim combine, run BOTH animations */
+  .kinetic-word.gradient-text-anim {
+    animation:
+      stagger-word 0.45s cubic-bezier(0.2, 0, 0, 1) both,
+      gradient-shift 12s ease-in-out infinite;
+    animation-delay: var(--delay, 0ms), 0s;
+  }
+  @supports not (background-clip: text) {
+    .gradient-text-anim {
+      -webkit-text-fill-color: rgb(var(--accent-brand));
+      color: rgb(var(--accent-brand));
+    }
+  }
+
+  /* ---------- Word-up entry animation ---------- */
+  .animate-word-up {
+    /* opacity:1 fallback so word stays visible if animation suppressed */
+    opacity: 1;
+    animation: word-up 480ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  /* ---------- Float-soft drift (hero shield) ---------- */
+  .animate-float-soft { animation: float-soft 6s ease-in-out infinite; }
+
+  /* ---------- Tilt card (3D parallax) ---------- */
+  .tilt-card {
+    transform-style: preserve-3d;
+    transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateZ(0);
+    transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 220ms ease;
+    will-change: transform;
+  }
+  .tilt-card .tilt-glow {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    opacity: var(--glow-opacity, 0);
+    transition: opacity 250ms ease;
+    background: radial-gradient(360px circle at var(--mx, 50%) var(--my, 50%),
+                color-mix(in oklab, rgb(var(--accent-brand-glow)) 38%, transparent) 0%,
+                transparent 55%);
+    mix-blend-mode: plus-lighter;
+  }
+  .dark .tilt-card .tilt-glow { mix-blend-mode: screen; }
+  .tilt-card .tilt-sheen {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    opacity: var(--sheen-opacity, 0);
+    transition: opacity 250ms ease;
+    background: linear-gradient(105deg,
+                transparent 38%,
+                color-mix(in oklab, rgb(var(--accent-brand-glow)) 28%, transparent) 50%,
+                transparent 62%);
+    transform: translateX(calc((var(--mx-pct, 0) - 50) * 0.6%));
+  }
+
+  /* ---------- Cursor spotlight (hero mouse follow) ---------- */
+  .cursor-spotlight {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    background: radial-gradient(560px circle at var(--mx, 50%) var(--my, 40%),
+                color-mix(in oklab, rgb(var(--accent-brand-glow)) 22%, transparent) 0%,
+                transparent 55%);
+    opacity: 0;
+    transition: opacity 320ms ease;
+  }
+  .cursor-spotlight.is-active { opacity: 1; }
+
+  /* ---------- Conic rotating border (premium card edge) ---------- */
+  .conic-border {
+    position: relative;
+    isolation: isolate;
+  }
+  .conic-border::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    padding: 1px;
+    background: conic-gradient(from var(--conic-angle),
+                color-mix(in oklab, rgb(var(--accent-brand-glow)) 70%, transparent),
+                color-mix(in oklab, rgb(var(--accent-cyan))       55%, transparent),
+                color-mix(in oklab, rgb(var(--accent-violet))     60%, transparent),
+                color-mix(in oklab, rgb(var(--accent-brand-glow)) 70%, transparent));
+    -webkit-mask: linear-gradient(#000, #000) content-box, linear-gradient(#000, #000);
+    -webkit-mask-composite: xor;
+            mask-composite: exclude;
+    animation: conic-spin 7s linear infinite;
+    opacity: 0.9;
+    pointer-events: none;
+  }
+
+  /* ---------- Mesh gradient background (animated) ---------- */
+  .mesh-bg {
+    background:
+      radial-gradient(1100px 700px at 12% 8%,  color-mix(in oklab, rgb(var(--accent-brand-glow)) 22%, transparent), transparent 55%),
+      radial-gradient(900px 600px at 92% 18%,  color-mix(in oklab, rgb(var(--accent-cyan))       18%, transparent), transparent 55%),
+      radial-gradient(800px 500px at 70% 95%,  color-mix(in oklab, rgb(var(--accent-violet))     18%, transparent), transparent 55%);
+    background-size: 200% 200%;
+    background-position: 0% 50%;
+    animation: gradient-shift 18s ease-in-out infinite;
+  }
+
+  /* ---------- Shimmer sweep on primary CTAs ---------- */
+  .btn-shimmer {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+  }
+  .btn-shimmer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.32) 50%, transparent 65%);
+    transform: translateX(-120%);
+    transition: transform 700ms cubic-bezier(0.2, 0, 0, 1);
+  }
+  .btn-shimmer:hover::after { transform: translateX(120%); }
+
+  /* ---------- Animated grain overlay (hero) ---------- */
+  .grain {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.06;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.6 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  }
+
+  /* ---------- Reveal-on-scroll ---------- */
+  .reveal-init {
+    opacity: 0;
+    transform: translateY(18px) scale(0.98);
+    filter: blur(6px);
+  }
+  .reveal-go { animation: reveal-up 620ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+  /* ---------- Magnetic button hover ring ---------- */
+  .magnet-ring { position: relative; }
+  .magnet-ring::before {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: inherit;
+    pointer-events: none;
+    background: conic-gradient(from 90deg, transparent 0%,
+                color-mix(in oklab, rgb(var(--accent-brand-glow)) 50%, transparent) 25%,
+                transparent 50%,
+                color-mix(in oklab, rgb(var(--accent-cyan))       40%, transparent) 75%,
+                transparent 100%);
+    opacity: 0;
+    transition: opacity 200ms ease;
+    filter: blur(6px);
+    z-index: -1;
+  }
+  .magnet-ring:hover::before {
+    opacity: 0.85;
+    animation: conic-spin 4s linear infinite;
+  }
+
+  /* ---------- Floating particle ---------- */
+  .particle {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: color-mix(in oklab, rgb(var(--accent-brand-glow)) 70%, transparent);
+    box-shadow: 0 0 8px color-mix(in oklab, rgb(var(--accent-brand-glow)) 60%, transparent);
+    animation: particle-drift var(--dur, 5s) ease-in-out infinite;
+    animation-delay: var(--delay, 0s);
+  }
+  .particle.cyan {
+    background: color-mix(in oklab, rgb(var(--accent-cyan)) 70%, transparent);
+    box-shadow: 0 0 8px color-mix(in oklab, rgb(var(--accent-cyan)) 60%, transparent);
+  }
+  .particle.violet {
+    background: color-mix(in oklab, rgb(var(--accent-violet)) 70%, transparent);
+    box-shadow: 0 0 8px color-mix(in oklab, rgb(var(--accent-violet)) 60%, transparent);
+  }
+
+  /* ---------- Number flip cell ---------- */
+  .num-cell { display: inline-block; overflow: hidden; }
+  .num-cell .num-glyph {
+    display: inline-block;
+    animation: count-flip 380ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  /* ---------- Decision burst rings ---------- */
+  .burst-ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 999px;
+    pointer-events: none;
+    border: 1.5px solid color-mix(in oklab, rgb(var(--accent-brand-glow)) 60%, transparent);
+    animation: ring-burst 1100ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  .burst-ring.green { border-color: color-mix(in oklab, rgb(var(--accent-green)) 70%, transparent); }
+  .burst-ring.red   { border-color: color-mix(in oklab, rgb(var(--accent-red))   70%, transparent); }
+  .burst-ring.amber { border-color: color-mix(in oklab, rgb(var(--accent-amber)) 70%, transparent); }
+  .burst-ring.delay-1 { animation-delay: 120ms; }
+  .burst-ring.delay-2 { animation-delay: 240ms; }
+
+  /* ---------- Evidence flash (citation hover) ---------- */
+  [data-evidence-target] {
+    transition: background-color 200ms ease, box-shadow 200ms ease;
+  }
+  .evidence-flash {
+    background: var(--evidence-flash-bg) !important;
+    box-shadow: 0 0 0 2px var(--evidence-flash-ring) !important;
+    border-radius: 6px;
+  }
+
+/* ---------- Reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

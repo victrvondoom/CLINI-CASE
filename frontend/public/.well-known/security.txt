@@ -1,0 +1,9 @@
+﻿Contact: mailto:safety@clincase.example.com
+Contact: mailto:preethisivachandran0@gmail.com
+Expires: 2027-12-31T23:59:59.000Z
+Encryption: https://clincase.example.com/.well-known/pgp-key.asc
+Acknowledgments: https://github.com/aerofyta/clincase/security/hall-of-fame
+Preferred-Languages: en
+Canonical: https://api.clincase.example.com/.well-known/security.txt
+Policy: https://github.com/aerofyta/clincase/blob/main/SECURITY.md
+Hiring: https://aerofyta.example.com/careers
