@@ -47,7 +47,7 @@ class PolicyRetrieverAgent(Agent[PolicyRetrieverInput, PolicyRetrieverOutput]):
     role: ClassVar[str] = "policy_retrieval_orchestration"
     description: ClassVar[str] = (
         "Fetches the top-5 payer-specific PA policy sections relevant to this case "
-        "from the 21-policy corpus (Bedrock KB in production)."
+        "from the 22-policy corpus (Bedrock KB in production)."
     )
 
     input_schema: ClassVar[type] = PolicyRetrieverInput

@@ -147,6 +147,12 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         await ensure_schema()
     await _bootstrap_optional("genai_gateway_schema", _gateway)
 
+    # OncoTwin (digital-twin layer) — hash-chained prediction/HITL audit ledger.
+    async def _oncotwin():
+        from app.oncotwin.store import ensure_schema
+        await ensure_schema()
+    await _bootstrap_optional("oncotwin_audit_schema", _oncotwin)
+
     # Redis SSE pub/sub — in-process is the safe fallback for single-replica.
     # Multi-replica deploys MUST set REDIS_URL or live SSE traces fan-out
     # asymmetrically. We log loudly when this fails because in production
@@ -247,6 +253,10 @@ app.add_middleware(TenantContextMiddleware)
 from app.api.idempotency_middleware import IdempotencyMiddleware  # noqa: E402
 app.add_middleware(IdempotencyMiddleware)
 
+# Gzip OncoTwin JSON (50–400 KB payloads); scoped so ClinCase SSE streams are never buffered.
+from app.api.oncotwin_gzip_middleware import OncoTwinGZipMiddleware  # noqa: E402
+app.add_middleware(OncoTwinGZipMiddleware)
+
 
 @app.middleware("http")
 async def request_id_middleware(request, call_next):
@@ -306,6 +316,8 @@ from app.api import (  # noqa: E402
     v2 as v2_api,
     policies as policies_api,
     oncology_stack,
+    oncotwin as oncotwin_api,
+    oncotwin_intel as oncotwin_intel_api,
 )
 from app.integrations.trizetto.router import router as trizetto_router  # noqa: E402
 from app.mcp.server import router as mcp_router  # noqa: E402
@@ -351,6 +363,9 @@ app.include_router(privacy_api.router, prefix="/api/v1")
 app.include_router(prompts_api.router, prefix="/api/v1")
 app.include_router(policies_api.router, prefix="/api/v1")
 app.include_router(oncology_stack.router, prefix="/api/v1")
+# OncoTwin — dynamic digital-twin layer (additive; hands off into the cases API above)
+app.include_router(oncotwin_api.router, prefix="/api/v1")
+app.include_router(oncotwin_intel_api.router, prefix="/api/v1")    # OncoTwin 2.0 (additive)
 # fhir_bulk router carries its own /fhir prefix
 app.include_router(fhir_bulk_api.router)
 

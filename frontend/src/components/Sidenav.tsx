@@ -11,7 +11,10 @@ import {
   BookOpen,
   Calculator,
   Cpu,
+  FlaskConical,
   FolderOpen,
+  Gauge,
+  HeartPulse,
   Info,
   LayoutDashboard,
   Layers,
@@ -19,6 +22,7 @@ import {
   LogOut,
   Microscope,
   Network,
+  PlayCircle,
   ScanLine,
   Settings,
   ShieldCheck,
@@ -40,6 +44,7 @@ interface NavItem {
   badge?: string;
   chip?: string;        // small inline chip (e.g. "CMS-0057-F")
   disabled?: boolean;
+  end?: boolean;        // active only on an exact match (not on child routes)
   adminOnly?: boolean;
   reviewerOrAdmin?: boolean;
 }
@@ -57,6 +62,15 @@ const SECTIONS: NavSection[] = [
       { label: "Cases",        href: "/cases",             icon: FolderOpen, badge: "47" },
       { label: "Drop a scan",  href: "/intake",            icon: ScanLine, chip: "INTAKE" },
       { label: "Bulk import",  href: "/cases/bulk-import", icon: Upload, chip: "§ IV.A" },
+    ],
+  },
+  {
+    label: "Digital twin",
+    items: [
+      { label: "Command center", href: "/twin",      icon: HeartPulse,   chip: "TWIN", end: true },
+      { label: "Guided demo",    href: "/twin/demo", icon: PlayCircle,   chip: "OT-005" },
+      { label: "Research lab",   href: "/twin/lab",  icon: FlaskConical, chip: "BENCH" },
+      { label: "Observability",  href: "/twin/ops",  icon: Gauge,        chip: "MLOPS" },
     ],
   },
   {
@@ -210,6 +224,7 @@ function NavItemRow({ item }: { item: NavItem }) {
   return (
     <NavLink
       to={item.href}
+      end={item.end}
       className={({ isActive }) =>
         clsx(
           "flex items-center gap-2.5 px-3 py-1.5 rounded-md text-sm transition-colors group relative",

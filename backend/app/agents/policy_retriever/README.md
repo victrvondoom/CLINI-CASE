@@ -1,6 +1,6 @@
 # Policy Retriever
 
-Parent agent #2 of 7. Fetches the top-5 payer-specific PA policy sections relevant to this case from the 21-policy corpus (Bedrock KB in production).
+Parent agent #2 of 7. Fetches the top-5 payer-specific PA policy sections relevant to this case from the 22-policy corpus (Bedrock KB in production).
 
 ## Package layout
 
@@ -17,7 +17,7 @@ policy_retriever/
 
 | Name | Kind | Reflection | What it does |
 |------|------|-----------|--------------|
-| `keyword_filter` | deterministic | — | Iterates the curated 21-policy corpus and returns all (policy, section) pairs whose payer matches and whose treatment_keywords fuzzy-match the requested treatment name. Pure Python, no LLM. |
+| `keyword_filter` | deterministic | — | Iterates the curated 22-policy corpus and returns all (policy, section) pairs whose payer matches and whose treatment_keywords fuzzy-match the requested treatment name. Pure Python, no LLM. |
 | `llm_reranker` | LLM (sonnet) | — | Cross-encoder LLM rerank — fires only when keyword_filter returns >5 candidates. Outputs the top-K most-relevant indices for the case. |
 | `citation_resolver` | deterministic | — | Deterministic mapping from ranked candidate indices to fully-pointered PolicyExcerpt objects (source URL, page number, section heading, decreasing relevance score). No LLM. |
 

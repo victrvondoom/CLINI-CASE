@@ -301,7 +301,7 @@ TOOL_DEFINITIONS = [
         "description": (
             "Look up payer-specific prior-authorisation policy sections for a "
             "given oncology treatment. Returns NCCN-aligned criteria text and "
-            "section pointers. Backed by ClinCase's curated 21-policy corpus "
+            "section pointers. Backed by ClinCase's curated 22-policy corpus "
             "across Aetna, UHC, BCBS, Anthem (production: Bedrock Knowledge Base)."
         ),
         "inputSchema": {

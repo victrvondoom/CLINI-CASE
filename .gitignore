@@ -65,3 +65,6 @@ PPT-images-archive/
 
 # CloudShell-side Lambda artefact (rebuilt by ops/aws/_build_qr.py-style flow)
 ops/aws/function.zip
+
+# OncoTwin research cache (synthetic cohort datasets; regenerated deterministically)
+.cache/

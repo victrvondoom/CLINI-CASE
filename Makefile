@@ -4,6 +4,7 @@
         ingest.policies seed.demo \
         smoke deck preflight tf.fmt tf.validate kiro.export \
         migrate sbom sign supply-chain \
+        twin.test twin.demo twin.stress twin.train twin.reference twin.benchmark \
         test lint clean
 
 help:
@@ -20,6 +21,12 @@ help:
 	@echo "  db.psql           - open psql shell on local postgres"
 	@echo "  ingest.policies   - ingest payer PDFs into pgvector"
 	@echo "  seed.demo         - seed the 10 demo cases"
+	@echo "  twin.test         - OncoTwin tests"
+	@echo "  twin.demo         - OncoTwin flagship journey (one command, synthetic)"
+	@echo "  twin.stress       - OncoTwin red-team stress test"
+	@echo "  twin.train        - retrain OncoTwin models"
+	@echo "  twin.reference    - rebuild the drift reference profile"
+	@echo "  twin.benchmark    - OncoTwin Research Lab benchmark"
 	@echo "  test              - run all tests"
 	@echo "  lint              - run all linters"
 
@@ -46,6 +53,26 @@ frontend.dev:
 
 frontend.build:
 	cd frontend && npm run build
+
+# --- OncoTwin (digital twin) -------------------------------------------------
+# No database or LLM key needed. All data is synthetic.
+twin.test:
+	cd backend && pytest tests/oncotwin -q
+
+twin.demo:            ## flagship OT-005 closed-loop journey end to end; writes JSON + Markdown report
+	cd backend && python -m app.oncotwin.demo
+
+twin.stress:          ## red-team Twin Stress Test; non-zero exit if any scenario fails unsafe
+	cd backend && python -m app.oncotwin.stress
+
+twin.train:           ## retrain the OT-ACUTE-7 model and the multi-horizon survival model (deterministic)
+	cd backend && python -m app.oncotwin.ml.train --n 1000 && python -m app.oncotwin.ml.horizon --n 1000
+
+twin.reference:       ## rebuild the drift-monitor reference profile from the training cohort
+	cd backend && python -m app.oncotwin.mlops.drift --build-reference
+
+twin.benchmark:       ## Research Lab benchmark (modality, ablation, horizons, change points, lead time)
+	cd backend && python -m app.oncotwin.research.benchmark --n 1000
 
 # --- database --------------------------------------------------------------
 db.init:

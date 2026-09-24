@@ -15,7 +15,7 @@ def test_finds_aetna_trastuzumab():
 
 
 def test_cross_payer_pembrolizumab_all_4_payers():
-    """All 4 payers should have pembrolizumab coverage in our 21-policy corpus."""
+    """All 4 payers should have pembrolizumab coverage in our 22-policy corpus."""
     found_payers = set()
     for payer in ["aetna", "uhc", "bcbs", "anthem"]:
         out = keyword_filter._execute(  # noqa: SLF001

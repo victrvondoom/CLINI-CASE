@@ -1,6 +1,6 @@
 """KeywordFilter — Policy Retriever sub-agent.
 
-Deterministic. Iterates the curated 21-policy corpus and emits all
+Deterministic. Iterates the curated 22-policy corpus and emits all
 (policy, section) pairs whose payer matches and whose treatment_keywords
 fuzzy-match the requested treatment name.
 """
@@ -28,7 +28,7 @@ class KeywordFilterAgent(Agent[KeywordFilterInput, KeywordFilterOutput]):
     parent: ClassVar[str] = "policy_retriever"
     role: ClassVar[str] = "candidate_selection"
     description: ClassVar[str] = (
-        "Iterates the curated 21-policy corpus and returns all (policy, section) "
+        "Iterates the curated 22-policy corpus and returns all (policy, section) "
         "pairs whose payer matches and whose treatment_keywords fuzzy-match the "
         "requested treatment name. Pure Python, no LLM."
     )

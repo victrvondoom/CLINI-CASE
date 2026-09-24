@@ -429,6 +429,36 @@
           "text": "Baseline CBC with differential. Hold for Grade 2-4 cytopenia. Permanent discontinuation if MDS or AML develops, or if hematologic recovery does not occur within 4 weeks of dose interruption. Quarterly CBC monitoring beyond cycle 2."
         }
       ]
+    },
+    {
+      "payer_id": "aetna",
+      "policy_id": "OT-DEMO-MGF-01",
+      "policy_title": "Pegfilgrastim (Neulasta) and Biosimilars — Myeloid Growth Factor Support (OncoTwin demo criteria, NCCN-aligned)",
+      "source_url": null,
+      "demo_note": "Added for the OncoTwin → ClinCase handoff demo. Hand-curated, NCCN-aligned criteria; NOT an Aetna Clinical Policy Bulletin.",
+      "treatment_keywords": ["pegfilgrastim", "neulasta", "fulphila", "udenyca", "ziextenzo", "nyvepria", "fylnetra", "stimufend"],
+      "sections": [
+        {
+          "heading": "Primary Prophylaxis Criteria",
+          "page_number": 1,
+          "text": "Pegfilgrastim is considered medically necessary for primary prophylaxis of febrile neutropenia (FN) in patients with a non-myeloid malignancy receiving myelosuppressive chemotherapy when EITHER: (1) the regimen carries a high (greater than 20 percent) risk of FN; OR (2) the regimen carries an intermediate (10 to 20 percent) risk of FN and the patient has at least one FN risk factor, including age 65 years or older, prior chemotherapy or radiotherapy, persistent neutropenia, bone-marrow involvement by tumor, recent surgery or open wounds, liver or renal dysfunction, or poor performance status."
+        },
+        {
+          "heading": "Secondary Prophylaxis Criteria",
+          "page_number": 2,
+          "text": "Pegfilgrastim is considered medically necessary for secondary prophylaxis when the patient experienced a neutropenic complication in a prior cycle for which primary prophylaxis was not received (febrile neutropenia, or a dose-limiting neutropenic event such as a clinically significant infection during the neutrophil nadir), AND a dose reduction or treatment delay may compromise disease-free or overall survival or treatment outcome (for example, curative-intent therapy)."
+        },
+        {
+          "heading": "Administration and Exclusions",
+          "page_number": 3,
+          "text": "A single 6 mg subcutaneous dose once per chemotherapy cycle, administered 24 to 72 hours after completion of chemotherapy (or via on-body injector applied on the day of chemotherapy). Not considered medically necessary when given between 14 days before and 24 hours after cytotoxic chemotherapy, concurrently with daily filgrastim in the same cycle, or with weekly chemotherapy regimens."
+        },
+        {
+          "heading": "Documentation Requirements",
+          "page_number": 3,
+          "text": "Documentation must include the chemotherapy regimen and treatment intent, the regimen's febrile-neutropenia risk category or the qualifying neutropenic complication (dates, absolute neutrophil count, temperature and management), and the planned date of the next cycle."
+        }
+      ]
     }
   ]
 }

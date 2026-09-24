@@ -49,7 +49,7 @@ const MCP_TOOLS: MCPTool[] = [
   {
     name: "policy_lookup",
     description:
-      "Look up payer-specific PA policy sections for a treatment. Backed by 21-policy corpus across Aetna/UHC/BCBS/Anthem (production: Bedrock KB).",
+      "Look up payer-specific PA policy sections for a treatment. Backed by 22-policy corpus across Aetna/UHC/BCBS/Anthem (production: Bedrock KB).",
     args: [
       { name: "payer_id", type: "string", required: true },
       { name: "treatment", type: "string", required: true },

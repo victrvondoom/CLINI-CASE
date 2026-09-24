@@ -43,6 +43,12 @@ import Reviewer from "./routes/Reviewer";
 import ROI from "./routes/ROI";
 import Settings from "./routes/Settings";
 import Signup from "./routes/Signup";
+import TwinCommand from "./routes/TwinCommand";
+import TwinDashboard from "./routes/TwinDashboard";
+import TwinHub from "./routes/TwinHub";
+import TwinLab from "./routes/TwinLab";
+import TwinOps from "./routes/TwinOps";
+import TwinPatient from "./routes/TwinPatient";
 import "./styles/index.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
@@ -71,6 +77,16 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             <Route path="/cases/:caseId" element={<CaseDetail />} />
             <Route path="/cases/:caseId/compare" element={<Compare />} />
             <Route path="/intake" element={<Intake />} />
+
+            {/* OncoTwin — dynamic digital-twin layer (additive) */}
+            <Route path="/twin" element={<TwinCommand />} />
+            <Route path="/twin/overview" element={<TwinHub />} />
+            <Route path="/twin/lab" element={<TwinLab />} />
+            <Route path="/twin/ops" element={<TwinOps />} />
+            <Route path="/twin/demo" element={<TwinPatient demo />} />
+            <Route path="/twin/demo/classic" element={<TwinDashboard demo />} />
+            <Route path="/twin/:patientId/classic" element={<TwinDashboard />} />
+            <Route path="/twin/:patientId/:tab?" element={<TwinPatient />} />
 
             <Route path="/policies" element={<Policies />} />
             <Route path="/onco" element={<OncologyStack />} />
