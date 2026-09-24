@@ -26,8 +26,7 @@ Composition pattern. The factory returns `GenAIGateway(BedrockClient())` so:
   • Existing test mocks for LLMClient (the ABC) keep working.
   • Provider swap (Anthropic ↔ Bedrock) is unchanged — Gateway just wraps whatever.
 
-Cognizant alignment: this is the V2/V3 "agentic capital" layer Ravi Kumar described
-in his AI velocity gap thesis — context engineering + governance baked into how AI is
+Design intent: context engineering + governance baked into how AI is
 called, not bolted on afterward.
 """
 from __future__ import annotations

@@ -67,7 +67,7 @@ async def update_org_quota(
 
     Authorization: admins are scoped to their own org. Cross-org admin is
     intentionally NOT supported — separate platform-admin role would be
-    required and we don't ship one for the hackathon.
+    required and one isn't shipped yet.
     """
     if organization_id != user["organization_id"]:
         raise HTTPException(

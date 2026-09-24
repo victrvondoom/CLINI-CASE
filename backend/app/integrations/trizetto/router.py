@@ -250,7 +250,7 @@ async def info(
 ) -> dict[str, Any]:
     client = TriZettoGatewayClient()
     return {
-        "platform": "Cognizant TriZetto AI Gateway",
+        "platform": "TriZetto AI Gateway",
         "launched": "2025-08-06",
         "stack": {
             "compute": "AWS Bedrock (Anthropic Claude Sonnet 4.6)",
@@ -263,11 +263,10 @@ async def info(
         "running_in": "mock" if client.is_mock else "real",
         "why_this_exists": (
             "ClinCase deploys as a TriZetto AI Gateway-native specialty agent bundle. "
-            "Same Bedrock + Claude Sonnet 4.6 + MCP stack Cognizant standardized on "
-            "for the Anthropic partnership announced Nov 4, 2025. ClinCase submits "
-            "determinations to the Gateway, which fans them out to Facets PA workflow "
-            "and QNXT case-event hooks. From a Cognizant sales perspective, ClinCase is "
-            "the first oncology-specialty plug-in for TriZetto AI Gateway."
+            "Same Bedrock + Claude Sonnet 4.6 + MCP stack the Gateway is built on. "
+            "ClinCase submits determinations to the Gateway, which fans them out to "
+            "Facets PA workflow and QNXT case-event hooks, making ClinCase an "
+            "oncology-specialty plug-in for TriZetto AI Gateway."
         ),
         "mock_inbox_size": len(get_mock_inbox()),
         "issuer": "ClinCase 0.1.0",

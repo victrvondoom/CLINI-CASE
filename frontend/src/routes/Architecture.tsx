@@ -157,27 +157,27 @@ export default function Architecture() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
             <AlignmentRow
               label="AI velocity gap addressed"
-              value={arch.cognizant_alignment.ai_velocity_gap_addressed ? "yes" : "no"}
+              value={arch.platform_alignment.ai_velocity_gap_addressed ? "yes" : "no"}
             />
             <AlignmentRow
               label="Three Vector Strategy"
-              value={arch.cognizant_alignment.vector_strategy_classification.join(" · ")}
+              value={arch.platform_alignment.vector_strategy_classification.join(" · ")}
             />
             <AlignmentRow
               label="Agent Foundry stage"
-              value={arch.cognizant_alignment.agent_foundry_stage}
+              value={arch.platform_alignment.agent_foundry_stage}
             />
             <AlignmentRow
               label="Neuro-SAN compatible"
-              value={arch.cognizant_alignment.neuro_san_compatible ? "yes" : "no"}
+              value={arch.platform_alignment.neuro_san_compatible ? "yes" : "no"}
             />
             <AlignmentRow
               label="TriZetto AI Gateway native"
-              value={arch.cognizant_alignment.trizetto_ai_gateway_native ? "yes" : "no"}
+              value={arch.platform_alignment.trizetto_ai_gateway_native ? "yes" : "no"}
             />
             <AlignmentRow
               label="Anthropic partnership alignment"
-              value={arch.cognizant_alignment.anthropic_partnership_alignment}
+              value={arch.platform_alignment.anthropic_partnership_alignment}
             />
           </div>
         </section>

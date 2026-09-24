@@ -75,7 +75,7 @@ appeals_drafter (Sonnet · 3 sub-agents: nccn_reference_specialist, counter_evid
 patient_communicator (Sonnet · 3 sub-agents: empathy_layer, action_step_writer, reading_level_tuner)
 ```
 
-**Three architectural properties Cognizant judges look for:**
+**Three architectural properties enterprise reviewers look for:**
 
 1. **Goal-shaped, not call-shaped.** The network executes a goal end-to-end; the coordinator never sees an LLM prompt.
 2. **Per-agent fault isolation.** A schema regression in `appeals_drafter` doesn't poison `clinical_extractor`'s output.
@@ -128,21 +128,21 @@ The outcome is **auditable, measurable, reproducible**:
 
 ---
 
-## How this matches Cognizant's 2026 agentic vision
+## How this matches the 2026 agentic delivery pattern
 
-Cognizant's published narrative ([Constellation 2025](https://www.constellationr.com/insights/news/cognizant-aims-solve-ai-velocity-gap)):
+The emerging enterprise pattern:
 
-> *"Associates delegate macro tasks to agent networks and 'micro-steer' outcomes via platforms like Cognizant Flowsource."*
+> *Operators delegate macro tasks to agent networks and "micro-steer" the outcomes.*
 
-| Cognizant's verb | ClinCase's mechanism |
+| Pattern verb | ClinCase's mechanism |
 |---|---|
 | *delegate* | `POST /run-async` → `case_jobs` queue → worker picks up |
 | *macro tasks* | "Decide PA for trastuzumab on patient X" — one user-comprehensible goal |
 | *agent networks* | 7-parent / 22-sub-agent LangGraph DAG with conditional routing |
 | *micro-steer* | HITL `review_gate` + reviewer override + Evidence Pack drill-in |
-| *Flowsource-shaped* | Async submit + SSE trace + reviewer queue + audit trail = the same UX shape Flowsource uses for software engineering, applied to clinical ops |
+| *async-autonomous* | Async submit + SSE trace + reviewer queue + audit trail — the UX shape used in agentic software engineering, applied to clinical ops |
 
-That alignment is intentional. ClinCase's UX is a faithful translation of Flowsource's async-autonomous engineering pattern into healthcare prior-auth ops.
+That alignment is intentional: ClinCase's UX translates the async-autonomous engineering pattern into healthcare prior-auth ops.
 
 ---
 
@@ -151,13 +151,12 @@ That alignment is intentional. ClinCase's UX is a faithful translation of Flowso
 - This is **not generic chat over PHI**. It's a finite agent network with bounded actions.
 - This is **not autonomous denial**. Adverse determinations route through `review_gate`; a clinician signs (CA SB 1120).
 - This is **not multi-modal UI automation**. We don't drive a browser; we publish typed events to TriZetto's well-known APIs.
-- This is **not replacement of the operator**. Operators delegate the macro task and micro-steer outcomes — exactly Cognizant's stated vision.
+- This is **not replacement of the operator**. Operators delegate the macro task and micro-steer outcomes.
 
 ---
 
 ## Sources
 
 - AWS Bedrock AgentCore — GA Oct 2025 ([whatsnew](https://aws.amazon.com/about-aws/whats-new/2025/10/amazon-bedrock-agentcore-available/))
-- Cognizant Flowsource + agentic delivery — [Constellation 2025](https://www.constellationr.com/insights/news/cognizant-aims-solve-ai-velocity-gap)
-- Multi-agent goal→network→actions→outcome pattern — industry trend, anchored to Cognizant 2026 narrative
+- Multi-agent goal→network→actions→outcome pattern — 2026 industry trend
 - HITL + SB 1120 — [Sheppard Mullin](https://www.sheppardhealthlaw.com/2024/11/articles/state-legislation/california-limits-health-plan-use-of-ai-in-utilization-management/)

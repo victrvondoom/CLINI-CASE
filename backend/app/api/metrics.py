@@ -1,13 +1,13 @@
 """GET /metrics — Prometheus exposition format for scrapers.
 
-Production-essential. Cognizant judges asking *"how do you monitor this in
-prod?"* get a real answer: a `/metrics` endpoint Prometheus can scrape on
+Production-essential. Anyone asking *"how do you monitor this in
+prod?"* gets a real answer: a `/metrics` endpoint Prometheus can scrape on
 the standard 60-second interval, with the standard counters every
 production system has.
 
 We use the prometheus_client library if available; fall back to a hand-rolled
-text-format emitter so the endpoint works without extra dependencies (the
-hackathon constraint).
+text-format emitter so the endpoint works without extra dependencies (a
+deliberate constraint).
 
 Counters / Gauges exposed:
   • clincase_cases_total{status}              cumulative cases by terminal status

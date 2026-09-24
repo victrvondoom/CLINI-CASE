@@ -21,7 +21,7 @@ What ClinCase moves:
   • SB-1120-aligned HITL → reduces overturn rate on appeals (also a
     measure surface).
 
-The numbers are PROJECTIONS, not guarantees — every Cognizant judge will
+The numbers are PROJECTIONS, not guarantees — any payer analyst will
 recognize that's how Star math works. We make the projection method
 transparent + cite the public source.
 """

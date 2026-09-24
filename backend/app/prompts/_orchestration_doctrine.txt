@@ -2,13 +2,13 @@ ClinCase — Orchestration Doctrine (AAOSA-aligned)
 
 This file is the cross-agent contract every prompt in `app/prompts/`
 implicitly references. It is also surfaced at
-`GET /api/v1/foundry/manifest` so a Cognizant judge or auditor can verify
-ClinCase's alignment with the published Cognizant Neuro-SAN AAOSA pattern
+`GET /api/v1/foundry/manifest` so a reviewer or auditor can verify
+ClinCase's alignment with the published Neuro-SAN AAOSA pattern
 (Agent-to-Agent Orchestration with Stateful Adaptation).
 
 ## What AAOSA asks of an agentic system
 
-The Neuro-SAN paper (Cognizant AI Labs, 2024-2025) names four properties
+The Neuro-SAN paper (2024-2025) names four properties
 that distinguish enterprise-grade agentic systems from toy multi-agent
 demos:
 
@@ -75,7 +75,7 @@ Every agent call is wrapped in three concentric primitives:
   - `agent_runs` row with full input + output + latency + cost — replayable
     via `case_runs.replay()`
 
-A judge clicking into any case in the demo can see every agent's
+A reviewer clicking into any case in the demo can see every agent's
 reasoning, in order, with timing and cost. That's what AAOSA-grade
 observability looks like.
 
@@ -109,17 +109,14 @@ We have intentionally NOT done these (each is a Neuro-SAN red flag):
   ❌ Single-blocking-call DAGs that lose state on worker death
        — checkpointed `case_runs` + heartbeat reaper + saga engine
 
-## Why this matters for the demo
+## Why this matters
 
-When a Cognizant judge asks "is this just LangGraph?", the answer is:
+When someone asks "is this just LangGraph?", the answer is:
   "No — this is the Neuro-SAN AAOSA pattern, executed on a LangGraph
   scheduler. The doctrine file at `app/prompts/_orchestration_doctrine.txt`
   is the contract every agent is bound by. The four AAOSA properties —
   bounded responsibility, stateful continuity, adaptation via configuration,
   observability of every hop — are each pointable to running code."
-
-That answer is the difference between "interesting hackathon project"
-and "this team understands how Cognizant ships agentic systems."
 
 ## Document Intake — pre-DAG real-world-input layer
 
@@ -147,7 +144,7 @@ so a scanned-fax verdict is as auditable as a clean-FHIR verdict
 
 ## Cross-references
 
-  • Cognizant Neuro-SAN paper (AI Labs, 2024-2025)
+  • Neuro-SAN paper (AI Labs, 2024-2025)
   • PROPOSAL.md §3 — agent topology
   • PROPOSAL.md §7B — Document Intake pre-DAG layer
   • app/api/foundry.py — `/foundry/manifest` exposes this doctrine

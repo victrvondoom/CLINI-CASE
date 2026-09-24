@@ -1,17 +1,17 @@
 """Operational endpoints — /healthz/deep · /version · /capabilities.
 
-These are the endpoints a Cognizant SRE / customer compliance officer / judge
+These are the endpoints an SRE / customer compliance officer / auditor
 runs to verify "is this system actually production-grade?". They expose:
 
   • /api/v1/healthz/deep   — every layer reports its own health
   • /api/v1/version        — git SHA + ClinCase semver + build date
-  • /api/v1/capabilities   — feature flags judges can verify (mock vs real,
+  • /api/v1/capabilities   — feature flags reviewers can verify (mock vs real,
                               Q-vs-Bedrock backend, Gateway enabled, etc.)
 
 Read-only, idempotent, no auth required. /healthz/deep is intentionally
 verbose (5+ second response is acceptable) — it's not the K8s liveness probe;
 that's `/api/v1/healthz` (already exists). This is the "show me everything
-is wired" probe a judge or auditor runs once.
+is wired" probe a reviewer or auditor runs once.
 """
 from __future__ import annotations
 
@@ -83,7 +83,7 @@ async def version() -> dict[str, Any]:
 
 @router.get("/capabilities")
 async def capabilities() -> dict[str, Any]:
-    """Feature-flag snapshot. Judges can verify the deployment mode without reading code.
+    """Feature-flag snapshot. Reviewers can verify the deployment mode without reading code.
 
     The flags here mirror env-driven behavior. Useful for "is this demo mode?" /
     "are you using real Bedrock or a mock?" introspection.

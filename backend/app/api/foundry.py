@@ -55,7 +55,7 @@ async def foundry_manifest() -> dict[str, Any]:
             "Anthropic Claude Sonnet 4.6, MCP-native, FHIR + Da Vinci PAS-aware."
         ),
         # --- Neuro AI ----------------------------------------------
-        "cognizant_neuro_compatibility": {
+        "neuro_san_compatibility": {
             "multi_agent_orchestration": True,
             "agent_sdk": "anthropic-agent-sdk@>=0.4 (Neuro std per Nov 4, 2025 partnership)",
             "mcp_server_endpoint": "/mcp",
@@ -141,6 +141,5 @@ async def foundry_manifest() -> dict[str, Any]:
             "scaling_capacity_model": "ops/SCALING.md",
             "multi_region_terraform": "ops/terraform/multi-region/",
             "aws_migration_runbook": "ops/aws/MIGRATION_RUNBOOK.md",
-            "go_to_market_doc": "ops/demo/GO_TO_MARKET.md",
         },
     }

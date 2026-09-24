@@ -1,12 +1,11 @@
 """MCP server exposed over HTTP/JSON-RPC 2.0.
 
 ClinCase implements the Model Context Protocol so MCP-compatible clients
-(Claude Desktop, Cursor, Cognizant TriZetto AI Gateway) can discover and
+(Claude Desktop, Cursor, TriZetto AI Gateway) can discover and
 invoke ClinCase's reasoning tools without bespoke integration glue.
 
 This is the single feature that makes ClinCase "drop-in compatible with
-TriZetto AI Gateway" — Cognizant's own re:Invent 2025 talk (IND210)
-described their gateway as MCP-compliant.
+TriZetto AI Gateway", which is MCP-compliant (re:Invent 2025, IND210).
 
 Transport: HTTP POST of JSON-RPC 2.0 envelopes.
 Methods supported:
@@ -132,7 +131,7 @@ def _check_token(authorization: str | None) -> None:
     """Optional shared-secret check.
 
     If MCP_AUTH_TOKEN is set in the environment, require a matching Bearer
-    token. If unset, allow all callers (hackathon / open-demo mode). In
+    token. If unset, allow all callers (open-demo mode). In
     production this is set via AWS Secrets Manager and rotated regularly.
     """
     expected = getattr(settings, "MCP_AUTH_TOKEN", None) or ""
@@ -202,7 +201,7 @@ async def mcp_manifest() -> dict[str, Any]:
         "client_compatibility": [
             "Claude Desktop",
             "Cursor",
-            "Cognizant TriZetto AI Gateway (MCP-compliant per re:Invent 2025 IND210)",
+            "TriZetto AI Gateway (MCP-compliant per re:Invent 2025 IND210)",
             "Any JSON-RPC 2.0 MCP client",
         ],
     }

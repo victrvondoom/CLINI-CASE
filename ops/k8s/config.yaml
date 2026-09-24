@@ -1,7 +1,7 @@
 # ─── ClinCase shared config + secrets + RBAC ─────────────────────────────────
 # Per-tenant config / secrets in production come from External Secrets Operator
 # pulling from AWS Secrets Manager. This file shows the SHAPE — values are
-# placeholders for the hackathon.
+# placeholders.
 
 apiVersion: v1
 kind: Namespace

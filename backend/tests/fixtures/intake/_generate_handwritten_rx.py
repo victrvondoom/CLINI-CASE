@@ -5,7 +5,7 @@ phone-camera photograph of a real prescription — letterhead at top, hand-
 written body, slight skew, paper texture, signature scribble.
 
 Run with the project venv:
-  D:\\xzashr.ai Files\\cts-technoverse\\ClinCase\\backend\\.venv\\Scripts\\python.exe \\
+  .venv\\Scripts\\python.exe \\
     tests/fixtures/intake/_generate_handwritten_rx.py
 
 Output: tests/fixtures/intake/handwritten_rx.png  (~600 KB, 1500x2000)

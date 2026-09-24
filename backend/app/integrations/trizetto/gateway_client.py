@@ -1,6 +1,6 @@
 """TriZetto AI Gateway MCP client.
 
-The Gateway is Cognizant's centralized agent-management surface (launched
+The Gateway is TriZetto's centralized agent-management surface (launched
 Aug 6, 2025; built on AWS Bedrock; MCP-native; ships Anthropic Claude Sonnet
 4.6 by default). ClinCase submits decisions to the Gateway as MCP tool-call
 events; the Gateway then fans them out to Facets / QNXT / appeal-management
@@ -8,7 +8,7 @@ modules per the customer's deployment.
 
 Two modes (selected via env / constructor):
 
-  • Mock mode (default for hackathon): the client POSTS to the in-process
+  • Mock mode (default for local and demo use): the client POSTS to the in-process
     /api/v1/integrations/trizetto/_mock/inbox endpoint. Every demo run
     visibly succeeds; the receiver's inbox can be inspected to prove the
     end-to-end loop is real.

@@ -1,6 +1,6 @@
 # ClinCase — Chaos Engineering Playbook
 
-**Audience:** ClinCase SRE rotation · Cognizant TriZetto on-call SA · auditor verifying production-grade resilience
+**Audience:** ClinCase SRE rotation · TriZetto on-call SA · auditor verifying production-grade resilience
 
 > *"In a world of complex distributed systems, hope is not a strategy."* — Netflix Chaos Monkey origin paper.
 
@@ -77,7 +77,7 @@ Each experiment has: **hypothesis** (what should NOT happen), **mechanism** (how
 
 **Hypothesis:** TriZetto Gateway returning 503 for all submits does NOT block case decisions; submit becomes a separately-retryable user action.
 
-**Mechanism:** Stop the mock TriZetto receiver (or for live Gateway, ask Cognizant to flip the dev tenant to deny mode).
+**Mechanism:** Stop the mock TriZetto receiver (or for live Gateway, ask the TriZetto team to flip the dev tenant to deny mode).
 
 **Metrics:**
 - Case runs complete normally
@@ -99,7 +99,7 @@ Each quarter, run all 5 experiments in sequence on staging:
 | Week 2 | EXP-02 (Worker pod kill) | TL |
 | Week 3 | EXP-03 (Postgres failover) | TL + DBA |
 | Week 4 | EXP-04 (Redis outage) | TL |
-| Week 5 | EXP-05 (TriZetto Gateway down) | TL + Cognizant TriZetto SA |
+| Week 5 | EXP-05 (TriZetto Gateway down) | TL + TriZetto SA |
 
 Each experiment ends with a 1-page summary in `ops/sre/chaos-results/EXP-NN-YYYY-Q.md` covering: did the hypothesis hold? what surprised us? what action items came out?
 

@@ -669,7 +669,7 @@ async def resume_after_review(
 class ReviewActionRequest(BaseModel):
     action: str = Field(..., examples=["override_to_approve", "override_to_deny", "escalate", "add_note"])
     note: Optional[str] = None
-    reviewer_id: str = "aerofyta-reviewer"
+    reviewer_id: str = "demo-reviewer"
 
 
 @router.post("/{case_id}/review")

@@ -5,7 +5,7 @@ All persistence is REAL. Two backends, picked automatically:
   • Production / staging — when ``POLICIES_S3_BUCKET`` is set in the
     environment, every operation talks to S3 via boto3. Soft-delete moves
     objects from ``policies/`` to ``policies/.trash/`` (a separate S3 prefix,
-    not a "tag" — judges can verify the move in the AWS console).
+    not a "tag" — reviewers can verify the move in the AWS console).
     When ``BEDROCK_KB_ID`` + ``BEDROCK_KB_DATA_SOURCE_ID`` are also set, any
     mutation triggers ``bedrock-agent:StartIngestionJob`` so the KB stays in
     sync with S3 truth (deleted policies actually disappear from RAG).

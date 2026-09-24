@@ -12,7 +12,7 @@ Two industry baselines anchor the math:
       Clean APPROVE: ~$0.25
       DENY+appeal:   ~$0.45
 
-The math is intentionally conservative — judges asking "where do these
+The math is intentionally conservative — anyone asking "where do these
 numbers come from?" can point to AMA / CAQH / KFF directly.
 """
 from __future__ import annotations

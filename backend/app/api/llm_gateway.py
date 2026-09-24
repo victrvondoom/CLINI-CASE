@@ -49,7 +49,7 @@ async def my_policy(
 async def circuit_breakers(
     user: dict[str, Any] = Depends(get_current_user),  # noqa: ARG001
 ) -> dict[str, Any]:
-    """Per-model circuit breaker state. SRE + judge introspection.
+    """Per-model circuit breaker state. SRE + reviewer introspection.
 
     Each breaker tracks: model_id · state (CLOSED/OPEN/HALF_OPEN) · samples
     · current failure rate · cooldown remaining. When a breaker is OPEN,

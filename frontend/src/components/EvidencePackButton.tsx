@@ -31,7 +31,7 @@ export function EvidencePackButton({ caseId }: Props) {
       bundle = await api.getEvidencePack(caseId);
     } catch {
       // DB-less / endpoint-unavailable demo fallback. Synthesize a realistic
-      // evidence pack so judges still see the download moment + the tamper-
+      // evidence pack so reviewers still see the download moment + the tamper-
       // evident SHA-256 envelope.
       const ts = new Date().toISOString();
       const sha = await sha256Of(`${caseId}|${ts}|clincase-evidence-pack-v1`);

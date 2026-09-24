@@ -29,7 +29,7 @@ from app.oncotwin.simulator.archetypes import FLAGSHIP_PATIENT
 from app.oncotwin.store import OrgTwinStore
 
 DEFAULT_OUT = Path(__file__).resolve().parents[2] / ".cache" / "oncotwin" / "demo"
-CLINICIAN = {"id": "demo-reviewer", "email": "reviewer@aerofyta.health", "role": "reviewer",
+CLINICIAN = {"id": "demo-reviewer", "email": "reviewer@clincase.health", "role": "reviewer",
              "organization_id": "org_oncotwin_demo", "full_name": "Demo Reviewer"}
 
 

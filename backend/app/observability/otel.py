@@ -5,7 +5,7 @@ Why this is the foundational industry-grade primitive:
   • Every span — HTTP request, agent invocation, Bedrock call, DB query, TriZetto
     submit — links into a single distributed trace via W3C Trace Context (the
     standard `traceparent` and `tracestate` headers).
-  • A Cognizant TriZetto SRE pulls one trace_id from a customer escalation;
+  • A TriZetto SRE pulls one trace_id from a customer escalation;
     sees the entire request lifecycle from API ingress to Bedrock InvokeModel
     to TriZetto Gateway submit, in one Datadog/Honeycomb/X-Ray pane.
   • OpenTelemetry is vendor-neutral — same instrumentation exports to AWS X-Ray,
@@ -93,7 +93,7 @@ def setup_otel(*, service_name: str = "clincase", service_version: str = "0.1.0"
     resource = Resource.create({
         "service.name": service_name,
         "service.version": service_version,
-        "service.namespace": "aerofyta.clincase",
+        "service.namespace": "clincase",
         "deployment.environment": os.getenv("DEPLOYMENT_ENV", "dev"),
     })
     provider = TracerProvider(resource=resource)

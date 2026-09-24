@@ -2,15 +2,14 @@
 
 **Companion to:** [`ops/industrialization/CHECKLIST.md`](ops/industrialization/CHECKLIST.md) — Agent Foundry stage gates.
 
-## Now (May 2026 — finals window)
+## Now
 
-- ✅ Round 8 demo readiness — pitch deck, scripts, anticipated questions, leave-behind, smoke test, demo day checklist
-- 🟡 May 6 Pune — AWS Bedrock migration (`ops/aws/MIGRATION_RUNBOOK.md`)
-- 🟡 May 7 Pune — 2026 finals demo
+- ✅ 7-agent prior-authorization pipeline with HITL review, evidence packs and the live pipeline console
+- ✅ OncoTwin patient digital twin, validated on synthetic cohorts ([`docs/ONCOTWIN.md`](docs/ONCOTWIN.md))
+- 🟡 AWS Bedrock as the default LLM provider (`ops/aws/MIGRATION_RUNBOOK.md`)
+- 🟡 First pilot customer
 
-## Next (Day 0 → Day 90 of first pilot)
-
-The pilot plan is in [`ops/demo/COGNIZANT_GO_TO_MARKET.md`](ops/demo/COGNIZANT_GO_TO_MARKET.md). Headline milestones:
+## Next (Day 0 → Day 90 of the first pilot)
 
 | Day | Milestone | Status |
 |---|---|---|
@@ -21,7 +20,7 @@ The pilot plan is in [`ops/demo/COGNIZANT_GO_TO_MARKET.md`](ops/demo/COGNIZANT_G
 | 30  | First reviewer signoff on a HITL pause (CA SB 1120 verification) | doc'd |
 | 45  | Bedrock Provisioned Throughput pinned (1 MU Sonnet OneMonth) | terraform apply-ready |
 | 60  | Second specialty (cardiology) live via Kiro spec edit | spec-export demonstrated |
-| 90  | First pilot ROI report — joint AWS blog post | open |
+| 90  | First pilot ROI report published | open |
 
 ## After Day 90 (post-pilot)
 
@@ -38,6 +37,10 @@ These are the items deferred from the initial build scope. Each has an explicit 
 - **Cardiology** — Kiro spec edit + Hook regen pattern proves the multi-vertical story. Day 60 milestone above.
 - **Behavioral health** — Day-180 target.
 - **Transplant** — Day-365 target (transplant PA is the highest-stakes specialty).
+
+### OncoTwin
+- Validation on real longitudinal cohorts before any clinical use.
+- Sub-daily signal ingestion, so shorter risk horizons can be offered.
 
 ### Multi-region active/active
 - Terraform module ready (`ops/terraform/multi-region/`). Apply when first customer demands < 60-second RTO across regions.

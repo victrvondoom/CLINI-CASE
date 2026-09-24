@@ -14,7 +14,7 @@ BASE = "/api/v1/oncotwin"
 
 
 def _user(role: str, org: str) -> dict:
-    return {"id": f"user_{role}", "email": f"{role}@aerofyta.health", "full_name": role, "organization_id": org, "role": role}
+    return {"id": f"user_{role}", "email": f"{role}@clincase.health", "full_name": role, "organization_id": org, "role": role}
 
 
 @pytest.fixture()

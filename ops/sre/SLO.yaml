@@ -13,8 +13,8 @@
 # goes to PagerDuty (via the SNS topic configured in
 # ops/terraform/provisioned-throughput/variables.tf).
 #
-# WHY THIS MATTERS for Cognizant industrialization:
-#   • Cognizant solution architects expect every production service to declare
+# WHY THIS MATTERS for industrialization:
+#   • Solution architects expect every production service to declare
 #     its SLOs explicitly — this is how "production-grade" is defined.
 #   • The error-budget pattern lets product + engineering trade off velocity
 #     against reliability without arguing in every PR.
@@ -23,7 +23,7 @@
 
 version: v1
 service: clincase
-owner: aerofyta-engineering@clincase.example.com
+owner: engineering@clincase.example.com
 escalation:
   primary_pagerduty: PD-CLINCASE-PRIMARY
   business_owner: cmo@clincase.example.com

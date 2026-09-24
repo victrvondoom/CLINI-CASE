@@ -11,7 +11,7 @@ interface CitationChipProps {
 }
 
 // Kind-aware visual mapping. Each citation kind gets its own icon, color
-// scheme, and label so a judge / reviewer can distinguish at a glance:
+// scheme, and label so a reviewer can distinguish at a glance:
 //
 //   clinical    blue    Stethoscope    "clinical:"   FHIR resource
 //   policy      violet  FileText       "policy:"     payer CPB / coverage doc

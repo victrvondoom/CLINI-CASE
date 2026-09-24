@@ -4,7 +4,7 @@ Per-case and per-org scorecards that introspect actual database state — not
 a static slide. Every clause has a `check` function that returns
 (satisfied: bool, evidence: str, severity: 'info'|'warning'|'critical').
 
-A judge or compliance officer asking "show me proof case X is compliant"
+An auditor or compliance officer asking "show me proof case X is compliant"
 gets a structured answer with concrete pointers (agent_runs row IDs, tat
 seconds, hash of audit chain).
 

@@ -19,7 +19,7 @@ metrics are computed on held-out synthetic patients, not clinical data.
 
 ONCOTWIN_VERSION = "1.0.0"
 SYNTHETIC_TAG = {
-    "system": "https://clincase.aerofyta.health/oncotwin/tags",
+    "system": "https://clincase.health/oncotwin/tags",
     "code": "SYNTHETIC",
     "display": "Synthetic demonstration data — not a real patient",
 }

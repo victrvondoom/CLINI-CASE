@@ -1,6 +1,6 @@
 """GET /api/v1/authz/policies — auditor inspection of the Cedar policy library.
 
-Auditors at Cognizant TriZetto / payer security teams want to read
+Auditors at TriZetto / payer security teams want to read
 *every authorization rule* before authorizing a customer pilot. This
 endpoint is the read-only window into that library.
 """

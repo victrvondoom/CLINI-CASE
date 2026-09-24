@@ -1,25 +1,24 @@
 # =============================================================================
-# ClinCase agent network — Cognizant Neuro-SAN compatible
+# ClinCase agent network — Neuro-SAN compatible
 # =============================================================================
 #
-# Drop-in network definition for `cognizant-ai-lab/neuro-san` (the open-source
-# core of Cognizant Neuro AI Multi-Agent Orchestration). Defines ClinCase's
+# Drop-in network definition for Neuro-SAN (the open-source multi-agent
+# orchestration framework). Defines ClinCase's
 # 7-parent / 22-sub-agent oncology PA DAG in AAOSA (Adaptive Agent-Oriented
 # Software Architecture) format. Each agent advertises its `function`
 # (capabilities) so the AAOSA router can decide whether to handle, decline,
 # or delegate without a central controller.
 #
-# Repo:    https://github.com/cognizant-ai-lab/neuro-san-studio
-# Spec:    https://www.cognizant.com/us/en/ai-lab/neuro-san
+# Package: neuro-san (PyPI)
 # Loader:  neuro_san.session.HocondSession.load_network("clincase")
 #
-# Usage from a Cognizant Neuro AI Decisioning deployment:
+# Usage from a Neuro AI Decisioning deployment:
 #   from neuro_san.session import HoconSession
 #   sess = HoconSession.from_file("clincase-network.hocon")
 #   verdict = await sess.run({"case_id": "C-12345"})
 #
 # ClinCase's LangGraph runtime is the *implementation*; this file is the
-# *Cognizant Neuro contract* it conforms to. A Neuro Agent Foundry deployment
+# *Neuro-SAN contract* it conforms to. A Neuro Agent Foundry deployment
 # can ingest this file and drop it into the Multi-Agent Accelerator runtime
 # without re-coding.
 # =============================================================================
@@ -29,7 +28,7 @@
     "description": "Oncology prior-authorization specialty agent bundle"
     "version": "0.1.0"
     "vertical": "Healthcare / Payer Operations"
-    "lifecycle_stage": "Build"          # Cognizant Agent Foundry stages: Discover | Design | Build | Scale
+    "lifecycle_stage": "Build"          # Agent Foundry stages: Discover | Design | Build | Scale
     "compliance": ["CMS-0057-F", "HIPAA", "CA SB 1120", "EU AI Act Annex III high-risk"]
     "tracing": "AAOSA + ClinCase AgentTrace (parent_span_id)"
 
@@ -194,8 +193,8 @@
         }
     }
 
-    # ---- Cognizant deployment metadata (Agent Foundry / Marketplace ingest) ----
-    "cognizant_deployment": {
+    # ---- Deployment metadata (Agent Foundry / Marketplace ingest) ----
+    "foundry_deployment": {
         "neuro_ai_decisioning": "compatible"
         "multi_agent_accelerator": "compatible"
         "agent_foundry_stage": "Build"

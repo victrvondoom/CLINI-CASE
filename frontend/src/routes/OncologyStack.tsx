@@ -2,7 +2,7 @@
  * /onco — Oncology Stack page surfacing all 10 strategic USPs.
  *
  * Each tab maps to one USP's API endpoints. Demo-friendly inputs preloaded
- * so judges can click through without typing.
+ * so evaluators can click through without typing.
  */
 import clsx from "clsx";
 import {

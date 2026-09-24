@@ -105,12 +105,9 @@ clean:
 	find . -type d -name ".ruff_cache" -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name ".mypy_cache" -exec rm -rf {} + 2>/dev/null || true
 
-# --- demo / pitch (post-round-7 additions) --------------------------------
+# --- demo checks ---------------------------------------------------------
 smoke:
 	cd backend && .venv/Scripts/python.exe -m scripts.smoke_test
-
-deck:
-	cd backend && .venv/Scripts/python.exe -m scripts.build_deck
 
 frontend.typecheck:
 	cd frontend && npx tsc --noEmit

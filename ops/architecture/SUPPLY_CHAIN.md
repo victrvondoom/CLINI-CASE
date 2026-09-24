@@ -27,7 +27,7 @@ Three layers of supply-chain security, all wired into CI:
 ## What this proves
 
 A customer's deploy-time policy can require:
-1. The image must have a Sigstore signature signed by GitHub Actions OIDC for `aerofyta/clincase` repo
+1. The image must have a Sigstore signature signed by GitHub Actions OIDC for `victrvondoom/CLINI-CASE` repo
 2. The image must have an attached CycloneDX SBOM
 3. The SBOM must not contain any package with a CVE > 7.0
 

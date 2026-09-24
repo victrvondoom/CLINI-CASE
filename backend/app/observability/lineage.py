@@ -14,7 +14,7 @@ OpenLineage is the de-facto standard (CNCF sandbox, used by Airbnb / Netflix
     "job":   { "namespace": "clincase", "name": "agent.policy_retriever", "facets": {...} },
     "inputs":  [ {namespace, name, facets: {schema, dataSource, ...}} ],
     "outputs": [ {namespace, name, facets: {...}} ],
-    "producer": "https://github.com/aerofyta/clincase/v0.1.0",
+    "producer": "https://github.com/victrvondoom/CLINI-CASE/v0.1.0",
   }
 
 Today (round-11) we emit to a logger (default) or POST to
@@ -36,7 +36,7 @@ log = structlog.get_logger()
 
 _OPENLINEAGE_URL = os.getenv("OPENLINEAGE_URL", "").strip()
 _OPENLINEAGE_NAMESPACE = os.getenv("OPENLINEAGE_NAMESPACE", "clincase")
-_PRODUCER = "https://github.com/aerofyta/clincase/v0.1.0"
+_PRODUCER = "https://github.com/victrvondoom/CLINI-CASE/v0.1.0"
 
 
 def _now_iso() -> str:

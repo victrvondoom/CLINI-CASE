@@ -1,7 +1,7 @@
 # ClinCase — Active/Active Multi-Region (ADR-0011)
 
 **Status:** Deferred-with-explicit-trigger
-**Audience:** Cognizant TriZetto solution architect · Gold-tier customer SRE · auditor verifying RPO 1s commitment
+**Audience:** TriZetto solution architect · Gold-tier customer SRE · auditor verifying RPO 1s commitment
 
 ## Context
 
@@ -44,7 +44,7 @@ Until then: **active/passive with the round-10 regional-failover script** is the
 - Cell-based architecture (round 11) — bounds blast radius
 - Outbox pattern + saga compensations — already idempotent
 
-A Gold customer who contractually requires 1-min RPO can run on this AND have a Cognizant TriZetto SA on standby for failover orchestration. Not 1-second RPO, but defensible against single-region outages.
+A Gold customer who contractually requires 1-min RPO can run on this AND have a TriZetto SA on standby for failover orchestration. Not 1-second RPO, but defensible against single-region outages.
 
 ## What we DON'T have today (and would need)
 
@@ -54,9 +54,9 @@ A Gold customer who contractually requires 1-min RPO can run on this AND have a 
 - Cross-region message bus replacing the outbox publisher
 - Formal CRDT correctness proof
 
-## Honest framing for judges
+## Honest framing
 
-When the Cognizant judge asks *"do you support active/active multi-region?"* — the answer is:
+When a customer asks *"do you support active/active multi-region?"* — the answer is:
 
 > "Today we deliver active/passive with a 60-second failover script that's
 > drilled quarterly. Our DR/BCP playbook documents the path to active/active
@@ -65,7 +65,7 @@ When the Cognizant judge asks *"do you support active/active multi-region?"* —
 > work. We have not engineered the prerequisites because that would be
 > over-engineering for the customer profile we're shipping for."
 
-This is what a senior Cognizant solution architect *wants* to hear: clear-eyed about the gap, with a documented trigger and effort estimate. Hand-waving "yes we support it" without the CRDT work would be the wrong answer.
+This is what a senior solution architect *wants* to hear: clear-eyed about the gap, with a documented trigger and effort estimate. Hand-waving "yes we support it" without the CRDT work would be the wrong answer.
 
 ## Sources
 

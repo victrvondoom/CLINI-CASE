@@ -140,7 +140,7 @@ def patient_to_fhir(p: PatientProfile) -> dict[str, Any]:
     birth_year = (ANCHOR_DATE - timedelta(days=365 * p.age)).year
     return {
         "resourceType": "Patient", "id": fhir_id(p.patient_id), "meta": _meta(p.synthetic),
-        "identifier": [{"system": "https://clincase.aerofyta.health/oncotwin/patient", "value": p.label}],
+        "identifier": [{"system": "https://clincase.health/oncotwin/patient", "value": p.label}],
         "name": [{"text": f"Synthetic {p.label}"}],
         "gender": p.sex, "birthDate": f"{birth_year}",
     }

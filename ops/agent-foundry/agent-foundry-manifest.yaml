@@ -1,32 +1,29 @@
 ﻿# =============================================================================
-# Cognizant Agent Foundry â€” ClinCase bundle manifest
+# Agent Foundry — ClinCase bundle manifest
 # =============================================================================
 #
-# Cognizant Agent Foundry was launched Jul 10, 2025 with an explicit
-# "Discover -> Design -> Build -> Scale" lifecycle and an Agent Marketplace
-# catalog. Cognizant has not yet published a public manifest schema; this
-# file follows AgentSpec conventions (https://agents-oss.github.io/agentspec/)
-# extended with Cognizant-specific lifecycle + vertical fields, so a Foundry
-# ingest tool or a partner-platform converter can consume it directly.
-#
-# Foundry press release:
-#   https://news.cognizant.com/2025-07-10-Cognizant-Introduces-Agent-Foundry-Powering-Agentic-AI-at-Enterprise-Scale
+# Agent Foundry uses an explicit "Discover -> Design -> Build -> Scale"
+# lifecycle and an Agent Marketplace catalog. No public manifest schema has
+# been published yet; this file follows AgentSpec conventions
+# (https://agents-oss.github.io/agentspec/) extended with lifecycle + vertical
+# fields, so a Foundry ingest tool or a partner-platform converter can consume
+# it directly.
 #
 # Pair this file with:
 #   ../neuro-san-integration/clincase-network.hocon  (Neuro-SAN AAOSA topology)
 #   ../aws/agentcore/deployment.yaml          (Bedrock AgentCore runtime map)
 #   ../../backend/app/api/foundry.py          (live /api/v1/foundry/manifest endpoint)
 
-apiVersion: cognizant.foundry/v1
+apiVersion: foundry.clincase/v1
 kind: AgentBundle
 metadata:
   name: clincase
-  display_name: "ClinCase â€” Oncology Prior-Authorization Specialty Agent Bundle"
+  display_name: "ClinCase — Oncology Prior-Authorization Specialty Agent Bundle"
   version: 0.1.0
-  vendor: AeroFyta Health Sciences
+  vendor: ClinCase
   vertical: healthcare-payer-operations
   marketplace_category: "Specialty Agent Bundles / Healthcare / Prior Authorization"
-  cost_center: AEROFYTA-CLINCASE
+  cost_center: CLINCASE
   license: proprietary
 
 lifecycle:
@@ -34,9 +31,9 @@ lifecycle:
   next_milestone:
     stage: Scale
     target_iso: 2026-08-01
-    blockers: ["one Cognizant Facets/QNXT pilot customer"]
+    blockers: ["one Facets/QNXT pilot customer"]
 
-# ---- Business-value claims (what Cognizant sales attaches to the bundle) ----
+# ---- Business-value claims (attached to the bundle listing) ----
 business_value:
   benchmarks:
     elevance_health_os_denial_reduction_pct: 70   # public 2026 benchmark to meet/beat
@@ -104,9 +101,9 @@ agents:
       model_size: sonnet-letter
       sub_agents: [empathy_layer, action_step_writer, reading_level_tuner]
 
-# ---- Compatibility with the Cognizant + AWS stack ----
+# ---- Compatibility with partner platforms + AWS ----
 compatibility:
-  cognizant_neuro_san:
+  neuro_san:
     artifact: ops/neuro-san-integration/clincase-network.hocon
     routing_protocol: AAOSA
     multi_agent_accelerator: true
@@ -136,7 +133,7 @@ compatibility:
     spec_files_count: 85
     spec_format: "EARS-format requirements + design + tasks markdown"
   anthropic_partnership:
-    cognizant_announced: 2025-11-04
+    announced: 2025-11-04
     claude_models_used: [claude-sonnet-4-6, claude-haiku-4-5]
     agent_sdk: anthropic-agent-sdk
     mcp_protocol_version: "2024-11-05"
@@ -144,11 +141,11 @@ compatibility:
 # ---- Compliance + governance ----
 compliance:
   cms_0057f:
-    in_force_clauses_today: ["Â§ IV.A", "Â§ IV.B.1", "Â§ IV.B.2", "Â§ IV.C", "Â§ IV.D"]
+    in_force_clauses_today: ["§ IV.A", "§ IV.B.1", "§ IV.B.2", "§ IV.C", "§ IV.D"]
     upcoming_clauses:
-      - id: "Â§ IV.A FHIR PARDA"
+      - id: "§ IV.A FHIR PARDA"
         effective: 2027-01-01
-      - id: "Â§ IV.E Patient Access API"
+      - id: "§ IV.E Patient Access API"
         effective: 2027-01-01
     live_scorecard: /api/v1/compliance/case/{case_id}
   state_ai_laws:
@@ -175,7 +172,7 @@ observability:
   metrics_format: Prometheus
   sse_endpoint: /api/v1/cases/{case_id}/stream
   audit_endpoint: /api/v1/cases/{case_id}/audit
-  trace_format: AgentTrace (parent_span_id chain â€” X-Ray-mappable)
+  trace_format: AgentTrace (parent_span_id chain — X-Ray-mappable)
   alert_routing: PagerDuty SNS
 
 deployment:
@@ -184,12 +181,11 @@ deployment:
   multi_region_terraform: ops/terraform/multi-region/
   provisioned_throughput_terraform: ops/terraform/provisioned-throughput/
   aws_migration_runbook: ops/aws/MIGRATION_RUNBOOK.md
-  go_to_market: ops/demo/GO_TO_MARKET.md
 
 # ---- Marketplace listing fields ----
 marketplace_listing:
   short_description: "First specialty-medicine agent bundle for TriZetto AI Gateway. Oncology PA in <90 seconds, CMS-0057-F-evidenced, $1,499.55 saved per case."
-  long_description_md: ops/demo/GO_TO_MARKET.md
+  long_description_md: README.md
   hero_metric: "$1.26B per half-star at Humana scale"
   demo_video: TBD
-  contact_email: preethisivachandran0@gmail.com
+  contact_url: https://github.com/vsrupeshkumar

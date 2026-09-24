@@ -2,7 +2,7 @@
  * PHI redaction receipt — permanent, audit-grade record that the Bedrock
  * Guardrail fired before any LLM call on this case.
  *
- * Renders on CaseDetail every time a run completes so judges see the
+ * Renders on CaseDetail every time a run completes so reviewers see the
  * redaction pipeline without clicking anything. The transient PHIBanner is
  * the cinematic alternative for demo emphasis; this component is the boring
  * always-on receipt that an enterprise architect actually wants to see.

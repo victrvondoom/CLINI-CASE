@@ -19,9 +19,9 @@ variable "environment" {
 }
 
 variable "cost_center" {
-  description = "Cognizant cost center for chargeback."
+  description = "Cost center for chargeback."
   type        = string
-  default     = "AEROFYTA-CLINCASE"
+  default     = "CLINCASE"
 }
 
 # --- RDS (Aurora Global) ----------------------------------------------------

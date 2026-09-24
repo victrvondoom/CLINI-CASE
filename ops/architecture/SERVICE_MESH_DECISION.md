@@ -65,7 +65,7 @@ We will reopen this decision when ANY of these signals appear:
 
 1. **Service count crosses 10.** ClinCase grows beyond api+worker into separate services for: separate-region routers, dedicated reflection-grader runtime, dedicated outbox publisher fleet, dedicated SSE bridge. At ~10 services, the mesh's L7-everything offsets the operational tax.
 
-2. **Customer asks for SPIFFE IDs.** A Cognizant Gold-tier customer's security questionnaire asks for portable workload identity. SPIFFE/SPIRE → service mesh.
+2. **Customer asks for SPIFFE IDs.** A Gold-tier customer's security questionnaire asks for portable workload identity. SPIFFE/SPIRE → service mesh.
 
 3. **Inter-cluster traffic emerges.** When we have multi-region active-active and need cross-cluster service discovery + mTLS, a mesh's `multi-cluster` mode is the right primitive.
 
@@ -79,7 +79,7 @@ Order of preference at adoption time:
 
 1. **Linkerd** — lighter, simpler, the right starting point. ~10MB sidecars.
 2. **Istio Ambient Mesh** — Envoy-based but no per-pod sidecars (uses ztunnel + waypoint). Best for high-pod-count deployments.
-3. **AWS App Mesh** — AWS-native; lowest learning curve for Cognizant TriZetto SAs already on AWS.
+3. **AWS App Mesh** — AWS-native; lowest learning curve for TriZetto SAs already on AWS.
 
 We do NOT recommend Consul Connect (HashiCorp) — adds a Consul control plane we don't otherwise need.
 

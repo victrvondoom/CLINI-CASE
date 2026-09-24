@@ -26,7 +26,7 @@ export const options = {
 };
 
 const BASE  = __ENV.API_BASE || 'http://localhost:8000';
-const EMAIL = __ENV.USER     || 'admin@aerofyta.health';
+const EMAIL = __ENV.USER     || 'admin@clincase.health';
 const PASS  = __ENV.PASS     || 'clincase2026';
 
 let token;

@@ -1,7 +1,7 @@
 # ClinCase — Cell-Based Architecture (ADR-0009)
 
 **Status:** Accepted (round-11; deployed-1-cell today, cell-1 + cell-2 lit at first multi-region customer)
-**Audience:** Cognizant TriZetto solution architect · AWS account team · auditor verifying blast-radius bounds
+**Audience:** TriZetto solution architect · AWS account team · auditor verifying blast-radius bounds
 
 ## Context
 

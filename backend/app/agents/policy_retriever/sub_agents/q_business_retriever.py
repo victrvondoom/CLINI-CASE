@@ -9,7 +9,7 @@ Why both exist:
   • `q_business_retriever`   — Amazon Q Business semantic search over a
                                 customer's existing M365/SharePoint/Confluence
                                 policy library; production-realistic for a
-                                Cognizant TriZetto customer who already runs
+                                TriZetto customer who already runs
                                 Q Business
 
 ClinCase's policy_retriever orchestrator routes between them based on

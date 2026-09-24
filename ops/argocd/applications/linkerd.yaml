@@ -18,7 +18,7 @@ spec:
       releaseName: linkerd-control-plane
       valueFiles:
       - $values/ops/k8s/linkerd/values.yaml
-  - repoURL: https://github.com/aerofyta/clincase.git
+  - repoURL: https://github.com/victrvondoom/CLINI-CASE.git
     targetRevision: main
     ref: values
   destination:

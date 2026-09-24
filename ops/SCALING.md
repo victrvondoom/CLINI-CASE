@@ -1,6 +1,6 @@
 # ClinCase — Scaling Plan
 
-**Single source of truth** for "how does this scale to a real Cognizant payer customer?" Read this end-to-end if a judge asks the question.
+**Single source of truth** for "how does this scale to a real payer customer?" Read this end-to-end before answering that question.
 
 ---
 
@@ -12,7 +12,7 @@
 | **Production**  |  10,000 cases/day | 200 concurrent |  90s | $0.45 | $1,200 |
 | **Scale**       | 100,000 cases/day | 2,000 concurrent | 90s | $0.40 | $8,400 |
 
-A single mid-sized US oncology practice generates **80–200 PA requests / day**. Per-payer cohort = **5,000–15,000 / day**. The Production tier above maps to one Cognizant Health Sciences enterprise client.
+A single mid-sized US oncology practice generates **80–200 PA requests / day**. Per-payer cohort = **5,000–15,000 / day**. The Production tier above maps to one enterprise payer client.
 
 ---
 
@@ -98,7 +98,7 @@ Production: `PostgresTraceSink` writes `agent_runs` rows directly. At 100K cases
 ### 8. Pluggable SSE pub/sub (SCALE-7)
 
 `app/streaming.py` defines a `PubSubBackend` ABC with two implementations:
-`InProcessBackend` (single-process, default for dev/hackathon) and
+`InProcessBackend` (single-process, default for dev/demo) and
 `RedisPubSubBackend` (multi-replica fan-out via Redis pub/sub channel
 `clincase:case:{id}`). Selection is automatic via `REDIS_URL` env var —
 empty → in-process; set → Redis. **Zero call-site changes** between modes:
@@ -178,10 +178,10 @@ construction.
 
 ---
 
-## Cognizant Impact Pack (May 2026)
+## Platform integration pack (May 2026)
 
-Six deliverables added on top of the 7-agent core to align ClinCase
-unmistakably with Cognizant's 2025–2026 strategic stack:
+Five deliverables added on top of the 7-agent core to integrate ClinCase
+with the payer platforms and AWS services customers already run:
 
 | # | Deliverable | Where |
 |---|---|---|
@@ -190,13 +190,11 @@ unmistakably with Cognizant's 2025–2026 strategic stack:
 | **IMPACT-3** | Business value calculator — per-case ROI vs $1,500 manual baseline; Humana-scale Star Ratings projection ($1.26B/half-star); provider-abrasion reduction model | `app/business_value/`, `GET /api/v1/business-value/{case,org,star-impact,provider-abrasion}` |
 | **IMPACT-4** | Kiro IDE spec exporter — auto-generates `.kiro/specs/<agent>/{requirements,design,tasks}.md` for all 7 parents + 22 sub-agents from `AGENT_MANIFEST` (85 files written) | `app/integrations/kiro/`, `POST /api/v1/integrations/kiro/export` |
 | **IMPACT-5** | Amazon Q Business retriever — drop-in alternative to Bedrock KB for customers whose policy library lives in M365/SharePoint/Confluence; toggled via `USE_AMAZON_Q=true` | `app/integrations/amazon_q/`, `app/agents/policy_retriever/sub_agents/q_business_retriever.py` |
-| **IMPACT-6** | Cognizant Go-to-Market 1-pager — Day 0 → Day 90 commercialization plan, pricing motion, joint-AWS-blog-post ask | `ops/demo/GO_TO_MARKET.md` |
 
 Strategic alignment achieved:
-- Cognizant TriZetto AI Gateway (Aug 6, 2025; MCP-native; Bedrock + Sonnet 4.6) — **ClinCase deploys natively as a Gateway-bound agent bundle.**
-- Cognizant–Anthropic partnership (Nov 4, 2025; 350K employees on Claude + Claude Code + MCP + Agent SDK) — **ClinCase's stack matches verbatim.**
+- TriZetto AI Gateway (Aug 6, 2025; MCP-native; Bedrock + Sonnet 4.6) — **ClinCase deploys natively as a Gateway-bound agent bundle.**
 - AWS Kiro IDE (spec-driven agentic workflow; AWS's only published healthcare reference is "drug discovery in 3 weeks") — **ClinCase publishes 85 files of payer-PA-domain Kiro specs, the first comprehensive reference in AWS's healthcare portfolio.**
-- AHIP 80%-real-time-by-2027 pledge (60+ insurers, 257M lives; only ~11% eliminated 6 months in) — **ClinCase is the path for Cognizant TriZetto customers.**
+- AHIP 80%-real-time-by-2027 pledge (60+ insurers, 257M lives; only ~11% eliminated 6 months in) — **ClinCase is the path for TriZetto customers.**
 
 ## What we built post-pilot-prep (honest status)
 
@@ -210,10 +208,10 @@ Strategic alignment achieved:
 
 Status legend: ✅ shipping in code today · 🟡 apply-ready Terraform, AWS-procurement-blocked.
 
-## Remaining gaps (ranked by hackathon-to-production effort)
+## Remaining gaps (ranked by demo-to-production effort)
 
 - ⚠️ **No semantic cache layer** (12% case dedup opportunity unrealized).
-  Deferred to post-May-6 — needs Bedrock Titan Embeddings + similarity threshold tuning.
+  Deferred — needs Bedrock Titan Embeddings + similarity threshold tuning.
   The exact-match cache (above) catches the retry-storm case which is the highest-value 80%.
 - ⚠️ **`agent_runs` Postgres-write hot path** — at 100K cases/day this becomes the bottleneck.
   Mitigation already designed: `AsyncBatchedTraceSink` (`framework/trace_sink.py` is already a pluggable ABC). ~3 hours to implement when needed.

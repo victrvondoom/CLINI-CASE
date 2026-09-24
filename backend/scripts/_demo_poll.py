@@ -54,7 +54,7 @@ async def poll_and_report():
     # Now fetch the case detail
     auth = json.loads(urllib.request.urlopen(urllib.request.Request(
         API + '/api/v1/auth/login',
-        data=json.dumps({'email': 'admin@aerofyta.health', 'password': 'clincase2026'}).encode(),
+        data=json.dumps({'email': 'admin@clincase.health', 'password': 'clincase2026'}).encode(),
         headers={'Content-Type': 'application/json'},
     )).read())
     H = {'Authorization': f"Bearer {auth['access_token']}"}

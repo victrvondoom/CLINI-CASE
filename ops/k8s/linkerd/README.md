@@ -9,7 +9,7 @@ This directory closes the gap between [`ops/architecture/SERVICE_MESH_DECISION.m
 Install only when ONE of these signals appears:
 
 1. Service count crosses 10 (today: 2 — api + worker)
-2. A Cognizant Gold-tier customer asks for SPIFFE workload identity
+2. A Gold-tier customer asks for SPIFFE workload identity
 3. Inter-cluster traffic emerges (multi-region active/active needs cross-cluster service discovery)
 4. L7 traffic shaping becomes critical (canary at the % level, traffic mirroring)
 5. OpenTelemetry coverage falls below 80% of inter-service calls

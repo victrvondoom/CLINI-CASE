@@ -60,7 +60,7 @@ backend/app/synthea/output/
 # Generated OpenAPI types
 frontend/src/lib/types.gen.ts
 
-# Legacy PPT screenshot dump (583 MB; superseded by ops/demo/pptx/)
+# Legacy screenshot dump (583 MB; not part of the product)
 PPT-images-archive/
 
 # CloudShell-side Lambda artefact (rebuilt by ops/aws/_build_qr.py-style flow)

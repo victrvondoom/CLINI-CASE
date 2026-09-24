@@ -15,9 +15,8 @@
  *   • ops/multi-tenant/ONBOARDING.md
  *   • .github/workflows/ci.yml + deploy-prod.yml
  *
- * Why this page exists: every business-value claim made in the demo deck has
- * a click-able backing here. Judge asks "show me the production playbook" —
- * this is the page.
+ * Why this page exists: every business-value claim has a click-able backing
+ * here. When someone asks "show me the production playbook", this is the page.
  */
 import {
   CheckCircle2,
@@ -83,13 +82,13 @@ export default function Industrialize() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <CompatBlock
               label="Neuro Multi-Agent Orchestration"
-              ok={foundry.cognizant_neuro_compatibility.multi_agent_orchestration}
+              ok={foundry.neuro_san_compatibility.multi_agent_orchestration}
               detail={
                 <>
-                  MCP server at <code className="text-mono-tech text-[11px]">{foundry.cognizant_neuro_compatibility.mcp_server_endpoint}</code>{" "}
+                  MCP server at <code className="text-mono-tech text-[11px]">{foundry.neuro_san_compatibility.mcp_server_endpoint}</code>{" "}
                   · protocol{" "}
                   <code className="text-mono-tech text-[11px]">
-                    {foundry.cognizant_neuro_compatibility.mcp_protocol_version}
+                    {foundry.neuro_san_compatibility.mcp_protocol_version}
                   </code>
                 </>
               }
@@ -97,7 +96,7 @@ export default function Industrialize() {
             <CompatBlock
               label="Anthropic Agent SDK"
               ok={true}
-              detail={foundry.cognizant_neuro_compatibility.agent_sdk}
+              detail={foundry.neuro_san_compatibility.agent_sdk}
             />
             <CompatBlock
               label="Agent Foundry — manifest published"
@@ -157,7 +156,7 @@ export default function Industrialize() {
               Compatible Neuro / Agent Foundry components
             </div>
             <div className="flex flex-wrap gap-1.5">
-              {foundry.cognizant_neuro_compatibility.compatible_neuro_components?.map((c) => (
+              {foundry.neuro_san_compatibility.compatible_neuro_components?.map((c) => (
                 <span
                   key={c}
                   className="text-[10px] text-mono-tech px-2 py-1 rounded bg-accent-brand/10 text-accent-brand"
@@ -264,9 +263,7 @@ export default function Industrialize() {
         </div>
 
         <div className="mt-4 pt-3 border-t border-surface-border text-[11px] text-ink-muted leading-snug">
-          Full gating: <code className="text-mono-tech">ops/industrialization/CHECKLIST.md</code> ·
-          AI Velocity Gap framing:{" "}
-          <code className="text-mono-tech">ops/industrialization/AI_VELOCITY_GAP_BUSINESS_CASE.md</code>
+          Full gating: <code className="text-mono-tech">ops/industrialization/CHECKLIST.md</code>
         </div>
       </section>
 
@@ -309,12 +306,6 @@ export default function Industrialize() {
             title="Multi-tenant onboarding"
             path="ops/multi-tenant/ONBOARDING.md"
             note="per-tenant Bedrock Guardrail · per-tenant KMS · per-tenant TriZetto Gateway · 7-15-day customer onboarding"
-          />
-          <Artifact
-            icon={<Sparkles size={12} />}
-            title="Go-to-Market 1-pager"
-            path="ops/demo/GO_TO_MARKET.md"
-            note="Day 0 → Day 90 · pricing · partner ask · risks + mitigations"
           />
         </div>
       </section>

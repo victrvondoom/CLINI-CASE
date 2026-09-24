@@ -1,6 +1,6 @@
 variable "aws_region" { type = string; default = "ap-south-1" }
 variable "environment" { type = string; default = "prod" }
-variable "cost_center" { type = string; default = "AEROFYTA-CLINCASE-PROD" }
+variable "cost_center" { type = string; default = "CLINCASE-PROD" }
 
 # Aurora source
 variable "aurora_endpoint"   { type = string }

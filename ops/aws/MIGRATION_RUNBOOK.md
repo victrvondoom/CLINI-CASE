@@ -1,10 +1,9 @@
 # ClinCase — AWS Bedrock Migration Runbook
 
-**Owner:** Team AeroFyta (ClinCase)
-**Cluster of Excellence:** the 2026 hackathon — Health Sciences / Prior Authorisation Automation
-**Target environment:** AWS account `[CTS-HACKATHON-2026]`, region `ap-south-1` (Mumbai) — fallback `us-east-1`
-**Window:** May 6, 2026 — 09:00 to 17:00 IST, on-site at Cognizant Pune campus
-**Author:** S. Preethi · **Reviewer:** Team AeroFyta engineering lead
+**Owner:** vsrupeshkumar (ClinCase)
+**Target environment:** your AWS account, region `ap-south-1` (Mumbai) — fallback `us-east-1`
+**Window:** one working day
+**Author:** vsrupeshkumar
 **Status:** Ready to execute · **Version:** 1.0
 
 ---
@@ -37,7 +36,7 @@ Critical-path time: **2.5 hours**.
 ## 1. Pre-flight checks (do this BEFORE you sit down at the AWS workstation)
 
 ### 1.1 Confirmations
-- [ ] Cognizant has provisioned the AWS account and shared the **Engineering** role ARN
+- [ ] The AWS account is provisioned and you have the **Engineering** role ARN
 - [ ] Region is `ap-south-1` (Mumbai). If Bedrock is not yet enabled in `ap-south-1`, fall back to `us-east-1` and update `AWS_REGION` in `.env` accordingly. (Bedrock Claude Sonnet 4.6 is GA in `us-east-1`, GA in `ap-south-1` for 4.6 as of Q2 2026.)
 - [ ] Local AWS CLI v2 installed: `aws --version` ≥ `2.15.0`
 - [ ] Local Python venv has `boto3>=1.35` (already pinned in `backend/pyproject.toml`)
@@ -68,9 +67,9 @@ Critical-path time: **2.5 hours**.
 ```bash
 aws configure sso --profile clincase-eng
 # When prompted:
-#   SSO start URL: <provided by Cognizant>
+#   SSO start URL: <your SSO start URL>
 #   SSO region: ap-south-1
-#   Account: <CTS-HACKATHON-2026 account ID>
+#   Account: <your AWS account ID>
 #   Role: Engineering
 #   Default region: ap-south-1
 #   Output format: json
@@ -179,7 +178,7 @@ Console → **Amazon Bedrock** → **Model access** → request access to:
 - Anthropic Claude Haiku 4 (`anthropic.claude-haiku-4-20250514-v1:0`) — fallback for cost-sensitive paths
 - Amazon Titan Embeddings V2 (`amazon.titan-embed-text-v2:0`) — for KB
 
-Approval is normally instant for hackathon accounts. Wait for **Status: Access granted** on all three.
+Approval is normally instant for new accounts. Wait for **Status: Access granted** on all three.
 
 ### 3.2 Sanity-test InvokeModel
 
@@ -266,7 +265,7 @@ Final verdict matches what the same case produced under OpenRouter.
 > A real payer in production has **thousands** of CPB pages. Bedrock KBs
 > give us auto-chunking, embedding, vector search, and citation extraction
 > without us writing a retriever. This is the single biggest "AWS-native"
-> signal in the demo and the natural answer to the judges' question
+> signal in the demo and the natural answer to the question
 > *"How does this scale beyond your seeded corpus?"*
 
 ### 5.1 Create S3 bucket + upload policy PDFs
@@ -297,8 +296,8 @@ aws s3 sync /tmp/policy-md "s3://$BUCKET/policies/"
 Console path: **OpenSearch Service** → **Serverless** → **Create collection**
 - Name: `clincase-kb`
 - Type: **Vector search**
-- Encryption: AWS-owned key (hackathon) or KMS key (production)
-- Network: **Public** for hackathon; **VPC-only** for production
+- Encryption: AWS-owned key (demo) or KMS key (production)
+- Network: **Public** for demo; **VPC-only** for production
 - Data access policy: grant `aoss:*` to `clincase-app` role and the Bedrock
   service principal `bedrock.amazonaws.com`
 
@@ -440,7 +439,7 @@ curl -X POST http://localhost:8000/cases \
 
 ## 7. Phase 6 — End-to-end demo replay (30 min)
 
-Run all three demo paths as scripted in `ops/demo/SCRIPT.md`:
+Run all three demo paths:
 
 1. **Path A — Approval (60s):** Submit a clean trastuzumab case under Aetna.
    - Expected: APPROVE verdict in <12s, all 4 agents emit traces, citations
@@ -462,8 +461,8 @@ all 3 paths ≤ 4 minutes.
 
 ## 8. Phase 7 — Rollback drill (20 min)
 
-> **Why drill this?** The demo is May 7. If Bedrock has any incident in
-> `ap-south-1` between 09:00 and 18:00 IST, we need to flip back to OpenRouter
+> **Why drill this?** If Bedrock has any incident in `ap-south-1` during a
+> live session, we need to flip back to OpenRouter
 > in under 60 seconds. **Rehearse this drill at least once.**
 
 ### 8.1 The rollback steps (commit to muscle memory)
@@ -486,10 +485,10 @@ After the incident clears, reverse the sed commands. Total time: <60s.
 
 ---
 
-## 9. Production deployment notes (NOT for the May-7 demo)
+## 9. Production deployment notes (beyond a single-account demo)
 
-These are explicitly **out of scope for the hackathon demo**. Document them so
-the judges can see we know what real production looks like.
+These are **out of scope for a single-account demo deployment**. They are
+documented here so the path to real production is explicit.
 
 ### 9.1 ECS Fargate cluster
 - Task definition uses `clincase-app` execution role (already created in §2.2).
@@ -502,7 +501,7 @@ the judges can see we know what real production looks like.
 - Multi-AZ; encrypted at rest with KMS; daily snapshots, 35-day PITR window.
 
 ### 9.3 Per-tenant guardrails
-- The hackathon uses one guardrail across all orgs.
+- A demo deployment uses one guardrail across all orgs.
 - In production, each `organization_id` gets its own guardrail version so
   enterprise customers can plug in their own redaction policies.
 
@@ -529,7 +528,7 @@ the judges can see we know what real production looks like.
 - [ ] All three demo paths recorded as backup video: __________
 - [ ] `.env` committed to AWS Secrets Manager (NOT to git): __________
 
-**Engineer:** S. Preethi Sivachandran      **Date:** May 6, 2026
+**Engineer:**                              **Date:**
 **Reviewer:**                              **Date:**
 
 ---

@@ -35,7 +35,7 @@ metadata:
   tags:
     Project: ClinCase
     Environment: prod
-    CostCenter: AEROFYTA-CLINCASE
+    CostCenter: CLINCASE
 
 # =============================================================================
 # AgentCore Runtime — one Runtime resource per LangGraph parent agent
@@ -140,8 +140,8 @@ gateway:
     - appeal_draft
     - audit_query
   consumers:
-    - cognizant-trizetto-ai-gateway
-    - claude-desktop-cognizant-internal
+    - trizetto-ai-gateway
+    - claude-desktop-internal
     - amazon-q-business-clincase-app
 
 # =============================================================================
@@ -150,8 +150,8 @@ gateway:
 identity:
   provider: AWS IAM Identity Center
   trusted_principals:
-    - "arn:aws:iam::COGNIZANT_TRIZETTO_AWS_ACCT:role/trizetto-ai-gateway-role"
-    - "arn:aws:iam::COGNIZANT_NEURO_AWS_ACCT:role/neuro-multi-agent-accelerator-role"
+    - "arn:aws:iam::TRIZETTO_AWS_ACCT:role/trizetto-ai-gateway-role"
+    - "arn:aws:iam::NEURO_SAN_AWS_ACCT:role/neuro-multi-agent-accelerator-role"
   delegation_policy: "least-privilege per agent (per AgentCore Identity docs)"
 
 # =============================================================================

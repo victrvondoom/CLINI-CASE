@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 LOINC = "http://loinc.org"
-LOCAL_CODE_SYSTEM = "https://clincase.aerofyta.health/oncotwin/CodeSystem/signal"
+LOCAL_CODE_SYSTEM = "https://clincase.health/oncotwin/CodeSystem/signal"
 UCUM = "http://unitsofmeasure.org"
 
 Category = Literal["wearable", "home_device", "patient_reported", "lab"]

@@ -26,7 +26,7 @@ The DAG topology lives in `app/graph/build.py` as declarative `add_node` / `add_
 ## Consequences
 
 **Positive**
-- DAG topology is **inspectable** (`graph.get_graph().draw_mermaid()`); a Cognizant solution architect can read the architecture from the code in 30 seconds.
+- DAG topology is **inspectable** (`graph.get_graph().draw_mermaid()`); a solution architect can read the architecture from the code in 30 seconds.
 - Checkpointing comes for free — a stalled case resumes mid-graph after a deploy without bespoke state-machine logic.
 - Existing Anthropic + LangGraph documentation is the second-largest agentic-orchestration corpus on GitHub; junior engineers ramp fast.
 - AWS Bedrock AgentCore (GA Oct 2025) is **framework-agnostic and explicitly supports LangGraph** — porting to AgentCore Runtime is configuration, not a rewrite (`ops/aws/agentcore/deployment.yaml`).
@@ -42,13 +42,12 @@ The DAG topology lives in `app/graph/build.py` as declarative `add_node` / `add_
 
 | Alternative | Why rejected |
 |---|---|
-| Hand-rolled async state machine | No checkpointing primitive; conditional edges become if/else mazes; Cognizant Foundry can't ingest a hand-rolled DAG as a recognizable agent network. |
+| Hand-rolled async state machine | No checkpointing primitive; conditional edges become if/else mazes; Agent Foundry can't ingest a hand-rolled DAG as a recognizable agent network. |
 | Bedrock Agents (managed) | Forces the action-group config model; doesn't support arbitrary Python orchestration; reflection-with-grader pattern is awkward to express. We do plan to map our 7 parents onto AgentCore Runtimes for production deployment (`ops/aws/agentcore/deployment.yaml`) — but that's *runtime fan-out*, not the orchestration substrate. |
-| Microsoft Semantic Kernel | Not Bedrock-native; would need a Python-binding shim; not on Cognizant's published 2026 stack. |
+| Microsoft Semantic Kernel | Not Bedrock-native; would need a Python-binding shim. |
 
 ## References
 
 - AWS Bedrock AgentCore framework-agnostic support: https://aws.amazon.com/bedrock/agentcore/
-- Cognizant–Anthropic partnership stack: https://news.cognizant.com/2025-11-04-Cognizant-Adopts-Anthropics-Claude
 - DAG file: `backend/app/graph/build.py`
 - Apply-ready AgentCore mapping: `ops/aws/agentcore/deployment.yaml`

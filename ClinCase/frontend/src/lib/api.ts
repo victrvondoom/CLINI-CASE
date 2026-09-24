@@ -860,7 +860,7 @@ export interface FoundryManifest {
   artifact_kind: string;
   schema_version: string;
   clincase_version: string;
-  cognizant_neuro_compatibility: {
+  neuro_san_compatibility: {
     multi_agent_orchestration: boolean;
     agent_sdk: string;
     mcp_server_endpoint: string;
@@ -956,7 +956,7 @@ export interface ArchitectureDescriptor {
     region_primary: string;
     terraform_modules: string[];
   };
-  cognizant_alignment: {
+  platform_alignment: {
     ai_velocity_gap_addressed: boolean;
     vector_strategy_classification: string[];
     agent_foundry_stage: string;

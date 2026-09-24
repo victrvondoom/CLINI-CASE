@@ -11,7 +11,7 @@ region. This module consumes them at runtime to:
 
 Pairs with: `ops/architecture/DATA_RESIDENCY.md` (the policy doc).
 
-Cognizant Gold-tier customers' security questionnaires literally check this:
+Gold-tier customers' security questionnaires literally check this:
 "Does the system reject a write that crosses the declared data residency
 boundary?" Today the answer is yes — see `_assert_region_match()`.
 """

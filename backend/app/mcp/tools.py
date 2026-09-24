@@ -2,7 +2,7 @@
 
 These five tools expose ClinCase's reasoning agents as a Model Context Protocol
 (MCP) toolbox. An MCP-compatible client — Claude Desktop, Cursor, the
-Cognizant TriZetto AI Gateway — can list these tools, call them, and compose
+TriZetto AI Gateway — can list these tools, call them, and compose
 prior-authorisation workflows around them.
 
 Each tool returns a list of MCP content blocks (text + structured JSON) so
@@ -10,7 +10,7 @@ clients see both human-readable summary and machine-parseable detail.
 
 Reference:
   - MCP spec: https://modelcontextprotocol.io
-  - TriZetto AI Gateway (Cognizant) is MCP-compliant per re:Invent 2025 IND210.
+  - TriZetto AI Gateway is MCP-compliant per re:Invent 2025 IND210.
 """
 from __future__ import annotations
 

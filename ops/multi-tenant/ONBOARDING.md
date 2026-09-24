@@ -1,8 +1,8 @@
 # ClinCase — Multi-Tenant Customer Onboarding
 
-**Audience:** Cognizant TriZetto delivery + AeroFyta deployment engineering
+**Audience:** TriZetto delivery + ClinCase deployment engineering
 
-This is the playbook for spinning up a new Cognizant Facets / QNXT customer on ClinCase. Designed to be repeatable in a single business day per customer once the first pilot is in flight.
+This is the playbook for spinning up a new Facets / QNXT customer on ClinCase. Designed to be repeatable in a single business day per customer once the first pilot is in flight.
 
 ---
 
@@ -47,7 +47,7 @@ Per-customer settings that vary across deployments and are NOT hardcoded:
 
 ### Pre-checks
 - [ ] Customer signed BAA with AWS (HIPAA covered services agreement)
-- [ ] Customer signed BAA with AeroFyta
+- [ ] Customer signed BAA with the ClinCase operator
 - [ ] Customer's `organization_id` allocated (snake_case, e.g. `centene_ma_oncology`)
 - [ ] Customer's MA member count + current Star Rating recorded for Star projection
 
@@ -59,7 +59,7 @@ Per-customer settings that vary across deployments and are NOT hardcoded:
 - [ ] Output: `BEDROCK_GUARDRAIL_ID` for the customer's PHI/redaction policy
 
 ### Provision per-tenant TriZetto integration
-- [ ] Cognizant TriZetto delivery team configures the AI Gateway to accept ClinCase submissions for this tenant
+- [ ] TriZetto delivery team configures the AI Gateway to accept ClinCase submissions for this tenant
 - [ ] Output: `TRIZETTO_GATEWAY_URL` + `TRIZETTO_GATEWAY_TOKEN` (rotated quarterly)
 - [ ] ClinCase MCP server bearer token registered with the Gateway (rotated quarterly)
 
@@ -106,9 +106,9 @@ For a customer asking *"what model is reasoning over my PHI?"*: `GET /api/v1/res
 
 ## Customer-of-customer isolation (sub-tenants)
 
-For a Cognizant TriZetto deployment that resells ClinCase to *its* downstream payers (e.g., a Cognizant-managed BPO that runs PA for multiple regional Blue plans), each downstream payer should be its own `organization_id`. The Cognizant tenant is the "platform admin" tier; downstream payers are the operational tier.
+For a TriZetto deployment that resells ClinCase to *its* downstream payers (e.g., a managed BPO that runs PA for multiple regional Blue plans), each downstream payer should be its own `organization_id`. The reseller tenant is the "platform admin" tier; downstream payers are the operational tier.
 
-Tactical: don't introduce a third level (sub-org). Just allocate one `organization_id` per actual data-isolation boundary. Cognizant's reporting can roll up across organization_ids it manages via a future `partner_id` join table — out of scope for the first pilot.
+Tactical: don't introduce a third level (sub-org). Just allocate one `organization_id` per actual data-isolation boundary. The reseller's reporting can roll up across organization_ids it manages via a future `partner_id` join table — out of scope for the first pilot.
 
 ---
 
@@ -118,15 +118,15 @@ A repeatable customer onboarding (after the first pilot) targets:
 
 | Phase | Owner | Duration |
 |---|---|---|
-| BAA + procurement | Customer + AeroFyta legal | 5–10 business days |
-| Per-tenant AWS Terraform apply | AeroFyta SRE | 30 min (apply already-vetted modules) |
-| TriZetto Gateway configuration | Cognizant TriZetto delivery | 1–2 business days |
-| Policy corpus ingestion (Bedrock KB OR Q Business connector) | Customer IT + AeroFyta | 1–3 business days |
-| Tenant seed + smoke | AeroFyta deployment eng | 1 hr |
+| BAA + procurement | Customer + ClinCase legal | 5–10 business days |
+| Per-tenant AWS Terraform apply | ClinCase SRE | 30 min (apply already-vetted modules) |
+| TriZetto Gateway configuration | TriZetto delivery | 1–2 business days |
+| Policy corpus ingestion (Bedrock KB OR Q Business connector) | Customer IT + ClinCase | 1–3 business days |
+| Tenant seed + smoke | ClinCase deployment eng | 1 hr |
 | First case live | Customer clinical ops | 30 min |
 | **Total customer-onboarding** (after the first one is set up) | | **~7–15 business days end-to-end** |
 
-That's the velocity Cognizant Agent Foundry's Scale stage targets. ClinCase is engineered to hit it.
+That's the velocity Agent Foundry Scale stage targets. ClinCase is engineered to hit it.
 
 ---
 

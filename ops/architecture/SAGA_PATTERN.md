@@ -97,7 +97,7 @@ This guarantees: **either all steps committed, or only consistent state remains*
 
 ## Why this is industry-grade
 
-- **Microservices.io / Chris Richardson's Saga pattern** — cited in every distributed-systems training Cognizant runs.
+- **Microservices.io / Chris Richardson's Saga pattern** — a standard reference in distributed-systems training.
 - **TLA+ verifiable** — the saga state machine is finite (5 states); model-checkable in TLA+.
 - **Observability** — each step's start + end is an OTel span; the full saga is one trace.
 - **Idempotency** — every step has a unique `(case_id, step_name, attempt_id)` so retry-on-restart is safe.

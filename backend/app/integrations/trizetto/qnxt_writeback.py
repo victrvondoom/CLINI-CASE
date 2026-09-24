@@ -1,6 +1,6 @@
 """QNXT decision writeback — POST ClinCase determination to QNXT case-event hook.
 
-QNXT is the second Cognizant TriZetto admin platform (~20M lives) used by
+QNXT is the second TriZetto admin platform (~20M lives) used by
 smaller and regional payers. Its case-management module accepts
 `case_event_v2` notifications via REST webhook, which downstream claims-
 processing keys off (so an APPROVED auth becomes a payable claim).

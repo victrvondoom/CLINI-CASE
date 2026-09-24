@@ -11,7 +11,7 @@ variable "environment" {
 
 variable "cost_center" {
   type    = string
-  default = "AEROFYTA-CLINCASE-PROD"
+  default = "CLINCASE-PROD"
 }
 
 # --- Network topology -------------------------------------------------------

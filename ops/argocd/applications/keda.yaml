@@ -20,7 +20,7 @@ spec:
           metricServer: { enabled: true }
           operator:     { enabled: true }
         watchNamespace: ""
-  - repoURL: https://github.com/aerofyta/clincase.git
+  - repoURL: https://github.com/victrvondoom/CLINI-CASE.git
     targetRevision: main
     path: ops/k8s/keda
   destination:

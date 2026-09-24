@@ -26,7 +26,7 @@ terraform {
 }
 
 # Primary region — Mumbai. Default Bedrock home for India ops + lowest
-# latency to the partner Cognizant Health Sciences cloud in BLR/HYD.
+# latency to partner health-sciences clouds in BLR/HYD.
 provider "aws" {
   alias  = "primary"
   region = var.primary_region

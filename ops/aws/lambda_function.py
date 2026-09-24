@@ -1,6 +1,6 @@
 """ClinCase on AWS — Lambda + Bedrock proof-of-concept.
 
-Deployed to Lambda with a public Function URL (CORS open) so judges can
+Deployed to Lambda with a public Function URL (CORS open) so anyone can
 curl the endpoint and see a live Bedrock invoke from a fully AWS-resident
 runtime — Lambda → bedrock-runtime → us.anthropic.claude-haiku-4-5.
 
@@ -43,7 +43,7 @@ def handler(event, _context):
                     "model": MODEL_ID,
                     "region": REGION,
                     "usage": "POST {\"prompt\": \"...\"}",
-                    "team": "AeroFyta",
+                    "product": "ClinCase",
                 }
             ),
         }

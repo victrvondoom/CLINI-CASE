@@ -17,7 +17,7 @@ identifier signing, or X12 278 wire-format conversion. It DOES:
   5. Include the agent trace as a Provenance resource so the payer can
      verify decision provenance.
 
-The reference implementation Cognizant TriZetto's PA product targets is the
+The reference implementation TriZetto's PA product targets is the
 HL7-DaVinci/prior-auth repo on GitHub. The shape we accept matches their test
 fixtures; the shape we return matches what their PASClient expects.
 
@@ -136,7 +136,7 @@ async def claim_submit(
     a coordinator's EHR can submit a PA and receive a structured response
     containing both the verdict and the agent provenance.
 
-    This is the wire format Cognizant TriZetto's PA product targets.
+    This is the wire format TriZetto's PA product targets.
     """
     payload = bundle.model_dump()
     claim = _resource_of(payload, "Claim")
@@ -319,7 +319,7 @@ async def capability_statement() -> dict[str, Any]:
         "resourceType": "CapabilityStatement",
         "status": "active",
         "date": datetime.now(timezone.utc).isoformat(),
-        "publisher": "ClinCase (Team AeroFyta)",
+        "publisher": "ClinCase",
         "kind": "instance",
         "implementation": {
             "description": (

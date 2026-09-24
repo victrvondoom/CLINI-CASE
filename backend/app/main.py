@@ -171,9 +171,9 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         from app.auth import hash_password
 
         _DEMO_USERS = (
-            ("user_demoadmin",    "admin@aerofyta.health",       "Demo Administrator", "admin"),
-            ("user_demoreviewer", "reviewer@aerofyta.health",    "Demo Reviewer",      "reviewer"),
-            ("user_democoord",    "coordinator@aerofyta.health", "Demo Coordinator",   "coordinator"),
+            ("user_demoadmin",    "admin@clincase.health",       "Demo Administrator", "admin"),
+            ("user_demoreviewer", "reviewer@clincase.health",    "Demo Reviewer",      "reviewer"),
+            ("user_democoord",    "coordinator@clincase.health", "Demo Coordinator",   "coordinator"),
         )
 
         existing = await db.fetchval(
@@ -186,10 +186,14 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
                     """INSERT INTO users (id, email, password_hash, full_name,
                                           organization_id, role)
                        VALUES ($1, $2, $3, $4, $5, $6)
-                       ON CONFLICT (email) DO NOTHING""",
+                       ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email""",
                     user_id, email, _hashed_demo_password,
                     full_name, "org_demo", role,
                 )
+            await db.execute(
+                "UPDATE organizations SET name = $1, slug = $2 WHERE id = $3",
+                "ClinCase Demo Health", "clincase-demo", "org_demo",
+            )
             log.info("clincase.seed.demo_users_created", count=len(_DEMO_USERS))
 
         # Backfill any cases without an org_id (idempotent migration helper)
@@ -373,7 +377,7 @@ app.include_router(fhir_bulk_api.router)
 # so it matches the Da Vinci PAS Implementation Guide URL convention.
 app.include_router(fhir_pas.router)
 
-# MCP server (JSON-RPC 2.0 over HTTP) at /mcp — Cognizant TriZetto AI Gateway-compatible.
+# MCP server (JSON-RPC 2.0 over HTTP) at /mcp — TriZetto AI Gateway-compatible.
 app.include_router(mcp_router)
 
 # /api/v2 scaffold — proof-of-life of the deprecation pipeline.

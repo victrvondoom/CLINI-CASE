@@ -179,7 +179,7 @@ NecessityAssessment {
 
 This file is the **doctrine** — the prompt every reasoning step is bound
 by, even when the runtime composes through sub-agents. Pairs with
-`app/prompts/_orchestration_doctrine.txt` (the Cognizant Neuro-SAN
+`app/prompts/_orchestration_doctrine.txt` (the Neuro-SAN
 AAOSA-aligned cross-agent contract).
 
 ## CMS-0057-F § IV.A — Audit-Trail Compliance

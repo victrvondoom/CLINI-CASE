@@ -3,7 +3,7 @@
 
 # High-availability control plane (3 replicas of each control-plane component).
 # At our scale we could run with 1, but HA is the right default for any
-# deployment a Cognizant TriZetto customer would run.
+# deployment a TriZetto customer would run.
 controllerReplicas: 3
 enablePodAntiAffinity: true
 

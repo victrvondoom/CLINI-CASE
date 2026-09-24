@@ -101,7 +101,7 @@ case "$DRILL" in
     DR-05)
         echo "  → Security tabletop drill (no live actions)..."
         echo "  → Drill steps:"
-        echo "    1. Page primary + business owner + Cognizant Health Sciences vertical lead"
+        echo "    1. Page primary + business owner + partner health-sciences lead"
         echo "    2. Rotate every secret in AWS Secrets Manager (dry-run: list only)"
         echo "    3. Rotate per-tenant Bedrock Guardrail IDs"
         echo "    4. Force JWT_SECRET rotation"

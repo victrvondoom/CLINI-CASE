@@ -1,26 +1,25 @@
 # ClinCase — Business Use-Case Anchoring
 
-**One sentence (Cognizant language):**
-ClinCase is a Cognizant TriZetto AI Gateway-native specialty agent bundle that **closes the AI velocity gap in oncology prior-authorization knowledge work** — turning ~$500B of AI infrastructure spend into measurable P&L value for Cognizant Health Sciences customers, eight months ahead of the FHIR PARDA mandate.
+**One sentence:**
+ClinCase is a TriZetto AI Gateway-native specialty agent bundle that **turns AI investment into measurable value in oncology prior-authorization knowledge work** — for payers running Facets and QNXT, eight months ahead of the FHIR PARDA mandate.
 
 ---
 
 ## Why this anchoring (not a different one)
 
-ClinCase's existing PPT positions the product as: an oncology prior-authorization copilot, FHIR-native, agent-driven, Bedrock + Claude Sonnet 4.6. The PPT is locked. **The anchoring above stays strictly inside that frame** but expresses it in the exact language Cognizant's 2026 strategy uses:
+ClinCase is an oncology prior-authorization copilot: FHIR-native, agent-driven, Bedrock + Claude Sonnet 4.6. **The anchoring above stays strictly inside that frame:**
 
-- *"AI velocity gap"* — coined by Ravi Kumar (Dec 2025; *"$500B AI infrastructure spent in 2025, but enterprise value still missing"*; [Constellation Research](https://www.constellationr.com/insights/news/cognizant-aims-solve-ai-velocity-gap)).
-- *"Specialty agent bundle for TriZetto AI Gateway"* — Cognizant launched the Gateway Aug 6, 2025 ([Cognizant press release](https://news.cognizant.com/2025-08-06-Cognizant-Debuts-TriZetto-R-AI-Gateway-to-Power-the-Next-Generation-of-AI-in-Healthcare)); zero specialty bundles in the catalog today.
-- *"Cognizant Health Sciences customers"* — explicit Cognizant vertical, ~80M Facets lives + ~20M QNXT lives.
+- *"Specialty agent bundle for TriZetto AI Gateway"* — the Gateway launched Aug 6, 2025; zero specialty bundles in the catalog today.
+- *"Payers running Facets and QNXT"* — ~80M Facets lives + ~20M QNXT lives.
 - *"Eight months ahead of the FHIR PARDA mandate"* — CMS-0057-F § IV.A effective Jan 1, 2027.
 
-Every word is groundable to a public source. Every word is consistent with the existing PPT. **No idea drift.**
+Every claim is groundable to a public source.
 
 ---
 
-## Cognizant 2026 priority themes — alignment
+## Enterprise AI priority themes — alignment
 
-| Cognizant theme (Ravi Kumar / Cognizant blog 2025–2026) | ClinCase alignment |
+| Theme | ClinCase alignment |
 |---|---|
 | **Operational efficiency** | 95–98% PA cycle-time reduction; 18 min → 52 s p50. |
 | **Cost optimization** | $1,499.55 saved per case vs $1,500 AMA-baseline manual cost. |
@@ -33,7 +32,7 @@ Every word is groundable to a public source. Every word is consistent with the e
 
 ## Primary KPIs — quantified, sourced, target ranges
 
-These are the four KPIs ClinCase moves directly. Each has a baseline, a target range, and a measurement endpoint judges can curl live.
+These are the four KPIs ClinCase moves directly. Each has a baseline, a target range, and a measurement endpoint anyone can curl live.
 
 ### KPI 1 — Cycle-time reduction
 
@@ -54,7 +53,7 @@ These are the four KPIs ClinCase moves directly. Each has a baseline, a target r
 | **ClinCase cost / case (clean APPROVE)** | $0.25 | `app/business_value/roi.py` |
 | **ClinCase cost / case (DENY + appeal)** | $0.45 | `app/business_value/roi.py` |
 | **Per-case savings** | **$1,499.55–$1,499.75** | — |
-| **Target headroom for customer pricing** | **300×** vs $5/case ClinCase license | `ops/demo/GO_TO_MARKET.md` |
+| **Target headroom for customer pricing** | **300×** vs $5/case ClinCase license | Pricing model |
 | **Annualized at 10K cases/day** | $5.475B avoided cost / customer | Math: 10,000 × 365 × $1,499.55 |
 | **Live measurement** | `GET /api/v1/business-value/case/{id}` → `savings_usd`, `annual_extrapolation_usd` | `app/api/business_value.py` |
 
@@ -85,7 +84,7 @@ These are the four KPIs ClinCase moves directly. Each has a baseline, a target r
 
 ## Per-component → business-outcome map
 
-A judge asking *"why does this component exist?"* gets one quantitative outcome per component.
+Anyone asking *"why does this component exist?"* gets one quantitative outcome per component.
 
 ### Experience Layer
 
@@ -140,7 +139,7 @@ A judge asking *"why does this component exist?"* gets one quantitative outcome 
 | Compliance scorecard live | **−4 hours / quarter of compliance prep**; live evidence available on the PA workflow without a separate query. |
 | Evidence Pack | **Auditor-grade single-file artifact** — closes a CMS audit ticket in 12 seconds instead of 4 hours. |
 | Responsible AI card | **−2 weeks / customer-onboarding** of vendor-security-questionnaire prep — auto-generated from live system state. |
-| Foundry manifest | **Cognizant TriZetto SA review** completes in 1 hour instead of 2 days — live compatibility evidence vs a slide deck. |
+| Foundry manifest | **TriZetto SA review** completes in 1 hour instead of 2 days — live compatibility evidence vs a slide deck. |
 
 ---
 
@@ -163,25 +162,24 @@ A judge asking *"why does this component exist?"* gets one quantitative outcome 
 
 **What happened, in business terms:** A PA decision that would have taken 18 minutes of an oncology nurse's day was instead rendered in 90 seconds, with a citation chain that satisfies CMS-0057-F § IV.B.2's specific-reason notice, dispatched to the customer's existing TriZetto Facets workflow, and packaged into an auditor-grade artifact. **Cost: $0.25. Manual cost displaced: $1,500. Per-case savings: $1,499.75. At 10K cases/day, $5.475B/year of avoided manual cost.**
 
-That's the business outcome. Live. End-to-end. On stage.
+That's the business outcome. Live. End-to-end.
 
 ---
 
-## What this case study would NOT prove (honesty for the judges)
+## What this case study would NOT prove
 
 - It does not prove first-customer ROI — that takes a 30-day pilot.
 - It does not prove cardiology / behavioral health generalization — that's a Day-60 milestone.
-- It does not prove Bedrock Provisioned Throughput economics — that's a Cognizant procurement item.
+- It does not prove Bedrock Provisioned Throughput economics — that's a customer procurement item.
 - It does not prove A2A interop with athenahealth's MCP server — that's HIMSS-2027 territory.
 
-These are knowable, costed, and scheduled in `ops/demo/GO_TO_MARKET.md` and `ops/industrialization/CHECKLIST.md`.
+These are knowable, costed, and scheduled in `ROADMAP.md` and `ops/industrialization/CHECKLIST.md`.
 
 ---
 
 ## Sources
 
 All numbers above are anchored to public 2025–2026 sources cited inline. The full citation list is in:
-- `ops/industrialization/AI_VELOCITY_GAP_BUSINESS_CASE.md`
 - `ops/SCALING.md`
-- `ops/demo/GO_TO_MARKET.md`
+- `ROADMAP.md`
 - `ops/architecture/TARGET_ARCHITECTURE.md`

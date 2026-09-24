@@ -129,25 +129,25 @@ async def signup(req: SignupRequest) -> TokenResponse:
 # (e.g. the public ECS Fargate demo). The same credentials work locally too,
 # but the local backend prefers the seeded DB rows when available.
 _DEMO_USERS_DBLESS: dict[str, dict[str, Any]] = {
-    "admin@aerofyta.health": {
+    "admin@clincase.health": {
         "id": "user_demoadmin",
         "full_name": "Demo Administrator",
         "organization_id": "org_demo",
-        "organization_name": "Aerofyta Health Sciences",
+        "organization_name": "ClinCase Demo Health",
         "role": "admin",
     },
-    "reviewer@aerofyta.health": {
+    "reviewer@clincase.health": {
         "id": "user_demoreviewer",
         "full_name": "Demo Reviewer",
         "organization_id": "org_demo",
-        "organization_name": "Aerofyta Health Sciences",
+        "organization_name": "ClinCase Demo Health",
         "role": "reviewer",
     },
-    "coordinator@aerofyta.health": {
+    "coordinator@clincase.health": {
         "id": "user_democoord",
         "full_name": "Demo Coordinator",
         "organization_id": "org_demo",
-        "organization_name": "Aerofyta Health Sciences",
+        "organization_name": "ClinCase Demo Health",
         "role": "coordinator",
     },
 }

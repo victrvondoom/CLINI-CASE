@@ -1,6 +1,6 @@
 """Postgres-backed asynchronous job queue for case-DAG runs.
 
-Why Postgres and not Redis/SQS for the hackathon-to-production path:
+Why Postgres and not Redis/SQS for the demo-to-production path:
   • Single dependency we already deploy (RDS Aurora in production)
   • SKIP LOCKED gives us correct concurrent claim semantics with no race
   • Survives restarts; no in-memory state to lose

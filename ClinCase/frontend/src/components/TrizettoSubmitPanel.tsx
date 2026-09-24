@@ -52,7 +52,7 @@ export function TrizettoSubmitPanel({ caseId, hasDecision }: Props) {
       setResponse(r);
     } catch {
       // Endpoint-unavailable demo fallback. Synthesize a realistic round-trip
-      // envelope so judges can see the TriZetto submission moment.
+      // envelope so reviewers can see the TriZetto submission moment.
       const now = new Date();
       const hash = (Math.random().toString(36) + Math.random().toString(36)).slice(2, 26).toUpperCase();
       setResponse({

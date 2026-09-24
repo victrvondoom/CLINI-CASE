@@ -65,7 +65,7 @@ class AuthzDecision:
 # context) and returns True iff the policy should fire.
 #
 # In production this becomes a JSON file per policy in
-# `app/authz/policies/*.cedar.json`. Today it's inline so judges can read it.
+# `app/authz/policies/*.cedar.json`. Today it's inline so reviewers can read it.
 
 PolicyEffect = str  # "permit" | "forbid"
 

@@ -1,7 +1,7 @@
 """End-to-end demo path verification (round-15) — pure stdlib, no Postgres TestClient needed.
 
 Hits the running backend on :8000 and verifies every step of the demo
-script (`ops/demo/PITCH_SCRIPT.md`).
+path.
 """
 import json
 import urllib.request
@@ -29,8 +29,8 @@ def section(label):
 
 
 # 1) login
-section("1. LOGIN — admin@aerofyta.health")
-auth = post("/api/v1/auth/login", {"email": "admin@aerofyta.health", "password": "clincase2026"})
+section("1. LOGIN — admin@clincase.health")
+auth = post("/api/v1/auth/login", {"email": "admin@clincase.health", "password": "clincase2026"})
 TOK = auth["access_token"]
 H = {"Authorization": f"Bearer {TOK}"}
 print(f"OK  user={auth['user']['email']} role={auth['user']['role']} org={auth['user']['organization_id']}")
@@ -71,11 +71,11 @@ section("4. /architecture/layers")
 arch = get("/api/v1/architecture/layers", H)
 print(f"layers: {len(arch.get('layers', []))}")
 print(f"primary_kpis: {len(arch.get('primary_kpis', []))}")
-ali = arch.get("cognizant_alignment", {}) or {}
-print(f"cognizant_alignment.ai_velocity_gap_addressed: {ali.get('ai_velocity_gap_addressed')}")
-print(f"cognizant_alignment.agent_foundry_stage: {ali.get('agent_foundry_stage')}")
-print(f"cognizant_alignment.neuro_san_compatible: {ali.get('neuro_san_compatible')}")
-print(f"cognizant_alignment.trizetto_ai_gateway_native: {ali.get('trizetto_ai_gateway_native')}")
+ali = arch.get("platform_alignment", {}) or {}
+print(f"platform_alignment.ai_velocity_gap_addressed: {ali.get('ai_velocity_gap_addressed')}")
+print(f"platform_alignment.agent_foundry_stage: {ali.get('agent_foundry_stage')}")
+print(f"platform_alignment.neuro_san_compatible: {ali.get('neuro_san_compatible')}")
+print(f"platform_alignment.trizetto_ai_gateway_native: {ali.get('trizetto_ai_gateway_native')}")
 agents_layer = next((L for L in arch.get("layers", []) if L.get("id") == "orchestration"), None)
 if agents_layer:
     a = agents_layer.get("agents", {})

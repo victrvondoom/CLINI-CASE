@@ -367,7 +367,7 @@ Every decision above is grounded in:
 
 Run on ClinCase 7-agent LangGraph DAG · Bedrock + Claude Sonnet 4.6 · TriZetto AI Gateway.
 
-_ClinCase — Built for First Commit_
+_ClinCase — Built by vsrupeshkumar_
 `;
   triggerDownload(`clincase-compliance-${tsSlug()}.md`, md, "text/markdown");
 }

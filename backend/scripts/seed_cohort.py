@@ -164,7 +164,7 @@ async def seed():
         # Ensure org_demo exists (migration handles, but be safe)
         await conn.execute(
             """INSERT INTO organizations (id, name, slug)
-               VALUES ('org_demo', 'Aerofyta Health Sciences', 'aerofyta')
+               VALUES ('org_demo', 'ClinCase Demo Health', 'clincase-demo')
                ON CONFLICT (id) DO NOTHING"""
         )
 

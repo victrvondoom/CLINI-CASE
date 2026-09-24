@@ -1,7 +1,7 @@
 # ClinCase — OIDC SSO Integration (ADR-0010)
 
 **Status:** Accepted (round-11 scaffold; live wiring at first customer)
-**Audience:** Customer IdP team (Okta / Azure AD / Ping / Auth0) · Cognizant security · auditor
+**Audience:** Customer IdP team (Okta / Azure AD / Ping / Auth0) · partner security · auditor
 
 ## Why OIDC
 

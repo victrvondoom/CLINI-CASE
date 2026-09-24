@@ -4,7 +4,7 @@
  * Shows:
  *   • ClinCase version + git SHA (live from /api/v1/version)
  *   • Deployment mode (live from /api/v1/capabilities)
- *   • Active feature flags so a judge can verify "is this demo mode?"
+ *   • Active feature flags so a reviewer can verify "is this demo mode?"
  *   • Quick links to the live introspection endpoints
  */
 import { Layers, X } from "lucide-react";
@@ -163,7 +163,7 @@ export function AboutModal({ open, onClose }: Props) {
         )}
 
         <div className="mt-6 pt-4 border-t border-surface-border text-[11px] text-ink-faint">
-          ClinCase — Built for First Commit · MIT License
+          ClinCase — Built by vsrupeshkumar · MIT License
         </div>
       </div>
     </div>

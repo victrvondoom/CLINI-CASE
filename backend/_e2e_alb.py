@@ -14,7 +14,7 @@ ALB = "http://clincase-alb-729293716.us-east-1.elb.amazonaws.com/api/v1"
 # 1. Login locally to get a JWT
 tok = requests.post(
     f"{LOCAL}/auth/login",
-    json={"email": "admin@aerofyta.health", "password": "clincase2026"},
+    json={"email": "admin@clincase.health", "password": "clincase2026"},
     timeout=5,
 ).json()["access_token"]
 H = {"Authorization": f"Bearer {tok}"}

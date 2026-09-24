@@ -234,7 +234,6 @@ def _tasks_md(entry: dict[str, Any]) -> str:
 
 - [ ] No K8s changes required — auto-discovered by `app/agents/manifest.py`.
 - [ ] No metrics wiring required — `Agent.invoke()` emits Prometheus counters automatically.
-- [ ] Update `ops/demo/PITCH_DECK.md` if this agent is part of the headline demo path.
 """
 
 

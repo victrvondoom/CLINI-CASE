@@ -1,7 +1,7 @@
 # ClinCase — Fine-Grained Authorization (Cedar shape)
 
 **Status:** Accepted (round-11)
-**Audience:** Cognizant TriZetto / payer security teams · auditor verifying authz boundary
+**Audience:** TriZetto / payer security teams · auditor verifying authz boundary
 
 ## Why we need attribute-based authorization
 

@@ -1,9 +1,8 @@
 # ClinCase — Kiro IDE Hooks (GenAI in the SDLC)
 
-**Audience:** AeroFyta engineering · Cognizant TriZetto delivery engineering
+**Audience:** ClinCase engineering · TriZetto delivery engineering
 
 > *"GenAI in the SDLC, not just GenAI in the app."*
-> — the Cognizant "AI builder" narrative
 
 Kiro Hooks are the AWS-blessed primitive that fires AI-assisted automation
 on file events / PR events / repo events. We use them to enforce modular
@@ -81,7 +80,7 @@ cp .kiro/hooks/*.sh /usr/local/bin/  # OR add to PATH
 # `on_save` / `on_pr` / `on_merge` per the trigger noted above.
 ```
 
-In a Cognizant Agent Foundry deployment, Hooks are installed automatically
+In an Agent Foundry deployment, Hooks are installed automatically
 via `kiro install --bundle clincase` — see Foundry's published packaging
 docs once they ship.
 
@@ -92,14 +91,14 @@ docs once they ship.
 | "Modularity, separation of concerns, clean layering" | `architecture-boundary-check.sh` |
 | "Automate task decomposition, refactoring, test generation" | `contract-test-on-prompt-edit.sh` (test gen on prompt edit) + Kiro's built-in `tasks.md` decomposition |
 | "Improve developer productivity and maintainability" | `regenerate-specs-on-save.sh` removes spec-drift drag |
-| "Cognizant 'AI builder' narrative — GenAI in the SDLC" | All five Hooks plus `.kiro/specs/` auto-export |
+| "GenAI in the SDLC" | All five Hooks plus `.kiro/specs/` auto-export |
 
-## Cognizant Flowsource alignment
+## Flowsource alignment
 
-Cognizant Flowsource is the published platform for **async-autonomous software
+Flowsource is the published platform for **async-autonomous software
 engineering** — *"associates delegate macro tasks to agent networks and
-'micro-steer' outcomes"* ([Constellation 2025](https://www.constellationr.com/insights/news/cognizant-aims-solve-ai-velocity-gap)).
-The ClinCase repo is engineered to graft directly onto a Cognizant Flowsource
+'micro-steer' outcomes"*.
+The ClinCase repo is engineered to graft directly onto a Flowsource
 deployment:
 
 | Flowsource concept | ClinCase realization |
@@ -109,13 +108,13 @@ deployment:
 | **Operator micro-steering** | Hook 3 (`architecture-boundary-check.sh`) surfaces violations in the IDE's diagnostic panel — engineer sees what to override before the file is committed. |
 | **Outcome attribution** | Hook 2 (`verify-foundry-manifest-on-pr.sh`) keeps `agent-foundry-manifest.yaml` synced with the live `AGENT_MANIFEST` so the Foundry Marketplace listing matches what's actually shipping. |
 
-A Cognizant engineering manager evaluating ClinCase for Flowsource ingestion
+An engineering manager evaluating ClinCase for Flowsource ingestion
 runs the Hooks and gets a one-paragraph "is this Flowsource-shaped?" yes/no
 verdict — without reading the codebase.
 
 ## Agentic capital — what these hooks actually preserve
 
-Cognizant's 2026 narrative names the underlying asset *agentic capital*:
+The underlying asset is often called *agentic capital*:
 the encoded, auditable, replayable knowledge that an agent network draws on
 to do work. Each Hook above protects one dimension of that capital:
 
@@ -126,7 +125,7 @@ to do work. Each Hook above protects one dimension of that capital:
   `ops/architecture/TARGET_ARCHITECTURE.md` is enforced at the import
   boundary; a junior engineer can't accidentally couple the `api` layer
   to the `llm` layer.
-- **Manifest fidelity** (Hook 2) — the Cognizant Agent Marketplace listing
+- **Manifest fidelity** (Hook 2) — the agent marketplace listing
   matches the running implementation; no drift, no surprise.
 - **Test-prompt alignment** (Hook 4) — every prompt edit triggers its
   contract test + invalidates the response cache; an editor sees the
@@ -139,5 +138,4 @@ discipline.
 
 - AWS — Kiro IDE GA + GovCloud regions ([AWS Weekly Roundup Feb 23 2026](https://aws.amazon.com/blogs/aws/aws-weekly-roundup-claude-sonnet-4-6-in-amazon-bedrock-kiro-in-govcloud-regions-new-agent-plugins-and-more-february-23-2026/))
 - AWS — "From spec to production: a three-week drug discovery agent using Kiro" ([AWS for Industries](https://aws.amazon.com/blogs/industries/from-spec-to-production-a-three-week-drug-discovery-agent-using-kiro/))
-- Cognizant Flowsource — async-autonomous engineering platform ([Constellation 2025](https://www.constellationr.com/insights/news/cognizant-aims-solve-ai-velocity-gap))
-- "Agentic capital" framing — Cognizant 2026 narrative
+- Flowsource — async-autonomous engineering platform

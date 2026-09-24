@@ -1,6 +1,6 @@
 # ClinCase — Per-Tenant Data Residency
 
-**Audience:** Cognizant TriZetto delivery + customer compliance officers + EU/IN/UK regulators
+**Audience:** TriZetto delivery + customer compliance officers + EU/IN/UK regulators
 
 The default ClinCase deployment runs in `ap-south-1` (Mumbai). For customers with data-residency obligations — French HDS, German DSGVO, UK ICO healthcare data rules, India's DPDP Act, US-payer regional preference — every domain row must be stored, processed, and retained inside their declared region.
 
@@ -16,7 +16,7 @@ This is a per-tenant property, not a per-deployment one.
 | **DB writes** | Multi-region Aurora Global cluster; the customer's DSN points at the writer in their region (`Aurora Global` cross-region promotion is RPO≈1s). |
 | **Bedrock** | Per-tenant `BEDROCK_MODEL_ID` env override; e.g. EU tenants resolve to `eu.anthropic.claude-sonnet-4-6` and AWS PrivateLink endpoint in `eu-west-1`. |
 | **S3 audit lake** | Per-tenant bucket prefix; CRR replicates to peer regions only when allowed. |
-| **TriZetto Gateway** | `TRIZETTO_GATEWAY_URL` per tenant; routed via Route 53 LBR to the closest Cognizant TriZetto regional endpoint. |
+| **TriZetto Gateway** | `TRIZETTO_GATEWAY_URL` per tenant; routed via Route 53 LBR to the closest TriZetto regional endpoint. |
 | **Q Business** | `AMAZON_Q_REGION` per tenant. |
 | **CloudWatch logs** | Per-region log groups; cross-region log shipping disabled by default. |
 | **KMS** | Per-tenant multi-region key with `Replicas` constrained to allowed regions only. |
@@ -104,7 +104,7 @@ terraform apply -var=tenant_data_region=eu-west-1 \
                  ops/terraform/per-tenant-tenant.tf
 
 # 4. Configure TriZetto Gateway URL for the tenant's region
-PUT /api/v1/quotas/orgEU01 { "trizetto_gateway_url": "https://trizetto-eu.cognizant.example.com" }
+PUT /api/v1/quotas/orgEU01 { "trizetto_gateway_url": "https://trizetto-eu.example.com" }
 ```
 
 ## What's deferred to post-pilot
@@ -114,4 +114,4 @@ PUT /api/v1/quotas/orgEU01 { "trizetto_gateway_url": "https://trizetto-eu.cogniz
 - ⚪ Per-region CDN edge configuration (`ops/terraform/cloudfront-multi-region/`)
 - ⚪ Cross-region failover for Gold-tier tenants (`ops/sre/RUNBOOK.md` § INC-002 generalization)
 
-These land at the first Cognizant Facets/QNXT customer that requires them. The schema and routing primitives already in place.
+These land at the first Facets/QNXT customer that requires them. The schema and routing primitives already in place.

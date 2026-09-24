@@ -3,7 +3,7 @@
 Amazon Q Business is AWS's enterprise RAG platform (announced 2024 GA, expanded
 2025–2026 with first-party connectors for SharePoint, Confluence, Salesforce,
 S3, etc.). Unlike Bedrock Knowledge Base — which the team owns end-to-end —
-Q Business is the AWS-managed enterprise-search story Cognizant's customers
+Q Business is the AWS-managed enterprise-search story many payer customers
 already have provisioned for their Microsoft 365 / SharePoint / Confluence
 policy libraries.
 

@@ -7,7 +7,7 @@ Accepted · 2026-04-22
 
 The ClinCase `policy_retriever` parent agent needs to surface the top-K payer-policy excerpts most relevant to a clinical case. The corpus lives in one of two places per customer:
 
-- **Path A — ClinCase-curated corpus.** A small, hand-picked set of payer policy PDFs we ingest into Bedrock Knowledge Base. Used in dev + offline demo + hackathon.
+- **Path A — ClinCase-curated corpus.** A small, hand-picked set of payer policy PDFs we ingest into Bedrock Knowledge Base. Used in dev + offline demo.
 - **Path B — Customer's existing policy library.** Lives in M365 / SharePoint / Confluence — already accessible via the customer's Amazon Q Business tenant. The pattern Availity validated in 2025.
 
 A new customer must NOT be forced to migrate their corpus to a new system just to onboard.
@@ -27,7 +27,7 @@ The `policy_retriever` orchestrator (`app/agents/policy_retriever/orchestrator.p
 
 **Positive**
 - **Customer-onboarding velocity.** A new customer with their corpus in M365 flips `USE_AMAZON_Q=true` and the policy-retrieval path is live. **Saves ~1 month** of customer-onboarding time vs. building a new Bedrock KB index per customer (`ops/multi-tenant/ONBOARDING.md`).
-- **Day-1 add-on** to a Cognizant TriZetto customer who already has Q Business provisioned — no new platform decision.
+- **Day-1 add-on** to a TriZetto customer who already has Q Business provisioned — no new platform decision.
 - **Identical downstream code.** Reranker, citation resolver, necessity reasoner are all unaware of which backend produced the excerpts. Single test fixture validates both paths.
 - **Future backend swap is one sub-agent module** away. (e.g. `s3_vectors_retriever` over the S3 Vectors module in `ops/terraform/s3-vectors/` — same schema.)
 

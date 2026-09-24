@@ -37,7 +37,7 @@ k6 run ops/loadtest/scenarios/healthz_burst.js \
 # Full PR-grade run
 k6 run ops/loadtest/scenarios/case_create_steady.js \
   -e API_BASE=https://staging-api.clincase.example.com \
-  -e USER=demo@aerofyta.health \
+  -e USER=demo@clincase.health \
   -e PASS=clincase2026
 ```
 

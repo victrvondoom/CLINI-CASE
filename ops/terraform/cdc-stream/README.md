@@ -18,7 +18,7 @@ CDC solution:
 - AWS DMS (or self-hosted Debezium) reads logical replication slot → Kinesis.
 - Firehose lands Kinesis records as Parquet in S3, partitioned by `(date, organization_id, table)`.
 - Glue catalog exposes the Parquet to Athena.
-- Customer / compliance officer / Cognizant analytics: one SQL query in Athena, no Aurora load.
+- Customer / compliance officer / partner analytics: one SQL query in Athena, no Aurora load.
 
 ## Architecture
 

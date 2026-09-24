@@ -351,7 +351,7 @@ make twin.reference   # rebuild the drift reference profile
 make twin.benchmark   # Research Lab benchmark (builds the cohort cache on first run)
 ```
 
-Sign in as `reviewer@aerofyta.health` or `admin@aerofyta.health` to decide on alerts, record interventions and hand
+Sign in as `reviewer@clincase.health` or `admin@clincase.health` to decide on alerts, record interventions and hand
 off to ClinCase. Coordinators can view but not decide. Research experiments and the stress test are admin-only.
 
 **CI:** the `oncotwin` job in `.github/workflows/ci.yml` runs the tests, the one-command journey and the stress test,

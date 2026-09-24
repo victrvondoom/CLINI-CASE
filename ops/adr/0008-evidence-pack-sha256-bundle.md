@@ -53,7 +53,7 @@ A third party can rehash any bundle (excluding the `bundle_sha256` field itself)
 | Alternative | Why rejected |
 |---|---|
 | Database query on demand | Auditor doesn't want SQL access. They want a file. |
-| PDF report | Tamper-evidence is unclear for PDF without a PKI signing infrastructure (out of scope for hackathon). JSON + SHA-256 is verifiable with one python one-liner. |
+| PDF report | Tamper-evidence is unclear for PDF without a PKI signing infrastructure (out of scope for now). JSON + SHA-256 is verifiable with one python one-liner. |
 | Cryptographic signing (PKCS#7) | Worth doing post-pilot. SHA-256 is the right starting bar; signing is additive. |
 | External audit vendor's tooling | Many customers already have internal compliance tooling; they want raw evidence they can ingest. Vendor-specific format would lock them out. |
 

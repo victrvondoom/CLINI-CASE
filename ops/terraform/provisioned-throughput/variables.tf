@@ -25,9 +25,9 @@ variable "environment" {
 }
 
 variable "cost_center" {
-  description = "Cognizant cost center for chargeback."
+  description = "Cost center for chargeback."
   type        = string
-  default     = "AEROFYTA-CLINCASE-PROD"
+  default     = "CLINCASE-PROD"
 }
 
 # --- Model IDs --------------------------------------------------------------
@@ -83,7 +83,7 @@ variable "haiku_model_units_secondary" {
 #   • "" / null    — no commit (most flexible, most expensive)
 #   • "OneMonth"   — 1-month commit (~30% discount)
 #   • "SixMonths"  — 6-month commit (~51% discount)
-# For a hackathon → real customer pilot, OneMonth is the right call.
+# For a first customer pilot, OneMonth is the right call.
 
 variable "commitment_duration" {
   description = "Bedrock provisioned-throughput commitment tier. Empty string = no commit."

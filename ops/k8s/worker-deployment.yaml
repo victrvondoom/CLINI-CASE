@@ -1,6 +1,6 @@
 # ─── ClinCase worker tier ─────────────────────────────────────────────────────
 # Consumes from case_jobs queue, runs the 7-agent DAG. Independent scaling
-# from the API tier — judges asking "how do you handle a 10x burst?" get a
+# from the API tier — anyone asking "how do you handle a 10x burst?" gets a
 # real answer: HPA scales workers on queue depth (custom metric).
 #
 # Resource sizing is RAM-dominant (LLM responses + Pydantic parse) and

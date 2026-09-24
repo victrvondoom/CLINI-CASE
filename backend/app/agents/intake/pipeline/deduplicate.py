@@ -29,8 +29,8 @@ class _LRUWithTTL:
     """Tiny self-contained LRU with TTL. Threadsafe-enough for the GIL.
 
     For multi-process production deploys this would be Redis-backed. The
-    in-memory implementation is correct for single-replica dev + the
-    hackathon demo path.
+    in-memory implementation is correct for single-replica dev and the
+    demo path.
     """
 
     def __init__(self, *, max_entries: int, ttl_seconds: int) -> None:

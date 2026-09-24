@@ -32,7 +32,7 @@ def _fake_user() -> dict[str, Any]:
     # The startup lifespan in app.main seeds these three demo users.
     return {
         "id": "user_demoadmin",
-        "email": "admin@aerofyta.health",
+        "email": "admin@clincase.health",
         "organization_id": "org_demo",
         "role": "admin",
     }

@@ -4,7 +4,7 @@
  * Datadog-APM-style transparency into the 7 agents (and 21 sub-agents) that power ClinCase.
  * Each agent: purpose, input → output schema, 24h stats, recent invocations.
  *
- * This is a Q&A weapon — when judges ask "how does it actually work?", show
+ * When someone asks "how does it actually work?", show
  * them this page. Demonstrates the LangGraph DAG observability + per-agent
  * health metrics that prove the system is enterprise-grade.
  */

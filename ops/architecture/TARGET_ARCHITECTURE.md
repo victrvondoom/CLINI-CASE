@@ -1,7 +1,7 @@
 # ClinCase — Target Enterprise Architecture
 
-**Audience:** Cognizant Health Sciences solution architect · TriZetto product engineering · AWS account team
-**Purpose:** Show — in the language a senior Cognizant architect uses — that ClinCase is engineered for industrialization, not for demo polish.
+**Audience:** Health-sciences solution architect · TriZetto product engineering · AWS account team
+**Purpose:** Show — in the language a senior enterprise architect uses — that ClinCase is engineered for industrialization, not for demo polish.
 
 ---
 
@@ -54,19 +54,19 @@
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
-Each layer is **independently testable, independently deployable, and independently scalable**. That's the property a Cognizant solution architect looks for in "production-grade" — and it's how ClinCase resists the AI velocity gap (Ravi Kumar Dec 2025): every layer carries its own ROI lever.
+Each layer is **independently testable, independently deployable, and independently scalable**. That's the property a solution architect looks for in "production-grade" — and every layer carries its own ROI lever.
 
 ---
 
 ## 1. Experience Layer
 
-| Component | Responsibility | Where it lives | Why it matters to Cognizant |
+| Component | Responsibility | Where it lives | Why it matters to customers |
 |---|---|---|---|
 | Dashboard | Live KPIs (MTD savings, decision TAT, annualized projection) | `frontend/src/routes/Dashboard.tsx` | First screen a CFO sees; signals ROI immediately. |
 | Case Detail | 7-agent live trace · decision · appeal · patient comm | `frontend/src/routes/CaseDetail.tsx` | The "AI assistant" workflow — not a chat box. |
 | `/roi` | Interactive Star Ratings + per-case ROI calculator | `frontend/src/routes/ROI.tsx` | CFO-facing tool for in-call ROI sizing. |
 | `/compliance` | Live CMS-0057-F + state-AI-law scorecard | `frontend/src/routes/Compliance.tsx` | Audit-ready evidence on demand. |
-| `/industrialize` | Live Cognizant Neuro / Foundry compatibility + Responsible AI card | `frontend/src/routes/Industrialize.tsx` | Production-readiness panel for SAs. |
+| `/industrialize` | Live Neuro-SAN / Foundry compatibility + Responsible AI card | `frontend/src/routes/Industrialize.tsx` | Production-readiness panel for SAs. |
 | `/architecture` | This document, made interactive | `frontend/src/routes/Architecture.tsx` | "Show me the architecture" answered live. |
 | SSE trace stream | Real-time agent-by-agent updates | `frontend/src/lib/sse.ts` + `app/api/stream.py` | Replaces a spinner with proof of work. |
 | Role-based RBAC | Coordinator / Reviewer / Admin | `frontend/src/components/RequireAuth.tsx` | Enterprise audit trail; CMS-0057-F § IV.C HITL signoff. |
@@ -124,7 +124,7 @@ Each layer is **independently testable, independently deployable, and independen
 | Bedrock Provisioned Throughput | 1 MU Sonnet + 1 MU Haiku, OneMonth commit | `ops/terraform/provisioned-throughput/` | Predictable cost + predictable TPM at scale; alarms at 80% / 95% utilization. |
 | Bedrock AgentCore Runtime (apply-ready) | Per-parent Runtime + Memory + Gateway + Identity | `ops/aws/agentcore/deployment.yaml` | **Production agentic runtime** — framework-agnostic; LangGraph supported. |
 
-**Business outcome.** The Gateway is the single pane of glass over every LLM call ClinCase makes. Models, costs, tokens, guardrails, throughput, and identity all flow through one named component. **A Cognizant CISO can sign off on this layer without auditing 28 agent files** — they audit one Gateway.
+**Business outcome.** The Gateway is the single pane of glass over every LLM call ClinCase makes. Models, costs, tokens, guardrails, throughput, and identity all flow through one named component. **A CISO can sign off on this layer without auditing 28 agent files** — they audit one Gateway.
 
 ---
 
@@ -136,12 +136,12 @@ Each layer is **independently testable, independently deployable, and independen
 | `agent_runs` audit table | Every invocation: input, output, model_id, tokens, latency, error | `backend/db/schema.sql` | **CMS-0057-F § IV.D 7-year retention by design.** Every decision reproducible. |
 | Prometheus `/metrics` | 8 metric families (cases, queue depth, agent invocations, latency, tokens, cost, active orgs) | `backend/app/api/metrics.py` | Standard scrape; HPA on `clincase_jobs_queue_depth{status="queued"}`. |
 | SLO + error-budget | 7 SLOs with PagerDuty burn-rate alerts | `ops/sre/SLO.yaml` | Industry-standard Datadog/Honeycomb pattern; production-grade SLO discipline. |
-| SRE runbook | 7 named incidents · diagnose+fix · post-mortem template | `ops/sre/RUNBOOK.md` | Day-1 on-call ready; Cognizant escalation path documented. |
+| SRE runbook | 7 named incidents · diagnose+fix · post-mortem template | `ops/sre/RUNBOOK.md` | Day-1 on-call ready; escalation path documented. |
 | Compliance scorecard | Live CMS-0057-F + state-AI-law clause checker | `backend/app/compliance/cms_0057f.py` + `/api/v1/compliance/case/{id}` | **8 clauses tracked, 6 in-force today.** No mocks. |
 | Business value calc | Per-case ROI, org rollup, Star projection, provider abrasion | `backend/app/business_value/` + 4 endpoints | **Live ROI evidence per case.** $1,499.55/case verifiable on demand. |
 | Evidence Pack | Single-file bundle with bundle-SHA-256 tamper hash | `backend/app/api/evidence_pack.py` | **Auditor-grade artifact** — case + decision + agent_runs + reviewer_actions + compliance + ROI in one tamper-evident JSON. |
 | Responsible AI model card | NIST AI RMF + ISO 42001 + EU AI Act + AWS AI Service Card | `backend/app/api/responsible_ai.py` | Procurement-question-answer doc; live + downloadable Markdown. |
-| Foundry manifest | Cognizant Neuro / Agent Foundry compatibility descriptor | `backend/app/api/foundry.py` | Live evidence of stack alignment. |
+| Foundry manifest | Neuro-SAN / Agent Foundry compatibility descriptor | `backend/app/api/foundry.py` | Live evidence of stack alignment. |
 
 **Business outcome.** This is the layer that turns "AI we trust" into "AI an auditor trusts." Every line in the health-sciences sales motion (HIPAA · CMS-0057-F · CA SB 1120 · EU AI Act · ISO 42001 · NIST AI RMF) has a named, queryable component here. **Compliance is not a slide — it's an endpoint.**
 
@@ -166,7 +166,7 @@ Each layer is **independently testable, independently deployable, and independen
 
 - `.kiro/specs/` materialized for all 7 parents + 22 sub-agents (85 files).
 - Auto-generated from `AGENT_MANIFEST` via `python -m app.integrations.kiro.exporter`.
-- A new specialty (cardiology, behavioral health, transplant) = edit 3 markdown files; Kiro Hooks regenerate the agent skeleton — **the Cognizant industrialization velocity that's the whole point of "spec-driven AI development."**
+- A new specialty (cardiology, behavioral health, transplant) = edit 3 markdown files; Kiro Hooks regenerate the agent skeleton — **the industrialization velocity that's the whole point of "spec-driven AI development."**
 
 ### Scalability
 
@@ -191,7 +191,7 @@ This mirrors the [aws-samples/sample-bedrock-agentcore-runtime-cicd](https://git
 
 ---
 
-## Stage-gate maturity (mapped to Cognizant Agent Foundry)
+## Stage-gate maturity (mapped to Agent Foundry)
 
 | Stage | Layers required for graduation | ClinCase status |
 |---|---|---|
@@ -204,7 +204,7 @@ Layer-by-layer gating spec is in `ops/industrialization/CHECKLIST.md`.
 
 ---
 
-## Why this stands up in front of a Cognizant VP
+## Why this stands up in front of an enterprise VP
 
 A VP/architect accountable for client outcomes cares about three questions. Each layer has an answer:
 

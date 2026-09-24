@@ -235,16 +235,16 @@ function UserChip() {
   const role = (user?.role ?? "admin").toLowerCase();
   const isAdmin = role === "admin";
 
-  // Use email/team initials when name isn't available, falling back to "AF" (AeroFyta)
+  // Use name/email initials when available, falling back to "CC" (ClinCase)
   const initials =
-    (user?.full_name ?? user?.email ?? "AeroFyta")
+    (user?.full_name ?? user?.email ?? "ClinCase")
       .split(/[@.\s]/)
       .filter(Boolean)
       .slice(0, 2)
       .map((s) => s[0]?.toUpperCase() ?? "")
-      .join("") || "AF";
+      .join("") || "CC";
 
-  const displayName = (user?.full_name ?? user?.email?.split("@")[0] ?? "aerofyta").toLowerCase();
+  const displayName = (user?.full_name ?? user?.email?.split("@")[0] ?? "clincase").toLowerCase();
 
   return (
     <div className="hidden md:flex items-center gap-2 h-8 pl-1 pr-2.5 rounded-md border border-surface-border bg-surface-raised hover:border-surface-border-hi transition-colors">

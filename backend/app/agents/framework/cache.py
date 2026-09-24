@@ -17,7 +17,7 @@ Why this is a *real* cost lever:
     the case where a duplicate submission slipped through (e.g. browser
     re-fired a POST after a 504 timeout).
 
-What this is NOT (and why we don't ship it for the hackathon):
+What this is NOT (and why it isn't shipped yet):
 
   • A *semantic* cache (similar-but-not-identical inputs) — that needs an
     embedding model and a similarity threshold. Real value at scale (~12%

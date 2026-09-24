@@ -1,6 +1,6 @@
 # ClinCase — Amazon Q vs Amazon Bedrock — Division of Roles
 
-**Audience:** Cognizant Health Sciences solution architect · AWS account team · AeroFyta engineering
+**Audience:** Health-sciences solution architect · AWS account team · ClinCase engineering
 
 This is the canonical answer to *"why both? where does each one go?"* in the ClinCase deployment. Backed by AWS's published guidance, two services with different jobs:
 
@@ -20,7 +20,7 @@ Both have a place in ClinCase. They do different things.
 |---|---|
 | Reason over patient data + payer policy + emit a structured Decision | **Bedrock** (Sonnet 4.6 via `LLMClient` / GenAI Gateway) |
 | Retrieve passages from the *customer's* policy library (M365 / SharePoint / Confluence) | **Amazon Q Business** (drop-in for Bedrock KB) |
-| Help an ClinCase developer / Cognizant SA navigate the codebase / write a new agent | **Amazon Q Developer** (deferred — see below) |
+| Help a ClinCase developer / partner SA navigate the codebase / write a new agent | **Amazon Q Developer** (deferred — see below) |
 | Run a managed Bedrock Knowledge Base directly off our policy S3 | **Bedrock KB** |
 
 ---
@@ -70,7 +70,7 @@ This pattern follows the publicly-documented Availity case study ([AWS case stud
 
 Amazon Q Developer is the **AI-assisted IDE** for engineers writing ClinCase itself.
 
-**Status:** new Q Developer signups blocked after May 15, 2026; Cognizant teams who already have Q Pro retain access through Apr 30, 2027 ([AWS EOS notice](https://aws.amazon.com/blogs/devops/amazon-q-developer-end-of-support-announcement/)).
+**Status:** new Q Developer signups blocked after May 15, 2026; teams who already have Q Pro retain access through Apr 30, 2027 ([AWS EOS notice](https://aws.amazon.com/blogs/devops/amazon-q-developer-end-of-support-announcement/)).
 
 **ClinCase's posture:** we use **Kiro IDE** instead — AWS's spec-driven agentic IDE that's the strategic successor. Spec-format detail in `.kiro/specs/` and Hooks documented in `ops/kiro/HOOKS.md`. Q Developer would be redundant; Kiro is the AWS-blessed forward path.
 

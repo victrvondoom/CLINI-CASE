@@ -89,7 +89,7 @@ export default function Compliance() {
                     window.location.origin +
                     "/compliance\n\nPrint > Save as PDF for the full document.",
                 );
-                window.location.href = `mailto:cfo@aerofyta.health?subject=${subject}&body=${body}`;
+                window.location.href = `mailto:cfo@clincase.health?subject=${subject}&body=${body}`;
               }}
               className="text-xs font-medium px-3 py-1.5 rounded-md border border-surface-border text-ink-body hover:bg-surface-raised-hi transition-colors flex items-center gap-1.5"
             >

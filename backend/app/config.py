@@ -69,7 +69,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql://clincase:clincase@localhost:5432/clincase"
 
     # --- Redis (multi-replica SSE pub/sub) -------------------------------
-    # Empty → in-process pub/sub backend (single-replica dev / hackathon).
+    # Empty → in-process pub/sub backend (single-replica dev / demo).
     # Set on production deploys with > 1 API replica to fan SSE events
     # across replicas. See `app/streaming.py` for the backend protocol.
     REDIS_URL: str = ""
@@ -107,7 +107,7 @@ class Settings(BaseSettings):
 
     # --- MCP server ------------------------------------------------------
     # Optional shared-secret bearer token for /mcp. If empty, the endpoint
-    # is open (hackathon / demo mode). In production this is set via AWS
+    # is open (demo mode). In production this is set via AWS
     # Secrets Manager.
     MCP_AUTH_TOKEN: str = ""
 
@@ -119,7 +119,7 @@ class Settings(BaseSettings):
     # + audit row in llm_invocations. See app/llm/gateway.py.
     GENAI_GATEWAY_ENABLED: bool = True
 
-    # --- Cognizant TriZetto AI Gateway (Aug 2025; MCP-native) ------------
+    # --- TriZetto AI Gateway (Aug 2025; MCP-native) ------------
     # When TRIZETTO_GATEWAY_URL is empty, the in-process mock receiver
     # handles `/api/v1/integrations/trizetto/submit` so the demo always
     # works end-to-end. Setting the URL switches to live Gateway calls.

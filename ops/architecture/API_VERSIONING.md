@@ -1,6 +1,6 @@
 # ClinCase — API Versioning & Deprecation Policy
 
-**Audience:** Cognizant TriZetto product team · ClinCase API consumers · joint Cognizant–AeroFyta integration engineering
+**Audience:** TriZetto product team · ClinCase API consumers · partner integration engineering
 
 ClinCase's HTTP API is consumer-facing. Customers integrate against it for case submission, status polling, evidence-pack export, and TriZetto Gateway round-tripping. Versioning + deprecation discipline is non-negotiable.
 
@@ -57,18 +57,18 @@ Every response includes:
 
 ## Per-tenant grandfathering
 
-Some Cognizant Gold-tier customers may negotiate longer deprecation windows in their MSA. The mechanism:
+Some Gold-tier customers may negotiate longer deprecation windows in their MSA. The mechanism:
 
 ```sql
 ALTER TABLE org_quotas ADD COLUMN api_version_grandfather_until TIMESTAMPTZ;
 ```
 
-When set, the API serves `/v1` to that tenant beyond the global Sunset date, until `api_version_grandfather_until`. SRE alert + AeroFyta engineering review per renewal cycle.
+When set, the API serves `/v1` to that tenant beyond the global Sunset date, until `api_version_grandfather_until`. SRE alert + ClinCase engineering review per renewal cycle.
 
 ## How a `/v2` rollout looks operationally
 
 ```
-T-30d:  /v2 spec published in ops/api/v2-spec.yaml + reviewed by Cognizant TriZetto product
+T-30d:  /v2 spec published in ops/api/v2-spec.yaml + reviewed by TriZetto product
 T-14d:  /v2 endpoints deployed to staging; integration tests against TriZetto staging Gateway
 T-7d:   /v2 deployed to production behind a feature flag (TENANT_OPT_IN_V2)
 T-0d:   /v2 generally available; /v1 enters Coexist phase
@@ -83,7 +83,7 @@ T+270d: /v1 fully sunset; all endpoints return 410 except grandfathered tenants
 |---|---|---|
 | `/api/v1` | **Stable** | Every endpoint listed in `docs/INDEX.md` § "Backend code" |
 
-`/api/v2` is not yet planned. The next major version would address breaking changes that come up during the first Cognizant pilot — most likely:
+`/api/v2` is not yet planned. The next major version would address breaking changes that come up during the first customer pilot — most likely:
 
 - Multi-tenant Bedrock model selection in the response (today implicit; v2 makes it explicit)
 - Pagination schema standardization (today inconsistent across `list_cases` / `list_jobs`)
@@ -91,7 +91,7 @@ T+270d: /v1 fully sunset; all endpoints return 410 except grandfathered tenants
 
 ## Why this matters
 
-A Cognizant TriZetto customer's CTO asks: *"What's your API deprecation policy?"* — without this doc, the answer is silence. Industry-grade systems have published deprecation timelines. Stripe, Twilio, AWS, GitHub — every Tier-1 API publishes this exact shape of policy.
+A TriZetto customer's CTO asks: *"What's your API deprecation policy?"* — without this doc, the answer is silence. Industry-grade systems have published deprecation timelines. Stripe, Twilio, AWS, GitHub — every Tier-1 API publishes this exact shape of policy.
 
 ## Sources
 

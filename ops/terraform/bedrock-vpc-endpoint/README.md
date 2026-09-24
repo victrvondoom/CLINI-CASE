@@ -26,7 +26,7 @@ conditions**. Cited from [AWS Architecture blog — Amazon Bedrock category](htt
    - `bedrock:InvokeModel` and `bedrock:InvokeModelWithResponseStream`
    - **Per-model-id condition** restricting calls to the configured Sonnet +
      Haiku ARNs only. Any new model requires a Terraform change — exactly
-     the gating a Cognizant CISO wants.
+     the gating a CISO wants.
 
 4. **`aws_iam_role` `clincase-bedrock-invoke-role`** for the EKS pods
    (assumed via IRSA from the `clincase` namespace's ServiceAccount):

@@ -1,6 +1,6 @@
 # ClinCase — Architecture Decision Records
 
-This directory contains the canonical Architecture Decision Records (ADRs) for ClinCase. Each ADR captures **one** non-obvious design choice, the alternatives considered, and the reason it was made — in the format a senior engineer expects to see during onboarding or a Cognizant solution architect expects to see during pilot review.
+This directory contains the canonical Architecture Decision Records (ADRs) for ClinCase. Each ADR captures **one** non-obvious design choice, the alternatives considered, and the reason it was made — in the format a senior engineer expects to see during onboarding or a solution architect expects to see during pilot review.
 
 ## Index
 

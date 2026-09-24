@@ -90,6 +90,6 @@ chore(deps): bump python-pptx to 1.0.2
 ## Getting help
 
 - Architecture questions → read the ADRs first
-- Strategic alignment questions → [`ops/architecture/AI_VELOCITY_GAP_BUSINESS_CASE.md`](ops/industrialization/AI_VELOCITY_GAP_BUSINESS_CASE.md)
+- Strategic alignment questions → [`ops/architecture/BUSINESS_USE_CASE.md`](ops/architecture/BUSINESS_USE_CASE.md)
 - "How do I onboard a new customer?" → [`ops/multi-tenant/ONBOARDING.md`](ops/multi-tenant/ONBOARDING.md)
 - Production incidents → [`ops/sre/RUNBOOK.md`](ops/sre/RUNBOOK.md)

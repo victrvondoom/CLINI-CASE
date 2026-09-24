@@ -6,7 +6,7 @@ ClinCase is a healthcare-adjacent system that handles synthetic PHI in developme
 
 **Do NOT** open a public GitHub issue for vulnerabilities. Instead:
 
-- Email: `safety@clincase.example.com` (production) — for the hackathon, use `preethisivachandran0@gmail.com`
+- Report it privately through GitHub: [open a security advisory](https://github.com/victrvondoom/CLINI-CASE/security/advisories/new)
 - For PHI-related concerns specifically, **stop production traffic immediately** and follow [`ops/sre/RUNBOOK.md`](ops/sre/RUNBOOK.md) § INC-003.
 
 We will acknowledge within 24 hours and aim to confirm the issue + provide a remediation timeline within 72 hours.
@@ -41,7 +41,7 @@ Out of scope:
 
 ## What we don't consider a vulnerability
 
-- The hackathon-default `JWT_SECRET` (we expect customers to rotate via AWS Secrets Manager)
+- The development-default `JWT_SECRET` (we expect customers to rotate via AWS Secrets Manager)
 - Demo-mode `LLM_PROVIDER=openrouter` with shared credentials (only used in dev)
 - The in-process TriZetto mock receiver (`/_mock/inbox`) returning to all org users — it's intentionally accessible for the demo
 - Missing rate limiting on `/api/v1/healthz` (intentional — it's the K8s liveness probe)

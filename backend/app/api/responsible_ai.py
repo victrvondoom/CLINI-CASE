@@ -1,6 +1,6 @@
 """Responsible AI model card endpoint.
 
-The single artifact the EU AI Act / NIST AI RMF / ISO 42001 / a Cognizant
+The single artifact the EU AI Act / NIST AI RMF / ISO 42001 / an
 enterprise procurement officer all expect to see attached to a healthcare
 AI system in 2026.
 
@@ -12,7 +12,7 @@ Why all four frameworks at once:
   • ISO/IEC 42001:2023 is the AI Management System certification audit
     customers ask about during procurement.
   • AWS AI Service Cards + Anthropic system cards are the published
-    document formats that judges + customers will recognize.
+    document formats that auditors + customers will recognize.
 
 The card is generated from live system state (model IDs, agent counts,
 guardrail config) so what we declare always matches what we're running.
@@ -249,7 +249,7 @@ def _build_model_card() -> dict[str, Any]:
 
         # ---- Accountability ------------------------------------------------
         "contacts": {
-            "accountable_owner": "ClinCase Engineering — preethisivachandran0@gmail.com",
+            "accountable_owner": "ClinCase Engineering (vsrupeshkumar)",
             "safety_contact": "safety@clincase.example.com (production)",
             "vulnerability_disclosure": "/.well-known/security.txt",
         },

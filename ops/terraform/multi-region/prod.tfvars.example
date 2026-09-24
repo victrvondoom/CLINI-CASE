@@ -3,7 +3,7 @@
 primary_region   = "ap-south-1"
 secondary_region = "us-east-1"
 environment      = "prod"
-cost_center      = "AEROFYTA-CLINCASE-PROD"
+cost_center      = "CLINCASE-PROD"
 
 # RDS
 global_cluster_identifier = "clincase"

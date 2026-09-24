@@ -1,13 +1,12 @@
-# ClinCase × Cognizant — Closing the AI Adaptation Gap
+# ClinCase — Closing the AI Adaptation Gap
 
-**Conceptual peer of:** `ops/industrialization/AI_VELOCITY_GAP_BUSINESS_CASE.md`
-**Audience:** Cognizant Health Sciences leadership · TriZetto product engineering · client CIOs
+**Audience:** Payer operations leadership · TriZetto product engineering · client CIOs
 
-The Velocity Gap and the Adaptation Gap are the two sides of the same problem. They require different responses. ClinCase is engineered for both.
+Buying AI is no longer the hard part. Getting agents adopted into the processes that already run the business is. ClinCase is engineered for that second problem.
 
 | Gap | Question it answers | Where ClinCase fits |
 |---|---|---|
-| **AI Velocity Gap** (Ravi Kumar Dec 2025) | *"We bought $500B of AI infrastructure — where's the P&L value?"* | TriZetto AI Gateway-native bundle on Bedrock + Sonnet 4.6 + MCP — same stack Cognizant standardized on. |
+| **AI value gap** | *"We have invested heavily in AI infrastructure — where's the P&L value?"* | TriZetto AI Gateway-native bundle on Bedrock + Sonnet 4.6 + MCP, measured per case against a cited manual baseline. |
 | **AI Adaptation Gap** (2026) | *"We can build agents — but we can't get them adopted into our existing processes fast enough to compete."* | ClinCase is engineered to be *embedded into* existing TriZetto Facets / QNXT workflows, not launched as a parallel new product. |
 
 ---
@@ -25,7 +24,7 @@ The Adaptation Gap is the gap between "agents exist" and "agents are doing the w
 Closing it requires four things:
 
 1. **Embed, don't replace.** New agents must drop into existing systems of record (ticketing, CRM, claims platforms) — not require parallel platforms.
-2. **Context engineering** ("agentic capital" — Cognizant 2026). The agent must inherit the operator's working knowledge, not start cold.
+2. **Context engineering.** The agent must inherit the operator's working knowledge, not start cold.
 3. **Goal-shaped workflows.** Single LLM calls don't move processes. Goals → multi-agent networks → actions → outcomes do.
 4. **Operator-friendly UX.** Asynchronous + autonomous: the operator delegates the macro task, the agent network executes, the operator micro-steers.
 
@@ -35,19 +34,18 @@ Closing it requires four things:
 
 ### 1. Embedded into the TriZetto book of business — not a parallel product
 
-ClinCase is a **TriZetto AI Gateway-native specialty agent bundle** ([Cognizant Aug 6 2025 launch](https://news.cognizant.com/2025-08-06-Cognizant-Debuts-TriZetto-R-AI-Gateway-to-Power-the-Next-Generation-of-AI-in-Healthcare)). It does not require a customer to provision a new platform; it deploys as a Day-1 add-on inside an existing Cognizant subscription.
+ClinCase is a **TriZetto AI Gateway-native specialty agent bundle** (the Gateway launched Aug 6, 2025). It does not require a customer to provision a new platform; it deploys as a Day-1 add-on inside an existing TriZetto subscription.
 
 Concrete realization (already shipped):
 - `app/integrations/trizetto/` — Facets `prior_auth_event v3` + QNXT `case_event v2` adapters with SHA-256 tamper-evident decision hashes.
 - `POST /api/v1/integrations/trizetto/submit` — one-click submission round-trip.
 - `app/mcp/server.py` — JSON-RPC 2.0 MCP-compliant tool surface the AI Gateway already speaks.
 
-A Cognizant Facets customer's existing PA workflow is unchanged on the operator side. The change is on the *capability* side — the same workflow now produces decisions in 90 seconds instead of 7 days.
+A Facets customer's existing PA workflow is unchanged on the operator side. The change is on the *capability* side — the same workflow now produces decisions in 90 seconds instead of 7 days.
 
 ### 2. Context engineering as a first-class layer
 
-> *"AI agents fail at inputs, not reasoning; context engineering and knowledge integration are critical."*
-> — Cognizant 2026 narrative
+> *AI agents fail at inputs, not reasoning; context engineering and knowledge integration are critical.*
 
 ClinCase's Context Retrieval Service (Layer 3 in `ops/architecture/TARGET_ARCHITECTURE.md`) is built for this:
 
@@ -88,7 +86,7 @@ The actions are formalized in `ops/architecture/AGENTIC_ACTIONS.md` (Nova Act-al
 
 ### 4. Asynchronous + autonomous, with operator micro-steering
 
-ClinCase's reviewer experience matches Cognizant's stated agentic delivery vision:
+ClinCase's reviewer experience follows the async-autonomous delivery pattern:
 
 - **Async submit** via `POST /run-async` — operator fires the goal, gets a `job_id` back in <100 ms.
 - **SSE trace stream** — operator watches the agent network execute in real time.
@@ -96,7 +94,7 @@ ClinCase's reviewer experience matches Cognizant's stated agentic delivery visio
 - **Per-case Evidence Pack** — operator can drill into any decision in 12 seconds.
 - **Override + reviewer_actions audit** — every operator decision is auditable; the agent network learns which dimensions trigger overrides (out of scope for the MVP).
 
-This is "operators delegate macro tasks and micro-steer outcomes" in the form Cognizant describes for Flowsource. ClinCase's case-detail page is the literal Flowsource-shaped UX for the oncology PA workflow.
+Operators delegate macro tasks and micro-steer outcomes. ClinCase's case-detail page is that UX shape, applied to the oncology PA workflow.
 
 ---
 
@@ -117,34 +115,32 @@ These ranges come from public 2026 enterprise GenAI/agent benchmarks. ClinCase's
 
 | Day | Adaptation milestone | Adoption-gap closure mechanism |
 |---|---|---|
-| **0** | Cognizant TriZetto pilot customer signs | Bundle deploys natively to existing AI Gateway — no new platform decision |
+| **0** | TriZetto pilot customer signs | Bundle deploys natively to existing AI Gateway — no new platform decision |
 | **7** | Per-tenant Bedrock Guardrail provisioned | `BEDROCK_GUARDRAIL_ID` env per tenant; customer's PHI policy attached at every model call |
 | **14** | First synthetic case live | `POST /api/v1/demo-fixtures/{name}/create-case` → full DAG runs end-to-end |
 | **21** | First production case live | Operator runs through the goal → network → actions → outcome flow on a real PA |
 | **30** | First reviewer signs off on a HITL pause | CA SB 1120 / CMS-0057-F § IV.C compliance verified in production |
 | **45** | Provisioned Throughput pinned | `ops/terraform/provisioned-throughput/` apply — predictable cost + TPM |
 | **60** | Second specialty live | Cardiology / behavioral health via Kiro spec edit + Hook regen |
-| **90** | First public pilot ROI report | Per-case savings · Star Ratings projection · provider abrasion reduction — published in joint AWS+Cognizant blog post |
+| **90** | First public pilot ROI report | Per-case savings · Star Ratings projection · provider abrasion reduction |
 
-Day-0-to-Day-90 mapped to the Cognizant Agent Foundry stages in `ops/industrialization/CHECKLIST.md` (Discover · Design · Build · Scale).
+Day-0-to-Day-90 mapped to the Agent Foundry stages in `ops/industrialization/CHECKLIST.md` (Discover · Design · Build · Scale).
 
 ---
 
 ## Why this matters strategically
 
-The Velocity Gap is the conversation a CFO has with the Board. The Adaptation Gap is the conversation a COO has with the operating committee.
+The value gap is the conversation a CFO has with the Board. The Adaptation Gap is the conversation a COO has with the operating committee.
 
-A Cognizant pitch that wins both rooms says:
+ClinCase answers both:
 
-> *"We close the Velocity Gap by deploying agents on the same Bedrock + Claude + MCP stack you already approved. We close the Adaptation Gap by embedding those agents into the TriZetto workflow your operators already use. ClinCase is one bundle that crosses both gaps — drop in Monday, value on Day 21, scaled by Day 90."*
+> *Deploy agents on the same Bedrock + Claude + MCP stack you already approved, embedded into the TriZetto workflow your operators already use. One bundle crosses both gaps: drop in Monday, value on Day 21, scaled by Day 90.*
 
-That's the line. It is groundable to public sources. It is consistent with the existing PPT. And every claim has a live, click-able backing in the running app.
+Every claim is groundable to public sources, and every claim has a live, click-able backing in the running app.
 
 ---
 
 ## Sources
 
-- AI velocity gap — [Ravi Kumar / Constellation 2025](https://www.constellationr.com/insights/news/cognizant-aims-solve-ai-velocity-gap)
-- Adaptation gap — industry knowledge anchored to Cognizant 2026 narrative ("AI capability is outrunning organizational adaptation"), Cureintent 2026 PA Automation, AHIP 2026 progress report
-- Cognizant Agent Foundry stages — [press release Jul 10 2025](https://news.cognizant.com/2025-07-10-Cognizant-Introduces-Agent-Foundry-Powering-Agentic-AI-at-Enterprise-Scale)
-- 47% returns / 32% agent adoption — early-adopter benchmark cited in [erp.today on Cognizant + Microsoft last-mile](https://erp.today/cognizant-and-microsoft-target-the-last-mile-problem-in-enterprise-ai/)
+- Adaptation gap — industry knowledge ("AI capability is outrunning organizational adaptation"), Cureintent 2026 PA Automation, AHIP 2026 progress report
+- 47% returns / 32% agent adoption — early-adopter enterprise AI benchmarks, 2026

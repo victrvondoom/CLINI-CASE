@@ -3,9 +3,9 @@
  * with sensitive PHI in the physician note. Slide-in from top with a red-tinted
  * backdrop pulse, auto-dismisses after 8s.
  *
- * This is the demo-day cinematic moment for healthcare compliance — when the
- * Bedrock Guardrails are wired in production (May 6), this exact UX is what
- * fires automatically every time PHI is detected.
+ * This is the product's most visible compliance moment — when Bedrock
+ * Guardrails are wired in production, this exact UX is what fires
+ * automatically every time PHI is detected.
  */
 import clsx from "clsx";
 import { Eye, EyeOff, ShieldCheck, X } from "lucide-react";

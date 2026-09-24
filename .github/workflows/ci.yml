@@ -106,7 +106,7 @@ jobs:
           "
 
   # ===========================================================================
-  # 3. Demo fixtures — judges' download must always work
+  # 3. Demo fixtures — the sample downloads must always work
   # ===========================================================================
   demo-fixtures:
     name: Demo fixtures · readiness
@@ -131,11 +131,6 @@ jobs:
           done
           echo "All 6 demo PDFs present and non-empty."
 
-      - name: Verify pitch.md is non-empty
-        run: |
-          test -s pitch.md || { echo "::error::pitch.md is missing or empty"; exit 1; }
-          lines=$(wc -l < pitch.md)
-          echo "pitch.md is $lines lines."
 
   # ===========================================================================
   # 4. README — enforce the core product sections

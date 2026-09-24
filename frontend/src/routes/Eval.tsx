@@ -5,7 +5,7 @@
  * submissions is "feels like a prototype, not a product."
  * This page exists to invert that. It shows precision/recall/F1 per verdict
  * class, a confusion matrix, per-payer breakdown, and an honest disagreement
- * taxonomy — so a judge can confirm in 30 seconds that ClinCase is calibrated,
+ * taxonomy — so a reviewer can confirm in 30 seconds that ClinCase is calibrated,
  * not vibes.
  *
  * Gold labels are produced offline by scripts/generate_gold_labels.py against

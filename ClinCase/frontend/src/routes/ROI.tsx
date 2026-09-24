@@ -27,7 +27,7 @@ import {
 } from "../lib/api";
 
 const PRESETS: Array<{ label: string; member_count: number; note: string }> = [
-  { label: "Mid-size regional payer", member_count: 100_000, note: "Aerofyta-scale demo cohort" },
+  { label: "Mid-size regional payer", member_count: 100_000, note: "Demo cohort scale" },
   { label: "Centene MA segment", member_count: 1_500_000, note: "Public CMS enrollment" },
   { label: "Humana MA enrollment", member_count: 6_000_000, note: "$1.26B / half-star" },
   { label: "UnitedHealthcare MA", member_count: 7_800_000, note: "Largest MA payer" },

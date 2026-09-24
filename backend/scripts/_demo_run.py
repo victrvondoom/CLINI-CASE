@@ -17,7 +17,7 @@ def get(path, headers=None):
     return json.loads(urllib.request.urlopen(urllib.request.Request(API+path, headers=headers or {}), timeout=120).read())
 
 # Login
-auth = post("/api/v1/auth/login", {"email":"admin@aerofyta.health","password":"clincase2026"})
+auth = post("/api/v1/auth/login", {"email":"admin@clincase.health","password":"clincase2026"})
 T = auth["access_token"]
 H = {"Authorization": f"Bearer {T}"}
 

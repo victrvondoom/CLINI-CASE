@@ -162,8 +162,7 @@ flowchart LR
 
 ---
 
-## Where these diagrams live in the demo
+## Where these diagrams appear
 
-- **Slide 4** (Technical Design and architecture) of [`CLINCASE_MVP_DECK.pptx`](../ops/demo/CLINCASE_MVP_DECK.pptx) — embed the 5-layer ASCII as a pre-formatted text block
 - **`/architecture` page** in the running app — same data live-introspected
 - **README.md** — the same 5-layer ASCII at the top

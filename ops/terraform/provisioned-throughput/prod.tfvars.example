@@ -4,9 +4,9 @@ primary_region          = "ap-south-1"
 secondary_region        = "us-east-1"
 enable_secondary_region = false   # flip to true once multi-region module is applied
 environment             = "prod"
-cost_center             = "AEROFYTA-CLINCASE-PROD"
+cost_center             = "CLINCASE-PROD"
 
-# Model selection — these are the May 6 Pune migration targets
+# Model selection — these are the Bedrock migration targets
 sonnet_model_id = "apac.anthropic.claude-sonnet-4-6-20251022-v1:0"
 haiku_model_id  = "apac.anthropic.claude-haiku-4-5-20251001-v1:0"
 

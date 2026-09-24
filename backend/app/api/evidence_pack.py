@@ -1,6 +1,6 @@
 """Evidence Pack — auditor-grade single-bundle export per case.
 
-The single artifact a CMS auditor / state regulator / Cognizant compliance
+The single artifact a CMS auditor / state regulator / payer compliance
 officer asks for: "show me everything you know about case X, in one file,
 that I can verify hasn't been edited."
 

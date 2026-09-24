@@ -115,9 +115,9 @@ These mirror what a payer's medical director writes in an actual PA decision let
 }
 ```
 
-### Example D — REFER for borderline off-label use with compendium support (the judge-probe case)
+### Example D — REFER for borderline off-label use with compendium support (the audit-probe case)
 
-This is the case Cognizant judges have probed historically: a high-stakes off-label request where compendium evidence exists but is mixed. The verdict must be REFER (not DENY, not silent APPROVE) — the rationale must explicitly cite the compendium pathway AND the gap that pushes the case to human review. Confidence is mid-band (0.55–0.65), reflecting honest uncertainty.
+This is the case reviewers probe most often: a high-stakes off-label request where compendium evidence exists but is mixed. The verdict must be REFER (not DENY, not silent APPROVE) — the rationale must explicitly cite the compendium pathway AND the gap that pushes the case to human review. Confidence is mid-band (0.55–0.65), reflecting honest uncertainty.
 
 ```json
 {
@@ -135,7 +135,7 @@ This is the case Cognizant judges have probed historically: a high-stakes off-la
 }
 ```
 
-Why this is the judge-probe case: it tests three things at once — (1) the agent uses `kind=compendium` and `kind=fda_label` not just policy/clinical, (2) the agent does NOT default to DENY when on-label evidence exists in mixed form, (3) the agent does NOT silently APPROVE when guideline ordering creates real ambiguity. REFER + 0.58 confidence + both `off-label` and `low-evidence` flags is the correct answer; anything else fails the audit.
+Why this is the audit-probe case: it tests three things at once — (1) the agent uses `kind=compendium` and `kind=fda_label` not just policy/clinical, (2) the agent does NOT default to DENY when on-label evidence exists in mixed form, (3) the agent does NOT silently APPROVE when guideline ordering creates real ambiguity. REFER + 0.58 confidence + both `off-label` and `low-evidence` flags is the correct answer; anything else fails the audit.
 
 ## Adversarial cases — explicit handling
 

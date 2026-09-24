@@ -1,7 +1,7 @@
 """Business value instrumentation — turn agent outputs into payer KPIs.
 
 Three sources of business value an ClinCase deployment delivers, each
-quantified in $$ a Cognizant sales motion can defend:
+quantified in $$ a sales team can defend:
 
   1. Direct PA-cost displacement
        Industry baseline (CAQH, AMA): $35B/year US PA admin spend; ~$1,500

@@ -3,7 +3,7 @@
  * Authorization Final Rule, Federal Register 89 FR 8758, published Feb 8 2024).
  *
  * These are the specific requirements ClinCase is built to satisfy. We surface
- * each clause by ID throughout the UI so demos, audits, and judges can see
+ * each clause by ID throughout the UI so demos, audits, and reviews can see
  * exactly which obligations the system addresses.
  *
  * Source: https://www.cms.gov/cms-interoperability-and-prior-authorization-final-rule-cms-0057-f

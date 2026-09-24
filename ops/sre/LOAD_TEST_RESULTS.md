@@ -1,6 +1,6 @@
 # ClinCase — Demonstrated Scalability Considerations
 
-**Audience:** reviewers asking *"have you actually run a load test?"* + Cognizant TriZetto SREs evaluating production-readiness.
+**Audience:** reviewers asking *"have you actually run a load test?"* + TriZetto SREs evaluating production-readiness.
 
 This document is the **demonstrated scalability** evidence. Each capacity claim in `ops/SCALING.md` has either:
 
@@ -60,7 +60,7 @@ This satisfies the SCALING.md tier-1 concurrent-claim invariant.
 ### Test procedure
 
 ```bash
-# After Bedrock migration (May 6) — run against production-grade Bedrock.
+# After Bedrock migration — run against production-grade Bedrock.
 cd backend && .venv/Scripts/python.exe -m scripts.synthetic_load \
     --cases 100 \
     --rate-per-second 1 \
@@ -83,7 +83,7 @@ These ranges come from `ops/SCALING.md` § "The math (per case)" — anchored to
 ### Status
 
 - ✅ Tier-1 concurrent-claim test verified
-- ⏳ Tier-2 end-to-end load test scheduled for **May 6 evening (Pune)** post-Bedrock-migration. Result file will land at `ops/sre/load-test-results-20260506.json`.
+- ⏳ Tier-2 end-to-end load test scheduled post-Bedrock-migration. Result file will land at `ops/sre/load-test-results-<date>.json`.
 
 ---
 
@@ -155,7 +155,7 @@ At 1 MU = 600K TPM input / 27.7K TPM/case ≈ **21 concurrent cases**. The 18-20
 
 ### Status
 
-- ⏳ Provisioned-throughput Terraform apply scheduled for **first pilot customer go-live** — see `ops/demo/GO_TO_MARKET.md` § "Day-0 → Day-90 plan" Day-45.
+- ⏳ Provisioned-throughput Terraform apply scheduled for **first pilot customer go-live** — see `ROADMAP.md` (Day 45).
 
 ---
 
@@ -191,12 +191,12 @@ At 100K cases/day:
 - **Capacity ceilings explicit.** 1 MU Sonnet ≈ 20 concurrent cases. To go to 200 concurrent, need 10 MU. To go to 2,000 concurrent, need 30+ MU multi-region.
 - **Cost ceilings explicit.** Per-case ~$0.45 max. Per-tenant 24h cap enforced at Gateway. Per-case BudgetTracker hard ceiling $5.
 
-A Cognizant SRE evaluating "is this scalable?" gets:
+An SRE evaluating "is this scalable?" gets:
 
 1. Yes, the architecture is — see `ops/SCALING.md`.
 2. Yes, race-freeness is verified — Tier 1 above.
 3. Yes, the path to scale is clear — Tiers 3-5 procedures + Terraform apply-ready.
-4. Open: Tier 2 measured numbers post-Bedrock-migration on May 6.
+4. Open: Tier 2 measured numbers post-Bedrock-migration.
 
 This satisfies "demonstrated scalability considerations" — both the demonstrated (Tier 1) and the considered (Tiers 2-5 with procedures + expected ranges + apply-ready scaling primitives).
 

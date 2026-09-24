@@ -1,6 +1,6 @@
 # ClinCase — Disaster Recovery & Business Continuity Playbook
 
-**Audience:** ClinCase SRE rotation · Cognizant TriZetto on-call SA · auditor verifying RPO/RTO commitments
+**Audience:** ClinCase SRE rotation · TriZetto on-call SA · auditor verifying RPO/RTO commitments
 
 This playbook covers what we do when **a region goes away**. Companion to:
 - [`RUNBOOK.md`](./RUNBOOK.md) — incident response (single-region issues)
@@ -29,7 +29,7 @@ Each scenario has: **trigger**, **the call** (what we do), **success criteria**,
 **Trigger:** AWS Health declares `ap-south-1` Bedrock + RDS + EC2 simultaneously degraded. Customer impact begins.
 
 **The call:**
-1. Page primary on-call + business owner + Cognizant TriZetto on-call SA.
+1. Page primary on-call + business owner + TriZetto on-call SA.
 2. Verify multi-region module is applied (`terraform output -state=multi-region.tfstate`).
 3. Promote the `us-east-1` Aurora secondary to primary:
    ```bash
@@ -87,7 +87,7 @@ Each scenario has: **trigger**, **the call** (what we do), **success criteria**,
 
 **Success criteria:** Data integrity restored within 4 hours. Customer notified per CMS-0057-F § IV.D and per BAA contractually.
 
-### DR-04 — Cognizant TriZetto Gateway prolonged outage
+### DR-04 — TriZetto Gateway prolonged outage
 
 **Trigger:** TriZetto AI Gateway returns 5xx for > 30 minutes; affects all our customer's downstream Facets workflow.
 
@@ -96,7 +96,7 @@ Each scenario has: **trigger**, **the call** (what we do), **success criteria**,
 2. The TriZetto submit step in the saga goes into the "pending compensation" state ([`SAGA_PATTERN.md`](../architecture/SAGA_PATTERN.md)).
 3. Coordinator UI shows: "Decision recorded. TriZetto Gateway temporarily unavailable; submit will be retried in the background."
 4. Background retry worker drains the pending submits when Gateway recovers.
-5. Notify Cognizant TriZetto on-call SA per [`RUNBOOK.md`](./RUNBOOK.md) escalation table.
+5. Notify TriZetto on-call SA per [`RUNBOOK.md`](./RUNBOOK.md) escalation table.
 
 **Success criteria:** Zero in-house data loss. Submits drain within 60 minutes of Gateway recovery.
 
@@ -110,7 +110,7 @@ Each scenario has: **trigger**, **the call** (what we do), **success criteria**,
    kubectl scale deploy/clincase-api -n clincase --replicas=0
    kubectl scale deploy/clincase-worker -n clincase --replicas=0
    ```
-2. Page primary + business owner + Cognizant Health Sciences vertical lead.
+2. Page primary + business owner + partner health-sciences lead.
 3. Rotate every secret in AWS Secrets Manager.
 4. Rotate the per-tenant Bedrock Guardrail IDs (regenerate via Terraform).
 5. Force every JWT to be revoked (issue a JWT_SECRET rotation; users re-login).
@@ -123,10 +123,10 @@ Each scenario has: **trigger**, **the call** (what we do), **success criteria**,
 
 | Q | Drill | Owner |
 |---|---|---|
-| Q1 | DR-01 (full regional outage) | TL + Cognizant TriZetto SA |
+| Q1 | DR-01 (full regional outage) | TL + TriZetto SA |
 | Q2 | DR-02 (Bedrock-only outage) | TL |
 | Q3 | DR-03 (data corruption) | TL + DBA |
-| Q4 | DR-04 (TriZetto Gateway outage) | TL + Cognizant TriZetto SA |
+| Q4 | DR-04 (TriZetto Gateway outage) | TL + TriZetto SA |
 | Annual | DR-05 (security tabletop) | TL + business owner + safety contact |
 
 Each drill ends with a 1-page write-up at `ops/sre/dr-results/DR-NN-YYYY-Q.md` covering: did we hit RTO? what surprised us? what action items?

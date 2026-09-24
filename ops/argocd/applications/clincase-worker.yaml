@@ -10,7 +10,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/aerofyta/clincase.git
+    repoURL: https://github.com/victrvondoom/CLINI-CASE.git
     targetRevision: main
     path: ops/k8s/worker
   destination:

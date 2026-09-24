@@ -2,7 +2,7 @@
  * /login — email + password sign-in.
  *
  * Polished pre-demo: ClinCase mark (public/clincase-mark.svg), ambient glow,
- * and one-click demo accounts so judges can land in a workspace without typing.
+ * and one-click demo accounts so evaluators can land in a workspace without typing.
  */
 import { Loader2, LogIn, ShieldCheck, Sparkles } from "lucide-react";
 import { useState } from "react";
@@ -11,9 +11,9 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../components/AuthContext";
 
 const DEMO_ACCOUNTS = [
-  { email: "admin@aerofyta.health",        password: "clincase2026", role: "Admin",       desc: "Full access" },
-  { email: "reviewer@aerofyta.health",     password: "clincase2026", role: "Reviewer",    desc: "REFER queue" },
-  { email: "coordinator@aerofyta.health",  password: "clincase2026", role: "Coordinator", desc: "Create cases" },
+  { email: "admin@clincase.health",        password: "clincase2026", role: "Admin",       desc: "Full access" },
+  { email: "reviewer@clincase.health",     password: "clincase2026", role: "Reviewer",    desc: "REFER queue" },
+  { email: "coordinator@clincase.health",  password: "clincase2026", role: "Coordinator", desc: "Create cases" },
 ];
 
 export default function Login() {
@@ -22,7 +22,7 @@ export default function Login() {
   const location = useLocation();
   const from = (location.state as { from?: string } | null)?.from ?? "/dashboard";
 
-  const [email, setEmail] = useState("admin@aerofyta.health");
+  const [email, setEmail] = useState("admin@clincase.health");
   const [password, setPassword] = useState("clincase2026");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

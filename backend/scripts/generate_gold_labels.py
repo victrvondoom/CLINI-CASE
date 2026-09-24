@@ -4,7 +4,7 @@ Produces ``backend/app/data/gold_labels.json`` containing per-case "gold"
 labels — i.e., what an experienced oncologist would call each case if they
 were the second judge in a blind agreement study.
 
-For the hackathon demo, the labels are produced by a deterministic clinical
+For the demo cohort, the labels are produced by a deterministic clinical
 ruleset (NCCN-derived) rather than by a live oncologist or a second LLM run.
 This keeps the eval pipeline fast and reproducible. In production, this
 script would be replaced by a service that batches cases through a second

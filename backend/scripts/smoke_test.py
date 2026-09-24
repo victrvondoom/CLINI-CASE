@@ -2,7 +2,7 @@
 
 Run after backend boot: `cd backend && .venv/Scripts/python.exe -m scripts.smoke_test`
 
-Output is intentionally human-readable; capture to ops/demo/SMOKE_TEST_RESULTS.md.
+Output is intentionally human-readable; capture it to a file if you need a record.
 """
 from __future__ import annotations
 

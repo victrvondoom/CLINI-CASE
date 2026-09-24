@@ -1,6 +1,6 @@
 # ClinCase — Production Runbook
 
-**On-call audience:** ClinCase SRE rotation + Cognizant TriZetto on-call SA
+**On-call audience:** ClinCase SRE rotation + TriZetto on-call SA
 
 **Companion artifacts:**
 - `ops/sre/SLO.yaml` — SLO + error-budget definitions
@@ -176,18 +176,18 @@ Within 24 hours of resolution, the IC writes a post-mortem at `ops/sre/post-mort
 9. **Action items** — *blameless*. Each AI has owner, JIRA, deadline.
 10. **Glasses lessons** — what we learned for the rotation.
 
-The post-mortem is reviewed in the next weekly SRE sync and shared with Cognizant TriZetto on-call when the incident touched the integration surface.
+The post-mortem is reviewed in the next weekly SRE sync and shared with TriZetto on-call when the incident touched the integration surface.
 
 ---
 
-## Cognizant escalation contacts
+## Escalation contacts
 
 | Tier | Role | Channel | SLA |
 |---|---|---|---|
 | L1 | ClinCase SRE primary | PagerDuty `PD-CLINCASE-PRIMARY` | 5 min |
 | L2 | ClinCase engineering manager | Slack `#clincase-on-call` | 15 min |
-| L3 | Cognizant TriZetto on-call SA | Slack `#trizetto-clincase-bridge` (configured in shared workspace) | 30 min |
-| L4 | Cognizant Health Sciences vertical lead | Email + phone (TODO: configure post-pilot) | 1 hr |
+| L3 | TriZetto on-call SA | Slack `#trizetto-clincase-bridge` (configured in shared workspace) | 30 min |
+| L4 | partner health-sciences lead | Email + phone (TODO: configure post-pilot) | 1 hr |
 
 ---
 

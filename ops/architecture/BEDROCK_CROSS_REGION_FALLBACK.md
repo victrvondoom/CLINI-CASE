@@ -1,7 +1,7 @@
 # ClinCase — Bedrock Cross-Region Fallback (in-process)
 
 **Status:** Accepted (round-12)
-**Audience:** Cognizant TriZetto SRE · AWS account team · Gold-tier customer SRE
+**Audience:** TriZetto SRE · AWS account team · Gold-tier customer SRE
 
 ## Why we need it
 

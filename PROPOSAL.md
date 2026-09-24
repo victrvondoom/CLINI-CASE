@@ -1,20 +1,19 @@
-# ClinCase — Master Proposal & Engineering Specification
+# ClinCase — Product & Engineering Specification
 
-**Team:** AeroFyta
 **Product:** ClinCase
-**Program:** National-level engineering innovation challenge, India, 2026
+**Author:** vsrupeshkumar
 **Domain:** Healthcare
 **Theme:** Prior Authorisation Automation
 **Wedge:** Oncology prior authorisation + auto-drafted appeals
 **Document version:** v1.0
-**Document purpose:** Single source of truth for Team AeroFyta and for every Claude Code session. The April 12 Superset form submission, the April 23 Agent Builder Challenge, the May 6 Pune MVP build, the pitch deck, the demo script, and every line of code derive from this file. If anything contradicts this file, this file wins. If something needs to change, change it here first and bump the version in Section 28.
+**Document purpose:** The reference specification for ClinCase's architecture, agent contracts and data models. Code docstrings cite its section numbers. If anything contradicts this file, this file wins. If something needs to change, change it here first and bump the version in Section 24.
 
 ---
 
 ## TABLE OF CONTENTS
 
 **PART A — STRATEGY (the Why / How / What)**
-1. Elevator pitch
+1. Summary
 2. WHY — Problem, scope, stakeholders
 3. HOW — Solution overview, technical details, innovation, market potential
 4. WHAT — Value proposition with quantified targets
@@ -41,19 +40,15 @@
 21. Sample data, seed scripts, and demo fixtures
 22. Error handling, retry, and graceful degradation
 
-**PART D — EXECUTION**
+**PART D — CONVENTIONS**
 23. CLAUDE.md conventions for Claude Code sessions
-24. 23-day prep plan (April 13 → May 5)
-25. Pitch script (5 minutes for May 7)
-26. Demo script (3 minutes, second-by-second)
-27. Risk register
-28. Change log
+24. Change log
 
 ---
 
 # PART A — STRATEGY
 
-## 1. Elevator pitch (memorize this)
+## 1. Summary
 
 In March 2024, a stage-3 breast cancer patient in the United States waited 27 days for her insurer to approve the chemotherapy her oncologist had already prescribed. The drug was eventually approved on appeal. She started treatment six weeks late.
 
@@ -91,7 +86,7 @@ We assume FHIR R4 clinical data inputs (Synthea-generated synthetic patient reco
 - **Regulatory stakeholder:** CMS, whose 2026/2027 rule effectively mandates the kind of FHIR-native, programmatic prior authorisation infrastructure ClinCase is built around.
 - **Enterprise health IT channel:** ClinCase is built to be the kind of system a systems integrator could put in front of an existing client on Monday morning.
 
-### 2.4 Compressed Why (~600 chars, for Superset form)
+### 2.4 Short version
 
 > Prior authorisation delays cancer treatment for millions of patients each year. The AMA's 2024 survey reports 94% of physicians say PA delays care and 24% report a serious adverse event from PA. KFF reports 80.7% of *appealed* Medicare Advantage denials are overturned — yet most are never appealed because the manual workload is crushing. The CMS Interoperability and Prior Authorization Final Rule (CMS-0057-F) mandates electronic PA infrastructure with operational provisions from Jan 1, 2026 and Prior Authorization API requirements from Jan 1, 2027. Every impacted US payer must comply, and enterprise health IT vendors sell into this market today.
 
@@ -138,7 +133,7 @@ The US prior authorisation automation market sits inside a broader healthcare ad
 
 The health sciences segment includes deep, existing relationships with both payer and provider clients across the US.
 
-### 3.5 Compressed How (~800 chars, for Superset form)
+### 3.5 Short version
 
 > ClinCase is a provider-side, agentic prior authorisation copilot for oncology, built as a LangGraph DAG of five named agents: Clinical Extractor (parses FHIR + physician notes), Policy Retriever (RAG over real payer medical policies), Necessity Reasoner (matches evidence to policy criteria line-by-line), Decision Composer (produces APPROVE/DENY/REFER with full citation chain), and Appeals Drafter (auto-drafts evidence-grounded appeal letters on denial). Built on Python/FastAPI/React/PostgreSQL with pgvector, deployed on AWS, using LangChain + LangGraph + Anthropic Claude. Synthea-generated FHIR data and publicly-available payer policies make the demo real, not toy. A streaming reasoning-trace UI and a structured audit log make every decision reproducible and defensible. The appeals workflow is the differentiator — KFF reports 80.7% of appealed Medicare Advantage denials are overturned, yet most denials are never appealed.
 
@@ -174,7 +169,7 @@ The health sciences segment includes deep, existing relationships with both paye
 - Addresses a federally-mandated 2026/2027 buying cycle
 - Audit-trail completeness: **100%** — every agent decision is logged with inputs, outputs, tool calls, and citations
 
-### 4.2 Compressed What (~700 chars, for Superset form)
+### 4.2 Short version
 
 > ClinCase delivers measurable value across every stakeholder. For patients: time-to-treatment in oncology drops from days to minutes on straightforward cases, and appeal cycles drop from weeks to minutes on denied cases — directly improving survival-relevant treatment timelines. For providers: 70–85% reduction in PA coordinator hours per case, dramatically higher appeal-success rate (anchored on KFF's 80.7% overturn-on-appeal baseline), and direct revenue capture from previously-abandoned denials. For payers: cleaner submissions, faster decisions, and a defensible audit trail aligned with CMS-0057-F. For enterprise health IT vendors: a production-grade, FHIR-native, agentic solution built on the recommended stack, ready for the health sciences segment.
 
@@ -182,18 +177,16 @@ The health sciences segment includes deep, existing relationships with both paye
 
 ## 5. Locked facts and statistics (single source of truth)
 
-> Use these exact numbers everywhere — the form, the deck, the demo, Q&A. Do not paraphrase, do not round, do not improvise. If a teammate cites a different number, correct them against this section.
+> Use these exact numbers everywhere in product materials. Do not paraphrase, do not round, do not improvise. If a document cites a different number, correct it against this section.
 
 - **CMS Interoperability and Prior Authorization Final Rule (CMS-0057-F):** Operational and process provisions generally begin **January 1, 2026**. Prior Authorization API requirements (and other API requirements) generally due **January 1, 2027**. Applies to Medicare Advantage organisations, state Medicaid and CHIP agencies, and QHP issuers on the Federally-Facilitated Exchanges.
 - **AMA 2024 prior authorization survey:** **94%** of physicians report PA delays patient care. **24%** of physicians report PA has led to a serious adverse event for a patient in their care. Physicians handle approximately **39** PAs per week per practice.
 - **KFF 2024 Medicare Advantage analysis:** **80.7%** of appealed prior authorisation denials in Medicare Advantage in 2024 were partially or fully overturned. The rate of denials that are appealed at all is small.
-- **Program framing:** This is a national-level innovation platform for 2027 engineering graduates across India. Never call it international.
-- **Tech stack to name in the submission:** Python, TypeScript, FastAPI, React, PostgreSQL with pgvector, LangChain, LangGraph, Anthropic Claude, AWS, Docker.
-- **Heuristics, not facts (do not cite):** pick-rate estimates for other themes, probability-of-top-3 percentages, any speculative claim about competitor teams.
+- **Tech stack:** Python, TypeScript, FastAPI, React, PostgreSQL with pgvector, LangChain, LangGraph, Anthropic Claude, AWS, Docker.
 
 ---
 
-## 6. Glossary (non-healthcare teammates ramp in 20 minutes)
+## 6. Glossary (for readers new to healthcare)
 
 - **Prior Authorisation (PA):** The process by which a provider must get approval from an insurer before delivering a treatment. Without it, the insurer will not pay.
 - **Payer:** The insurance company. In the US: Aetna, Anthem, BCBS, UnitedHealthcare, Cigna, Humana, Medicare Advantage organisations, Medicaid agencies.
@@ -1324,7 +1317,7 @@ if __name__ == "__main__":
 
 ---
 
-# PART D — EXECUTION
+# PART D — CONVENTIONS
 
 ## 23. CLAUDE.md conventions (for Claude Code sessions)
 
@@ -1335,8 +1328,8 @@ The repo will contain a `CLAUDE.md` at the root that Claude Code reads at the st
 
 ## Read first
 - `PROPOSAL.md` is the single source of truth. Do not contradict it.
-- This is an early-stage project but the code must look production-grade.
-  The reviewing judges are enterprise architects.
+- This is an early-stage product but the code must be production-grade.
+  Its reviewers are enterprise architects.
 
 ## Coding conventions
 - Python: 3.11, type hints everywhere, Pydantic v2 models for every contract,
@@ -1368,110 +1361,12 @@ The repo will contain a `CLAUDE.md` at the root that Claude Code reads at the st
 ## Demo discipline
 - The demo cohort is the 10 cases in `backend/app/synthea/seeds/`. Do not
   add new cases without updating PROPOSAL.md Section 21.
-- The demo script in PROPOSAL.md Section 26 is the authoritative path.
 ```
 
-## 24. 23-day prep plan (April 13 → May 5)
+## 24. Change log
 
-### Week 1 — Foundation (April 13–19)
-- **Day 1 (Apr 13):** Lock PROPOSAL.md v1.0. All four teammates read it end-to-end. Set up GitHub repo with this file at root.
-- **Day 1:** One teammate begins reading 2 real Aetna oncology medical policies in full and writes a 1-page summary into PROPOSAL.md as a new appendix.
-- **Day 2 (Apr 14):** Initialise the monorepo per Section 15. Create empty packages, `pyproject.toml`, `package.json`, `docker-compose.yml`, `Makefile`, `.env.example`.
-- **Day 2:** Stand up Postgres via Docker Compose. Apply `schema.sql`. Verify `pgvector` extension loads.
-- **Day 3 (Apr 15):** Implement `backend/app/models/*` (all five Pydantic schemas). Implement `backend/app/graph/state.py`. Write unit tests for the models.
-- **Day 4 (Apr 16):** Implement `backend/app/observability/trace.py` and `backend/app/streaming.py`. Write a stub agent that uses `trace_agent` and verify SSE events flow.
-- **Day 5 (Apr 17):** Implement Agent 1 (Clinical Extractor) with its prompt file and contract test. Use a Synthea-generated stage IIIA HER2+ breast cancer bundle as the first fixture.
-- **Day 6 (Apr 18):** Generate 10 Synthea oncology cases and hand-label them. Place in `backend/app/synthea/seeds/`. Implement `seed.py` and verify all 10 land in the DB.
-- **Day 7 (Apr 19):** Implement `backend/app/ingestion/ingest_policies.py`. Download 4–5 real public oncology policies (Aetna trastuzumab, Aetna pembrolizumab, BCBS osimertinib, etc.). Ingest them. Verify pgvector retrieval returns sensible results on 5 manual queries.
-
-### Week 2 — Core agents + Agent Builder Challenge (April 20–23)
-- **Day 8 (Apr 20):** Implement Agent 2 (Policy Retriever) with re-rank prompt and contract test.
-- **Day 9 (Apr 21):** Implement Agent 3 (Necessity Reasoner) with prompt and contract test. End-of-day milestone: Agents 1+2+3 wired through LangGraph end-to-end on at least one demo case.
-- **Day 10 (Apr 22):** Rehearse the 60-second decomposition pitch ten times as a team. Build a one-page printable cheat-sheet with the agent diagram and the locked facts. Pre-build the LangGraph skeleton with placeholder nodes that you can fill in live on April 23.
-- **Day 11 (Apr 23): AGENT BUILDER CHALLENGE.** Walk in with the rehearsed decomposition, the pre-built skeleton, and the contract tests. Fill in the agents live. Defend the architecture verbally.
-
-### Week 3 — Depth + the appeals wedge (April 24–30)
-- **Day 12 (Apr 24):** Implement Agent 4 (Decision Composer) with the deterministic verdict rule and the LLM justification step. Contract test.
-- **Day 13 (Apr 25):** Begin Agent 5 (Appeals Drafter). This is the differentiator — give it the most attention. Draft the prompt, test on case 5 (HER2- breast cancer requesting trastuzumab → DENY → APPEAL).
-- **Day 14 (Apr 26):** Finish Agent 5. Add the conditional edge in LangGraph. End-to-end test on cases 5 and 7 (the two denial → appeal cases).
-- **Day 15 (Apr 27):** Build `ReasoningTracePanel.tsx`. This is the second most-important UI element after the decision verdict itself. SSE wiring, animated card insertion, citation popovers.
-- **Day 16 (Apr 28):** Build `AuditLogViewer.tsx` and `ReviewerConsole.tsx`. Wire up the reviewer override path through the API.
-- **Day 17 (Apr 29):** Build `AppealLetterEditor.tsx`. Render the appeal as a formatted letter with inline citation chips. Allow the reviewer to edit and re-submit.
-- **Day 18 (Apr 30):** End-to-end integration test on all 10 demo cases. Fix everything that breaks. Tag `v0.9.0`.
-
-### Week 4 — Polish, rehearse, package (May 1–5)
-- **Day 19 (May 1):** Write the three demo scripts (happy, denial→appeal, audit view). Time them. Cut anything over budget. Practice transitions.
-- **Day 20 (May 2):** Dry-run the full pitch in front of two strangers (not teammates, not family — strangers). Take notes on every confused face.
-- **Day 21 (May 3):** Fix the demo and the deck based on dry-run feedback. Re-time. Re-rehearse.
-- **Day 22 (May 4):** Final dry-run. Record a video backup of each demo path (in case the live demo fails). Verify the Docker image runs on a clean machine that has never seen the repo. Vendor all dependencies offline.
-- **Day 23 (May 5):** Pack the USB. Verify ANTHROPIC_API_KEY works AND the Bedrock fallback works AND a local-cached prompt path works. Sleep early. Tag `v1.0.0`.
-
-### May 6 in Pune (24-hour MVP build)
-- **Hour 0:** Arrive with the scaffold. Smoke-test on the venue network.
-- **Hours 1–6:** Integrate any last polish. Re-seed the demo data. Re-verify the streaming UI on the venue's actual hardware/projector resolution.
-- **Hours 6–18:** Add one or two tasteful enhancements that are obviously fresh-built (a new policy from a new payer, a new edge-case demo case, an improvement to one agent's prompt). This is what you point at when asked "what did you build today?"
-- **Hours 18–24:** Final dry-runs. Sleep at least 4 hours.
-
-### May 7 in Pune
-- Pitch. Win.
-
-## 25. Pitch script (5 minutes for May 7)
-
-**[0:00–0:15] Cold open. No slides.**
-> "In March 2024, a stage-3 breast cancer patient in Ohio waited 27 days for her insurer to approve the chemotherapy her oncologist had already prescribed. The drug was eventually approved on appeal. She started treatment six weeks late."
->
-> *[pause two seconds]*
-
-**[0:15–0:30] Name the system.**
-> "We built ClinCase. ClinCase is an agentic AI system that would have approved her on Day 1 — and if denied, would have filed her appeal in four minutes instead of four weeks."
-
-**[0:30–0:55] The numbers.**
-> "Prior authorisation wastes over thirty billion dollars a year in US healthcare administration. The AMA's 2024 survey says 94% of physicians report PA delays patient care, and 24% report PA has led to a serious adverse event for a patient in their care. KFF reports that 80.7% of appealed Medicare Advantage denials are overturned in 2024 — but most denials are never appealed, because the manual workload is crushing. And the CMS Interoperability and Prior Authorization Final Rule mandates electronic PA infrastructure with operational provisions starting January 2026 and Prior Authorization API requirements starting January 2027. Every impacted US payer must comply."
-
-**[0:55–3:55] Live demo (3 minutes — see Section 26).**
-
-**[3:55–4:35] Architecture slide.**
-> "ClinCase is built as five LangGraph agents — Clinical Extractor, Policy Retriever, Necessity Reasoner, Decision Composer, and Appeals Drafter — running on Python, FastAPI, React, PostgreSQL with pgvector, deployed on AWS. We use Synthea for synthetic FHIR data and real, publicly-available payer medical policies for the RAG corpus, so the demo isn't a toy. Every decision is logged and defensible."
-
-**[4:35–5:00] The ask.**
-> "ClinCase is built for the federal mandate that goes live in months, on the exact stack that's recommended, in the health sciences segment. We'd like to pilot this with an enterprise health sciences client. Thank you."
-
-## 26. Demo script (the live three minutes, second by second)
-
-| Time | Action | What the audience sees | What you say |
-|---|---|---|---|
-| 0:00 | Click "New PA request" | Empty form | "Let's start with a real oncology case." |
-| 0:05 | Load the stage IIIA HER2+ breast cancer fixture | Patient summary appears | "Stage 3 breast cancer, HER2-positive. Oncologist requesting trastuzumab." |
-| 0:15 | Click "Run ClinCase" | Trace panel begins streaming | "Watch the agents think." |
-| 0:20–0:50 | Cards stream in: Clinical Extractor → Policy Retriever → Necessity Reasoner | Coloured cards with timestamps and citations | "Each card is one agent. Each citation is clickable — clinical evidence in blue, policy text in purple." |
-| 0:55 | Decision Composer returns APPROVE | Green APPROVE badge, full citation chain | "Under one minute. Fully cited. Defensible." |
-| 1:00 | Reset, load the HER2- denial case | New case loads | "Now the harder one. This patient is HER2-negative — the same drug shouldn't be approved." |
-| 1:10–2:00 | Same flow, Decision Composer returns DENY | Red DENY badge with clear reasoning | "ClinCase correctly denies. Watch what happens next." |
-| 2:05 | Appeals Drafter activates automatically | New panel slides in, drafting in real time | "Now imagine a real payer denied a case that *should* have been approved. The Appeals Drafter re-reads the denial, finds the clinical evidence the denial missed, and writes a complete appeal letter." |
-| 2:30 | Switch to a real overturn-eligible case (the KFF 80.7% wedge) | Full appeal letter renders | "Four minutes of wall-clock time, compressed for the demo. Every claim cited to the patient record and the policy." |
-| 2:45 | Click "Audit view" | Audit log of every agent action | "And every step is reproducible. Every input, every output, every tool call. This is what audit-ready looks like for a regulated environment." |
-| 3:00 | End demo | Return to architecture slide | — |
-
-## 27. Risk register
-
-| Risk | Likelihood | Impact | Mitigation |
-|---|---|---|---|
-| April 23 Agent Builder Challenge has unexpected format | Medium | High | Pre-built LangGraph skeleton, memorised decomposition, practised live-fill |
-| Pune venue has no internet | Medium | High | Vendor all deps; ship Docker image on USB; pre-cache embeddings |
-| Pune venue has no Anthropic API access | Low | Critical | AWS Bedrock fallback wired and tested in week 2 |
-| Demo crashes on stage | Medium | Critical | Three rehearsed paths; recorded video backup; hard-coded happy-path fallback |
-| One judge doesn't understand prior auth | High | Medium | Cold open is the mitigation — anyone hears "stage-3 cancer patient waited 27 days" and instantly understands |
-| Team member drops out | Low | High | Cross-train every member on at least one other member's domain; everything documented in this file |
-| Synthetic data looks fake to a clinically-trained judge | Medium | Medium | Use Synthea's most-realistic config; reference real public policies; one teammate reads 2 real policies in week 1 |
-| Scope creep eats the prep window | High | High | The wedge is locked: oncology only, appeals as differentiator. Reject every "what if we also..." |
-| Pre-built code is challenged on May 6 | Medium | Medium | Honest framing: "We arrived with a scaffold and used the 24 hours to integrate, validate, extend, and polish." Don't lie, don't volunteer |
-| LLM returns malformed JSON mid-demo | Medium | High | Schema-retry logic + REFER fallback + happy-path fixture as last resort |
-| pgvector retrieval returns garbage on a fresh case | Low | Medium | Hand-tune the query template in week 2; fall back to keyword filter if vector recall < threshold |
-
-## 28. Change log
-
-- **v1.0** (this version) — initial master spec. Theme, wedge, agent design, schemas, prompts, repo layout, dependencies, 23-day plan, pitch, demo, risk register. All future changes versioned and logged here.
+- **v1.0** (this version) — initial specification: theme, wedge, agent design, schemas, prompts, repo layout, dependencies. All future changes versioned and logged here.
 
 ---
 
-*End of PROPOSAL.md v1.0. Anything not in this file is not in scope. Anything in this file is binding until a v1.1 is published with a logged change reason.*
+*End of the ClinCase specification v1.0. Anything not in this file is not in scope. Anything in this file is binding until a v1.1 is published with a logged change reason.*

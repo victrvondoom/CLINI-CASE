@@ -18,7 +18,7 @@ Each layer carries:
   • business_outcome (one-line, sourced)
   • endpoints (the API surface this layer exposes)
 
-The endpoint is read-only and idempotent. It is the single API a judge
+The endpoint is read-only and idempotent. It is the single API a reviewer
 calls to verify "does the architecture in TARGET_ARCHITECTURE.md match the
 running app?"
 
@@ -453,7 +453,7 @@ async def get_layers() -> dict[str, Any]:
             _layer_external_integrations(),
         ],
         "aws_foundation": _aws_foundation(),
-        "cognizant_alignment": {
+        "platform_alignment": {
             "ai_velocity_gap_addressed": True,
             "ai_adaptation_gap_addressed": True,
             "vector_strategy_classification": ["V2 (new agentic software cycles)", "V3 (digital labor)"],
@@ -474,7 +474,6 @@ async def get_layers() -> dict[str, Any]:
             "doc_pair": [
                 "ops/architecture/AI_ADAPTATION_GAP.md",
                 "ops/architecture/AGENTIC_ACTIONS.md",
-                "ops/demo/CASE_STUDY_VIGNETTE.md",
             ],
         },
     }

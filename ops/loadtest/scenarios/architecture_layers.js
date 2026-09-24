@@ -1,5 +1,5 @@
 // GET /api/v1/architecture/layers under load.
-// This is the live architecture descriptor. It's read by judges, customers,
+// This is the live architecture descriptor. It's read by reviewers, customers,
 // and the frontend. Must be fast even under load.
 
 import http from 'k6/http';
@@ -30,7 +30,7 @@ export const options = {
 };
 
 const BASE  = __ENV.API_BASE || 'http://localhost:8000';
-const EMAIL = __ENV.USER     || 'admin@aerofyta.health';
+const EMAIL = __ENV.USER     || 'admin@clincase.health';
 const PASS  = __ENV.PASS     || 'clincase2026';
 
 export function setup() { return { token: login(BASE, EMAIL, PASS) }; }

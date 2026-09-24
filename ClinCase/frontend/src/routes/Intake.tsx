@@ -1,7 +1,7 @@
 ﻿/**
  * Drop-a-scan page — Document Intake layer (real-world inputs).
  *
- * Demo answer to the judge probe "what if the input is a handwritten Indian
+ * Answers the question "what if the input is a handwritten Indian
  * prescription, not a clean FHIR bundle?" Drag a PNG/JPEG/PDF here →
  * POST /api/v1/intake/parse-document → IntakeResult rendered with
  * per-field confidence colors. The "Create case" button is enabled only

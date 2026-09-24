@@ -13,7 +13,7 @@ Realizes the AWS-published guidance for production-grade web-application firewal
 
 - Healthcare API in front of a payer is a high-value target for credential stuffing / SQLi / scraping. AWS WAF is the AWS-blessed defense.
 - Per-tenant rate limits enforce the SLA tier from `org_quotas.tier` at the network edge — **before** the request hits the application's per-tenant quota check (defense in depth).
-- OWASP Top 10 managed rule sets are required by every Cognizant TriZetto customer's security questionnaire.
+- OWASP Top 10 managed rule sets are required by every TriZetto customer's security questionnaire.
 
 ## What this provisions
 

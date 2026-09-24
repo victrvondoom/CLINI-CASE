@@ -4,7 +4,7 @@
 
 resource "aws_kinesis_stream" "clincase_cdc" {
   name             = "clincase-cdc"
-  shard_count      = 1   # bump per Cognizant Gold-tier pilot when sustained > 10 MB/s
+  shard_count      = 1   # bump per Gold-tier pilot when sustained > 10 MB/s
   retention_period = 168  # hours = 7 days
   encryption_type  = "KMS"
   kms_key_id       = var.kms_key_arn

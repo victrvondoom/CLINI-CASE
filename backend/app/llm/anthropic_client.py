@@ -1,7 +1,7 @@
 """Anthropic direct API implementation of LLMClient.
 
-Used until May 6 (the hackathon day). On May 6 we swap LLM_PROVIDER=bedrock
-without touching any agent code.
+Used when LLM_PROVIDER=anthropic. Switching to LLM_PROVIDER=bedrock needs
+no agent code changes.
 """
 from __future__ import annotations
 

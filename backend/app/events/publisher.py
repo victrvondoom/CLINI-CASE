@@ -4,7 +4,7 @@ Run as a sidecar process or as a background task in the worker tier:
     .venv/Scripts/python.exe -m app.events.publisher
 
 Targets (selected via env `EVENT_BUS_TARGET`):
-  • "log"         — print to stdout (default; for dev / hackathon)
+  • "log"         — print to stdout (default; for dev / demo)
   • "eventbridge" — publish to AWS EventBridge (apply-ready; enable on prod via env)
   • "kinesis"     — publish to AWS Kinesis Data Streams (apply-ready)
   • "kafka"       — publish to MSK / Confluent (TODO post-pilot)
@@ -53,7 +53,7 @@ _shutdown = asyncio.Event()
 
 
 async def _publish_log(envelope: dict[str, Any]) -> None:
-    """Default for dev / hackathon. Just logs the CloudEvent."""
+    """Default for dev / demo. Just logs the CloudEvent."""
     log.info("outbox.publish.log", event=envelope["type"], event_id=envelope["id"])
 
 

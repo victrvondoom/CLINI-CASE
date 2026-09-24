@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS organizations (
 
 -- Default tenant for backfilled / demo data
 INSERT INTO organizations (id, name, slug)
-VALUES ('org_demo', 'Aerofyta Health Sciences', 'aerofyta')
+VALUES ('org_demo', 'ClinCase Demo Health', 'clincase-demo')
 ON CONFLICT (id) DO NOTHING;
 
 -- =============================================================================
