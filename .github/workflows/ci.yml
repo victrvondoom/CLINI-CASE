@@ -6,7 +6,8 @@
 #   1. frontend       — TypeScript type-check (strict) + Vite production build
 #   2. backend        — Ruff lint + Python module structure check
 #   3. demo-fixtures  — verify all 4 demo PDFs + 2 policy bundles are present
-#   4. readme-anchors — verify the README has all evaluation-criteria sections
+#   4. readme-anchors — verify the README has all core product sections
+#   5. oncotwin       — OncoTwin tests + one-command synthetic journey + red-team stress test
 #
 # Production-grade workflows (multi-region Terraform plan, cosign signing,
 # Trivy/Semgrep/Checkov, k6 load tests, EKS deploy) are kept under
@@ -137,10 +138,10 @@ jobs:
           echo "pitch.md is $lines lines."
 
   # ===========================================================================
-  # 4. README — enforce evaluation-criteria sections
+  # 4. README — enforce the core product sections
   # ===========================================================================
   readme-anchors:
-    name: README · evaluation criteria check
+    name: README · section check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -149,16 +150,59 @@ jobs:
         run: |
           set -e
           required=(
-            "The problem"
-            "The solution"
+            "Why ClinCase"
+            "What it does"
             "Architecture"
-            "7-agent LangGraph pipeline"
-            "10 oncology USPs"
-            "Scalability"
-            "Evaluation rubric mapping"
+            "The 7-agent pipeline"
+            "Oncology capabilities"
+            "OncoTwin"
+            "Getting started"
           )
           for s in "${required[@]}"; do
             grep -F "$s" README.md > /dev/null || { echo "::error::missing README section containing: $s"; exit 1; }
             echo "  OK  README contains: $s"
           done
-          echo "README has all required evaluation-criteria sections."
+          echo "README has all required sections."
+
+  # ===========================================================================
+  # 5. OncoTwin — tests, end-to-end synthetic journey, red-team stress test
+  #    No database, no LLM key: every patient is synthetic and every model
+  #    artifact is committed and SHA-256-verified on load.
+  # ===========================================================================
+  oncotwin:
+    name: OncoTwin · tests + journey + stress test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+
+      - name: Install backend
+        working-directory: backend
+        run: pip install -e ".[dev]"
+
+      - name: OncoTwin tests (unit, integration, API, end-to-end journey)
+        working-directory: backend
+        run: pytest tests/oncotwin -q
+
+      - name: One-command synthetic journey (flagship OT-005 closed loop)
+        working-directory: backend
+        run: python -m app.oncotwin.demo --out .cache/oncotwin/demo
+
+      - name: Twin Stress Test (fails the job if any scenario is unsafe)
+        working-directory: backend
+        run: python -m app.oncotwin.stress
+
+      - name: Upload journey report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oncotwin-journey
+          path: backend/.cache/oncotwin/demo
+          retention-days: 14
