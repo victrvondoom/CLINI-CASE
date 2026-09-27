@@ -22,11 +22,10 @@ Design notes:
 from __future__ import annotations
 
 import hashlib
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import BaseModel, Field
-
 
 # =============================================================================
 # Pydantic DTOs (schema-faithful to Facets G6 prior_auth_event v3)
@@ -104,7 +103,7 @@ def _hash_decision(verdict: str, rationale: str, citations: list[Any], model_id:
     citations + model_id and verify it matches what's on file. Any subsequent
     edit invalidates the hash, exposing forgery.
     """
-    material = f"{verdict}|{rationale}|{citations}|{model_id}".encode("utf-8")
+    material = f"{verdict}|{rationale}|{citations}|{model_id}".encode()
     return hashlib.sha256(material).hexdigest()
 
 
@@ -149,7 +148,7 @@ def build_facets_event(
         else:
             citations_strs.append(str(c))
 
-    decided_at = datetime.now(timezone.utc).isoformat()
+    decided_at = datetime.now(UTC).isoformat()
 
     return FacetsPAEvent(
         action=_VERDICT_TO_ACTION.get(verdict, "updated"),
@@ -184,7 +183,7 @@ def build_facets_event(
             f"ClinCase AI determination: {verdict} (confidence {confidence:.2f}). "
             f"Run-id {decision_run_id}. {len(citations_strs)} citations attached. "
             + ("HITL-routed (CMS-0057-F § IV.C). " if triggered_hitl else "")
-            + "Audit reproduction: GET /api/v1/cases/{}/audit".format(case_id)
+            + f"Audit reproduction: GET /api/v1/cases/{case_id}/audit"
         ),
         cms_0057f_clauses_satisfied=cms_0057f_clauses_satisfied or [],
     )

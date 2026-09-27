@@ -15,6 +15,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { useAuth } from "../components/AuthContext";
+import { VitalsMonitor } from "../components/VitalsMonitor";
 import { ot } from "../oncotwin/api";
 import {
   ChangePointPanel, Chip, ConflictsPanel, CorrelationPanel, CounterfactualPanel, ExplanationPanel, FeatureTable, HorizonPanel,
@@ -54,11 +55,23 @@ function scrollTo(id: string) {
   go();
 }
 
+// Reads the latest value of a SignalPanel-shaped entry from d.signals (AncPanel
+// entries, e.g. "anc", have no .values and are skipped).
+function signalValue(d: Dashboard, key: string): number | null {
+  const s = d.signals[key];
+  const v = s && "values" in s ? s.values[d.as_of_day - 1] : null;
+  return typeof v === "number" ? v : null;
+}
+
 export default function TwinPatient({ demo = false }: { demo?: boolean }) {
   const params = useParams();
   const navigate = useNavigate();
   const pid = demo ? FLAGSHIP : params.patientId ?? FLAGSHIP;
-  const [demoTab, setDemoTab] = useState<TabId>("state");
+  // /twin/demo/:tab (e.g. /twin/demo/whatif) deep-links into a starting tab; demo-mode
+  // navigation after that is still local state (setDemoTab), matching the guided walkthrough.
+  const [demoTab, setDemoTab] = useState<TabId>(
+    TABS.some((t) => t.id === params.tab) ? (params.tab as TabId) : "state",
+  );
   const tab: TabId = demo ? demoTab : (TABS.some((t) => t.id === params.tab) ? params.tab as TabId : "state");
   const setTab = (t: TabId) => (demo ? setDemoTab(t) : navigate(`/twin/${pid}/${t}`));
 
@@ -170,11 +183,11 @@ export default function TwinPatient({ demo = false }: { demo?: boolean }) {
         <div className="min-w-0">
           <Link to="/twin" className="text-[11px] text-ink-muted hover:text-ink-primary inline-flex items-center gap-1"><ArrowLeft size={12} aria-hidden /> Command Center</Link>
           <h1 className="text-2xl font-semibold text-ink-primary leading-tight flex items-center gap-2 flex-wrap">
-            {d.patient.label} · Digital Twin <TierBadge tier={d.card.current_state.tier} />
+            {d.patient.label} · Digital Twin <span key={d.card.current_state.tier} className="animate-fade-in inline-flex"><TierBadge tier={d.card.current_state.tier} /></span>
             <Chip strong={intel.triage.category !== "Stable"}>{intel.triage.category}</Chip>
           </h1>
           <p className="text-[12px] text-ink-muted max-w-3xl">{d.patient.age}{d.patient.sex === "female" ? "F" : "M"} · {d.patient.cancer} · {d.patient.regimen_code}. {d.patient.narrative}</p>
-          <p className="text-[11px] text-mono-tech text-ink-muted mt-1">
+          <p key={d.live_day} className="text-[11px] text-mono-tech text-ink-muted mt-1 animate-fade-in">
             twin clock Day {d.live_day}/{d.n_days} · state …{intel.state.sha256.slice(0, 10)} · readiness {pct(intel.readiness.score)} ({intel.readiness.label}) ·
             model {d.provenance.model.model_id} v{d.provenance.model.version}{d.provenance.model.integrity_verified ? " (verified)" : " (UNVERIFIED)"}
           </p>
@@ -197,8 +210,26 @@ export default function TwinPatient({ demo = false }: { demo?: boolean }) {
       <div className="text-[11px] px-3 py-1.5 rounded-md border border-dashed border-surface-border-hi text-ink-body">
         {intel.synthetic_notice} Clinical decision support only: every alert requires clinician review, and nothing here is a diagnosis.
       </div>
-      {notice && <div className="text-[12px] px-3 py-2 rounded-md bg-accent-brand/10 border border-accent-brand/40" role="status">{notice}</div>}
+      {notice && <div key={notice} className="text-[12px] px-3 py-2 rounded-md bg-accent-brand/10 border border-accent-brand/40 animate-fade-in" role="status">{notice}</div>}
       {err && <div className="text-[12px] text-accent-red" role="alert">{err}</div>}
+
+      <VitalsMonitor
+        who={d.patient.label}
+        restingHr={signalValue(d, "resting_hr")}
+        temperatureF={signalValue(d, "temperature")}
+        systolicBp={signalValue(d, "sbp")}
+        onEmergency={() => run("emergency", async () => {
+          const alertId = selectedAlert ?? alerts.find((a) => a.status === "open")?.id ?? alerts[0]?.id;
+          if (alertId) {
+            await ot.act(alertId, "investigate", "Emergency escalation raised from bedside monitor (synthetic demo).");
+            await refreshAll();
+          }
+          return `Emergency escalation recorded for ${d.patient.label}.`;
+        })}
+        onScheduleAppointment={(iso, reason) => run("appointment", async () => {
+          return `Appointment requested for ${d.patient.label} on ${iso}${reason ? ` (${reason})` : ""}.`;
+        })}
+      />
 
       {demo && <FlagshipGuide who={who} canAct={canAct} actions={demoActions} busy={busy !== null} run={run} />}
 
@@ -211,7 +242,7 @@ export default function TwinPatient({ demo = false }: { demo?: boolean }) {
       <nav className="flex gap-1 border-b border-surface-border overflow-x-auto" aria-label="Twin views">
         {TABS.map((t) => (
           <button key={t.id} type="button" onClick={() => setTab(t.id)} aria-current={tab === t.id ? "page" : undefined}
-            className={clsx("px-3 py-2 text-[12.5px] -mb-px border-b-2 whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-accent-brand rounded-t",
+            className={clsx("px-3 py-2 text-[12.5px] -mb-px border-b-2 whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-accent-brand rounded-t transition-colors duration-200 ease-out",
               tab === t.id ? "border-ink-primary text-ink-primary font-semibold" : "border-transparent text-ink-muted hover:text-ink-primary")}>
             {t.label}
           </button>

@@ -38,7 +38,7 @@ class LetterComposerAgent(Agent[LetterComposerInput, LetterComposerOutput]):
     # Round-15 (3rd iter): bumped to SONNET_LONG_JSON (max_tokens=8000).
     # Same JSON-truncation pattern as counter_evidence_finder — ~600-word
     # formal letters were exceeding the 1500-token SONNET_REASONING limit
-    # mid-stream, causing Pydantic parse failures + AgentExhausted retries.
+    # mid-stream, causing Pydantic parse failures + AgentExhaustedError retries.
     primary_model: ClassVar = SONNET_LONG_JSON
     system_prompt: ClassVar[str] = _PROMPT
     estimated_input_tokens: ClassVar[int] = 4000

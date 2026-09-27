@@ -10,30 +10,26 @@ Each emits its own row in `agent_runs` named `policy_retriever.<sub_name>`.
 """
 from __future__ import annotations
 
-from typing import Any, ClassVar
+from typing import ClassVar
 
 from app.agents.framework import (
     Agent,
     AgentContext,
     SchemaGuardrail,
 )
+from app.agents.policy_retriever.schemas import (
+    CitationResolverInput,
+    KeywordFilterInput,
+    LLMRerankerInput,
+    PolicyRetrieverInput,
+    PolicyRetrieverOutput,
+    RerankerClinicalContext,
+)
 from app.agents.policy_retriever.sub_agents.citation_resolver import citation_resolver
 from app.agents.policy_retriever.sub_agents.keyword_filter import keyword_filter
 from app.agents.policy_retriever.sub_agents.llm_reranker import llm_reranker
 from app.agents.policy_retriever.sub_agents.q_business_retriever import q_business_retriever
 from app.config import settings
-from app.graph.state import ClinCaseState
-from app.agents.policy_retriever.schemas import (
-    PolicyRetrieverInput,
-    PolicyRetrieverOutput,
-)
-from app.agents.policy_retriever.schemas import (
-    CitationResolverInput,
-    KeywordFilterInput,
-    LLMRerankerInput,
-    RerankerClinicalContext,
-)
-
 
 # All four sub-agents declared. The orchestrator picks between
 # `keyword_filter` (default, file-corpus) and `q_business_retriever`

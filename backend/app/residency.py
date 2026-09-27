@@ -4,7 +4,7 @@ The `org_quotas.data_region` and `tier` columns store the customer's declared
 region. This module consumes them at runtime to:
 
   • Validate every cross-boundary call (Bedrock, S3, KMS) is inside the tenant's
-    declared region. Cross-region calls raise `ResidencyViolation`.
+    declared region. Cross-region calls raise `ResidencyViolationError`.
   • Resolve the per-tenant Bedrock model_id (e.g. EU tenant → `eu.anthropic.*`).
   • Resolve the per-tenant S3 bucket prefix.
   • Surface tenant routing in `/healthz/deep` and `/capabilities`.
@@ -28,7 +28,7 @@ from app.db import db
 log = structlog.get_logger()
 
 
-class ResidencyViolation(Exception):
+class ResidencyViolationError(Exception):
     """Raised when a runtime call would cross a tenant's declared data boundary.
 
     Example: a tenant with `data_region='eu-west-1'` causes a Bedrock InvokeModel
@@ -42,7 +42,7 @@ class ResidencyViolation(Exception):
         self.attempted_region = attempted_region
         self.resource = resource
         super().__init__(
-            f"ResidencyViolation org={organization_id} declared={declared_region} "
+            f"ResidencyViolationError org={organization_id} declared={declared_region} "
             f"attempted={attempted_region} resource={resource}"
         )
 
@@ -123,7 +123,7 @@ async def get_tenant_residency(organization_id: str) -> TenantResidency:
 
 
 async def assert_residency(*, organization_id: str, attempted_region: str, resource: str) -> None:
-    """Raise ResidencyViolation if a runtime call would cross the tenant's
+    """Raise ResidencyViolationError if a runtime call would cross the tenant's
     declared boundary. Call this from every external-service code path."""
     res = await get_tenant_residency(organization_id)
     if res.data_region != attempted_region:
@@ -134,7 +134,7 @@ async def assert_residency(*, organization_id: str, attempted_region: str, resou
             attempted=attempted_region,
             resource=resource,
         )
-        raise ResidencyViolation(
+        raise ResidencyViolationError(
             organization_id=organization_id,
             declared_region=res.data_region,
             attempted_region=attempted_region,
@@ -145,7 +145,7 @@ async def assert_residency(*, organization_id: str, attempted_region: str, resou
 def assert_region_match_sync(*, organization_id: str, declared_region: str, attempted_region: str, resource: str) -> None:
     """Sync variant for places where `await get_tenant_residency` already happened."""
     if declared_region != attempted_region:
-        raise ResidencyViolation(
+        raise ResidencyViolationError(
             organization_id=organization_id,
             declared_region=declared_region,
             attempted_region=attempted_region,
@@ -205,7 +205,5 @@ async def residency_snapshot(*, organization_id: str | None = None) -> dict[str,
         "deployment_region": settings.AWS_REGION,
         "deployment_default_tier": "silver",
         "supported_regions": list(_REGION_MODEL_PREFIX.keys()),
-        "regions_with_bedrock_inference_profile": [
-            r for r in _REGION_MODEL_PREFIX.keys()
-        ],
+        "regions_with_bedrock_inference_profile": list(_REGION_MODEL_PREFIX),
     }

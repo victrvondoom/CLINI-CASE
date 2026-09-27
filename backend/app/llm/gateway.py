@@ -45,7 +45,7 @@ import structlog
 from app.config import settings
 from app.llm.base import LLMClient, LLMResponse
 from app.llm.circuit_breaker import (
-    CircuitBreakerOpen,
+    CircuitBreakerOpenError,
     get_breaker,
 )
 from app.observability.otel import bedrock_span
@@ -232,7 +232,7 @@ async def get_tenant_policy(organization_id: str) -> TenantPolicy:
 # =============================================================================
 
 
-class GatewayQuotaExceeded(Exception):
+class GatewayQuotaExceededError(Exception):
     """Raised when a tenant has consumed its daily Gateway quota."""
 
     def __init__(self, *, dimension: str, used: float, cap: float, organization_id: str) -> None:
@@ -241,12 +241,12 @@ class GatewayQuotaExceeded(Exception):
         self.cap = cap
         self.organization_id = organization_id
         super().__init__(
-            f"GatewayQuotaExceeded[{dimension}] org={organization_id} "
+            f"GatewayQuotaExceededError[{dimension}] org={organization_id} "
             f"used={used:.2f} cap={cap:.2f}"
         )
 
 
-class GatewayPolicyViolation(Exception):
+class GatewayPolicyViolationError(Exception):
     """Raised when a call would violate tenant policy (disallowed model, missing context, etc.)."""
 
 
@@ -268,17 +268,17 @@ async def _check_quota(policy: TenantPolicy) -> None:
     spend = float(row["spend"]) if row else 0.0
 
     if in_tok >= policy.daily_input_token_cap:
-        raise GatewayQuotaExceeded(
+        raise GatewayQuotaExceededError(
             dimension="input_tokens", used=in_tok,
             cap=policy.daily_input_token_cap, organization_id=policy.organization_id,
         )
     if out_tok >= policy.daily_output_token_cap:
-        raise GatewayQuotaExceeded(
+        raise GatewayQuotaExceededError(
             dimension="output_tokens", used=out_tok,
             cap=policy.daily_output_token_cap, organization_id=policy.organization_id,
         )
     if spend >= policy.daily_usd_cap:
-        raise GatewayQuotaExceeded(
+        raise GatewayQuotaExceededError(
             dimension="cost_usd", used=spend,
             cap=policy.daily_usd_cap, organization_id=policy.organization_id,
         )
@@ -343,7 +343,7 @@ class GenAIGateway(LLMClient):
       1. Resolve call context (org_id + case_id + agent_name)
       2. Lookup tenant policy
       3. Validate model_id is in allowlist
-      4. Run quota check (raises GatewayQuotaExceeded on breach)
+      4. Run quota check (raises GatewayQuotaExceededError on breach)
       5. Pre-call content safety sniff
       6. Open llm_invocations row (status='running')
       7. Delegate to underlying client
@@ -402,7 +402,7 @@ class GenAIGateway(LLMClient):
         else:  # anthropic
             resolved_model_id = settings.ANTHROPIC_MODEL or "claude-sonnet-4-6"
         if policy.allowed_model_ids and resolved_model_id not in policy.allowed_model_ids:
-            raise GatewayPolicyViolation(
+            raise GatewayPolicyViolationError(
                 f"model_id={resolved_model_id!r} not in allowlist for org={org_id!r} "
                 f"(allowed: {policy.allowed_model_ids})"
             )
@@ -417,7 +417,7 @@ class GenAIGateway(LLMClient):
         breaker = await get_breaker(resolved_model_id)
         try:
             await breaker.before_call()
-        except CircuitBreakerOpen as cbo:
+        except CircuitBreakerOpenError as cbo:
             log.warning(
                 "gateway.circuit_open",
                 model_id=resolved_model_id,
@@ -474,8 +474,8 @@ class GenAIGateway(LLMClient):
                 str(e)[:500], latency_ms, row_id,
             )
             # Circuit breaker counts ALL failures (Bedrock 5xx, timeout, parse error).
-            # CircuitBreakerOpen itself is not counted (we're not actually calling).
-            if not isinstance(e, CircuitBreakerOpen):
+            # CircuitBreakerOpenError itself is not counted (we're not actually calling).
+            if not isinstance(e, CircuitBreakerOpenError):
                 await breaker.record_failure()
             raise
 

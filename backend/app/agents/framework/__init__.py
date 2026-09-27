@@ -2,7 +2,7 @@
 
 Modules:
   agent       — Agent[I, O] base class, full production lifecycle
-  budget      — BudgetTracker (reservation pattern, BudgetExceeded)
+  budget      — BudgetTracker (reservation pattern, BudgetExceededError)
   context     — AgentContext (per-case state threaded through invocations)
   grader      — LLMGrader (self-evaluation pattern for reflection)
   guardrails  — Guardrail ABC + concrete impls (Schema, PHI, Citation, Token-budget)
@@ -12,12 +12,12 @@ Modules:
 """
 from app.agents.framework.agent import (
     Agent,
-    AgentExhausted,
-    InputBlocked,
-    OutputBlocked,
+    AgentExhaustedError,
+    InputBlockedError,
+    OutputBlockedError,
 )
 from app.agents.framework.budget import (
-    BudgetExceeded,
+    BudgetExceededError,
     BudgetTracker,
     new_default_budget,
 )

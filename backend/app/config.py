@@ -8,7 +8,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, model_validator
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Sentinel used to detect dev defaults that must be rotated in production.
@@ -154,7 +154,7 @@ class Settings(BaseSettings):
     # raise immediately rather than silently issuing forgeable JWTs or
     # accepting a known demo password.
     @model_validator(mode="after")
-    def _enforce_production_secrets(self) -> "Settings":
+    def _enforce_production_secrets(self) -> Settings:
         if self.ENVIRONMENT in ("staging", "production"):
             if self.JWT_SECRET == _DEV_JWT_SECRET_SENTINEL:
                 raise RuntimeError(

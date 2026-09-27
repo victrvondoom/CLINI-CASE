@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import json
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Response
@@ -77,8 +77,8 @@ async def export_kickoff(
     if _since:
         try:
             since_dt = datetime.fromisoformat(_since.replace("Z", "+00:00"))
-        except ValueError:
-            raise HTTPException(status_code=400, detail="invalid _since format; expected ISO-8601")
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail="invalid _since format; expected ISO-8601") from e
 
     await db.execute(
         """
@@ -140,7 +140,7 @@ async def export_status(
             manifest = json.loads(manifest)
         response.status_code = 200
         response.headers["Expires"] = (
-            datetime.now(timezone.utc) + timedelta(hours=24)
+            datetime.now(UTC) + timedelta(hours=24)
         ).strftime("%a, %d %b %Y %H:%M:%S GMT")
         return manifest
 
@@ -194,12 +194,11 @@ async def _run_export(job_id: str) -> None:
     )
     if row is None:
         return
-    org_id = row["organization_id"]
     types = list(row["resource_types"]) if row["resource_types"] is not None else []
 
     manifest = {
-        "transactionTime": datetime.now(timezone.utc).isoformat(),
-        "request": f"/fhir/$export",
+        "transactionTime": datetime.now(UTC).isoformat(),
+        "request": "/fhir/$export",
         "requiresAccessToken": True,
         "output": [
             {

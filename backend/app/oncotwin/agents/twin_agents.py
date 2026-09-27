@@ -17,7 +17,12 @@ from typing import Any, ClassVar
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.agents.framework import Agent, AgentContext
-from app.oncotwin.intel.analysis import stage_context, stage_intelligence, stage_quality, stage_temporal
+from app.oncotwin.intel.analysis import (
+    stage_context,
+    stage_intelligence,
+    stage_quality,
+    stage_temporal,
+)
 from app.oncotwin.service import (
     TwinComputation,
     stage_evidence,

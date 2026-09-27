@@ -213,7 +213,7 @@ def simulate(script: SimScript) -> SimulationResult:
     for d0, size, nd in script.gi_insults:
         for k in range(nd):
             gi_insult_days[d0 + k] = gi_insult_days.get(d0 + k, 0.0) + size
-    blips = {d: deltas for d, deltas in script.isolated_blips}
+    blips = dict(script.isolated_blips)
     lab_days = set(script.extra_lab_days) | {script.treatment_start - 4}
     adherence_override: float | None = None
 

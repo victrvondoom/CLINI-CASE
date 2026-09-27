@@ -16,8 +16,9 @@ for invoice reconciliation; SRE uses it for anomaly investigation.
 """
 from __future__ import annotations
 
+import contextlib
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, Query
@@ -45,7 +46,8 @@ async def _tenant_rollup(*, organization_id: str, since: datetime) -> TenantRoll
 
     # llm_invocations uses `started_at` (not created_at) — verified against live schema.
     bedrock_cost = 0.0
-    try:
+    # llm_invocations not yet bootstrapped — treat as 0.
+    with contextlib.suppress(Exception):
         bedrock_cost = await db.fetchval_ro(
             """
             SELECT COALESCE(SUM(cost_usd), 0)::FLOAT
@@ -54,12 +56,9 @@ async def _tenant_rollup(*, organization_id: str, since: datetime) -> TenantRoll
             """,
             organization_id, since,
         ) or 0.0
-    except Exception:  # noqa: BLE001
-        # llm_invocations not yet bootstrapped — treat as 0.
-        pass
 
     case_count = 0
-    try:
+    with contextlib.suppress(Exception):
         case_count = await db.fetchval_ro(
             """
             SELECT COUNT(*)
@@ -68,13 +67,11 @@ async def _tenant_rollup(*, organization_id: str, since: datetime) -> TenantRoll
             """,
             organization_id, since,
         ) or 0
-    except Exception:  # noqa: BLE001
-        pass
 
     # Mean Bedrock latency per call (case_runs table does not exist in current
     # schema — use llm_invocations.latency_ms as a proxy until case_runs lands).
     avg_latency = 0.0
-    try:
+    with contextlib.suppress(Exception):
         avg_latency = await db.fetchval_ro(
             """
             SELECT COALESCE(AVG(latency_ms), 0)::FLOAT
@@ -83,11 +80,9 @@ async def _tenant_rollup(*, organization_id: str, since: datetime) -> TenantRoll
             """,
             organization_id, since,
         ) or 0.0
-    except Exception:  # noqa: BLE001
-        pass
 
     dlq_count = 0
-    try:
+    with contextlib.suppress(Exception):
         dlq_count = await db.fetchval_ro(
             """
             SELECT COUNT(*) FROM event_outbox_dlq
@@ -95,8 +90,6 @@ async def _tenant_rollup(*, organization_id: str, since: datetime) -> TenantRoll
             """,
             organization_id, since,
         ) or 0
-    except Exception:  # noqa: BLE001
-        pass
 
     avg_cost = (bedrock_cost / case_count) if case_count > 0 else 0.0
     return TenantRollup(
@@ -111,7 +104,7 @@ async def _tenant_rollup(*, organization_id: str, since: datetime) -> TenantRoll
 
 
 def _since(window: str) -> datetime:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     if window == "today":
         return now.replace(hour=0, minute=0, second=0, microsecond=0)
     if window == "7d":
@@ -231,14 +224,14 @@ async def projection(
     user: dict[str, Any] = Depends(require_role("admin")),
 ) -> dict[str, Any]:
     """Forward-30d projection from last 7d run-rate."""
-    since = datetime.now(timezone.utc) - timedelta(days=7)
+    since = datetime.now(UTC) - timedelta(days=7)
     cost_7d = await db.fetchval_ro(
         "SELECT COALESCE(SUM(cost_usd), 0)::FLOAT FROM llm_invocations WHERE started_at >= $1",
         since,
     ) or 0.0
     daily = float(cost_7d) / 7.0
     return {
-        "as_of": datetime.now(timezone.utc).isoformat(),
+        "as_of": datetime.now(UTC).isoformat(),
         "last_7d_cost_usd": round(float(cost_7d), 4),
         "daily_run_rate_usd": round(daily, 4),
         "projected_30d_cost_usd": round(daily * 30, 2),

@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -270,5 +270,5 @@ async def info(
         ),
         "mock_inbox_size": len(get_mock_inbox()),
         "issuer": "ClinCase 0.1.0",
-        "asof_utc": datetime.now(timezone.utc).isoformat(),
+        "asof_utc": datetime.now(UTC).isoformat(),
     }

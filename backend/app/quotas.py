@@ -11,7 +11,7 @@ Design (single source of truth: this file):
   • Daily counter + reset timestamp. Atomically incremented on each case submit.
   • Race-free via a single conditional UPDATE — the WHERE clause IS the gate;
     when the limit is reached the row is unmatched and `RETURNING` returns
-    nothing → the caller sees QuotaExceeded. Two concurrent submitters block
+    nothing → the caller sees QuotaExceededError. Two concurrent submitters block
     on the row lock; the one that arrives second re-evaluates the WHERE and
     correctly fails if the first one consumed the last slot.
   • Day boundary uses CURRENT_DATE (UTC by Postgres convention) so the reset
@@ -86,7 +86,7 @@ async def ensure_schema() -> None:
 # =============================================================================
 
 
-class QuotaExceeded(Exception):
+class QuotaExceededError(Exception):
     """Raised when an org has consumed its daily / monthly case quota.
 
     `kind` is the dimension that tripped — 'daily' or 'monthly'. Carries
@@ -109,7 +109,7 @@ class QuotaExceeded(Exception):
         self.used = used
         self.resets_at_iso = resets_at_iso
         super().__init__(
-            f"QuotaExceeded[{kind}] org={organization_id} used={used}/{limit} "
+            f"QuotaExceededError[{kind}] org={organization_id} used={used}/{limit} "
             f"resets_at={resets_at_iso}"
         )
 
@@ -149,7 +149,7 @@ async def _ensure_quota_row(organization_id: str) -> None:
 async def consume_case_quota(organization_id: str) -> dict[str, int]:
     """Atomically consume one slot of the org's daily + monthly quota.
 
-    Returns the post-increment counters on success. Raises `QuotaExceeded`
+    Returns the post-increment counters on success. Raises `QuotaExceededError`
     when either dimension is at its cap. Rolls over the counters when the
     day / month boundary has passed since the last increment.
 
@@ -204,7 +204,7 @@ async def consume_case_quota(organization_id: str) -> dict[str, int]:
         )
         if state is None:
             # Pathological — row vanished after _ensure_quota_row. Fail safe.
-            raise QuotaExceeded(
+            raise QuotaExceededError(
                 organization_id=organization_id,
                 kind="unknown",
                 limit=0,
@@ -213,14 +213,14 @@ async def consume_case_quota(organization_id: str) -> dict[str, int]:
             )
         # Determine which dimension was the binding constraint.
         if state["current_day_count"] >= state["daily_case_limit"]:
-            raise QuotaExceeded(
+            raise QuotaExceededError(
                 organization_id=organization_id,
                 kind="daily",
                 limit=state["daily_case_limit"],
                 used=state["current_day_count"],
                 resets_at_iso=state["day_resets_at"].isoformat(),
             )
-        raise QuotaExceeded(
+        raise QuotaExceededError(
             organization_id=organization_id,
             kind="monthly",
             limit=state["monthly_case_limit"],
@@ -268,8 +268,8 @@ async def set_org_limits(
 # =============================================================================
 
 
-def quota_exceeded_to_http(exc: QuotaExceeded) -> dict[str, Any]:
-    """Render a QuotaExceeded as a 429 response body. Caller raises HTTPException."""
+def quota_exceeded_to_http(exc: QuotaExceededError) -> dict[str, Any]:
+    """Render a QuotaExceededError as a 429 response body. Caller raises HTTPException."""
     return {
         "error": "quota_exceeded",
         "kind": exc.kind,
@@ -278,7 +278,7 @@ def quota_exceeded_to_http(exc: QuotaExceeded) -> dict[str, Any]:
         "used": exc.used,
         "resets_at": exc.resets_at_iso,
         "message": (
-            f"Daily" if exc.kind == "daily" else f"Monthly"
+            "Daily" if exc.kind == "daily" else "Monthly"
         ) + f" case quota of {exc.limit} reached for organization "
         + f"{exc.organization_id}. Resets at {exc.resets_at_iso} UTC.",
     }

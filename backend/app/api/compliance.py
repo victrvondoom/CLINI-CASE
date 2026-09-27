@@ -5,6 +5,7 @@
 """
 from __future__ import annotations
 
+from datetime import UTC
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -25,11 +26,11 @@ async def get_case_scorecard(
     Org-scoped: case must belong to the caller's organization."""
     try:
         sc = await case_scorecard(case_id, organization_id=user["organization_id"])
-    except ValueError:
-        raise HTTPException(status_code=404, detail=f"Case {case_id} not found")
-    except PermissionError:
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=f"Case {case_id} not found") from e
+    except PermissionError as e:
         # Don't leak existence cross-org
-        raise HTTPException(status_code=404, detail=f"Case {case_id} not found")
+        raise HTTPException(status_code=404, detail=f"Case {case_id} not found") from e
     return sc.to_dict()
 
 
@@ -40,13 +41,13 @@ async def get_org_scorecard(
     """Return the org-level compliance rollup. DB-less deploys (no RDS) get
     a zeroed scorecard rather than a 500 — clauses + deadlines still render
     because they're hard-coded regulatory data."""
-    from datetime import datetime, timezone
+    from datetime import datetime
     try:
         return await org_scorecard(user["organization_id"])
     except Exception:
         return {
             "organization_id": user["organization_id"],
-            "asof_iso": datetime.now(timezone.utc).isoformat(),
+            "asof_iso": datetime.now(UTC).isoformat(),
             "totals": {"cases_total": 0, "cases_decided": 0, "denies": 0, "denies_with_review": 0, "audit_complete_cases": 0},
             "headline_metrics": {
                 "tat_compliance_pct": 0, "sb1120_compliance_pct": 0,

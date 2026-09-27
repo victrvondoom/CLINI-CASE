@@ -367,7 +367,12 @@ async function jsonOrThrow<T>(res: Response): Promise<T> {
   }
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`HTTP ${res.status}: ${text || res.statusText}`);
+    let detail: unknown = null;
+    try {
+      detail = JSON.parse(text)?.detail;
+    } catch {}
+    const message = typeof detail === "string" ? detail : text || res.statusText;
+    throw new Error(`HTTP ${res.status}: ${message}`);
   }
   return res.json();
 }

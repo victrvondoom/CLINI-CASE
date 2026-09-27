@@ -29,7 +29,6 @@ from __future__ import annotations
 
 import hashlib
 import os
-import random
 from dataclasses import dataclass
 from typing import Any
 
@@ -145,7 +144,7 @@ def _file_fallback(agent_name: str) -> str:
     for path in candidates:
         if os.path.exists(path):
             try:
-                with open(path, "r", encoding="utf-8") as f:
+                with open(path, encoding="utf-8") as f:
                     return f.read()
             except Exception:  # noqa: BLE001
                 continue
@@ -179,18 +178,17 @@ async def add_prompt(
 
 async def activate_prompt(*, agent_name: str, version: str) -> None:
     """Mark version as active and retire any prior active."""
-    async with db.pool.acquire() as conn:
-        async with conn.transaction():
-            await conn.execute(
-                "UPDATE prompts SET status='retired', retired_at=NOW() "
-                "WHERE agent_name=$1 AND status='active'",
-                agent_name,
-            )
-            await conn.execute(
-                "UPDATE prompts SET status='active', activated_at=NOW() "
-                "WHERE agent_name=$1 AND version=$2",
-                agent_name, version,
-            )
+    async with db.pool.acquire() as conn, conn.transaction():
+        await conn.execute(
+            "UPDATE prompts SET status='retired', retired_at=NOW() "
+            "WHERE agent_name=$1 AND status='active'",
+            agent_name,
+        )
+        await conn.execute(
+            "UPDATE prompts SET status='active', activated_at=NOW() "
+            "WHERE agent_name=$1 AND version=$2",
+            agent_name, version,
+        )
 
 
 async def set_traffic_split(*, agent_name: str, weights: dict[str, float]) -> None:
@@ -200,15 +198,14 @@ async def set_traffic_split(*, agent_name: str, weights: dict[str, float]) -> No
         raise ValueError("weights must sum > 0")
     if abs(total - 100.0) > 0.01:
         raise ValueError(f"weights must sum to 100, got {total}")
-    async with db.pool.acquire() as conn:
-        async with conn.transaction():
-            await conn.execute("DELETE FROM prompt_traffic_splits WHERE agent_name=$1", agent_name)
-            for version, w in weights.items():
-                await conn.execute(
-                    "INSERT INTO prompt_traffic_splits (agent_name, version, weight_percent) "
-                    "VALUES ($1, $2, $3)",
-                    agent_name, version, w,
-                )
+    async with db.pool.acquire() as conn, conn.transaction():
+        await conn.execute("DELETE FROM prompt_traffic_splits WHERE agent_name=$1", agent_name)
+        for version, w in weights.items():
+            await conn.execute(
+                "INSERT INTO prompt_traffic_splits (agent_name, version, weight_percent) "
+                "VALUES ($1, $2, $3)",
+                agent_name, version, w,
+            )
 
 
 async def assign_to_tenant(*, organization_id: str, agent_name: str, version: str) -> None:

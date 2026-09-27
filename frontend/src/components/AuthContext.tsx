@@ -50,6 +50,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (cancelled) return;
         setUser(u);
       })
+      .catch(() => {
+        // Network error, etc. fetchMe() already clears bad tokens itself;
+        // just avoid an unhandled rejection here.
+      })
       .finally(() => {
         if (!cancelled) setLoading(false);
       });

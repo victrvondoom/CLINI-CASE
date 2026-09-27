@@ -35,6 +35,7 @@ from __future__ import annotations
 import json
 import uuid
 from dataclasses import dataclass, field
+from datetime import UTC
 from typing import Any
 
 import httpx
@@ -164,10 +165,10 @@ class TriZettoGatewayClient:
     # ------------------------------------------------------------------
 
     def _mock_submit(self, envelope: dict[str, Any]) -> GatewayAck:
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         gateway_id = f"trizetto-mock-{uuid.uuid4().hex[:12]}"
-        received_at = datetime.now(timezone.utc).isoformat()
+        received_at = datetime.now(UTC).isoformat()
 
         # Echo what a real Gateway would: which downstream products will
         # receive this. Demo-grade — production fan-out is config-driven.
@@ -203,7 +204,7 @@ class TriZettoGatewayClient:
     # ------------------------------------------------------------------
 
     async def _real_submit(self, envelope: dict[str, Any]) -> GatewayAck:
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         url = f"{self.gateway_url}/mcp"
         headers = {"Content-Type": "application/json"}
@@ -219,7 +220,7 @@ class TriZettoGatewayClient:
                 accepted=False,
                 gateway_id=None,
                 fanout_targets=[],
-                received_at=datetime.now(timezone.utc).isoformat(),
+                received_at=datetime.now(UTC).isoformat(),
                 raw={"error": str(e)},
             )
 
@@ -234,6 +235,6 @@ class TriZettoGatewayClient:
             accepted=accepted,
             gateway_id=result.get("gateway_id") if isinstance(result, dict) else None,
             fanout_targets=result.get("fanout_targets", []) if isinstance(result, dict) else [],
-            received_at=datetime.now(timezone.utc).isoformat(),
+            received_at=datetime.now(UTC).isoformat(),
             raw=body if isinstance(body, dict) else {"raw": body},
         )

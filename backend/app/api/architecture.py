@@ -29,7 +29,7 @@ Pairs with:
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter
@@ -109,7 +109,7 @@ def _layer_orchestration() -> dict[str, Any]:
             {"name": "Domain events + transactional Outbox", "path": "app/events/outbox.py"},
             {"name": "Outbox publisher worker",   "path": "app/events/publisher.py"},
             {"name": "Saga (5 typed actions + compensations)", "path": "ops/architecture/SAGA_PATTERN.md"},
-            {"name": "Per-tenant data residency runtime (ResidencyViolation)", "path": "app/residency.py"},
+            {"name": "Per-tenant data residency runtime (ResidencyViolationError)", "path": "app/residency.py"},
             {"name": "Region-aware Bedrock model_id resolver", "path": "app/residency.py"},
             {"name": "Cell registry + consistent-hash router", "path": "app/cells.py"},
             {"name": "Cedar fine-grained authorization (deny-wins)", "path": "app/authz/cedar.py"},
@@ -410,7 +410,7 @@ def _aws_foundation() -> dict[str, Any]:
 async def get_layers() -> dict[str, Any]:
     """Live, structured descriptor of the 5-layer enterprise architecture."""
     return {
-        "asof_iso": datetime.now(timezone.utc).isoformat(),
+        "asof_iso": datetime.now(UTC).isoformat(),
         "clincase_version": "0.1.0",
         "doc_path": "ops/architecture/TARGET_ARCHITECTURE.md",
         "business_use_case_doc": "ops/architecture/BUSINESS_USE_CASE.md",
@@ -483,7 +483,7 @@ async def get_layers() -> dict[str, Any]:
 async def get_layer(layer_id: str) -> dict[str, Any]:
     """Return one layer's descriptor (for the frontend's per-layer detail view)."""
     full = await get_layers()
-    layers_by_id = {l["id"]: l for l in full["layers"]}
+    layers_by_id = {layer["id"]: layer for layer in full["layers"]}
     if layer_id == "aws-foundation":
         return full["aws_foundation"]
     if layer_id not in layers_by_id:

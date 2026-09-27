@@ -12,6 +12,7 @@ self-service signup gated by EULA + OIDC IdP discovery.
 """
 from __future__ import annotations
 
+import contextlib
 import secrets
 from typing import Any
 
@@ -49,44 +50,41 @@ async def create_tenant(
     org_id = f"org_{body.slug.replace('-', '')[:24]}"
     initial_password = secrets.token_urlsafe(20)
 
-    async with db.pool.acquire() as conn:
-        async with conn.transaction():
-            existing = await conn.fetchrow("SELECT id FROM organizations WHERE id = $1 OR slug = $2", org_id, body.slug)
-            if existing is not None:
-                raise HTTPException(status_code=409, detail=f"organization already exists: {body.slug}")
+    async with db.pool.acquire() as conn, conn.transaction():
+        existing = await conn.fetchrow("SELECT id FROM organizations WHERE id = $1 OR slug = $2", org_id, body.slug)
+        if existing is not None:
+            raise HTTPException(status_code=409, detail=f"organization already exists: {body.slug}")
 
-            await conn.execute(
-                "INSERT INTO organizations (id, name, slug) VALUES ($1, $2, $3)",
-                org_id, body.name, body.slug,
-            )
+        await conn.execute(
+            "INSERT INTO organizations (id, name, slug) VALUES ($1, $2, $3)",
+            org_id, body.name, body.slug,
+        )
 
-            # Initial org_quotas row (residency + tier — round 9 schema columns)
-            try:
-                await conn.execute(
-                    """
-                    INSERT INTO org_quotas (organization_id, data_region, tier)
-                    VALUES ($1, $2, $3)
-                    ON CONFLICT (organization_id) DO UPDATE
-                      SET data_region = EXCLUDED.data_region, tier = EXCLUDED.tier
-                    """,
-                    org_id, body.data_region, body.tier,
-                )
-            except Exception:  # noqa: BLE001
-                # The org_quotas table might not have these columns yet on a fresh dev DB.
-                pass
-
-            user_id = f"user_{secrets.token_hex(8)}"
+        # Initial org_quotas row (residency + tier — round 9 schema columns).
+        # The table might not have these columns yet on a fresh dev DB.
+        with contextlib.suppress(Exception):
             await conn.execute(
                 """
-                INSERT INTO users (id, email, password_hash, full_name, organization_id, role)
-                VALUES ($1, $2, $3, $4, $5, 'admin')
+                INSERT INTO org_quotas (organization_id, data_region, tier)
+                VALUES ($1, $2, $3)
+                ON CONFLICT (organization_id) DO UPDATE
+                  SET data_region = EXCLUDED.data_region, tier = EXCLUDED.tier
                 """,
-                user_id,
-                str(body.admin_email),
-                hash_password(initial_password),
-                body.admin_full_name,
-                org_id,
+                org_id, body.data_region, body.tier,
             )
+
+        user_id = f"user_{secrets.token_hex(8)}"
+        await conn.execute(
+            """
+            INSERT INTO users (id, email, password_hash, full_name, organization_id, role)
+            VALUES ($1, $2, $3, $4, $5, 'admin')
+            """,
+            user_id,
+            str(body.admin_email),
+            hash_password(initial_password),
+            body.admin_full_name,
+            org_id,
+        )
 
     cell = cell_for_organization(organization_id=org_id, data_region=body.data_region)
 

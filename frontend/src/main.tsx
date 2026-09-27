@@ -21,6 +21,15 @@ if (API_BASE) {
 
 import { AuthProvider } from "./components/AuthContext";
 import { RequireAuth } from "./components/RequireAuth";
+import AquaCommunity from "./routes/AquaCommunity";
+import AquaDashboard from "./routes/AquaDashboard";
+import AquaMap from "./routes/AquaMap";
+import AquaObservationDetail from "./routes/AquaObservationDetail";
+import AquaObservationNew from "./routes/AquaObservationNew";
+import AquaObservations from "./routes/AquaObservations";
+import AquaOneHealth from "./routes/AquaOneHealth";
+import AquaReview from "./routes/AquaReview";
+import AquaTrends from "./routes/AquaTrends";
 import Agents from "./routes/Agents";
 import App from "./App";
 import BulkImport from "./routes/BulkImport";
@@ -41,6 +50,7 @@ import Architecture from "./routes/Architecture";
 import Industrialize from "./routes/Industrialize";
 import Reviewer from "./routes/Reviewer";
 import ROI from "./routes/ROI";
+import Sandbox from "./routes/Sandbox";
 import Settings from "./routes/Settings";
 import Signup from "./routes/Signup";
 import TwinCommand from "./routes/TwinCommand";
@@ -77,6 +87,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             <Route path="/cases/:caseId" element={<CaseDetail />} />
             <Route path="/cases/:caseId/compare" element={<Compare />} />
             <Route path="/intake" element={<Intake />} />
+            <Route path="/sandbox" element={<Sandbox />} />
 
             {/* OncoTwin — dynamic digital-twin layer (additive) */}
             <Route path="/twin" element={<TwinCommand />} />
@@ -85,6 +96,10 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             <Route path="/twin/ops" element={<TwinOps />} />
             <Route path="/twin/demo" element={<TwinPatient demo />} />
             <Route path="/twin/demo/classic" element={<TwinDashboard demo />} />
+            {/* /twin/demo/:tab (e.g. /twin/demo/whatif) — same guided demo, deep-linkable to a tab.
+                Without this, those URLs fell through to /twin/:patientId/:tab? with patientId
+                literally "demo", which the backend correctly 404s (no such twin patient). */}
+            <Route path="/twin/demo/:tab" element={<TwinPatient demo />} />
             <Route path="/twin/:patientId/classic" element={<TwinDashboard />} />
             <Route path="/twin/:patientId/:tab?" element={<TwinPatient />} />
 
@@ -112,6 +127,25 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
               element={
                 <RequireAuth roles={["admin"]}>
                   <Settings />
+                </RequireAuth>
+              }
+            />
+
+            {/* AquaHealth — OneAquaHealth freshwater module (additive).
+                Existing ClinCase routes above are unchanged. */}
+            <Route path="/aquahealth" element={<AquaDashboard />} />
+            <Route path="/aquahealth/observations" element={<AquaObservations />} />
+            <Route path="/aquahealth/observations/new" element={<AquaObservationNew />} />
+            <Route path="/aquahealth/observations/:observationId" element={<AquaObservationDetail />} />
+            <Route path="/aquahealth/map" element={<AquaMap />} />
+            <Route path="/aquahealth/trends" element={<AquaTrends />} />
+            <Route path="/aquahealth/one-health" element={<AquaOneHealth />} />
+            <Route path="/aquahealth/community" element={<AquaCommunity />} />
+            <Route
+              path="/aquahealth/review"
+              element={
+                <RequireAuth roles={["reviewer", "admin"]}>
+                  <AquaReview />
                 </RequireAuth>
               }
             />

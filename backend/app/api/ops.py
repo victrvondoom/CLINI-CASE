@@ -219,7 +219,7 @@ async def healthz_deep() -> dict[str, Any]:
         layers["mcp_server"] = {"status": "error", "error": str(e)[:200]}
 
     # ---- Aggregate ----
-    overall = "ok" if all(l.get("status") == "ok" for l in layers.values()) else "degraded"
+    overall = "ok" if all(layer_status.get("status") == "ok" for layer_status in layers.values()) else "degraded"
     return {
         "status": overall,
         "asof_iso": datetime.now(UTC).isoformat(),

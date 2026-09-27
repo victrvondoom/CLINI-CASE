@@ -72,6 +72,49 @@ target-version = "py311"
 select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM", "ASYNC"]
 ignore = ["E501"]  # ruff formatter handles line length
 
+[tool.ruff.lint.per-file-ignores]
+# __init__.py files deliberately re-export names from their submodules
+# (parent-agent packages, oncotwin subpackages) so callers can do
+# `from app.agents.appeals_drafter import draft_appeal` instead of reaching
+# into the submodule. That's the intended pattern, not a dead import.
+"__init__.py" = ["F401"]
+# B008 ("function call in argument default") fires on FastAPI's own required
+# idiom: `Depends(...)`, `Depends(require_role(...))`, and `File(...)` MUST be
+# evaluated as parameter defaults — that's how FastAPI builds its dependency-
+# injection graph at route-registration time. Moving these calls inside the
+# function body (ruff's suggested fix) would silently break auth and file
+# uploads app-wide. Scoped to the three dirs that actually define FastAPI
+# routes/dependencies (confirmed via `ruff check --select B008`).
+"app/api/**/*.py" = ["B008"]
+"app/auth/**/*.py" = ["B008"]
+"app/integrations/**/*.py" = ["B008"]
+# N806/N803/N812 ("should be lowercase") false-positive on the OncoTwin
+# simulator's linear-algebra / matrix code, which deliberately follows
+# NumPy/stats convention: capitals for matrices (Z, R, B) and short module
+# aliases (`from app.oncotwin.simulator import physiology as P`), while
+# scalars/vectors stay lowercase. Renaming would fight the domain's own
+# notation for no readability gain. Confirmed via `ruff check --select
+# N806,N803,N812` that every finding here is in the numerical layers
+# (engine/ml/intel/research/mlops/simulator/features), none in oncotwin's
+# own API/router code.
+"app/oncotwin/**/*.py" = ["N806", "N803", "N812"]
+# F405 ("may be undefined, or defined from star imports") is the expected
+# companion to each agent's `from app.agents.<name>.schemas import *`
+# (already accepted via its own `# noqa: F401,F403`) — every agent node.py
+# uses this so `AppealsDrafterInput(...)` etc. work without repeating a long
+# explicit import list per agent. N814 covers the short legacy-shim aliases
+# (`ClinicalSnapshot as _CS`, `AssembleStage as _A`) used the same way. Both
+# confirmed via `ruff check --select F405,N814` to be entirely this pattern.
+"app/agents/**/*.py" = ["F405", "N814"]
+# E741 flags the `I`/`O` TypeVars (`Agent[I, O]` = Input/Output) defined once
+# in framework/agent.py + framework/types.py and used as the generic type
+# parameters across all 41 agent class definitions. They read visually like
+# 1/0 in isolation but are unambiguous in their actual `Agent[SomeInput,
+# SomeOutput]` bracket-syntax usage. Renaming would touch every agent file
+# for a cosmetic gain; scoped to just the two files that declare them.
+"app/agents/framework/agent.py" = ["E741"]
+"app/agents/framework/types.py" = ["E741"]
+
 [tool.mypy]
 python_version = "3.11"
 strict = true

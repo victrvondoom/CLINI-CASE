@@ -72,7 +72,7 @@ async def decision_composer_node(state: ClinCaseState) -> dict[str, Any]:
 from pathlib import Path as _Path  # noqa: E402
 
 from app.models import ClinicalSnapshot as _CS  # noqa: E402
-from app.models import PolicyExcerpt as _PE
+from app.models import PolicyExcerpt as _PE  # noqa: E402
 
 _PROMPT = (_Path(__file__).resolve().parents[2] / "prompts" / "decision_composer" / "orchestrator.txt").read_text(
     encoding="utf-8"

@@ -53,7 +53,6 @@ from app.oncotwin.ml.logistic import (
     threshold_for_ppv,
     threshold_for_sensitivity,
 )
-from app.oncotwin.ml.train import population_baseline
 from app.oncotwin.signals import MODEL_SIGNALS, adverse_sign
 
 SIGNAL_GROUPS = {
@@ -237,7 +236,9 @@ def run_experiment(cohort, cfg: ExperimentConfig, *, pop_base: Baseline | None =
         ys, ss, ps = [], [], []
         for i, (p, s) in enumerate(zip(te, per, strict=True)):
             y, ok = labels(p, cfg.horizon)
-            ys.append(y[ok]); ss.append(s[ok]); ps.append(np.full(int(ok.sum()), i))
+            ys.append(y[ok])
+            ss.append(s[ok])
+            ps.append(np.full(int(ok.sum()), i))
         y, s, pid = np.concatenate(ys), np.concatenate(ss), np.concatenate(ps)
         tp = float(((s >= 0.5) & (y == 1)).sum())
         prec, rec = tp / max(1.0, float((s >= 0.5).sum())), tp / max(1.0, float(y.sum()))

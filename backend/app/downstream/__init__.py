@@ -16,14 +16,14 @@ Pairs with: ops/architecture/DOWNSTREAM_BREAKERS.md
 """
 from app.downstream.breaker import (
     DownstreamBreaker,
-    DownstreamBreakerOpen,
+    DownstreamBreakerOpenError,
     breaker_snapshot,
     get_breaker,
 )
 
 __all__ = [
     "DownstreamBreaker",
-    "DownstreamBreakerOpen",
+    "DownstreamBreakerOpenError",
     "get_breaker",
     "breaker_snapshot",
 ]

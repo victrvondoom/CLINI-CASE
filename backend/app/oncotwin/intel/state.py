@@ -621,7 +621,7 @@ def _reason(key: str, prev: dict[str, Any], cur: dict[str, Any]) -> str:
         adm = f.get("admission")
         if adm:
             return f"{adm['display']} (Day {adm['day']})."
-        return f"Outpatient{f' — discharged Day ' + str(f['last_discharge_day']) if f.get('last_discharge_day') else ''}."
+        return f"Outpatient{' — discharged Day ' + str(f['last_discharge_day']) if f.get('last_discharge_day') else ''}."
     return f"{prev['status']} → {cur['status']}."
 
 
@@ -634,7 +634,7 @@ def transitions(states: list[dict[str, Any]], *, from_day: int | None = None,
                 to_day: int | None = None) -> list[dict[str, Any]]:
     """Every categorical status change between consecutive days (oldest first)."""
     out: list[dict[str, Any]] = []
-    for prev, cur in zip(states, states[1:]):
+    for prev, cur in zip(states, states[1:], strict=False):
         if (from_day is not None and cur["day"] < from_day) or (to_day is not None and cur["day"] > to_day):
             continue
         for key in DIMENSION_ORDER:

@@ -20,12 +20,8 @@ async def get_current_user(
 
     401 on missing/invalid token. 401 on user no longer existing.
     """
-    token: str | None = None
-    if creds is not None:
-        token = creds.credentials
-    else:
-        # Fallback: allow ?token= for SSE (EventSource can't send headers)
-        token = request.query_params.get("token")
+    # Fallback: allow ?token= for SSE (EventSource can't send headers)
+    token: str | None = creds.credentials if creds is not None else request.query_params.get("token")
 
     if not token:
         raise HTTPException(

@@ -42,9 +42,13 @@ from app.oncotwin.engine.features import (
 from app.oncotwin.engine.neutrophil import NeutrophilFit, NeutrophilTwin
 from app.oncotwin.engine.series import PatientSeries, build_series
 from app.oncotwin.engine.simulate import simulate_scenarios
-from app.oncotwin.engine.state import LATENT_LABELS, confidence, estimate_latent, neutrophil_projection
+from app.oncotwin.engine.state import (
+    LATENT_LABELS,
+    confidence,
+    estimate_latent,
+    neutrophil_projection,
+)
 from app.oncotwin.engine.warning import (
-    ACUTE_CARE,
     RANK,
     TIERS,
     apply_hysteresis,

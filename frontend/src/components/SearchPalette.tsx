@@ -18,6 +18,7 @@ const SECTIONS: { label: string; items: { label: string; href: string; mono?: bo
       { label: "Dashboard",    href: "/dashboard" },
       { label: "All cases",    href: "/cases" },
       { label: "Bulk import",  href: "/cases/bulk-import" },
+      { label: "Sandbox — PA decision simulator", href: "/sandbox" },
     ],
   },
   {
@@ -119,7 +120,7 @@ export function SearchPalette({ open, onClose }: Props) {
           <button
             type="button"
             onClick={onClose}
-            className="text-ink-faint hover:text-ink-primary"
+            className="text-ink-faint hover:text-ink-primary transition-colors duration-150"
             aria-label="Close palette"
           >
             <X size={16} />

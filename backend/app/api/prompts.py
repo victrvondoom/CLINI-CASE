@@ -94,7 +94,7 @@ async def post_traffic_split(
     try:
         await set_traffic_split(agent_name=agent_name, weights=body.weights)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     return {"status": "ok", "agent_name": agent_name, "weights": body.weights}
 
 

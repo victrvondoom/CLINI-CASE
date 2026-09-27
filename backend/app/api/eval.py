@@ -43,9 +43,9 @@ def _per_class_prf(
     truth: list[str], pred: list[str], cls: str
 ) -> dict[str, float]:
     """Compute precision, recall, F1 for a single class."""
-    tp = sum(1 for t, p in zip(truth, pred) if t == cls and p == cls)
-    fp = sum(1 for t, p in zip(truth, pred) if t != cls and p == cls)
-    fn = sum(1 for t, p in zip(truth, pred) if t == cls and p != cls)
+    tp = sum(1 for t, p in zip(truth, pred, strict=False) if t == cls and p == cls)
+    fp = sum(1 for t, p in zip(truth, pred, strict=False) if t != cls and p == cls)
+    fn = sum(1 for t, p in zip(truth, pred, strict=False) if t == cls and p != cls)
     precision = tp / (tp + fp) if (tp + fp) else 0.0
     recall = tp / (tp + fn) if (tp + fn) else 0.0
     f1 = (2 * precision * recall / (precision + recall)) if (precision + recall) else 0.0
@@ -63,7 +63,7 @@ def _confusion_matrix(truth: list[str], pred: list[str]) -> dict[str, dict[str, 
     matrix: dict[str, dict[str, int]] = {
         t: {p: 0 for p in VERDICTS} for t in VERDICTS
     }
-    for t, p in zip(truth, pred):
+    for t, p in zip(truth, pred, strict=False):
         if t in VERDICTS and p in VERDICTS:
             matrix[t][p] += 1
     return matrix
@@ -88,7 +88,7 @@ def _disagreement_taxonomy(
         "aggressive_opposite_verdict": 0,
         "other": 0,
     }
-    for t, p in zip(truth, pred):
+    for t, p in zip(truth, pred, strict=False):
         if t == p:
             continue
         if t == "REFER" and p in {"APPROVE", "DENY"}:
@@ -154,7 +154,7 @@ async def cohort_eval(
 
     n = len(truth)
     overall_accuracy = (
-        round(100.0 * sum(1 for t, p in zip(truth, pred) if t == p) / n, 2)
+        round(100.0 * sum(1 for t, p in zip(truth, pred, strict=False) if t == p) / n, 2)
         if n
         else 0.0
     )

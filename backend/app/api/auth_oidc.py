@@ -6,6 +6,7 @@
 """
 from __future__ import annotations
 
+import contextlib
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
@@ -32,7 +33,7 @@ async def oidc_login(return_to: str | None = Query(default="/")) -> RedirectResp
         url, _state = await build_authorize_url(return_to=return_to)
     except RuntimeError as e:
         # OIDC not configured
-        raise HTTPException(status_code=503, detail=str(e))
+        raise HTTPException(status_code=503, detail=str(e)) from e
     return RedirectResponse(url=url, status_code=302)
 
 
@@ -45,13 +46,15 @@ async def oidc_callback(
     try:
         result = await exchange_code(code=code, state=state)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except RuntimeError as e:
-        raise HTTPException(status_code=503, detail=str(e))
+        raise HTTPException(status_code=503, detail=str(e)) from e
 
     # Idempotent upsert into users by email.
     user_id = f"oidc_{result.user_id[:32]}"
-    try:
+    # If users table doesn't exist yet (fresh dev DB), still mint a session;
+    # the case-run path doesn't strictly require the row.
+    with contextlib.suppress(Exception):
         await db.execute(
             """
             INSERT INTO users (id, email, password_hash, full_name, organization_id, role)
@@ -69,10 +72,6 @@ async def oidc_callback(
             result.organization_id,
             result.role,
         )
-    except Exception:  # noqa: BLE001
-        # If users table doesn't exist yet (fresh dev DB), still mint a session;
-        # the case-run path doesn't strictly require the row.
-        pass
 
     token = create_access_token(
         user_id=user_id,

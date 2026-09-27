@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.agents.framework import BudgetExceeded, BudgetTracker
+from app.agents.framework import BudgetExceededError, BudgetTracker
 
 
 def _budget(*, max_cost_usd=1.0, max_total_tokens=100_000, max_latency_ms=60_000):
@@ -34,7 +34,7 @@ def test_cancel_releases_reservation_without_spend():
 
 def test_overreservation_raises_budget_exceeded():
     b = _budget(max_cost_usd=0.50)
-    with pytest.raises(BudgetExceeded) as exc:
+    with pytest.raises(BudgetExceededError) as exc:
         b.reserve(estimated_usd=0.75)
     assert exc.value.dimension == "cost_usd"
     assert exc.value.requested == 0.75
@@ -43,7 +43,7 @@ def test_overreservation_raises_budget_exceeded():
 
 def test_token_ceiling_enforced():
     b = _budget(max_total_tokens=1000)
-    with pytest.raises(BudgetExceeded) as exc:
+    with pytest.raises(BudgetExceededError) as exc:
         b.reserve(estimated_usd=0.01, estimated_input_tokens=800, estimated_output_tokens=400)
     assert exc.value.dimension == "tokens"
 
@@ -54,7 +54,7 @@ def test_concurrent_reservations_dont_double_book():
     r1 = b.reserve(estimated_usd=0.40)
     r2 = b.reserve(estimated_usd=0.40)
     assert b.remaining_usd == pytest.approx(0.20)
-    with pytest.raises(BudgetExceeded):
+    with pytest.raises(BudgetExceededError):
         b.reserve(estimated_usd=0.30)  # only 0.20 remaining, this exceeds
     b.commit(r1, actual_usd=0.30, actual_input_tokens=0, actual_output_tokens=0, model_id="x")
     b.commit(r2, actual_usd=0.30, actual_input_tokens=0, actual_output_tokens=0, model_id="x")

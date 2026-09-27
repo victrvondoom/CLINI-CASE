@@ -50,7 +50,7 @@ const TIER_STYLE: Record<Tier, { Icon: LucideIcon; cls: string; hint: string }> 
 export function TierBadge({ tier, size = "md" }: { tier: Tier; size?: "sm" | "md" | "lg" }) {
   const s = TIER_STYLE[tier] ?? TIER_STYLE.NORMAL;
   return (
-    <span className={clsx("inline-flex items-center gap-1.5 rounded-md border whitespace-nowrap", s.cls,
+    <span className={clsx("inline-flex items-center gap-1.5 rounded-md border whitespace-nowrap transition-[background-color,border-color,box-shadow,transform] duration-200 ease-out", s.cls,
       size === "sm" && "px-1.5 py-0.5 text-[10px]", size === "md" && "px-2 py-1 text-[11px]", size === "lg" && "px-3 py-1.5 text-sm")}
       title={s.hint}>
       <s.Icon size={size === "lg" ? 16 : 12} aria-hidden />
@@ -63,7 +63,7 @@ export function Section({ id, eyebrow, title, right, children, className }: {
   id?: string; eyebrow?: string; title: string; right?: React.ReactNode; children: React.ReactNode; className?: string;
 }) {
   return (
-    <section id={id} className={clsx("bg-surface-raised border border-surface-border rounded-2xl p-4 scroll-mt-24", className)}>
+    <section id={id} className={clsx("bg-surface-raised border border-surface-border rounded-2xl p-4 scroll-mt-24 animate-fade-in", className)}>
       <header className="flex items-start justify-between gap-3 mb-3">
         <div>
           {eyebrow && <div className="text-[10px] text-compact text-ink-muted">{eyebrow}</div>}
@@ -105,8 +105,8 @@ export function TwinCardView({ d }: { d: Dashboard }) {
             Stage {c.patient.stage} · {Object.entries(c.patient.biomarkers).map(([k, v]) => `${k} ${v}`).join(" · ")}
           </div>
         </Field>
-        <div className="mt-3"><TierBadge tier={c.current_state.tier} size="lg" /></div>
-        <div className="mt-3 text-data-numeric text-4xl text-ink-primary nums-tabular">{pct(c.risk.probability, 1)}</div>
+        <div key={c.current_state.tier} className="mt-3 animate-fade-in"><TierBadge tier={c.current_state.tier} size="lg" /></div>
+        <div key={pct(c.risk.probability, 1)} className="mt-3 text-data-numeric text-4xl text-ink-primary nums-tabular animate-fade-in">{pct(c.risk.probability, 1)}</div>
         <div className="text-[11px] text-ink-muted">
           probability of unplanned acute care within {c.risk.horizon_days} days ({c.risk.outcome_id}) · 80% interval{" "}
           {pct(c.risk.p10, 1)}–{pct(c.risk.p90, 1)} · confidence <b className="text-ink-body">{c.risk.confidence}</b>
@@ -625,7 +625,8 @@ export function AlertPanel({ alerts, canAct, onChanged, selected, onSelect }: {
         {alerts.map((al) => (
           <li key={al.id}>
             <button type="button" onClick={() => onSelect(al.id)}
-              className={clsx("w-full text-left rounded-lg border p-2", al.id === id ? "border-accent-brand bg-accent-brand/5" : "border-surface-border")}>
+              className={clsx("w-full text-left rounded-lg border p-2 transition-colors duration-200 ease-out hover:border-accent-brand/50",
+                al.id === id ? "border-accent-brand bg-accent-brand/5" : "border-surface-border")}>
               <div className="flex items-center justify-between gap-1"><TierBadge tier={al.tier} size="sm" /><span className="text-mono-tech text-[10px]">D{al.as_of_day}</span></div>
               <div className="text-[11px] mt-1">{pct(al.risk, 1)} · <span className="uppercase text-[10px] text-compact">{al.status}</span></div>
             </button>
@@ -633,7 +634,7 @@ export function AlertPanel({ alerts, canAct, onChanged, selected, onSelect }: {
         ))}
       </ul>
       {a && why && (
-        <div className="space-y-3 text-[12px]">
+        <div key={a.id} className="space-y-3 text-[12px] animate-fade-in">
           <div>
             <div className="text-[10px] text-compact text-ink-faint">Why did the twin raise this alert at this exact time?</div>
             <p className="text-ink-body mt-0.5">{why.answer}</p>
@@ -732,8 +733,9 @@ export function AuditPanel({ pid, refreshKey }: { pid: string; refreshKey: numbe
         </div>
       )}
       <ol className="max-h-80 overflow-auto space-y-1 pr-1">
-        {rows.map((e) => (
-          <li key={e.id} className="text-[11px] border-b border-surface-border/60 pb-1">
+        {rows.map((e, i) => (
+          <li key={e.id} className="text-[11px] border-b border-surface-border/60 pb-1 animate-fade-in"
+            style={{ animationDelay: `${Math.min(i, 8) * 25}ms`, animationFillMode: "both" }}>
             <div className="flex flex-wrap gap-x-2">
               <span className="text-mono-tech text-ink-muted">#{e.seq}</span>
               <b className="uppercase text-[10px] text-compact">{e.kind.replace(/_/g, " ")}</b>
@@ -777,24 +779,25 @@ export function ReplayBar({ asOf, live, moments, playing, onSeek, onPlay, onLive
     <div className="rounded-xl border border-surface-border bg-surface-raised p-3">
       <div className="flex items-center gap-3 flex-wrap">
         <button type="button" onClick={onPlay} aria-label={playing ? "Pause replay" : "Play replay"}
-          className="w-8 h-8 rounded-full bg-accent-brand text-ink-invert inline-flex items-center justify-center">
+          className={clsx("w-8 h-8 rounded-full bg-accent-brand text-ink-invert inline-flex items-center justify-center transition-transform duration-150 ease-out hover:scale-105 active:scale-95",
+            playing && "animate-pulse-soft")}>
           {playing ? <Pause size={14} aria-hidden /> : <Play size={14} aria-hidden />}
         </button>
         <div className="text-[12px]">
           <span className="text-compact text-[10px] text-ink-muted">TIME TRAVEL</span>
-          <div className="text-mono-tech">Day {asOf} / {live}</div>
+          <div key={asOf} className="text-mono-tech animate-fade-in">Day {asOf} / {live}</div>
         </div>
         <input type="range" min={1} max={live} value={asOf} onChange={(e) => onSeek(Number(e.target.value))}
-          className="flex-1 min-w-[160px]" aria-label="Replay day" />
+          className="flex-1 min-w-[160px] transition-shadow duration-200" aria-label="Replay day" />
         <button type="button" onClick={onLive} disabled={asOf === live}
-          className="text-[11px] px-2 py-1 rounded border border-surface-border inline-flex items-center gap-1 disabled:opacity-40">
+          className="text-[11px] px-2 py-1 rounded border border-surface-border inline-flex items-center gap-1 disabled:opacity-40 transition-colors duration-200 hover:border-accent-brand/50">
           <Radio size={11} aria-hidden /> Live
         </button>
       </div>
       <div className="mt-2 flex flex-wrap gap-1.5">
         {moments.filter((m) => m.day <= live).map((m, i) => (
           <button key={i} type="button" onClick={() => onSeek(m.day)} title={m.text}
-            className={clsx("text-[10.5px] px-2 py-0.5 rounded border",
+            className={clsx("text-[10.5px] px-2 py-0.5 rounded border transition-colors duration-200 ease-out hover:border-accent-brand/50",
               m.day === asOf ? "border-accent-brand bg-accent-brand/10" : "border-surface-border text-ink-body")}>
             D{m.day} · {m.text.length > 42 ? `${m.text.slice(0, 40)}…` : m.text}
           </button>

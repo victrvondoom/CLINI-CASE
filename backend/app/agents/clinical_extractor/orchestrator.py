@@ -11,6 +11,7 @@ the authoritative biomarker block.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 from pathlib import Path
 from typing import ClassVar
@@ -83,21 +84,38 @@ class ClinicalExtractorAgent(Agent[ClinicalExtractorInput, ClinicalExtractorOutp
         input: ClinicalExtractorInput,
         ctx: AgentContext,
     ) -> ClinicalExtractorOutput:
-        # 1) Validate FHIR Bundle
-        validation = await fhir_resource_validator.invoke(
-            FHIRResourceValidatorInput(fhir_bundle=input.fhir_bundle), ctx=ctx
-        )
+        # 1) Validate FHIR Bundle + 2) PHI-sanitize the physician note — run
+        # concurrently via asyncio.gather. These two calls read completely
+        # disjoint inputs (input.fhir_bundle vs input.physician_note), neither
+        # depends on the other's output, and both sub-agents are pure
+        # w.r.t. each other (no shared mutable state) — see
+        # fhir_resource_validator._execute_deterministic and
+        # phi_sanitizer._execute_deterministic. Same fan-out pattern as
+        # necessity_reasoner's evidence_matcher parallelization. Both calls
+        # complete before either result is inspected below, which is fine
+        # here since a validation failure has no side effects contingent on
+        # the sanitizer (or vice versa) — the ValueError is still raised,
+        # and still raised before the biomarker/Sonnet steps run.
+        if input.physician_note:
+            validation, phi_result = await asyncio.gather(
+                fhir_resource_validator.invoke(
+                    FHIRResourceValidatorInput(fhir_bundle=input.fhir_bundle), ctx=ctx
+                ),
+                phi_sanitizer.invoke(PHISanitizerInput(text=input.physician_note), ctx=ctx),
+            )
+        else:
+            validation = await fhir_resource_validator.invoke(
+                FHIRResourceValidatorInput(fhir_bundle=input.fhir_bundle), ctx=ctx
+            )
+            phi_result = None
+
         if not validation.output.is_valid:
             errors = [i.message for i in validation.output.issues if i.severity == "error"]
             raise ValueError("FHIR Bundle failed validation: " + "; ".join(errors))
 
-        # 2) PHI-sanitize the physician note
         redacted_note: str | None = None
         n_phi_masked = 0
-        if input.physician_note:
-            phi_result = await phi_sanitizer.invoke(
-                PHISanitizerInput(text=input.physician_note), ctx=ctx
-            )
+        if phi_result is not None:
             redacted_note = phi_result.output.sanitized_text
             n_phi_masked = len(phi_result.output.masks)
 

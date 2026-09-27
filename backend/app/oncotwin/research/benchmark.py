@@ -42,7 +42,13 @@ from app.oncotwin.intel.changepoint import detect
 from app.oncotwin.ml.model import load_model
 from app.oncotwin.ml.train import tier_sequence
 from app.oncotwin.research.dataset import load_cohort
-from app.oncotwin.research.lab import ALL_GROUPS, ExperimentConfig, paired_delta, population_base, run_experiment
+from app.oncotwin.research.lab import (
+    ALL_GROUPS,
+    ExperimentConfig,
+    paired_delta,
+    population_base,
+    run_experiment,
+)
 from app.oncotwin.simulator import physiology as P
 
 RESULTS_PATH = Path(__file__).resolve().parent / "results" / "benchmark_v1.json"

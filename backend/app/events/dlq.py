@@ -53,36 +53,35 @@ async def maybe_move_to_dlq(*, event_id: str, attempts: int, last_error: str | N
     if attempts < _MAX_ATTEMPTS:
         return False
     moved = False
-    async with db.pool.acquire() as conn:
-        async with conn.transaction():
-            row = await conn.fetchrow(
-                "SELECT * FROM event_outbox WHERE event_id = $1 FOR UPDATE",
-                event_id,
-            )
-            if row is None:
-                return False
-            await conn.execute(
-                """
-                INSERT INTO event_outbox_dlq (
-                    event_id, organization_id, event_type, case_id, payload,
-                    attempts, last_error, original_created_at
-                ) VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8)
-                ON CONFLICT (event_id) DO UPDATE SET
-                    attempts        = EXCLUDED.attempts,
-                    last_error      = EXCLUDED.last_error,
-                    moved_to_dlq_at = NOW()
-                """,
-                row["event_id"],
-                row["organization_id"],
-                row["event_type"],
-                row.get("case_id") if hasattr(row, "get") else row["case_id"],
-                row["payload"] if isinstance(row["payload"], str) else __import__("json").dumps(row["payload"]),
-                attempts,
-                last_error,
-                row["created_at"],
-            )
-            await conn.execute("DELETE FROM event_outbox WHERE event_id = $1", event_id)
-            moved = True
+    async with db.pool.acquire() as conn, conn.transaction():
+        row = await conn.fetchrow(
+            "SELECT * FROM event_outbox WHERE event_id = $1 FOR UPDATE",
+            event_id,
+        )
+        if row is None:
+            return False
+        await conn.execute(
+            """
+            INSERT INTO event_outbox_dlq (
+                event_id, organization_id, event_type, case_id, payload,
+                attempts, last_error, original_created_at
+            ) VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8)
+            ON CONFLICT (event_id) DO UPDATE SET
+                attempts        = EXCLUDED.attempts,
+                last_error      = EXCLUDED.last_error,
+                moved_to_dlq_at = NOW()
+            """,
+            row["event_id"],
+            row["organization_id"],
+            row["event_type"],
+            row.get("case_id") if hasattr(row, "get") else row["case_id"],
+            row["payload"] if isinstance(row["payload"], str) else __import__("json").dumps(row["payload"]),
+            attempts,
+            last_error,
+            row["created_at"],
+        )
+        await conn.execute("DELETE FROM event_outbox WHERE event_id = $1", event_id)
+        moved = True
     if moved:
         log.warning("outbox.dlq.moved", event_id=event_id, attempts=attempts, error=last_error)
     return moved
@@ -109,33 +108,32 @@ async def list_dlq(
 async def replay(*, event_id: str, organization_id: str) -> bool:
     """Move event back from DLQ to event_outbox so the publisher picks it up
     again. Returns True if replayed."""
-    async with db.pool.acquire() as conn:
-        async with conn.transaction():
-            row = await conn.fetchrow(
-                "SELECT * FROM event_outbox_dlq WHERE event_id = $1 AND organization_id = $2 FOR UPDATE",
-                event_id, organization_id,
-            )
-            if row is None:
-                return False
-            await conn.execute(
-                """
-                INSERT INTO event_outbox (
-                    event_id, organization_id, event_type, case_id, payload,
-                    attempts, status, created_at
-                ) VALUES ($1, $2, $3, $4, $5::jsonb, 0, 'pending', NOW())
-                ON CONFLICT (event_id) DO UPDATE SET
-                    attempts = 0, status = 'pending'
-                """,
-                row["event_id"],
-                row["organization_id"],
-                row["event_type"],
-                row["case_id"],
-                row["payload"] if isinstance(row["payload"], str) else __import__("json").dumps(row["payload"]),
-            )
-            await conn.execute(
-                "UPDATE event_outbox_dlq SET replay_count = replay_count + 1 WHERE event_id = $1",
-                event_id,
-            )
+    async with db.pool.acquire() as conn, conn.transaction():
+        row = await conn.fetchrow(
+            "SELECT * FROM event_outbox_dlq WHERE event_id = $1 AND organization_id = $2 FOR UPDATE",
+            event_id, organization_id,
+        )
+        if row is None:
+            return False
+        await conn.execute(
+            """
+            INSERT INTO event_outbox (
+                event_id, organization_id, event_type, case_id, payload,
+                attempts, status, created_at
+            ) VALUES ($1, $2, $3, $4, $5::jsonb, 0, 'pending', NOW())
+            ON CONFLICT (event_id) DO UPDATE SET
+                attempts = 0, status = 'pending'
+            """,
+            row["event_id"],
+            row["organization_id"],
+            row["event_type"],
+            row["case_id"],
+            row["payload"] if isinstance(row["payload"], str) else __import__("json").dumps(row["payload"]),
+        )
+        await conn.execute(
+            "UPDATE event_outbox_dlq SET replay_count = replay_count + 1 WHERE event_id = $1",
+            event_id,
+        )
     log.info("outbox.dlq.replayed", event_id=event_id, organization_id=organization_id)
     return True
 

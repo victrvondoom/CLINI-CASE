@@ -2,8 +2,8 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
 
 import structlog
 from fastapi import FastAPI
@@ -82,7 +82,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
     # OpenTelemetry — no-op when OTEL_EXPORTER_OTLP_ENDPOINT is unset.
     def _otel_setup():
-        from app.observability.otel import setup_otel, instrument_fastapi
+        from app.observability.otel import instrument_fastapi, setup_otel
         setup_otel(service_name="clincase", service_version="0.1.0")
         instrument_fastapi(_app)
     _install_optional_sync("otel", _otel_setup)
@@ -121,6 +121,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         ("app.privacy.erasure",            "subject_redactions_schema"),
         ("app.privacy.tokenization",       "phi_vault_schema"),
         ("app.prompts_versioning",         "prompts_schema"),
+        ("app.api.cases",                  "cases_status_schema"),
     ):
         async def _ensure(mp=module_path):
             mod = __import__(mp, fromlist=["ensure_schema"])
@@ -153,6 +154,12 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         await ensure_schema()
     await _bootstrap_optional("oncotwin_audit_schema", _oncotwin)
 
+    # AquaHealth (OneAquaHealth freshwater module) — additive; own tables only.
+    async def _aquahealth():
+        from app.aquahealth.store import ensure_schema
+        await ensure_schema()
+    await _bootstrap_optional("aquahealth_schema", _aquahealth)
+
     # Redis SSE pub/sub — in-process is the safe fallback for single-replica.
     # Multi-replica deploys MUST set REDIS_URL or live SSE traces fan-out
     # asymmetrically. We log loudly when this fails because in production
@@ -170,18 +177,18 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     try:
         from app.auth import hash_password
 
-        _DEMO_USERS = (
+        _demo_users = (
             ("user_demoadmin",    "admin@clincase.health",       "Demo Administrator", "admin"),
             ("user_demoreviewer", "reviewer@clincase.health",    "Demo Reviewer",      "reviewer"),
             ("user_democoord",    "coordinator@clincase.health", "Demo Coordinator",   "coordinator"),
         )
 
         existing = await db.fetchval(
-            "SELECT id FROM users WHERE email = $1", _DEMO_USERS[0][1],
+            "SELECT id FROM users WHERE email = $1", _demo_users[0][1],
         )
         if existing is None:
             _hashed_demo_password = hash_password(settings.DEMO_USER_PASSWORD)
-            for user_id, email, full_name, role in _DEMO_USERS:
+            for user_id, email, full_name, role in _demo_users:
                 await db.execute(
                     """INSERT INTO users (id, email, password_hash, full_name,
                                           organization_id, role)
@@ -194,7 +201,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
                 "UPDATE organizations SET name = $1, slug = $2 WHERE id = $3",
                 "ClinCase Demo Health", "clincase-demo", "org_demo",
             )
-            log.info("clincase.seed.demo_users_created", count=len(_DEMO_USERS))
+            log.info("clincase.seed.demo_users_created", count=len(_demo_users))
 
         # Backfill any cases without an org_id (idempotent migration helper)
         await db.execute(
@@ -235,30 +242,36 @@ app.add_middleware(
 # Stamp X-API-Version + RFC 8594 Sunset/Deprecation headers on every response.
 # Reads V1_SUNSET_DATE env at module import; safe no-op when unset.
 from app.api.version_headers import VersionHeadersMiddleware  # noqa: E402
+
 app.add_middleware(VersionHeadersMiddleware)
 
 # Stamp X-ClinCase-Cell-Id on every authenticated response (round 11).
 # Decodes JWT to resolve cell; no-op for anonymous traffic.
 from app.api.cell_router_middleware import CellRouterMiddleware  # noqa: E402
+
 app.add_middleware(CellRouterMiddleware)
 
 # Per-tenant per-second + per-minute rate limiter (round 11).
 # Skips healthz/metrics/login routes (those are protected at the WAF tier).
 # Falls back to in-memory store; multi-replica deploys must configure REDIS_URL.
 from app.api.rate_limit_middleware import RateLimitMiddleware  # noqa: E402
+
 app.add_middleware(RateLimitMiddleware)
 
 # Bind organization_id to a contextvar so the DB layer can SET LOCAL it
 # for Postgres Row Level Security (round 12).
 from app.api.tenant_context_middleware import TenantContextMiddleware  # noqa: E402
+
 app.add_middleware(TenantContextMiddleware)
 
 # Generalized Stripe-style Idempotency-Key on all write endpoints (round 13).
 from app.api.idempotency_middleware import IdempotencyMiddleware  # noqa: E402
+
 app.add_middleware(IdempotencyMiddleware)
 
 # Gzip OncoTwin JSON (50–400 KB payloads); scoped so ClinCase SSE streams are never buffered.
 from app.api.oncotwin_gzip_middleware import OncoTwinGZipMiddleware  # noqa: E402
+
 app.add_middleware(OncoTwinGZipMiddleware)
 
 
@@ -281,47 +294,116 @@ async def request_id_middleware(request, call_next):
 # --- Routes ------------------------------------------------------------------
 from app.api import (  # noqa: E402
     agents_manifest,
-    appeals as appeals_api,
-    architecture as architecture_api,
     auth,
-    intake as intake_api,
-    auth_oidc as auth_oidc_api,
-    authz as authz_api,
-    business_value as business_value_api,
     cases,
-    compliance as compliance_api,
-    compliance_controls as compliance_controls_api,
     demo,
-    dlq as dlq_api,
-    eval as eval_api,
-    evidence_pack as evidence_pack_api,
     fhir_pas,
-    finops as finops_api,
-    foundry as foundry_api,
     healthz,
-    jobs as jobs_api,
-    kiro as kiro_api,
-    llm_gateway as llm_gateway_api,
     llm_ping,
-    metrics as metrics_api,
-    ops as ops_api,
-    quotas as quotas_api,
-    rate_limits as rate_limits_api,
-    residency as residency_api,
-    responsible_ai as responsible_ai_api,
-    sagas as sagas_api,
-    security_anomalies as security_anomalies_api,
-    stream,
-    stream_completion as stream_completion_api,
-    tenants as tenants_api,
-    fhir_bulk as fhir_bulk_api,
-    privacy as privacy_api,
-    prompts as prompts_api,
-    v2 as v2_api,
-    policies as policies_api,
     oncology_stack,
+    stream,
+)
+from app.api import (  # noqa: E402
+    appeals as appeals_api,
+)
+from app.api import (  # noqa: E402
+    architecture as architecture_api,
+)
+from app.api import (  # noqa: E402
+    auth_oidc as auth_oidc_api,
+)
+from app.api import (  # noqa: E402
+    authz as authz_api,
+)
+from app.api import (  # noqa: E402
+    business_value as business_value_api,
+)
+from app.api import (  # noqa: E402
+    compliance as compliance_api,
+)
+from app.api import (  # noqa: E402
+    compliance_controls as compliance_controls_api,
+)
+from app.api import (  # noqa: E402
+    dlq as dlq_api,
+)
+from app.api import (  # noqa: E402
+    eval as eval_api,
+)
+from app.api import (  # noqa: E402
+    evidence_pack as evidence_pack_api,
+)
+from app.api import (  # noqa: E402
+    fhir_bulk as fhir_bulk_api,
+)
+from app.api import (  # noqa: E402
+    finops as finops_api,
+)
+from app.api import (  # noqa: E402
+    foundry as foundry_api,
+)
+from app.api import (  # noqa: E402
+    intake as intake_api,
+)
+from app.api import (  # noqa: E402
+    jobs as jobs_api,
+)
+from app.api import (  # noqa: E402
+    kiro as kiro_api,
+)
+from app.api import (  # noqa: E402
+    llm_gateway as llm_gateway_api,
+)
+from app.api import (  # noqa: E402
+    metrics as metrics_api,
+)
+from app.api import (  # noqa: E402
     oncotwin as oncotwin_api,
+)
+from app.api import (  # noqa: E402
     oncotwin_intel as oncotwin_intel_api,
+)
+from app.api import (  # noqa: E402
+    aquahealth as aquahealth_api,
+)
+from app.api import (  # noqa: E402
+    ops as ops_api,
+)
+from app.api import (  # noqa: E402
+    policies as policies_api,
+)
+from app.api import (  # noqa: E402
+    privacy as privacy_api,
+)
+from app.api import (  # noqa: E402
+    prompts as prompts_api,
+)
+from app.api import (  # noqa: E402
+    quotas as quotas_api,
+)
+from app.api import (  # noqa: E402
+    rate_limits as rate_limits_api,
+)
+from app.api import (  # noqa: E402
+    residency as residency_api,
+)
+from app.api import (  # noqa: E402
+    responsible_ai as responsible_ai_api,
+)
+from app.api import (  # noqa: E402
+    sagas as sagas_api,
+)
+from app.api import (  # noqa: E402
+    security_anomalies as security_anomalies_api,
+)
+from app.api import (  # noqa: E402
+    stream_completion as stream_completion_api,
+)
+from app.api import (  # noqa: E402
+    tenants as tenants_api,
+)
+from app.api import (  # noqa: E402
+    v2 as v2_api,
 )
 from app.integrations.trizetto.router import router as trizetto_router  # noqa: E402
 from app.mcp.server import router as mcp_router  # noqa: E402
@@ -370,6 +452,9 @@ app.include_router(oncology_stack.router, prefix="/api/v1")
 # OncoTwin — dynamic digital-twin layer (additive; hands off into the cases API above)
 app.include_router(oncotwin_api.router, prefix="/api/v1")
 app.include_router(oncotwin_intel_api.router, prefix="/api/v1")    # OncoTwin 2.0 (additive)
+# AquaHealth — OneAquaHealth freshwater ecosystem module (additive; own tables,
+# own agents, own routes. ClinCase's clinical workflow is unchanged).
+app.include_router(aquahealth_api.router, prefix="/api/v1")
 # fhir_bulk router carries its own /fhir prefix
 app.include_router(fhir_bulk_api.router)
 

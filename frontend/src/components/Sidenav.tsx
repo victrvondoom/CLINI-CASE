@@ -8,9 +8,12 @@
 import clsx from "clsx";
 import {
   BarChart3,
+  Beaker,
   BookOpen,
   Calculator,
   Cpu,
+  Droplets,
+  Fish,
   FlaskConical,
   FolderOpen,
   Gauge,
@@ -20,20 +23,25 @@ import {
   Layers,
   Lock,
   LogOut,
+  Map,
   Microscope,
   Network,
   PlayCircle,
+  Sprout,
   ScanLine,
   Settings,
   ShieldCheck,
   Stethoscope,
+  TrendingUp,
   Upload,
   UserCheck,
+  Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 
+import { api } from "../lib/api";
 import { AboutModal } from "./AboutModal";
 import { useAuth } from "./AuthContext";
 
@@ -41,7 +49,11 @@ interface NavItem {
   label: string;
   href: string;
   icon: LucideIcon;
+  /** Static badge text. Ignored when `liveBadge` is set — see NavLiveCounts. */
   badge?: string;
+  /** Key into NavLiveCounts — badge renders the live count (or nothing while
+   * loading / on fetch failure, rather than a stale hardcoded number). */
+  liveBadge?: keyof NavLiveCounts;
   chip?: string;        // small inline chip (e.g. "CMS-0057-F")
   disabled?: boolean;
   end?: boolean;        // active only on an exact match (not on child routes)
@@ -54,14 +66,20 @@ interface NavSection {
   items: NavItem[];
 }
 
+interface NavLiveCounts {
+  cases: number | null;
+  awaitingReview: number | null;
+}
+
 const SECTIONS: NavSection[] = [
   {
     label: "Workspace",
     items: [
       { label: "Dashboard",    href: "/dashboard",         icon: LayoutDashboard },
-      { label: "Cases",        href: "/cases",             icon: FolderOpen, badge: "47" },
+      { label: "Cases",        href: "/cases",             icon: FolderOpen, liveBadge: "cases" },
       { label: "Drop a scan",  href: "/intake",            icon: ScanLine, chip: "INTAKE" },
       { label: "Bulk import",  href: "/cases/bulk-import", icon: Upload, chip: "§ IV.A" },
+      { label: "Sandbox",      href: "/sandbox",           icon: Beaker, chip: "SIM" },
     ],
   },
   {
@@ -71,6 +89,19 @@ const SECTIONS: NavSection[] = [
       { label: "Guided demo",    href: "/twin/demo", icon: PlayCircle,   chip: "OT-005" },
       { label: "Research lab",   href: "/twin/lab",  icon: FlaskConical, chip: "BENCH" },
       { label: "Observability",  href: "/twin/ops",  icon: Gauge,        chip: "MLOPS" },
+    ],
+  },
+  {
+    label: "AquaHealth",
+    items: [
+      { label: "Overview",        href: "/aquahealth",                  icon: Droplets,   chip: "AQUA", end: true },
+      { label: "New observation", href: "/aquahealth/observations/new", icon: Sprout },
+      { label: "Observations",    href: "/aquahealth/observations",     icon: FolderOpen, end: true },
+      { label: "Map",             href: "/aquahealth/map",              icon: Map },
+      { label: "Trends",          href: "/aquahealth/trends",           icon: TrendingUp },
+      { label: "One Health",      href: "/aquahealth/one-health",       icon: Fish },
+      { label: "Review queue",    href: "/aquahealth/review",           icon: UserCheck, reviewerOrAdmin: true },
+      { label: "Community",       href: "/aquahealth/community",        icon: Users },
     ],
   },
   {
@@ -85,7 +116,7 @@ const SECTIONS: NavSection[] = [
     label: "Analytics",
     items: [
       { label: "Cohorts",         href: "/cohorts",     icon: BarChart3 },
-      { label: "Reviewer queue",  href: "/reviewer",    icon: UserCheck, badge: "8", reviewerOrAdmin: true },
+      { label: "Reviewer queue",  href: "/reviewer",    icon: UserCheck, liveBadge: "awaitingReview", reviewerOrAdmin: true },
       { label: "Eval harness",    href: "/eval",        icon: Microscope, chip: "F1 .90" },
     ],
   },
@@ -110,6 +141,35 @@ export function Sidenav() {
   const { user, logout } = useAuth();
   const [aboutOpen, setAboutOpen] = useState(false);
   const role = user?.role ?? "coordinator";
+
+  // Live nav badge counts — replaces the old hardcoded "47" / "8" placeholder
+  // badges with real counts from the backend. null = not loaded yet (or the
+  // fetch failed); the badge simply doesn't render rather than showing a lie.
+  const [liveCounts, setLiveCounts] = useState<NavLiveCounts>({ cases: null, awaitingReview: null });
+
+  useEffect(() => {
+    let cancelled = false;
+    async function refresh() {
+      try {
+        const [allCases, awaitingReview] = await Promise.all([
+          api.listCases({ limit: 1 }),
+          api.listCases({ status: "awaiting_review", limit: 1 }),
+        ]);
+        if (cancelled) return;
+        setLiveCounts({ cases: allCases.total, awaitingReview: awaitingReview.total });
+      } catch {
+        // Backend unreachable / DB down — leave counts null so badges hide
+        // rather than showing a stale or fabricated number.
+      }
+    }
+    void refresh();
+    // Refresh periodically so the badge doesn't go stale during a long session.
+    const interval = window.setInterval(refresh, 60_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, []);
 
   // Filter sections by role
   const visibleSections = SECTIONS.map((section) => ({
@@ -146,7 +206,7 @@ export function Sidenav() {
               </div>
               <div className="mt-1 space-y-0.5">
                 {section.items.map((item) => (
-                  <NavItemRow key={item.href} item={item} />
+                  <NavItemRow key={item.href} item={item} liveCounts={liveCounts} />
                 ))}
               </div>
             </div>
@@ -205,8 +265,10 @@ export function Sidenav() {
   );
 }
 
-function NavItemRow({ item }: { item: NavItem }) {
+function NavItemRow({ item, liveCounts }: { item: NavItem; liveCounts: NavLiveCounts }) {
   const Icon = item.icon;
+  const liveValue = item.liveBadge ? liveCounts[item.liveBadge] : null;
+  const badgeText = item.liveBadge ? (liveValue !== null ? String(liveValue) : null) : item.badge ?? null;
 
   if (item.disabled) {
     return (
@@ -227,7 +289,7 @@ function NavItemRow({ item }: { item: NavItem }) {
       end={item.end}
       className={({ isActive }) =>
         clsx(
-          "flex items-center gap-2.5 px-3 py-1.5 rounded-md text-sm transition-colors group relative",
+          "flex items-center gap-2.5 px-3 py-1.5 rounded-md text-sm transition-colors duration-200 group relative",
           isActive
             ? "bg-accent-brand/10 text-accent-brand font-medium"
             : "text-ink-body hover:bg-surface-raised hover:text-ink-primary",
@@ -237,25 +299,25 @@ function NavItemRow({ item }: { item: NavItem }) {
       {({ isActive }) => (
         <>
           {isActive && (
-            <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r bg-accent-brand" />
+            <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r bg-accent-brand animate-fade-in" />
           )}
-          <Icon size={15} className={isActive ? "text-accent-brand" : ""} />
+          <Icon size={15} className={clsx(isActive ? "text-accent-brand" : "", "transition-colors duration-200")} />
           <span className="flex-1 truncate">{item.label}</span>
           {item.chip && (
             <span className="text-[9px] text-mono-tech px-1 py-0.5 rounded bg-accent-cyan/10 text-accent-cyan">
               {item.chip}
             </span>
           )}
-          {item.badge && (
+          {badgeText && (
             <span
               className={clsx(
-                "text-[10px] text-mono-tech px-1.5 py-0.5 rounded",
+                "text-[10px] text-mono-tech px-1.5 py-0.5 rounded transition-colors duration-200",
                 isActive
                   ? "bg-accent-brand text-ink-invert"
                   : "bg-surface-border text-ink-muted group-hover:bg-surface-border-hi",
               )}
             >
-              {item.badge}
+              {badgeText}
             </span>
           )}
         </>

@@ -79,7 +79,7 @@ def _requirements_md(entry: dict[str, Any]) -> str:
   ceiling (USD ≤ $5/case shared budget; tokens bounded per invocation).
 
 - **EARS-{name}-2** WHEN `{name}` cannot produce a valid `{schema_out}` after
-  `max_iterations` attempts, IT SHALL raise `AgentExhausted` rather than
+  `max_iterations` attempts, IT SHALL raise `AgentExhaustedError` rather than
   return malformed output.
 
 - **EARS-{name}-3** WHEN `{name}` runs as a sub-agent (parent != null), IT
@@ -87,7 +87,7 @@ def _requirements_md(entry: dict[str, Any]) -> str:
   are accounted at the case level.
 
 - **EARS-{name}-4** WHEN any input guardrail returns `BLOCK`, `{name}` SHALL
-  raise `InputBlocked` and emit a `guardrail_blocked` span event.
+  raise `InputBlockedError` and emit a `guardrail_blocked` span event.
 
 ## Compliance hooks
 
@@ -185,9 +185,9 @@ Every invocation emits to `app/api/metrics.py` Prometheus counters:
 
 ## Failure modes
 
-- `BudgetExceeded` — caller's case-level budget exhausted before this agent ran.
-- `InputBlocked` / `OutputBlocked` — a guardrail rejected the payload.
-- `AgentExhausted` — schema parse failed after `max_iterations` retries.
+- `BudgetExceededError` — caller's case-level budget exhausted before this agent ran.
+- `InputBlockedError` / `OutputBlockedError` — a guardrail rejected the payload.
+- `AgentExhaustedError` — schema parse failed after `max_iterations` retries.
 - Bedrock 5xx — `ModelRouter.escalate(...)` switches to fallback on retry.
 """
 

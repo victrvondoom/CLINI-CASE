@@ -179,9 +179,10 @@ def build_series(record: PatientRecord, as_of_day: int, *, reference_time: datet
                 "discharge_day": discharge if (discharge is not None and discharge <= as_of_day) else None,
                 "display": e.display,
             })
-        if e.kind in INTERVENTION_KINDS or (e.kind == "encounter" and not e.detail.get("qualifying")):
-            if e.day >= 1:
-                interventions.append(e)
+        if (
+            e.kind in INTERVENTION_KINDS or (e.kind == "encounter" and not e.detail.get("qualifying"))
+        ) and e.day >= 1:
+            interventions.append(e)
 
     return PatientSeries(
         profile=record.profile, as_of_day=as_of_day, values=values, obs_ids=obs_ids, labs=labs,

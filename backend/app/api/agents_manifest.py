@@ -12,9 +12,9 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from app import db
 from app.agents.manifest import AGENT_MANIFEST, flatten_sub_agents, total_sub_agents
 from app.auth import get_current_user
-from app import db
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 
@@ -144,7 +144,7 @@ async def agent_prompt(
             "content": None,
             "byte_size": 0,
             "error": (
-                f"Prompt file not found. Searched: " +
+                "Prompt file not found. Searched: " +
                 ", ".join(_candidate_prompt_paths(agent_name))
             ),
         }

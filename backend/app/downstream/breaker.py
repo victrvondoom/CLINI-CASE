@@ -33,13 +33,13 @@ class State(str, Enum):
     HALF_OPEN = "half_open"
 
 
-class DownstreamBreakerOpen(Exception):
+class DownstreamBreakerOpenError(Exception):
     def __init__(self, name: str, opened_at: float, cooldown: int) -> None:
         self.name = name
         self.opened_at = opened_at
         self.retry_after_seconds = max(1, int(cooldown - (time.time() - opened_at)))
         super().__init__(
-            f"DownstreamBreakerOpen[{name}] opened {time.time() - opened_at:.1f}s ago; "
+            f"DownstreamBreakerOpenError[{name}] opened {time.time() - opened_at:.1f}s ago; "
             f"retry-after {self.retry_after_seconds}s"
         )
 
@@ -68,14 +68,14 @@ class DownstreamBreaker:
             now = time.time()
             if self._state is State.OPEN:
                 if now - self._opened_at < self.cfg.cooldown_seconds:
-                    raise DownstreamBreakerOpen(self.name, self._opened_at, self.cfg.cooldown_seconds)
+                    raise DownstreamBreakerOpenError(self.name, self._opened_at, self.cfg.cooldown_seconds)
                 # cooldown expired → HALF_OPEN
                 self._state = State.HALF_OPEN
                 self._half_open_remaining = self.cfg.probe_calls
                 log.info("downstream.breaker.half_open", name=self.name)
             if self._state is State.HALF_OPEN and self._half_open_remaining <= 0:
                 # Concurrent probe limit reached
-                raise DownstreamBreakerOpen(self.name, self._opened_at, self.cfg.cooldown_seconds)
+                raise DownstreamBreakerOpenError(self.name, self._opened_at, self.cfg.cooldown_seconds)
             if self._state is State.HALF_OPEN:
                 self._half_open_remaining -= 1
 
@@ -173,7 +173,7 @@ async def call_with_breaker(name: str, awaitable_factory):
             lambda: client.post(...),
         )
 
-    Raises DownstreamBreakerOpen when OPEN.
+    Raises DownstreamBreakerOpenError when OPEN.
     """
     b = await get_breaker(name)
     await b.before_call()

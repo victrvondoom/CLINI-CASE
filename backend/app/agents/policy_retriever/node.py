@@ -1,16 +1,17 @@
 """LangGraph node + legacy compatibility shims for policy_retriever."""
 from __future__ import annotations
 
-from pathlib import Path
-from typing import Any, Optional
-from datetime import date
+from typing import Any
 
-from app.graph.state import get_or_init_agent_context
 from app.agents.policy_retriever.orchestrator import policy_retriever
 from app.agents.policy_retriever.schemas import *  # noqa: F401,F403
-from app.graph.state import ClinCaseState
+from app.graph.state import ClinCaseState, get_or_init_agent_context
 from app.models import (  # noqa: F401
-    AppealDraft, ClinicalSnapshot, Decision, NecessityAssessment, PolicyExcerpt,
+    AppealDraft,
+    ClinicalSnapshot,
+    Decision,
+    NecessityAssessment,
+    PolicyExcerpt,
 )
 
 # ----------------------------------------------------------------------------
@@ -20,7 +21,6 @@ from app.models import (  # noqa: F401
 
 async def retrieve_policies(state: ClinCaseState) -> ClinCaseState:
     """Backwards-compat shim — runs the agent and writes excerpts to state."""
-    from app.graph.state import get_or_init_agent_context
 
     if state.clinical_snapshot is None:
         raise ValueError("clinical_snapshot must be set before policy_retriever")

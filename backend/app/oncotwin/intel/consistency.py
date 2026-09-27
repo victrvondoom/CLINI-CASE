@@ -159,12 +159,12 @@ def consistency(record: PatientRecord, series: PatientSeries) -> dict[str, Any]:
 
     kin = []
     rows = series.labs.get("hemoglobin", [])
-    for (d0, v0, _), (d1, v1, oid) in zip(rows, rows[1:]):
+    for (d0, v0, _), (d1, v1, oid) in zip(rows, rows[1:], strict=False):
         if d1 - d0 <= 3 and abs(v1 - v0) > 2.5:
             kin.append({"lab": "hemoglobin", "from": v0, "to": v1, "days": [d0, d1], "observation_id": oid,
                         "text": f"Hemoglobin changed {v1 - v0:+.1f} g/dL within {d1 - d0} day(s)"})
     rows = series.labs.get("anc", [])
-    for (d0, v0, _), (d1, v1, oid) in zip(rows, rows[1:]):
+    for (d0, v0, _), (d1, v1, oid) in zip(rows, rows[1:], strict=False):
         gcsf = any(d0 - 10 <= g <= d1 for g in series.gcsf_days)
         if d1 - d0 <= 2 and v0 > 0 and v1 / v0 >= 5 and not gcsf:
             kin.append({"lab": "anc", "from": v0, "to": v1, "days": [d0, d1], "observation_id": oid,

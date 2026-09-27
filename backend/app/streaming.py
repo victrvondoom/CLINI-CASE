@@ -34,8 +34,8 @@ replica sees nothing. Redis pub/sub closes that gap.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
-import logging
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from typing import Any
@@ -63,10 +63,10 @@ class PubSubBackend(ABC):
     @abstractmethod
     def unsubscribe(self, case_id: str, queue: asyncio.Queue) -> None: ...
 
-    async def connect(self) -> None:  # noqa: D401 — optional hook
+    async def connect(self) -> None:  # noqa: D401, B027 — optional hook, not every backend needs one
         """Optional connection / handshake hook. No-op by default."""
 
-    async def disconnect(self) -> None:  # noqa: D401 — optional hook
+    async def disconnect(self) -> None:  # noqa: D401, B027 — optional hook, not every backend needs one
         """Optional graceful shutdown hook. No-op by default."""
 
 
@@ -83,11 +83,9 @@ class InProcessBackend(PubSubBackend):
 
     async def publish(self, case_id: str, event: dict[str, Any]) -> None:
         for queue in list(self._subscribers[case_id]):
-            try:
+            # Drop on slow consumer — never block agents on SSE pace.
+            with contextlib.suppress(asyncio.QueueFull):
                 queue.put_nowait(event)
-            except asyncio.QueueFull:
-                # Drop on slow consumer — never block agents on SSE pace.
-                pass
 
     def subscribe(self, case_id: str) -> asyncio.Queue:
         queue: asyncio.Queue = asyncio.Queue(maxsize=1000)
@@ -163,24 +161,18 @@ class RedisPubSubBackend(PubSubBackend):
             return
         if self._reader_task is not None:
             self._reader_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError, Exception):
                 await self._reader_task
-            except (asyncio.CancelledError, Exception):  # noqa: BLE001
-                pass
             self._reader_task = None
         if self._pubsub is not None:
-            try:
+            with contextlib.suppress(Exception):
                 await self._pubsub.punsubscribe(f"{_REDIS_CHANNEL_PREFIX}*")
                 await self._pubsub.aclose()
-            except Exception:  # noqa: BLE001
-                pass
             self._pubsub = None
         for client in (self._subscribe_client, self._publish_client):
             if client is not None:
-                try:
+                with contextlib.suppress(Exception):
                     await client.aclose()
-                except Exception:  # noqa: BLE001
-                    pass
         self._publish_client = None
         self._subscribe_client = None
         self._connected = False
@@ -204,11 +196,9 @@ class RedisPubSubBackend(PubSubBackend):
                     log.warning("streaming.redis.bad_payload", error=str(e))
                     continue
                 for q in list(self._local_queues.get(case_id, [])):
-                    try:
+                    # Slow consumer — drop rather than backpressure the loop.
+                    with contextlib.suppress(asyncio.QueueFull):
                         q.put_nowait(event)
-                    except asyncio.QueueFull:
-                        # Slow consumer — drop rather than backpressure the loop.
-                        pass
         except asyncio.CancelledError:
             raise
         except Exception as e:  # noqa: BLE001

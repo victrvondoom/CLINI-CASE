@@ -10,7 +10,7 @@ States:
 Per-model breaker — Sonnet failures don't trip Haiku. The GenAI Gateway routes
 around an OPEN breaker by escalating to the fallback model (Haiku → Sonnet, or
 vice versa). When ALL models in a tenant's allowlist have OPEN breakers, the
-caller sees `CircuitBreakerOpen` raised before any Bedrock TPM is consumed.
+caller sees `CircuitBreakerOpenError` raised before any Bedrock TPM is consumed.
 
 Why this matters at industry scale:
   • Without it, a 5xx storm from Bedrock translates directly into 5xx storms
@@ -43,7 +43,7 @@ class CircuitState(str, Enum):
     HALF_OPEN = "half_open"
 
 
-class CircuitBreakerOpen(Exception):
+class CircuitBreakerOpenError(Exception):
     """Raised when an OPEN breaker rejects a call before invocation."""
 
     def __init__(self, model_id: str, opened_at: float, cooldown_seconds: int) -> None:
@@ -52,7 +52,7 @@ class CircuitBreakerOpen(Exception):
         self.cooldown_seconds = cooldown_seconds
         self.retry_after_seconds = max(1, int(cooldown_seconds - (time.time() - opened_at)))
         super().__init__(
-            f"CircuitBreakerOpen[{model_id}] opened {time.time() - opened_at:.1f}s ago; "
+            f"CircuitBreakerOpenError[{model_id}] opened {time.time() - opened_at:.1f}s ago; "
             f"retry-after {self.retry_after_seconds}s"
         )
 
@@ -89,7 +89,7 @@ class CircuitBreaker:
     _lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
     async def before_call(self) -> None:
-        """Raise CircuitBreakerOpen if the breaker is OPEN. Call before InvokeModel."""
+        """Raise CircuitBreakerOpenError if the breaker is OPEN. Call before InvokeModel."""
         async with self._lock:
             now = time.time()
             if self.state == CircuitState.OPEN:
@@ -100,12 +100,12 @@ class CircuitBreaker:
                     self.half_open_successes = 0
                     log.info("circuit.half_open", model_id=self.model_id)
                 else:
-                    raise CircuitBreakerOpen(self.model_id, self.opened_at, self.config.cooldown_seconds)
+                    raise CircuitBreakerOpenError(self.model_id, self.opened_at, self.config.cooldown_seconds)
 
             if self.state == CircuitState.HALF_OPEN:
                 if self.half_open_attempts >= self.config.half_open_probe_calls:
                     # Probe quota exhausted; defer to next eval
-                    raise CircuitBreakerOpen(self.model_id, self.opened_at, self.config.cooldown_seconds)
+                    raise CircuitBreakerOpenError(self.model_id, self.opened_at, self.config.cooldown_seconds)
                 self.half_open_attempts += 1
 
     async def record_success(self) -> None:
@@ -129,20 +129,19 @@ class CircuitBreaker:
                 log.warning("circuit.reopened_from_half_open", model_id=self.model_id)
                 return
 
-            if self.state == CircuitState.CLOSED:
-                # Evaluate failure rate
-                if len(self._outcomes) >= self.config.min_samples_to_open:
-                    failures = sum(1 for o in self._outcomes if not o)
-                    rate = failures / len(self._outcomes)
-                    if rate >= self.config.failure_rate_threshold:
-                        self._transition(CircuitState.OPEN)
-                        self.opened_at = time.time()
-                        log.warning(
-                            "circuit.opened",
-                            model_id=self.model_id,
-                            failure_rate=round(rate, 3),
-                            samples=len(self._outcomes),
-                        )
+            # Evaluate failure rate
+            if self.state == CircuitState.CLOSED and len(self._outcomes) >= self.config.min_samples_to_open:
+                failures = sum(1 for o in self._outcomes if not o)
+                rate = failures / len(self._outcomes)
+                if rate >= self.config.failure_rate_threshold:
+                    self._transition(CircuitState.OPEN)
+                    self.opened_at = time.time()
+                    log.warning(
+                        "circuit.opened",
+                        model_id=self.model_id,
+                        failure_rate=round(rate, 3),
+                        samples=len(self._outcomes),
+                    )
 
     def snapshot(self) -> dict[str, Any]:
         return {

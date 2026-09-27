@@ -9,7 +9,7 @@
  * series at that day. A table view exposes the same numbers without hovering.
  */
 import { Table2 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 export interface ChartLine {
   key: string;
@@ -90,6 +90,7 @@ export function TimeChart({
   const [ref, width] = useWidth<HTMLDivElement>();
   const [hoverX, setHoverX] = useState<number | null>(null);
   const [table, setTable] = useState(false);
+  const clipId = useId();
   const m = compact ? { t: 6, r: 8, b: 16, l: 34 } : { t: 12, r: 92, b: 22, l: 44 };
   const W = width;
   const H = height;
@@ -223,19 +224,26 @@ export function TimeChart({
               {!compact && <text x={m.l + iw + 4} y={sy(h.y) + 3} fontSize={9} className="fill-ink-muted">{h.label}</text>}
             </g>
           ))}
-          {bands.map((b) => (
-            <path key={b.key} d={area(b.x, b.lo, b.hi)} fill="currentColor" opacity={b.opacity ?? 0.12} />
-          ))}
-          {lines.map((l) => (
-            <g key={l.key} opacity={l.opacity ?? 1}>
-              <path d={path(l.x, l.y)} fill="none" stroke="currentColor" strokeWidth={l.weight ?? 2}
-                strokeDasharray={l.dash} strokeLinecap="round" strokeLinejoin="round" />
-              {l.points && l.x.map((x, i) => l.y[i] != null && (
-                <circle key={i} cx={sx(x)} cy={sy(l.y[i] as number)} r={4} fill="currentColor"
-                  stroke="rgb(var(--surface-raised))" strokeWidth={2} />
-              ))}
-            </g>
-          ))}
+          <defs>
+            <clipPath id={clipId}>
+              <rect x={m.l} y={0} width={iw} height={H} className="chart-draw-in" />
+            </clipPath>
+          </defs>
+          <g clipPath={`url(#${clipId})`}>
+            {bands.map((b) => (
+              <path key={b.key} d={area(b.x, b.lo, b.hi)} fill="currentColor" opacity={b.opacity ?? 0.12} />
+            ))}
+            {lines.map((l) => (
+              <g key={l.key} opacity={l.opacity ?? 1}>
+                <path d={path(l.x, l.y)} fill="none" stroke="currentColor" strokeWidth={l.weight ?? 2}
+                  strokeDasharray={l.dash} strokeLinecap="round" strokeLinejoin="round" />
+                {l.points && l.x.map((x, i) => l.y[i] != null && (
+                  <circle key={i} cx={sx(x)} cy={sy(l.y[i] as number)} r={4} fill="currentColor"
+                    stroke="rgb(var(--surface-raised))" strokeWidth={2} />
+                ))}
+              </g>
+            ))}
+          </g>
           {directLabels.map(({ l, x, y }) => (
             <text key={`dl${l.key}`} x={Math.min(sx(x) + 6, m.l + iw + 4)} y={sy(y) + 3} fontSize={10} className="fill-ink-body">
               {l.label}

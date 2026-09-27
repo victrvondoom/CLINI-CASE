@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 
-class AuthzDenied(Exception):
+class AuthzDeniedError(Exception):
     """Raised when an authorization check fails. Carries the deny reason."""
 
     def __init__(self, reason: str, *, principal: str, action: str, resource: str) -> None:
@@ -192,10 +192,10 @@ def require_authorized(
     resource: Resource,
     context: dict[str, Any] | None = None,
 ) -> None:
-    """Raise AuthzDenied if not authorized. Use in route handlers."""
+    """Raise AuthzDeniedError if not authorized. Use in route handlers."""
     decision = is_authorized(principal=principal, action=action, resource=resource, context=context)
     if not decision.allowed:
-        raise AuthzDenied(
+        raise AuthzDeniedError(
             decision.reason,
             principal=principal.user_id,
             action=action,

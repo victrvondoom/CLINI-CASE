@@ -26,7 +26,6 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import time
 from typing import Any
 
 import structlog
@@ -149,7 +148,6 @@ class IdempotencyMiddleware:
             log.warning("idempotency.lookup_failed", error=str(e))
             row = None
 
-        now = time.time()
         if row is not None:
             if row["request_hash"] != request_hash:
                 await self._respond_409(send, "idempotency_key_request_mismatch", idem_key)

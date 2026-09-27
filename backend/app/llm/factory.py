@@ -7,6 +7,26 @@ from app.config import settings
 from app.llm.base import LLMClient
 
 
+def llm_unavailable_reason() -> str | None:
+    """Why the configured provider cannot be called, or None if it has credentials."""
+    provider = settings.LLM_PROVIDER
+    if provider in ("anthropic", "openrouter"):
+        env_var = "ANTHROPIC_API_KEY" if provider == "anthropic" else "OPENROUTER_API_KEY"
+        if not getattr(settings, env_var).strip():
+            return (
+                f"No LLM API key configured: LLM_PROVIDER={provider} but {env_var} is empty. "
+                "Add the key to .env in the repo root and restart the backend."
+            )
+    elif provider == "bedrock":
+        import boto3
+        if boto3.Session().get_credentials() is None:
+            return (
+                "No AWS credentials found for LLM_PROVIDER=bedrock. "
+                "Configure AWS credentials and restart the backend."
+            )
+    return None
+
+
 @lru_cache(maxsize=1)
 def get_llm_client() -> LLMClient:
     """Return the configured LLM client wrapped by the GenAI Gateway.

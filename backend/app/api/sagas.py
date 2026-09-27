@@ -76,5 +76,5 @@ async def replay(
     try:
         replayed = await replay_saga(saga_id)
     except ValueError as e:
-        raise HTTPException(status_code=409, detail=str(e))
+        raise HTTPException(status_code=409, detail=str(e)) from e
     return _saga_to_dict(replayed)

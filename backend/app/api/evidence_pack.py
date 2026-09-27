@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -43,7 +43,7 @@ def _row_to_dict(row: Any) -> dict[str, Any]:
     for k, v in dict(row).items():
         if isinstance(v, datetime):
             out[k] = v.isoformat()
-        elif isinstance(v, (bytes, bytearray)):
+        elif isinstance(v, bytes | bytearray):
             out[k] = v.decode("utf-8", errors="replace")
         else:
             out[k] = v
@@ -109,7 +109,6 @@ async def evidence_pack(
     except Exception as e:  # noqa: BLE001
         compliance = {"error": str(e)}
     try:
-        roi = case_roi.__wrapped__ if hasattr(case_roi, "__wrapped__") else case_roi
         roi_obj = await case_roi(case_id, organization_id=user["organization_id"])
         business_value = roi_obj.__dict__
     except Exception as e:  # noqa: BLE001
@@ -137,12 +136,12 @@ async def evidence_pack(
         last_run = next((r for r in agent_runs if r["model_id"]), None)
         model_id = last_run["model_id"] if last_run else "unknown"
         decision_hash = hashlib.sha256(
-            f"{decision['verdict']}|{decision['rationale']}|{citations}|{model_id}".encode("utf-8")
+            f"{decision['verdict']}|{decision['rationale']}|{citations}|{model_id}".encode()
         ).hexdigest()
 
     bundle: dict[str, Any] = {
         "case_id": case_id,
-        "generated_at_iso": datetime.now(timezone.utc).isoformat(),
+        "generated_at_iso": datetime.now(UTC).isoformat(),
         "case": _row_to_dict(case),
         "decision": _row_to_dict(decision) | ({"sha256": decision_hash} if decision_hash else {}),
         "appeal": _row_to_dict(appeal),

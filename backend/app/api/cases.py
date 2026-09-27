@@ -10,10 +10,12 @@ Day-2 minimum:
 """
 from __future__ import annotations
 
+import contextlib
 import json
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 from uuid import uuid4
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
@@ -22,8 +24,8 @@ from app.auth import get_current_user, require_role
 from app.db import db
 from app.graph.build import build_full_graph, build_partial_graph
 from app.graph.state import ClinCaseState
-from app.models import ClinicalSnapshot
-from app.quotas import QuotaExceeded, consume_case_quota, quota_exceeded_to_http
+from app.llm.factory import llm_unavailable_reason
+from app.quotas import QuotaExceededError, consume_case_quota, quota_exceeded_to_http
 from app.streaming import publish
 
 # Compile both graphs once at module load (compile is non-trivial)
@@ -31,13 +33,42 @@ _PARTIAL_GRAPH = build_partial_graph()
 _FULL_GRAPH = build_full_graph()
 
 router = APIRouter(prefix="/cases", tags=["cases"])
+log = structlog.get_logger()
+
+CASE_STATUSES = (
+    "pending", "running", "awaiting_review", "approved",
+    "denied", "referred", "appealed", "overturned",
+)
+
+
+async def ensure_schema() -> None:
+    """Widen cases.status CHECK on databases created before 'awaiting_review' existed."""
+    current = await db.fetchval(
+        "SELECT pg_get_constraintdef(oid) FROM pg_constraint "
+        "WHERE conrelid = 'cases'::regclass AND conname = 'cases_status_check'"
+    )
+    if current is None or "'awaiting_review'" in current:
+        return
+    allowed = ", ".join(f"'{s}'" for s in CASE_STATUSES)
+    async with db.pool.acquire() as conn, conn.transaction():
+        await conn.execute("ALTER TABLE cases DROP CONSTRAINT cases_status_check")
+        await conn.execute(
+            f"ALTER TABLE cases ADD CONSTRAINT cases_status_check CHECK (status IN ({allowed}))"
+        )
+    log.info("cases.status_check.widened", statuses=CASE_STATUSES)
+
+
+def _require_llm() -> None:
+    reason = llm_unavailable_reason()
+    if reason:
+        raise HTTPException(status_code=503, detail=reason)
 
 
 class CreateCaseRequest(BaseModel):
     payer_id: str = Field(..., examples=["aetna"])
     patient_initials: str = Field(..., examples=["JD"])
     fhir_bundle: dict
-    physician_note: Optional[str] = None
+    physician_note: str | None = None
     requested_treatment: dict = Field(
         ..., examples=[{"name": "trastuzumab", "j_code": "J9355"}]
     )
@@ -51,9 +82,9 @@ class CreateCaseResponse(BaseModel):
 async def list_cases(
     user: dict[str, Any] = Depends(get_current_user),
     limit: int = 50,
-    status: Optional[str] = None,
-    payer_id: Optional[str] = None,
-    search: Optional[str] = None,
+    status: str | None = None,
+    payer_id: str | None = None,
+    search: str | None = None,
 ) -> dict[str, Any]:
     """List cases scoped to the current user's organization."""
     where: list[str] = ["c.organization_id = $1"]
@@ -77,6 +108,7 @@ async def list_cases(
         )
 
     where_clause = "WHERE " + " AND ".join(where)
+    count_params = list(params)
     params.append(limit)
     limit_idx = len(params)
 
@@ -96,9 +128,15 @@ async def list_cases(
                 LIMIT ${limit_idx}""",
             *params,
         )
+        # True total for the filter (not capped by LIMIT) — nav badges and
+        # "N total" headers need the real count, not just len(page).
+        total = await db.fetchval(
+            f"SELECT COUNT(*) FROM cases c {where_clause}", *count_params
+        )
     except Exception:
         # DB-less deploys (no RDS) get an empty case list rather than a 500.
         rows = []
+        total = 0
 
     return {
         "cases": [
@@ -115,7 +153,7 @@ async def list_cases(
             }
             for r in rows
         ],
-        "total": len(rows),
+        "total": int(total) if total is not None else len(rows),
     }
 
 
@@ -125,7 +163,10 @@ async def create_case(
     user: dict[str, Any] = Depends(get_current_user),
 ) -> CreateCaseResponse:
     case_id = "case_" + uuid4().hex[:8]
-    try:
+    # DB-less deploys: case_id is still returned. The case-detail page has its
+    # own fail-soft so navigating to /cases/<id> shows the demo stub with the
+    # exact case_id we generated here.
+    with contextlib.suppress(Exception):
         await db.execute(
             """INSERT INTO cases (id, organization_id, created_by_user_id,
                                   payer_id, patient_initials,
@@ -142,11 +183,6 @@ async def create_case(
             json.dumps(req.fhir_bundle),
             req.physician_note,
         )
-    except Exception:
-        # DB-less deploys: case_id is still returned. The case-detail page
-        # has its own fail-soft so navigating to /cases/<id> shows the demo
-        # stub with the exact case_id we generated here.
-        pass
     return CreateCaseResponse(case_id=case_id)
 
 
@@ -235,6 +271,7 @@ async def run_partial(
     )
     if row is None:
         raise HTTPException(status_code=404, detail=f"Case {case_id} not found")
+    _require_llm()
 
     fhir = (
         json.loads(row["fhir_bundle"])
@@ -253,7 +290,13 @@ async def run_partial(
         payer_id=row["payer_id"],
     )
 
-    final_raw = await _PARTIAL_GRAPH.ainvoke(initial)
+    try:
+        final_raw = await _PARTIAL_GRAPH.ainvoke(initial)
+    except Exception as exc:
+        log.exception("case.run_partial.failed", case_id=case_id)
+        raise HTTPException(
+            status_code=502, detail=f"Case run failed: {type(exc).__name__}: {exc}"
+        ) from exc
 
     # LangGraph 0.2.x returns either a dict or a Pydantic model depending
     # on internal state. Coerce to ClinCaseState for uniform handling.
@@ -415,12 +458,13 @@ async def run_full(
         }
     if row is None:
         raise HTTPException(status_code=404, detail=f"Case {case_id} not found")
+    _require_llm()
 
     # Per-org quota gate (SCALE-8). Enforced before LLM tokens are spent so
     # an over-quota tenant gets a fast 429 instead of cost runaway.
     try:
         await consume_case_quota(user["organization_id"])
-    except QuotaExceeded as exc:
+    except QuotaExceededError as exc:
         raise HTTPException(
             status_code=429,
             detail=quota_exceeded_to_http(exc),
@@ -474,72 +518,75 @@ async def run_full(
         # consumers (analytics, audit lake, customer's MDM) subscribe to
         # `clincase.case.decided.v1` on the EventBridge bus.
         if final.decision is not None:
-            from app.events.outbox import emit_case_decided, emit_appeal_drafted
+            from app.events.outbox import emit_appeal_drafted, emit_case_decided
             from app.observability.otel import get_current_trace_id
 
-            async with db.pool.acquire() as conn:
-                async with conn.transaction():
-                    await conn.execute(
-                        """INSERT INTO decisions (case_id, verdict, rationale,
+            async with db.pool.acquire() as conn, conn.transaction():
+                await conn.execute(
+                    """INSERT INTO decisions (case_id, verdict, rationale,
                                                   citations_json, confidence)
                            VALUES ($1, $2, $3, $4, $5)""",
-                        case_id,
-                        final.decision.verdict,
-                        final.decision.rationale,
-                        json.dumps([c.model_dump() for c in final.decision.citations]),
-                        final.decision.confidence,
-                    )
+                    case_id,
+                    final.decision.verdict,
+                    final.decision.rationale,
+                    json.dumps([c.model_dump() for c in final.decision.citations]),
+                    final.decision.confidence,
+                )
 
-                    # Update case status
-                    status_map = {"APPROVE": "approved", "DENY": "denied", "REFER": "referred"}
-                    new_status = status_map.get(final.decision.verdict, "pending")
-                    if final.appeal_draft is not None:
-                        new_status = "appealed"
-                    await conn.execute(
-                        "UPDATE cases SET status = $1 WHERE id = $2", new_status, case_id
-                    )
+                # Update case status
+                status_map = {"APPROVE": "approved", "DENY": "denied", "REFER": "referred"}
+                new_status = status_map.get(final.decision.verdict, "pending")
+                if final.appeal_draft is not None:
+                    new_status = "appealed"
+                await conn.execute(
+                    "UPDATE cases SET status = $1 WHERE id = $2", new_status, case_id
+                )
 
-                    # Atomic event emit — decision row + outbox row in one txn
-                    await emit_case_decided(
-                        organization_id=user["organization_id"],
-                        case_id=case_id,
-                        verdict=final.decision.verdict,
-                        confidence=float(final.decision.confidence or 0.0),
-                        triggered_hitl=False,
-                        decision_run_id=str(uuid4()),
-                        primary_model_id="apac.anthropic.claude-sonnet-4-6-20251022-v1:0",
-                        cost_usd=0.0,
-                        duration_seconds=0.0,
-                        conn=conn,
-                        trace_id=get_current_trace_id(),
-                    )
+                # Atomic event emit — decision row + outbox row in one txn
+                await emit_case_decided(
+                    organization_id=user["organization_id"],
+                    case_id=case_id,
+                    verdict=final.decision.verdict,
+                    confidence=float(final.decision.confidence or 0.0),
+                    triggered_hitl=False,
+                    decision_run_id=str(uuid4()),
+                    primary_model_id="apac.anthropic.claude-sonnet-4-6-20251022-v1:0",
+                    cost_usd=0.0,
+                    duration_seconds=0.0,
+                    conn=conn,
+                    trace_id=get_current_trace_id(),
+                )
 
         # Persist the appeal if drafted (separate txn — non-critical for case status)
         if final.appeal_draft is not None:
             from app.events.outbox import emit_appeal_drafted
             from app.observability.otel import get_current_trace_id
 
-            async with db.pool.acquire() as conn:
-                async with conn.transaction():
-                    appeal_id = await conn.fetchval(
-                        """INSERT INTO appeals (case_id, appeal_body,
+            async with db.pool.acquire() as conn, conn.transaction():
+                appeal_id = await conn.fetchval(
+                    """INSERT INTO appeals (case_id, appeal_body,
                                                 structured_arguments_json)
                            VALUES ($1, $2, $3)
                            RETURNING id""",
-                        case_id,
-                        final.appeal_draft.appeal_body,
-                        json.dumps(
-                            [a.model_dump() for a in final.appeal_draft.structured_arguments]
-                        ),
-                    )
-                    await emit_appeal_drafted(
-                        organization_id=user["organization_id"],
-                        case_id=case_id,
-                        appeal_id=appeal_id,
-                        structured_arguments_count=len(final.appeal_draft.structured_arguments),
-                        conn=conn,
-                        trace_id=get_current_trace_id(),
-                    )
+                    case_id,
+                    final.appeal_draft.appeal_body,
+                    json.dumps(
+                        [a.model_dump() for a in final.appeal_draft.structured_arguments]
+                    ),
+                )
+                await emit_appeal_drafted(
+                    organization_id=user["organization_id"],
+                    case_id=case_id,
+                    appeal_id=appeal_id,
+                    structured_arguments_count=len(final.appeal_draft.structured_arguments),
+                    conn=conn,
+                    trace_id=get_current_trace_id(),
+                )
+    except Exception as exc:
+        log.exception("case.run.failed", case_id=case_id)
+        raise HTTPException(
+            status_code=502, detail=f"Case run failed: {type(exc).__name__}: {exc}"
+        ) from exc
     finally:
         await publish(case_id, {"type": "done", "case_id": case_id})
 
@@ -668,7 +715,7 @@ async def resume_after_review(
 
 class ReviewActionRequest(BaseModel):
     action: str = Field(..., examples=["override_to_approve", "override_to_deny", "escalate", "add_note"])
-    note: Optional[str] = None
+    note: str | None = None
     reviewer_id: str = "demo-reviewer"
 
 

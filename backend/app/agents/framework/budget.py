@@ -3,12 +3,12 @@
 Production-essential. Without budgets, an LLM agent loop can rack up $$ in
 runaway tool-calling or reflection retries. The tracker enforces a hard
 ceiling before each LLM call (reservation) and reconciles actual spend
-afterward (commit). Exceeding any ceiling raises `BudgetExceeded`, which
+afterward (commit). Exceeding any ceiling raises `BudgetExceededError`, which
 the Agent base catches → triggers fallback model or graceful failure.
 
 Reservation pattern (analogous to AWS service quotas):
     1. agent calls `tracker.reserve(estimated_cost_usd)`
-    2. tracker raises BudgetExceeded if remaining < estimate (+ safety margin)
+    2. tracker raises BudgetExceededError if remaining < estimate (+ safety margin)
     3. agent runs the LLM call, observes actual cost
     4. agent calls `tracker.commit(token, actual_cost_usd)`
     5. tracker subtracts actual from remaining; releases the reservation slack
@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 
-class BudgetExceeded(RuntimeError):
+class BudgetExceededError(RuntimeError):
     """Raised when an agent attempts to spend beyond its ceiling.
 
     Agent.invoke() catches this and either (a) routes to fallback_model if
@@ -35,7 +35,7 @@ class BudgetExceeded(RuntimeError):
         self.remaining = remaining
         self.ceiling = ceiling
         super().__init__(
-            f"BudgetExceeded[{dimension}]: requested={requested}, "
+            f"BudgetExceededError[{dimension}]: requested={requested}, "
             f"remaining={remaining:.4f}, ceiling={ceiling:.4f}"
         )
 
@@ -102,10 +102,10 @@ class BudgetTracker:
         estimated_input_tokens: int = 0,
         estimated_output_tokens: int = 0,
     ) -> Reservation:
-        """Reserve budget for an upcoming LLM call. Raises BudgetExceeded if
+        """Reserve budget for an upcoming LLM call. Raises BudgetExceededError if
         the reservation would exceed any ceiling."""
         if estimated_usd > self.remaining_usd:
-            raise BudgetExceeded(
+            raise BudgetExceededError(
                 dimension="cost_usd",
                 requested=estimated_usd,
                 remaining=self.remaining_usd,
@@ -113,14 +113,14 @@ class BudgetTracker:
             )
         total_tok = estimated_input_tokens + estimated_output_tokens
         if total_tok > self.remaining_total_tokens:
-            raise BudgetExceeded(
+            raise BudgetExceededError(
                 dimension="tokens",
                 requested=total_tok,
                 remaining=self.remaining_total_tokens,
                 ceiling=self.max_total_tokens,
             )
         if self.elapsed_ms > self.max_latency_ms:
-            raise BudgetExceeded(
+            raise BudgetExceededError(
                 dimension="latency_ms",
                 requested=self.elapsed_ms,
                 remaining=self.remaining_latency_ms,

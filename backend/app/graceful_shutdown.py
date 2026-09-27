@@ -25,8 +25,8 @@ from __future__ import annotations
 import asyncio
 import os
 import signal
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
-from typing import AsyncIterator, Awaitable, Callable
 
 import structlog
 
@@ -76,7 +76,7 @@ async def _await_drain() -> None:
     try:
         await asyncio.wait_for(_drain_event.wait(), timeout=_GRACEFUL_TIMEOUT_S)
         log.info("graceful.drained")
-    except asyncio.TimeoutError:
+    except TimeoutError:
         log.warning("graceful.drain_timeout", in_flight=_in_flight, timeout_s=_GRACEFUL_TIMEOUT_S)
 
 
@@ -115,8 +115,12 @@ def install_signal_handlers(
             loop.add_signal_handler(sig, _trigger, sig_name)
         except NotImplementedError:
             # Windows asyncio loop doesn't support signal handlers.
-            # Honor SIGINT via signal.signal as a fallback.
-            signal.signal(sig, lambda *_args: _trigger(sig_name))
+            # Honor SIGINT via signal.signal as a fallback. sig_name must be
+            # bound as a default arg (early/per-iteration binding) — a plain
+            # closure over the loop variable would make every handler log
+            # the *last* iteration's signal name regardless of which signal
+            # actually fired (classic late-binding lambda-in-a-loop bug).
+            signal.signal(sig, lambda *_args, sig_name=sig_name: _trigger(sig_name))
 
 
 def shutdown_snapshot() -> dict[str, object]:

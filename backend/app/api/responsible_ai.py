@@ -186,11 +186,11 @@ def _build_model_card() -> dict[str, Any]:
             },
             {
                 "failure": "Schema parse failure after max_iterations",
-                "mitigation": "Raise AgentExhausted; case routes to human reviewer",
+                "mitigation": "Raise AgentExhaustedError; case routes to human reviewer",
             },
             {
                 "failure": "Per-case budget exhausted",
-                "mitigation": "BudgetExceeded raised before LLM call; case marked error, NOT retried",
+                "mitigation": "BudgetExceededError raised before LLM call; case marked error, NOT retried",
             },
             {
                 "failure": "Low-confidence Necessity Reasoner output",

@@ -63,10 +63,10 @@ from pathlib import Path as _Path  # noqa: E402
 from app.models import (  # noqa: E402
     ClinicalSnapshot as _CS,
 )
-from app.models import (
+from app.models import (  # noqa: E402
     Decision as _D,
 )
-from app.models import (
+from app.models import (  # noqa: E402
     PolicyExcerpt as _PE,
 )
 

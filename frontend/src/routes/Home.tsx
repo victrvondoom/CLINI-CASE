@@ -1,4 +1,4 @@
-﻿import { ArrowRight, Loader2, Sparkles } from "lucide-react";
+import { ArrowRight, Loader2, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -37,7 +37,7 @@ export default function Home() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-6 py-10">
+    <div className="mx-auto max-w-7xl px-6 py-10 reveal-go">
       <div className="grid md:grid-cols-2 gap-10 items-start">
         {/* Hero */}
         <div>
@@ -57,12 +57,12 @@ export default function Home() {
             appeal letter.
           </p>
           <div className="grid grid-cols-3 gap-2 text-sm">
-            <Stat value="94%" label="of physicians say PA delays care" />
-            <Stat value="80.7%" label="of appealed MA denials are overturned" />
-            <Stat value="$30B+" label="annual US PA admin waste" />
+            <Stat value="94%" label="of physicians say PA delays care" delay={0} />
+            <Stat value="80.7%" label="of appealed MA denials are overturned" delay={80} />
+            <Stat value="$30B+" label="annual US PA admin waste" delay={160} />
           </div>
 
-          <div className="mt-6 p-4 rounded-xl bg-brand-50 border border-brand-200">
+          <div className="reveal-go mt-6 p-4 rounded-xl bg-brand-50 border border-brand-200" style={{ animationDelay: "220ms" }}>
             <div className="text-xs uppercase tracking-wider text-mono-tech text-brand-700 mb-1">
               7-agent LangGraph DAG
             </div>
@@ -94,13 +94,14 @@ export default function Home() {
           )}
 
           <div className="space-y-3">
-            {fixtures?.map((f) => (
+            {fixtures?.map((f, i) => (
               <button
                 key={f.name}
                 type="button"
                 onClick={() => handleStart(f.name)}
                 disabled={creatingFixture !== null}
-                className="w-full text-left bg-white border border-neutral-200 rounded-xl p-5 hover:border-brand-300 hover:shadow-md transition-all group disabled:opacity-50 disabled:cursor-not-allowed"
+                className="reveal-go w-full text-left bg-white border border-neutral-200 rounded-xl p-5 transition-all duration-200 hover:border-brand-300 hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99] group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+                style={{ animationDelay: `${i * 60}ms` }}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
@@ -153,9 +154,12 @@ export default function Home() {
   );
 }
 
-function Stat({ value, label }: { value: string; label: string }) {
+function Stat({ value, label, delay = 0 }: { value: string; label: string; delay?: number }) {
   return (
-    <div className="rounded-lg bg-neutral-50 border border-neutral-200 p-3">
+    <div
+      className="reveal-go rounded-lg bg-neutral-50 border border-neutral-200 p-3 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm"
+      style={{ animationDelay: `${delay}ms` }}
+    >
       <div className="font-bold text-neutral-900 text-lg">{value}</div>
       <div className="text-xs text-neutral-500 leading-tight">{label}</div>
     </div>

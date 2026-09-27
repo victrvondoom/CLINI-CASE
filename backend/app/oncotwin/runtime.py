@@ -22,7 +22,7 @@ from typing import Any
 
 from app.oncotwin.agents.graph import run_twin_graph
 from app.oncotwin.engine.timeline import build_timeline
-from app.oncotwin.engine.warning import RANK, TIERS
+from app.oncotwin.engine.warning import RANK
 from app.oncotwin.events import data_event_for
 from app.oncotwin.fhir.mapping import fhir_to_observation, wearable_sample_to_observation
 from app.oncotwin.intel.state import build_states, transitions

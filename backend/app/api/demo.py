@@ -72,7 +72,7 @@ async def list_fixtures() -> dict[str, Any]:
     """List the curated demo fixtures available to the UI."""
     return {
         "fixtures": [
-            {k: v for k, v in f.items()}
+            dict(f.items())
             for f in DEMO_FIXTURES
         ]
     }

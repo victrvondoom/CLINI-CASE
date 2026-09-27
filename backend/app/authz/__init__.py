@@ -26,7 +26,7 @@ Pairs with: ops/architecture/AUTHZ_CEDAR.md
 """
 from app.authz.cedar import (
     AuthzDecision,
-    AuthzDenied,
+    AuthzDeniedError,
     Principal,
     Resource,
     is_authorized,
@@ -35,7 +35,7 @@ from app.authz.cedar import (
 )
 
 __all__ = [
-    "AuthzDenied",
+    "AuthzDeniedError",
     "AuthzDecision",
     "Principal",
     "Resource",

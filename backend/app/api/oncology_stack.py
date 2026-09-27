@@ -376,17 +376,24 @@ async def denial_predict(
     actions: list[str] = []
 
     if not req.has_pathology_report:
-        p += 0.18; risks.append("missing pathology report"); actions.append("Attach pathology report (ICD-O-3 + grade).")
+        p += 0.18
+        risks.append("missing pathology report")
+        actions.append("Attach pathology report (ICD-O-3 + grade).")
     if not req.has_imaging_report:
-        p += 0.10; risks.append("missing imaging staging"); actions.append("Attach baseline staging CT/PET-CT.")
+        p += 0.10
+        risks.append("missing imaging staging")
+        actions.append("Attach baseline staging CT/PET-CT.")
     if req.biomarkers and not req.has_biomarker_test:
-        p += 0.22; risks.append("biomarker claimed but no test report attached")
+        p += 0.22
+        risks.append("biomarker claimed but no test report attached")
         actions.append("Attach NGS / IHC report from CLIA-certified lab (FoundationOne, Tempus, MSK-IMPACT).")
     if not req.has_nccn_citation:
-        p += 0.14; risks.append("no NCCN/ASCO citation in submission")
+        p += 0.14
+        risks.append("no NCCN/ASCO citation in submission")
         actions.append("Cite specific NCCN section ID (e.g. 'NCCN NSCL-26 v.5.2025, Category 1').")
     if req.prior_lines == 0 and "second" in (req.line_of_therapy or "").lower():
-        p += 0.20; risks.append("second-line claimed without prior-therapy documentation")
+        p += 0.20
+        risks.append("second-line claimed without prior-therapy documentation")
         actions.append("Document prior regimens with start/stop dates + reason for discontinuation.")
 
     p = min(p, 0.95)
@@ -678,7 +685,7 @@ async def p2p_briefing(
         from reportlab.lib.pagesizes import letter
         from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
         from reportlab.lib.units import inch
-        from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+        from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
     except ImportError as e:
         raise HTTPException(503, f"reportlab not available: {e}") from e
 
@@ -805,7 +812,8 @@ async def off_label_justify(
     if req.biomarker:
         for _canonical_id, entry in biomarkers()["mappings"].items():
             if any(req.biomarker.lower() in lab.lower() for lab in entry["variants"]):
-                bm_entry = entry; break
+                bm_entry = entry
+                break
 
     counter = []
     if bm_entry and "any" in bm_entry["tumor_types"]:
@@ -1090,13 +1098,15 @@ async def audit_trail(
         prev = _AUDIT_CHAIN[i - 1]["hash"] if i > 0 else "0" * 64
         if rec["prev_hash"] != prev:
             integrity["chain_valid"] = False
-            integrity["first_broken_link"] = rec["id"]; break
+            integrity["first_broken_link"] = rec["id"]
+            break
         # Recompute this record's own hash (without the hash field)
         without_hash = {k: v for k, v in rec.items() if k != "hash"}
         recomputed = hashlib.sha256(json.dumps(without_hash, sort_keys=True).encode()).hexdigest()
         if recomputed != rec["hash"]:
             integrity["chain_valid"] = False
-            integrity["first_broken_link"] = rec["id"]; break
+            integrity["first_broken_link"] = rec["id"]
+            break
 
     return {
         "n": len(chain), "records": chain, "integrity": integrity,

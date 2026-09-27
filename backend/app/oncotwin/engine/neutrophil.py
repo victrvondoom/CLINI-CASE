@@ -111,7 +111,7 @@ class NeutrophilTwin:
         G = len(self.slopes)
         self.traj, _ = P.simulate_anc(
             np.full(G, self.circ0), self.slopes, series.n,
-            {d: s for d, s in series.dose_days.items()}, series.gcsf_days,
+            dict(series.dose_days.items()), series.gcsf_days,
         )
         log_prior = -0.5 * ((np.log(SLOPE_REL_GRID) - np.log(PRIOR_REL_CENTER)) / PRIOR_LOG_SD) ** 2
         self.log_prior = log_prior - np.max(log_prior)

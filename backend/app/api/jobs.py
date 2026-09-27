@@ -29,7 +29,8 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Response
 from app.auth.dependencies import get_current_user
 from app.db import db
 from app.jobs import queue as jq
-from app.quotas import QuotaExceeded, consume_case_quota, quota_exceeded_to_http
+from app.llm.factory import llm_unavailable_reason
+from app.quotas import QuotaExceededError, consume_case_quota, quota_exceeded_to_http
 
 router = APIRouter(tags=["jobs"])
 
@@ -107,6 +108,9 @@ async def run_full_async(
     )
     if row is None:
         raise HTTPException(status_code=404, detail=f"Case {case_id} not found")
+    reason = llm_unavailable_reason()
+    if reason:
+        raise HTTPException(status_code=503, detail=reason)
 
     fhir = (
         json.loads(row["fhir_bundle"])
@@ -140,7 +144,7 @@ async def run_full_async(
     if existing is None:
         try:
             await consume_case_quota(user["organization_id"])
-        except QuotaExceeded as exc:
+        except QuotaExceededError as exc:
             raise HTTPException(
                 status_code=429,
                 detail=quota_exceeded_to_http(exc),

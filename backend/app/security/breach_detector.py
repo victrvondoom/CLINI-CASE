@@ -9,9 +9,9 @@ operationally interpreted as:
 
 This module is the **detection** half. It listens for these signals:
 
-  • signal_authz_denied_burst    — > N AuthzDenied within K seconds (potential
+  • signal_authz_denied_burst    — > N AuthzDeniedError within K seconds (potential
                                    reconnaissance)
-  • signal_residency_violation   — any ResidencyViolation (active boundary breach)
+  • signal_residency_violation   — any ResidencyViolationError (active boundary breach)
   • signal_jwt_signature_mismatch — > N JWT signature failures within K seconds
                                    (token-forging attempt)
   • signal_phi_in_log            — log line contains PHI patterns (DOB, SSN, MRN)

@@ -7,6 +7,7 @@
 """
 from __future__ import annotations
 
+from datetime import UTC
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -29,10 +30,10 @@ async def case_value(
 ) -> dict[str, Any]:
     try:
         roi = await case_roi(case_id, organization_id=user["organization_id"])
-    except ValueError:
-        raise HTTPException(status_code=404, detail=f"Case {case_id} not found")
-    except PermissionError:
-        raise HTTPException(status_code=404, detail=f"Case {case_id} not found")
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=f"Case {case_id} not found") from e
+    except PermissionError as e:
+        raise HTTPException(status_code=404, detail=f"Case {case_id} not found") from e
     return roi.__dict__
 
 
@@ -40,7 +41,7 @@ async def case_value(
 async def org_value(
     user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
-    from datetime import datetime, timezone
+    from datetime import datetime
     try:
         rollup = await org_value_rollup(user["organization_id"])
         return rollup.__dict__
@@ -48,7 +49,7 @@ async def org_value(
         # DB-less fallback so the dashboard ROI tiles render instead of "loading…"
         return {
             "organization_id": user["organization_id"],
-            "asof_iso": datetime.now(timezone.utc).isoformat(),
+            "asof_iso": datetime.now(UTC).isoformat(),
             "cases_total": 0, "cases_decided": 0,
             "verdict_breakdown": {},
             "direct_savings_mtd_usd": 0, "direct_savings_annual_projection_usd": 0,

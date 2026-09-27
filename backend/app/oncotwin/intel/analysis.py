@@ -17,7 +17,16 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.oncotwin.intel import changepoint, consistency, correlation, explain, graph, memory, trajectory, uncertainty
+from app.oncotwin.intel import (
+    changepoint,
+    consistency,
+    correlation,
+    explain,
+    graph,
+    memory,
+    trajectory,
+    uncertainty,
+)
 from app.oncotwin.intel.state import transitions
 from app.oncotwin.ml.horizon import load_horizon_model
 from app.oncotwin.service import TwinComputation, compute_twin, provenance

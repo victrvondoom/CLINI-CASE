@@ -7,11 +7,14 @@ GET  /api/v1/auth/users     — Admin-only list of users in the org.
 """
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import re
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, EmailStr, Field
 
 from app.auth import (
@@ -88,22 +91,21 @@ async def signup(req: SignupRequest) -> TokenResponse:
         n += 1
         slug = f"{slug_base}-{n}"
 
-    async with db.pool.acquire() as conn:
-        async with conn.transaction():
-            await conn.execute(
-                "INSERT INTO organizations (id, name, slug) VALUES ($1, $2, $3)",
-                org_id, req.organization_name, slug,
-            )
-            await conn.execute(
-                """INSERT INTO users (id, email, password_hash, full_name,
+    async with db.pool.acquire() as conn, conn.transaction():
+        await conn.execute(
+            "INSERT INTO organizations (id, name, slug) VALUES ($1, $2, $3)",
+            org_id, req.organization_name, slug,
+        )
+        await conn.execute(
+            """INSERT INTO users (id, email, password_hash, full_name,
                                       organization_id, role)
                    VALUES ($1, $2, $3, $4, $5, 'admin')""",
-                user_id, req.email.lower(), hash_password(req.password),
-                req.full_name, org_id,
-            )
-            await conn.execute(
-                "UPDATE users SET last_login_at = NOW() WHERE id = $1", user_id,
-            )
+            user_id, req.email.lower(), hash_password(req.password),
+            req.full_name, org_id,
+        )
+        await conn.execute(
+            "UPDATE users SET last_login_at = NOW() WHERE id = $1", user_id,
+        )
 
     token = create_access_token(
         user_id=user_id,
@@ -178,10 +180,8 @@ async def login(req: LoginRequest) -> TokenResponse:
         row = None
 
     if row is not None and verify_password(req.password, row["password_hash"]):
-        try:
+        with contextlib.suppress(Exception):
             await db.execute("UPDATE users SET last_login_at = NOW() WHERE id = $1", row["id"])
-        except Exception:
-            pass
         token = create_access_token(
             user_id=row["id"], organization_id=row["organization_id"],
             role=row["role"], email=row["email"],
@@ -239,7 +239,7 @@ async def get_me(user: dict[str, Any] = Depends(get_current_user)) -> UserRespon
 
 @router.get("/users")
 async def list_users(
-    admin: dict[str, Any] = Depends(require_role("admin")),
+    admin: dict[str, Any] = Depends(require_role("admin")),  # noqa: B008
 ) -> dict[str, Any]:
     """List all users in the admin's organization."""
     try:
@@ -283,7 +283,7 @@ class CreateUserRequest(BaseModel):
 @router.post("/users")
 async def create_user_in_org(
     req: CreateUserRequest,
-    admin: dict[str, Any] = Depends(require_role("admin")),
+    admin: dict[str, Any] = Depends(require_role("admin")),  # noqa: B008
 ) -> dict[str, Any]:
     """Admin: create a new user inside the admin's organization.
 
@@ -322,4 +322,102 @@ async def create_user_in_org(
                 "User accepted in DB-less demo mode. The record is not "
                 "persisted; provision RDS to enable real user creation."
             ),
+        }
+
+
+@router.get("/me/activity")
+async def get_my_activity(
+    limit: int = 25,
+    user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Per-user activity history for the profile panel.
+
+    Merges three independently-owned sources of "things this user did" into
+    one reverse-chronological feed:
+      - cases this user opened          (cases.created_by_user_id)
+      - reviewer actions this user took (reviewer_actions.reviewer_id)
+      - this user's last login          (users.last_login_at)
+
+    The three lookups touch unrelated rows/tables, so they run concurrently
+    via asyncio.gather against the read-replica pool rather than one after
+    another — same reasoning as necessity_reasoner's per-criterion fan-out.
+    DB-less deploys fall back to a small synthetic feed so the profile UI
+    still has something to render.
+    """
+    limit = max(1, min(limit, 100))
+    uid = user["id"]
+    org_id = user["organization_id"]
+
+    async def _cases_opened() -> list[dict[str, Any]]:
+        rows = await db.fetch_ro(
+            """SELECT id, created_at, status, patient_initials, requested_treatment_name
+               FROM cases
+               WHERE created_by_user_id = $1 AND organization_id = $2
+               ORDER BY created_at DESC LIMIT $3""",
+            uid, org_id, limit,
+        )
+        return [
+            {
+                "id": f"case_opened:{r['id']}",
+                "kind": "case_opened",
+                "at": r["created_at"].isoformat() if r["created_at"] else None,
+                "summary": f"Opened case {r['id']} · {r['requested_treatment_name']} · {r['status']}",
+            }
+            for r in rows
+        ]
+
+    async def _reviewer_actions() -> list[dict[str, Any]]:
+        rows = await db.fetch_ro(
+            """SELECT ra.id, ra.case_id, ra.action, ra.note, ra.created_at
+               FROM reviewer_actions ra
+               JOIN cases c ON c.id = ra.case_id
+               WHERE ra.reviewer_id = $1 AND c.organization_id = $2
+               ORDER BY ra.created_at DESC LIMIT $3""",
+            uid, org_id, limit,
+        )
+        action_label = {
+            "approve": "Approved", "override_to_approve": "Overrode to approve",
+            "override_to_deny": "Overrode to deny", "escalate": "Escalated",
+            "add_note": "Added a note to",
+        }
+        return [
+            {
+                "id": f"reviewer_action:{r['id']}",
+                "kind": "reviewer_action",
+                "at": r["created_at"].isoformat() if r["created_at"] else None,
+                "summary": f"{action_label.get(r['action'], r['action'])} case {r['case_id']}"
+                           + (f": “{r['note']}”" if r["note"] else ""),
+            }
+            for r in rows
+        ]
+
+    async def _last_login() -> list[dict[str, Any]]:
+        row = await db.fetchrow_ro("SELECT last_login_at FROM users WHERE id = $1", uid)
+        if row is None or row["last_login_at"] is None:
+            return []
+        return [{
+            "id": f"login:{row['last_login_at'].isoformat()}",
+            "kind": "login",
+            "at": row["last_login_at"].isoformat(),
+            "summary": "Signed in",
+        }]
+
+    try:
+        cases_activity, review_activity, login_activity = await asyncio.gather(
+            _cases_opened(), _reviewer_actions(), _last_login(),
+        )
+        events = [*cases_activity, *review_activity, *login_activity]
+        events.sort(key=lambda e: e["at"] or "", reverse=True)
+        return {"events": events[:limit]}
+    except Exception:
+        # DB-less deployments: a short synthetic feed so the profile panel
+        # still renders something meaningful instead of an empty state.
+        now = datetime.now(UTC)
+        return {
+            "events": [
+                {"id": "demo:login", "kind": "login", "at": now.isoformat(), "summary": "Signed in"},
+                {"id": "demo:case_opened", "kind": "case_opened",
+                 "at": now.isoformat(), "summary": "Opened case AUTH-2918 · Trastuzumab · pending"},
+            ],
+            "db_unavailable": True,
         }

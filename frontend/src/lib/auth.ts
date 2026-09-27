@@ -61,14 +61,22 @@ export async function login(
   email: string,
   password: string,
 ): Promise<{ token: string; user: AuthUser }> {
-  const res = await fetch(`${BASE}/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+  } catch {
+    throw new Error("Cannot reach the ClinCase API. Check that the backend is running on port 8000.");
+  }
   if (!res.ok) {
-    const { detail } = await res.json().catch(() => ({ detail: "Login failed" }));
-    throw new Error(detail || "Login failed");
+    const body = await res.json().catch(() => null);
+    const detail = typeof body?.detail === "string" ? body.detail : null;
+    throw new Error(
+      detail ?? `Login failed: the API returned HTTP ${res.status}. Check that the backend is running on port 8000.`,
+    );
   }
   const data = await res.json();
   setToken(data.access_token);
@@ -116,4 +124,19 @@ export function logout(): void {
   clearAuth();
   // Hard reload to /login so all React state is cleared
   window.location.href = "/login";
+}
+
+export interface ActivityEvent {
+  id: string;
+  kind: "case_opened" | "reviewer_action" | "login" | string;
+  at: string | null;
+  summary: string;
+}
+
+export async function fetchMyActivity(limit = 25): Promise<{ events: ActivityEvent[]; db_unavailable?: boolean }> {
+  const res = await fetch(`${BASE}/auth/me/activity?limit=${limit}`, {
+    headers: authHeader(),
+  });
+  if (!res.ok) throw new Error(`Failed to load activity (HTTP ${res.status})`);
+  return res.json();
 }

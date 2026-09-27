@@ -14,6 +14,7 @@ JWT (already on `request.state.user` by then). Anonymous routes (e.g.
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Iterable
 
 import structlog
@@ -152,9 +153,6 @@ class RateLimitMiddleware:
 # =============================================================================
 # Path normalization — strip UUIDs / case_ids so /cases/{x} maps to one bucket
 # =============================================================================
-
-
-import re
 
 _UUID_RE = re.compile(r"/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", re.IGNORECASE)
 _HEX_RE = re.compile(r"/[0-9a-f]{16,}", re.IGNORECASE)

@@ -29,9 +29,10 @@ from __future__ import annotations
 
 import json
 import uuid
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Awaitable, Callable
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Any
 
 import structlog
 
@@ -122,7 +123,7 @@ def register_step(name: str, *, action: StepCallable, compensate: StepCallable |
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _serialize(saga: Saga) -> dict[str, Any]:

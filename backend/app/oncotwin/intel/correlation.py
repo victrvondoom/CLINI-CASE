@@ -129,7 +129,7 @@ def analyse(series: PatientSeries, baseline: Baseline, history: list[dict[str, A
     dev = sorted([r for r in rows if r["deviating_adversely"]], key=lambda r: -(r["z_adverse_3d"] or 0))
     ordered = sorted([r for r in dev if r["onset_day"] is not None], key=lambda r: (r["onset_day"], -(r["z_adverse_3d"] or 0)))
     precedence = []
-    for a, b in zip(ordered, ordered[1:]):
+    for a, b in zip(ordered, ordered[1:], strict=False):
         gap = b["onset_day"] - a["onset_day"]
         if gap >= 1:
             precedence.append({"first": a["signal"], "then": b["signal"], "gap_days": gap,

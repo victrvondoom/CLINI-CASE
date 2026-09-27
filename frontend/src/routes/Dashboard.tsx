@@ -80,7 +80,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="px-6 py-6">
+    <div className="px-6 py-6 reveal-go">
       {/* HERO band — 2-col grid (text + shield). Background washes fill the
           card edge-to-edge so light mode doesn't show a white void in the
           middle. Shield is now a real grid column, not absolute, so there's
@@ -149,7 +149,7 @@ export default function Dashboard() {
                     type="button"
                     onClick={() => startDemo(f.name)}
                     disabled={creating !== null}
-                    className={`text-xs text-mono-tech px-2.5 py-1 rounded-full border transition-all ${VERDICT_TINT[f.expected_verdict] ?? ""} hover:shadow-md disabled:opacity-50`}
+                    className={`text-xs text-mono-tech px-2.5 py-1 rounded-full border transition-all duration-200 ${VERDICT_TINT[f.expected_verdict] ?? ""} hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 active:scale-95 disabled:opacity-50 disabled:hover:translate-y-0`}
                     title={f.label}
                   >
                     {creating === f.name ? "starting..." : f.expected_verdict}
@@ -164,63 +164,79 @@ export default function Dashboard() {
         </div>
       </section>
 
-      {/* KPI ROW */}
+      {/* KPI ROW — staggered reveal so the tiles settle in sequence rather
+          than popping in as one flat block once orgValue resolves. */}
       <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <StatTile
-          eyebrow="ACTIVE CASES"
-          value={orgValue ? String(orgValue.cases_total) : "—"}
-          spark={sparkActive}
-          hint={
-            orgValue
-              ? `${orgValue.cases_decided} decided MTD`
-              : "loading…"
-          }
-        />
-        <StatTile
-          eyebrow="AVG TIME-TO-DECISION"
-          value={
-            orgValue?.avg_decision_seconds != null
-              ? `${orgValue.avg_decision_seconds.toFixed(1)}s`
-              : "—"
-          }
-          trend={{ value: -98, goodDirection: "down" }}
-          hint={
-            orgValue?.avg_speedup_factor != null
-              ? `${orgValue.avg_speedup_factor.toFixed(1)}× faster than 18-min AMA median`
-              : "vs 18-min AMA median"
-          }
-        />
-        <StatTile
-          eyebrow="DIRECT SAVINGS · MTD"
-          value={
-            orgValue
-              ? `$${orgValue.direct_savings_mtd_usd.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
-              : "—"
-          }
-          valueClassName="text-accent-green"
-          hint="vs $1,500 / case AMA baseline"
-        />
-        <StatTile
-          eyebrow="ANNUALIZED PROJECTION"
-          value={
-            orgValue
-              ? `$${(orgValue.direct_savings_annual_projection_usd / 1_000).toLocaleString(undefined, { maximumFractionDigits: 0 })}K`
-              : "—"
-          }
-          valueClassName="text-accent-cyan"
-          hint="last 30d × 12 — see /roi for Stars math"
-        />
+        <div className="reveal-go" style={{ animationDelay: "40ms" }}>
+          <StatTile
+            eyebrow="ACTIVE CASES"
+            value={orgValue ? String(orgValue.cases_total) : "—"}
+            spark={sparkActive}
+            hint={
+              orgValue
+                ? `${orgValue.cases_decided} decided MTD`
+                : "loading…"
+            }
+          />
+        </div>
+        <div className="reveal-go" style={{ animationDelay: "100ms" }}>
+          <StatTile
+            eyebrow="AVG TIME-TO-DECISION"
+            value={
+              orgValue?.avg_decision_seconds != null
+                ? `${orgValue.avg_decision_seconds.toFixed(1)}s`
+                : "—"
+            }
+            trend={{ value: -98, goodDirection: "down" }}
+            hint={
+              orgValue?.avg_speedup_factor != null
+                ? `${orgValue.avg_speedup_factor.toFixed(1)}× faster than 18-min AMA median`
+                : "vs 18-min AMA median"
+            }
+          />
+        </div>
+        <div className="reveal-go" style={{ animationDelay: "160ms" }}>
+          <StatTile
+            eyebrow="DIRECT SAVINGS · MTD"
+            value={
+              orgValue
+                ? `$${orgValue.direct_savings_mtd_usd.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+                : "—"
+            }
+            valueClassName="text-accent-green"
+            hint="vs $1,500 / case AMA baseline"
+          />
+        </div>
+        <div className="reveal-go" style={{ animationDelay: "220ms" }}>
+          <StatTile
+            eyebrow="ANNUALIZED PROJECTION"
+            value={
+              orgValue
+                ? `$${(orgValue.direct_savings_annual_projection_usd / 1_000).toLocaleString(undefined, { maximumFractionDigits: 0 })}K`
+                : "—"
+            }
+            valueClassName="text-accent-cyan"
+            hint="last 30d × 12 — see /roi for Stars math"
+          />
+        </div>
       </section>
 
       {/* TWO-COL: RECENT CASES + AGENT HEALTH */}
       <section className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4 mb-6">
-        <RecentCasesRibbon />
-        <AgentHealthPanel />
+        <div className="reveal-go" style={{ animationDelay: "260ms" }}>
+          <RecentCasesRibbon />
+        </div>
+        <div className="reveal-go" style={{ animationDelay: "300ms" }}>
+          <AgentHealthPanel />
+        </div>
       </section>
 
       {/* FOOTER BAND */}
       <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-accent-brand-soft/40 border border-accent-brand/20 rounded-2xl px-5 py-4">
+        <div
+          className="reveal-go card-premium bg-accent-brand-soft/40 border border-accent-brand/20 rounded-2xl px-5 py-4"
+          style={{ animationDelay: "340ms" }}
+        >
           <div className="text-[10px] text-compact text-accent-brand mb-2">
             7-AGENT LANGGRAPH DAG · 22 SUB-AGENTS
           </div>
@@ -239,7 +255,10 @@ export default function Dashboard() {
           </Link>
         </div>
 
-        <div className="bg-surface-raised border border-surface-border rounded-2xl px-5 py-4">
+        <div
+          className="reveal-go card-premium bg-surface-raised border border-surface-border rounded-2xl px-5 py-4"
+          style={{ animationDelay: "380ms" }}
+        >
           <div className="flex items-center gap-2 mb-3">
             <ScrollText size={14} className="text-accent-amber" />
             <div className="text-[10px] text-compact text-ink-muted">

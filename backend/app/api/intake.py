@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import contextlib
 import hashlib
 import io
 import logging
@@ -118,7 +119,7 @@ def _clinical_content_score(text: str) -> tuple[float, list[str]]:
     if not text or not text.strip():
         return 0.0, []
     matches = _CLINICAL_PATTERN.findall(text)
-    unique = set(m.lower() for m in matches)
+    unique = {m.lower() for m in matches}
     # Word-count-aware density: a 200-word note with 5 clinical terms is
     # high-signal; a 10,000-word architecture doc with 5 terms is not.
     n_words = max(1, len(text.split()))
@@ -138,9 +139,8 @@ def _apply_clinical_gate(ocr: OCRResult, risk_flags: list[str]) -> tuple[OCRResu
     score, hits = _clinical_content_score(ocr.full_text)
     new_conf = round(ocr.overall_confidence * max(0.15, score), 3)
     flags = list(risk_flags)
-    if score < _CLINICAL_SCORE_THRESHOLD:
-        if "non-clinical-content" not in flags:
-            flags.append("non-clinical-content")
+    if score < _CLINICAL_SCORE_THRESHOLD and "non-clinical-content" not in flags:
+        flags.append("non-clinical-content")
     new_ocr = ocr.model_copy(update={"overall_confidence": new_conf})
     return new_ocr, flags
 
@@ -295,7 +295,7 @@ async def _extract_pdf_directly(*, raw: bytes, filename: str, sha256: str) -> In
             "ok": True,
             "elapsed_ms": int((time.monotonic() - pypdf_t0) * 1000),
         })
-    except _PDFExtractFailure as e:
+    except _PDFExtractFailureError as e:
         engines_attempted.append({
             "engine": "pypdf_text",
             "ok": False,
@@ -315,7 +315,7 @@ async def _extract_pdf_directly(*, raw: bytes, filename: str, sha256: str) -> In
                 "elapsed_ms": int((time.monotonic() - textract_t0) * 1000),
             })
             risk_flags.append("engine-fallback-used")
-        except _PDFExtractFailure as e:
+        except _PDFExtractFailureError as e:
             engines_attempted.append({
                 "engine": "aws_textract",
                 "ok": False,
@@ -337,7 +337,7 @@ async def _extract_pdf_directly(*, raw: bytes, filename: str, sha256: str) -> In
                 "elapsed_ms": int((time.monotonic() - ocr_t0) * 1000),
             })
             risk_flags.append("engine-fallback-used")
-        except _PDFExtractFailure as e:
+        except _PDFExtractFailureError as e:
             engines_attempted.append({
                 "engine": "tesseract_local",
                 "ok": False,
@@ -418,7 +418,7 @@ async def _extract_docx_directly(*, raw: bytes, filename: str, sha256: str) -> I
             "ok": True,
             "elapsed_ms": int((time.monotonic() - docx_t0) * 1000),
         })
-    except _DocExtractFailure as e:
+    except _DocExtractFailureError as e:
         engines_attempted.append({
             "engine": "python_docx",
             "ok": False,
@@ -466,17 +466,17 @@ async def _extract_docx_directly(*, raw: bytes, filename: str, sha256: str) -> I
 
 
 def _python_docx_extract(raw: bytes) -> OCRResult:
-    """Pull all paragraph text + flatten tables. Raises _DocExtractFailure
+    """Pull all paragraph text + flatten tables. Raises _DocExtractFailureError
     on parse errors or empty documents."""
     try:
         from docx import Document  # python-docx
     except ImportError as e:
-        raise _DocExtractFailure(f"python-docx not installed: {e}") from e
+        raise _DocExtractFailureError(f"python-docx not installed: {e}") from e
 
     try:
         doc = Document(io.BytesIO(raw))
     except Exception as e:  # noqa: BLE001 — covers BadZipFile, KeyError, etc.
-        raise _DocExtractFailure(f"docx parse error: {e}") from e
+        raise _DocExtractFailureError(f"docx parse error: {e}") from e
 
     parts: list[str] = []
     for para in doc.paragraphs:
@@ -493,7 +493,7 @@ def _python_docx_extract(raw: bytes) -> OCRResult:
 
     full_text = "\n".join(parts)
     if not full_text.strip():
-        raise _DocExtractFailure("DOCX has no extractable text (empty document)")
+        raise _DocExtractFailureError("DOCX has no extractable text (empty document)")
 
     return OCRResult(
         engine="python_docx",
@@ -557,32 +557,32 @@ def _extract_txt_directly(*, raw: bytes, filename: str, sha256: str) -> IntakeRe
     )
 
 
-class _DocExtractFailure(Exception):
+class _DocExtractFailureError(Exception):
     """Raised when a DOCX/TXT engine cannot extract anything usable."""
 
 
-class _PDFExtractFailure(Exception):
+class _PDFExtractFailureError(Exception):
     """Raised when a PDF engine cannot extract anything usable."""
 
 
 def _pypdf_extract(raw: bytes) -> OCRResult:
-    """Synchronous pypdf text-layer extraction. Raises _PDFExtractFailure
+    """Synchronous pypdf text-layer extraction. Raises _PDFExtractFailureError
     on any error or empty extraction (image-only PDF)."""
     try:
         from pypdf import PdfReader
     except ImportError as e:
-        raise _PDFExtractFailure(f"pypdf not installed: {e}") from e
+        raise _PDFExtractFailureError(f"pypdf not installed: {e}") from e
 
     try:
         reader = PdfReader(io.BytesIO(raw))
         page_texts = [(p.extract_text() or "") for p in reader.pages]
         n_pages = len(reader.pages)
     except Exception as e:  # noqa: BLE001 — surface as clean failure
-        raise _PDFExtractFailure(f"pypdf parse error: {e}") from e
+        raise _PDFExtractFailureError(f"pypdf parse error: {e}") from e
 
     full_text = "\n\n".join(t for t in page_texts if t.strip())
     if not full_text.strip():
-        raise _PDFExtractFailure("PDF has no text layer (image-only / scanned)")
+        raise _PDFExtractFailureError("PDF has no text layer (image-only / scanned)")
 
     # Heuristic confidence: text-layer extraction is deterministic and high
     # quality when it works at all. We use 0.85 as the floor so the case
@@ -598,14 +598,14 @@ def _pypdf_extract(raw: bytes) -> OCRResult:
 
 
 def _textract_extract(raw: bytes) -> OCRResult:
-    """Synchronous AWS Textract extraction. Raises _PDFExtractFailure if
+    """Synchronous AWS Textract extraction. Raises _PDFExtractFailureError if
     boto3 is missing, AWS creds are not configured, or the call fails."""
     try:
         import boto3
         from botocore.config import Config
         from botocore.exceptions import BotoCoreError, ClientError, NoCredentialsError
     except ImportError as e:
-        raise _PDFExtractFailure(f"boto3 not installed: {e}") from e
+        raise _PDFExtractFailureError(f"boto3 not installed: {e}") from e
 
     from app.config import settings
 
@@ -619,7 +619,7 @@ def _textract_extract(raw: bytes) -> OCRResult:
             ),
         )
     except Exception as e:  # noqa: BLE001
-        raise _PDFExtractFailure(f"Textract client init failed: {e}") from e
+        raise _PDFExtractFailureError(f"Textract client init failed: {e}") from e
 
     try:
         response = client.analyze_document(
@@ -627,11 +627,11 @@ def _textract_extract(raw: bytes) -> OCRResult:
             FeatureTypes=["FORMS", "TABLES"],
         )
     except NoCredentialsError as e:
-        raise _PDFExtractFailure("AWS credentials not configured") from e
+        raise _PDFExtractFailureError("AWS credentials not configured") from e
     except (ClientError, BotoCoreError) as e:
-        raise _PDFExtractFailure(f"Textract call failed: {e}") from e
+        raise _PDFExtractFailureError(f"Textract call failed: {e}") from e
     except Exception as e:  # noqa: BLE001
-        raise _PDFExtractFailure(f"Textract unexpected error: {e}") from e
+        raise _PDFExtractFailureError(f"Textract unexpected error: {e}") from e
 
     blocks = response.get("Blocks", [])
     word_confs: list[float] = []
@@ -642,7 +642,7 @@ def _textract_extract(raw: bytes) -> OCRResult:
         bt = b.get("BlockType")
         if bt == "WORD":
             c = b.get("Confidence", 0.0)
-            if isinstance(c, (int, float)):
+            if isinstance(c, int | float):
                 word_confs.append(c / 100.0)
         elif bt == "LINE":
             t = b.get("Text") or ""
@@ -673,7 +673,7 @@ def _textract_extract(raw: bytes) -> OCRResult:
                 )
 
     if not line_texts:
-        raise _PDFExtractFailure("Textract returned no text blocks")
+        raise _PDFExtractFailureError("Textract returned no text blocks")
 
     return OCRResult(
         engine="aws_textract",
@@ -698,7 +698,7 @@ def _pdfium_tesseract_extract(raw: bytes) -> OCRResult:
         import pytesseract
         from PIL import Image  # noqa: F401  (sanity check)
     except ImportError as e:
-        raise _PDFExtractFailure(f"local OCR deps missing: {e}") from e
+        raise _PDFExtractFailureError(f"local OCR deps missing: {e}") from e
 
     # Auto-locate the tesseract binary on Windows when it's not on PATH.
     import os
@@ -717,17 +717,17 @@ def _pdfium_tesseract_extract(raw: bytes) -> OCRResult:
                 tess_cmd = candidate
                 break
     if not tess_cmd:
-        raise _PDFExtractFailure("tesseract binary not found on PATH or in standard locations")
+        raise _PDFExtractFailureError("tesseract binary not found on PATH or in standard locations")
     pytesseract.pytesseract.tesseract_cmd = tess_cmd
 
     try:
         pdf = pdfium.PdfDocument(raw)
     except Exception as e:  # noqa: BLE001
-        raise _PDFExtractFailure(f"pypdfium2 could not open PDF: {e}") from e
+        raise _PDFExtractFailureError(f"pypdfium2 could not open PDF: {e}") from e
 
     n_pages = len(pdf)
     if n_pages == 0:
-        raise _PDFExtractFailure("PDF has zero pages")
+        raise _PDFExtractFailureError("PDF has zero pages")
 
     page_texts: list[str] = []
     page_confs: list[float] = []
@@ -742,10 +742,8 @@ def _pdfium_tesseract_extract(raw: bytes) -> OCRResult:
             log.warning("page %d render failed: %s", i + 1, e)
             continue
         finally:
-            try:
+            with contextlib.suppress(Exception):
                 page.close()
-            except Exception:  # noqa: BLE001
-                pass
 
         try:
             data = pytesseract.image_to_data(
@@ -757,7 +755,7 @@ def _pdfium_tesseract_extract(raw: bytes) -> OCRResult:
 
         words = []
         confs = []
-        for txt, conf in zip(data.get("text", []), data.get("conf", [])):
+        for txt, conf in zip(data.get("text", []), data.get("conf", []), strict=False):
             t = (txt or "").strip()
             try:
                 c = float(conf)
@@ -770,14 +768,12 @@ def _pdfium_tesseract_extract(raw: bytes) -> OCRResult:
             page_texts.append(" ".join(words))
             page_confs.extend(confs)
 
-    try:
+    with contextlib.suppress(Exception):
         pdf.close()
-    except Exception:  # noqa: BLE001
-        pass
 
     full_text = "\n\n".join(page_texts).strip()
     if not full_text:
-        raise _PDFExtractFailure("tesseract produced no text from any page")
+        raise _PDFExtractFailureError("tesseract produced no text from any page")
 
     # Tesseract returns 0-100 confidence per word; normalize to [0,1].
     overall = (sum(page_confs) / len(page_confs) / 100.0) if page_confs else 0.65

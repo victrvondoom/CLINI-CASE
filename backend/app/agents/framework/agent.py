@@ -34,7 +34,7 @@ from typing import Any, ClassVar, Generic, TypeVar
 from pydantic import BaseModel
 
 from app.agents.framework import cache as response_cache
-from app.agents.framework.budget import BudgetExceeded
+from app.agents.framework.budget import BudgetExceededError
 from app.agents.framework.context import AgentContext
 from app.agents.framework.grader import GraderInput, LLMGrader, get_default_grader
 from app.agents.framework.guardrails import (
@@ -155,6 +155,19 @@ class Agent(ABC, Generic[I, O]):
     def _build_user_message(self, input: I) -> str:
         """LLM agents: render input as the user message. Default is JSON dump."""
         return input.model_dump_json(indent=2)
+
+    def _parse_response(self, text: str) -> O:
+        """LLM agents: turn the raw completion text into a validated output.
+
+        Default just strips any code fence and validates against
+        `output_schema`. A sub-agent can override this (calling
+        `super()._parse_response(text)` first) to deterministically
+        post-process the parsed output — e.g. confidence_calibrator enforces
+        its min-aggregation invariant here, after schema validation.
+        """
+        return self.output_schema.model_validate_json(  # type: ignore[return-value]
+            _strip_code_fence(text)
+        )
 
     async def _execute_deterministic(self, input: I, ctx: AgentContext) -> O:
         """Deterministic agents override this. LLM agents leave it raising."""
@@ -327,7 +340,7 @@ class Agent(ABC, Generic[I, O]):
                         reason=gr_result.reason,
                     )
                     if gr_result.decision == GuardrailDecision.BLOCK:
-                        raise InputBlocked(gr.name, gr_result.reason)
+                        raise InputBlockedError(gr.name, gr_result.reason)
                     if gr_result.decision == GuardrailDecision.MASK and gr_result.masked_payload is not None:
                         input = gr_result.masked_payload  # type: ignore[assignment]
 
@@ -353,7 +366,7 @@ class Agent(ABC, Generic[I, O]):
                             estimated_input_tokens=self.estimated_input_tokens,
                             estimated_output_tokens=self.estimated_output_tokens,
                         )
-                    except BudgetExceeded as be:
+                    except BudgetExceededError as be:
                         span.add_event("budget_exceeded", dimension=be.dimension)
                         raise
                 else:
@@ -406,11 +419,12 @@ class Agent(ABC, Generic[I, O]):
                                 model_id=llm_response.model_id,
                             )
 
-                        # Parse output
+                        # Parse output. `_parse_response` is an overridable hook —
+                        # the default just validates the schema, but a sub-agent
+                        # (e.g. confidence_calibrator) can override it to
+                        # deterministically post-process the LLM's output.
                         try:
-                            output = self.output_schema.model_validate_json(  # type: ignore[assignment]
-                                _strip_code_fence(llm_response.text)
-                            )
+                            output = self._parse_response(llm_response.text)
                             span.add_event("llm_call_ok", model_id=llm_response.model_id)
                         except Exception as parse_err:  # noqa: BLE001
                             last_error = parse_err
@@ -430,7 +444,7 @@ class Agent(ABC, Generic[I, O]):
                             retries += 1
                             continue
 
-                except BudgetExceeded:
+                except BudgetExceededError:
                     if reservation is not None:
                         ctx.budget.cancel(reservation)
                     raise
@@ -457,7 +471,7 @@ class Agent(ABC, Generic[I, O]):
                         blocked = True
                         break
                     if gr_result.decision == GuardrailDecision.BLOCK:
-                        raise OutputBlocked(gr.name, gr_result.reason)
+                        raise OutputBlockedError(gr.name, gr_result.reason)
                 if blocked:
                     continue
 
@@ -508,7 +522,7 @@ class Agent(ABC, Generic[I, O]):
 
             # If output is still None, we exhausted iterations
             if output is None:
-                raise AgentExhausted(
+                raise AgentExhaustedError(
                     self.qualified_name, attempts=attempt, last_error=last_error
                 )
 
@@ -598,8 +612,8 @@ class Agent(ABC, Generic[I, O]):
         except Exception as e:
             latency_ms = int((time.time() - started_ts) * 1000)
             span.finalize(
-                SpanStatus.BUDGET_EXCEEDED if isinstance(e, BudgetExceeded)
-                else SpanStatus.GUARDRAIL_BLOCKED if isinstance(e, InputBlocked | OutputBlocked)
+                SpanStatus.BUDGET_EXCEEDED if isinstance(e, BudgetExceededError)
+                else SpanStatus.GUARDRAIL_BLOCKED if isinstance(e, InputBlockedError | OutputBlockedError)
                 else SpanStatus.ERROR
             )
             # The trace sink owns DB persistence + SSE publish for the
@@ -673,26 +687,26 @@ class Agent(ABC, Generic[I, O]):
 # =============================================================================
 
 
-class InputBlocked(RuntimeError):
+class InputBlockedError(RuntimeError):
     def __init__(self, guardrail: str, reason: str):
         self.guardrail = guardrail
         self.reason = reason
-        super().__init__(f"InputBlocked[{guardrail}]: {reason}")
+        super().__init__(f"InputBlockedError[{guardrail}]: {reason}")
 
 
-class OutputBlocked(RuntimeError):
+class OutputBlockedError(RuntimeError):
     def __init__(self, guardrail: str, reason: str):
         self.guardrail = guardrail
         self.reason = reason
-        super().__init__(f"OutputBlocked[{guardrail}]: {reason}")
+        super().__init__(f"OutputBlockedError[{guardrail}]: {reason}")
 
 
-class AgentExhausted(RuntimeError):
+class AgentExhaustedError(RuntimeError):
     def __init__(self, agent: str, *, attempts: int, last_error: Exception | None):
         self.agent = agent
         self.attempts = attempts
         self.last_error = last_error
         super().__init__(
-            f"AgentExhausted[{agent}]: {attempts} attempts; "
+            f"AgentExhaustedError[{agent}]: {attempts} attempts; "
             f"last_error={last_error!r}"
         )

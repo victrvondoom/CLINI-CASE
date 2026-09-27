@@ -29,7 +29,7 @@ References:
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
@@ -51,7 +51,7 @@ class FHIRBundle(BaseModel):
     that's Inferno PAS Test Kit's job — but we do ensure the shape is parseable.
     """
 
-    resourceType: str = Field(default="Bundle")
+    resourceType: str = Field(default="Bundle")  # noqa: N815 — FHIR spec field name, not a style choice
     type: str = Field(default="collection")
     entry: list[dict[str, Any]] = Field(default_factory=list)
     id: str | None = None
@@ -171,7 +171,7 @@ async def claim_submit(
     # the stub demo we return a "queued" disposition pointing the payer client
     # at the case ID for follow-up retrieval via /Claim/{id}.
     case_id = f"pas_{uuid4().hex[:10]}"
-    submitted_dt = datetime.now(timezone.utc)
+    submitted_dt = datetime.now(UTC)
     submitted_at = submitted_dt.isoformat()
 
     import json as _json
@@ -318,7 +318,7 @@ async def capability_statement() -> dict[str, Any]:
     return {
         "resourceType": "CapabilityStatement",
         "status": "active",
-        "date": datetime.now(timezone.utc).isoformat(),
+        "date": datetime.now(UTC).isoformat(),
         "publisher": "ClinCase",
         "kind": "instance",
         "implementation": {

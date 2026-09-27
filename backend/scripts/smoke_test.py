@@ -26,7 +26,7 @@ def main() -> int:
 
     # Layer 2 — Orchestration & Policy Engine
     from app.agents.framework.agent import Agent, GatewayCallContext  # noqa: F401
-    from app.agents.framework.budget import BudgetTracker, BudgetExceeded  # noqa: F401
+    from app.agents.framework.budget import BudgetExceededError, BudgetTracker  # noqa: F401
     from app.agents.framework.cache import schema_version_for  # noqa: F401
     from app.agents.framework.guardrails import Guardrail, GuardrailDecision  # noqa: F401
     from app.agents.framework.models import (
@@ -52,8 +52,8 @@ def main() -> int:
     from app.llm.factory import get_llm_client
     from app.llm.gateway import (
         GenAIGateway,
-        GatewayQuotaExceeded,  # noqa: F401
-        GatewayPolicyViolation,  # noqa: F401
+        GatewayQuotaExceededError,  # noqa: F401
+        GatewayPolicyViolationError,  # noqa: F401
         _cost_for,
     )
 

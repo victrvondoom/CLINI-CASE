@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS cases (
     fhir_bundle              JSONB NOT NULL,
     physician_note           TEXT,
     status                   TEXT NOT NULL DEFAULT 'pending'
-                             CHECK (status IN ('pending','running','approved','denied','referred','appealed','overturned'))
+                             CHECK (status IN ('pending','running','awaiting_review','approved','denied','referred','appealed','overturned'))
 );
 
 -- Idempotent ALTER (existing DBs that pre-date organizations)

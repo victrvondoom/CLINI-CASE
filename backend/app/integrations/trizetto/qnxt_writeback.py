@@ -16,7 +16,7 @@ fan-out makes the real network call.
 from __future__ import annotations
 
 import hashlib
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -81,7 +81,7 @@ _VERDICT_TO_DISPOSITION = {
 
 def _hash_decision(verdict: str, rationale: str, citations: list[str], model_id: str) -> str:
     return hashlib.sha256(
-        f"{verdict}|{rationale}|{citations}|{model_id}".encode("utf-8")
+        f"{verdict}|{rationale}|{citations}|{model_id}".encode()
     ).hexdigest()
 
 
@@ -118,7 +118,7 @@ def build_qnxt_event(
         auth_id=f"CLINCASE-{case_id}",
         member_id=member_id,
         payer_id=payer_id,
-        occurred_at_utc=datetime.now(timezone.utc).isoformat(),
+        occurred_at_utc=datetime.now(UTC).isoformat(),
         cms_disposition=_VERDICT_TO_DISPOSITION.get(verdict, "REFERRED"),
         rationale=rationale,
         citations=citations,

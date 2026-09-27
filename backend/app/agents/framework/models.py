@@ -100,7 +100,7 @@ HAIKU_GRADER = ModelSpec(
     # Round-15 (CRITICAL FIX): bumped from 400 → 1500.
     # GraderScore = 4 floats + 1 paragraph string ≈ 350-500 tokens of JSON.
     # Old 400-token cap truncated the `feedback` field on EVERY grader call,
-    # causing AgentExhausted retries on every LLM agent. This is a global
+    # causing AgentExhaustedError retries on every LLM agent. This is a global
     # bug because the grader is invoked after every LLM agent's output.
     max_tokens=1500, temperature=0.0,
     cost_per_million_input_tokens=1.0,

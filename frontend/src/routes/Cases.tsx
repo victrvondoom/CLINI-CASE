@@ -1,12 +1,12 @@
 ﻿/**
  * /cases — All Cases table. Filter pills + payer dropdown + search + table.
  *
- * Hybrid data source: live cases from GET /api/v1/cases (real backend) merged
- * with synthetic historical cases for breadth. Live cases marked with a green
- * "live" pill; synthetic with a faint "demo" pill.
+ * Data source: live cases from GET /api/v1/cases (real backend), filtered
+ * server-side by status/payer/search. No synthetic/demo rows are mixed in —
+ * an empty result means the org genuinely has no matching cases yet.
  */
 import clsx from "clsx";
-import { ArrowRight, ChevronDown, Loader2, Play, Plus, Search, X } from "lucide-react";
+import { ArrowRight, ChevronDown, Inbox, Loader2, Play, Plus, Search, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -19,7 +19,6 @@ import { api, type CaseListItem } from "../lib/api";
 import {
   PAYERS,
   STATUSES,
-  SYNTHETIC_CASES,
   type CaseStatus,
   type SyntheticCase,
 } from "../lib/syntheticCases";
@@ -68,21 +67,28 @@ export default function Cases() {
   const [payerFilter, setPayerFilter] = useState<PayerFilter>("all");
   const [search, setSearch] = useState("");
   const [liveCases, setLiveCases] = useState<SyntheticCase[]>([]);
+  const [totalCases, setTotalCases] = useState(0);
   const [loadingLive, setLoadingLive] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [showNewCase, setShowNewCase] = useState(false);
 
-  // Fetch real backend cases on mount
+  // Fetch real backend cases on mount. 200 is a generous single-page cap —
+  // this org is expected to run in the low hundreds of cases at most; a true
+  // paginated table is a follow-up once volume outgrows this.
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      setLoadingLive(true);
       try {
-        const d = await api.listCases({ limit: 50 });
+        const d = await api.listCases({ limit: 200 });
         if (cancelled) return;
-        const mapped = (d.cases || []).map(liveToCase);
-        setLiveCases(mapped);
+        setLiveCases((d.cases || []).map(liveToCase));
+        setTotalCases(d.total ?? d.cases?.length ?? 0);
+        setLoadError(null);
       } catch (e) {
         if (cancelled) return;
         console.warn("Cases: list endpoint failed", e);
+        setLoadError(e instanceof Error ? e.message : "Failed to load cases");
       } finally {
         if (!cancelled) setLoadingLive(false);
       }
@@ -92,13 +98,7 @@ export default function Cases() {
     };
   }, []);
 
-  // Merge: live cases first (deduped against synthetic), synthetic for breadth
-  const allCases: SyntheticCase[] = useMemo(() => {
-    if (liveCases.length === 0) return SYNTHETIC_CASES;
-    const liveIds = new Set(liveCases.map((c) => c.case_id));
-    const synthFiltered = SYNTHETIC_CASES.filter((c) => !liveIds.has(c.case_id));
-    return [...liveCases, ...synthFiltered];
-  }, [liveCases]);
+  const allCases = liveCases;
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -122,12 +122,10 @@ export default function Cases() {
     return c;
   }, [allCases]);
 
-  const liveCount = liveCases.length;
-
   const activeCount = (counts.running ?? 0) + (counts.pending ?? 0);
 
   return (
-    <div className="px-6 py-6">
+    <div className="px-6 py-6 reveal-go">
       {/* Header */}
       <header className="mb-5 flex items-end justify-between gap-4 flex-wrap">
         <div>
@@ -135,21 +133,25 @@ export default function Cases() {
             All cases
           </h1>
           <p className="text-sm text-ink-muted mt-1">
-            <span className="text-mono-tech nums-tabular text-ink-body">{allCases.length}</span> total
-            <span className="mx-2 text-ink-faint">·</span>
-            <span className="text-mono-tech nums-tabular text-accent-green">{liveCount}</span> live
+            <span className="text-mono-tech nums-tabular text-ink-body">{totalCases}</span> total
             {loadingLive && <Loader2 size={11} className="inline-block animate-spin ml-1 text-ink-faint" />}
             <span className="mx-2 text-ink-faint">·</span>
             <span className="text-mono-tech nums-tabular text-ink-body">{activeCount}</span> active
             <span className="mx-2 text-ink-faint">·</span>
             <span className="text-mono-tech nums-tabular text-ink-body">{counts.appealed ?? 0}</span> in appeal
+            {loadError && (
+              <>
+                <span className="mx-2 text-ink-faint">·</span>
+                <span className="text-accent-red">{loadError}</span>
+              </>
+            )}
           </p>
         </div>
 
         <button
           type="button"
           onClick={() => setShowNewCase(true)}
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-accent-brand text-ink-invert text-sm font-medium hover:opacity-90 transition-opacity"
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-accent-brand text-ink-invert text-sm font-medium transition-all duration-200 hover:opacity-90 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:scale-95"
         >
           <Plus size={14} strokeWidth={2.5} />
           New case
@@ -157,7 +159,7 @@ export default function Cases() {
       </header>
 
       {/* Filter bar */}
-      <div className="bg-surface-raised border border-surface-border rounded-2xl mb-4 overflow-hidden">
+      <div className="reveal-go bg-surface-raised border border-surface-border rounded-2xl mb-4 overflow-hidden" style={{ animationDelay: "60ms" }}>
         <div className="flex flex-wrap items-center gap-1.5 p-3 border-b border-surface-border">
           {STATUS_PILLS.map((p) => (
             <button
@@ -165,10 +167,10 @@ export default function Cases() {
               type="button"
               onClick={() => setStatusFilter(p.value)}
               className={clsx(
-                "px-2.5 py-1 rounded-full text-xs font-medium transition-all flex items-center gap-1.5",
+                "px-2.5 py-1 rounded-full text-xs font-medium transition-all duration-200 flex items-center gap-1.5 active:scale-95",
                 statusFilter === p.value
-                  ? "bg-accent-brand text-ink-invert"
-                  : "bg-surface-panel text-ink-body hover:bg-surface-raised-hi",
+                  ? "bg-accent-brand text-ink-invert shadow-sm"
+                  : "bg-surface-panel text-ink-body hover:bg-surface-raised-hi hover:-translate-y-0.5",
               )}
             >
               {p.label}
@@ -215,10 +217,32 @@ export default function Cases() {
       </div>
 
       {/* Table */}
-      <div className="bg-surface-raised border border-surface-border rounded-2xl overflow-hidden">
+      <div
+        className="reveal-go bg-surface-raised border border-surface-border rounded-2xl overflow-hidden"
+        style={{ animationDelay: "110ms" }}
+      >
         {filtered.length === 0 ? (
-          <div className="p-10 text-center text-ink-muted text-sm">
-            No cases match your filters.
+          <div className="flex flex-col items-center justify-center gap-3 px-10 py-16 text-center reveal-go">
+            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-surface-panel border border-surface-border text-ink-faint animate-float-soft">
+              <Inbox size={20} strokeWidth={1.5} />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-ink-body">No cases match your filters.</p>
+              <p className="text-xs text-ink-muted mt-1">Try clearing a filter or searching a different term.</p>
+            </div>
+            {(statusFilter !== "all" || payerFilter !== "all" || search) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setStatusFilter("all");
+                  setPayerFilter("all");
+                  setSearch("");
+                }}
+                className="mt-1 text-xs text-accent-brand hover:underline transition-colors"
+              >
+                Clear all filters
+              </button>
+            )}
           </div>
         ) : (
           <table className="w-full text-sm">
@@ -243,18 +267,25 @@ export default function Cases() {
               </tr>
             </thead>
             <tbody className="divide-y divide-surface-border">
-              {filtered.map((c) => (
+              {filtered.map((c, i) => (
                 <tr
                   key={c.case_id}
                   onClick={() => {
                     if (!c.is_synthetic) navigate(`/cases/${c.case_id}`);
                   }}
                   className={clsx(
-                    "transition-colors group",
+                    "transition-all duration-150 group",
                     c.is_synthetic
                       ? "opacity-70"
-                      : "hover:bg-surface-raised-hi cursor-pointer",
+                      : "hover:bg-surface-raised-hi hover:shadow-[inset_2px_0_0_rgb(var(--accent-brand))] cursor-pointer active:bg-surface-raised-hi",
                   )}
+                  style={{
+                    // Transform-only stagger (reuses `stagger-word`, the same
+                    // keyframe as .kinetic-word) so it never fights the
+                    // opacity-70 treatment on synthetic rows.
+                    animation: `stagger-word 320ms cubic-bezier(0.2, 0, 0, 1) both`,
+                    animationDelay: `${Math.min(i, 12) * 25}ms`,
+                  }}
                 >
                   <td className="px-4 py-2.5">
                     <StatusPill status={c.status} />
@@ -338,7 +369,7 @@ export default function Cases() {
         <div className="flex items-center justify-between px-4 py-2.5 border-t border-surface-border text-[11px] text-ink-muted">
           <span>
             Showing <span className="text-mono-tech text-ink-body">{filtered.length}</span> of{" "}
-            <span className="text-mono-tech text-ink-body">{SYNTHETIC_CASES.length}</span> cases
+            <span className="text-mono-tech text-ink-body">{totalCases}</span> cases
           </span>
           <span className="text-mono-tech">page 1 of 1</span>
         </div>

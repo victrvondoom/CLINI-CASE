@@ -26,6 +26,7 @@ import type { LucideIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { useAuth } from "./AuthContext";
+import { ProfilePanel } from "./ProfilePanel";
 import { useTheme } from "../lib/theme";
 
 interface Props {
@@ -80,7 +81,7 @@ export function TopBar({ onOpenSearch }: Props) {
           <button
             type="button"
             onClick={onOpenSearch}
-            className="w-full h-9 px-3 flex items-center gap-2.5 rounded-md border border-surface-border bg-surface-raised hover:border-surface-border-hi text-left text-[13px] text-ink-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-brand"
+            className="w-full h-9 px-3 flex items-center gap-2.5 rounded-md border border-surface-border bg-surface-raised hover:border-surface-border-hi hover:shadow-[var(--shadow-raise)] text-left text-[13px] text-ink-muted transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-brand"
           >
             <Search size={14} className="text-ink-faint" />
             <span className="text-ui-secondary flex-1">Search cases, policies, agents…</span>
@@ -92,7 +93,7 @@ export function TopBar({ onOpenSearch }: Props) {
         <button
           type="button"
           onClick={onOpenSearch}
-          className="md:hidden inline-grid place-items-center w-9 h-9 rounded-md border border-surface-border bg-surface-raised text-ink-muted hover:text-ink-primary transition-colors shrink-0"
+          className="md:hidden inline-grid place-items-center w-9 h-9 rounded-md border border-surface-border bg-surface-raised text-ink-muted hover:text-ink-primary hover:border-surface-border-hi hover:shadow-[var(--shadow-raise)] transition-all duration-200 shrink-0"
           aria-label="Search"
         >
           <Search size={14} />
@@ -104,7 +105,7 @@ export function TopBar({ onOpenSearch }: Props) {
           <button
             type="button"
             onClick={toggle}
-            className="inline-grid place-items-center w-8 h-8 rounded-md border border-surface-border bg-surface-raised text-ink-muted hover:text-ink-primary hover:border-surface-border-hi transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-brand"
+            className="inline-grid place-items-center w-8 h-8 rounded-md border border-surface-border bg-surface-raised text-ink-muted hover:text-ink-primary hover:border-surface-border-hi hover:shadow-[var(--shadow-raise)] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-brand"
             aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
             title={theme === "dark" ? "Switch to light" : "Switch to dark"}
           >
@@ -178,7 +179,7 @@ function NotificationsBell() {
           setOpen((o) => !o);
           if (unread) setUnread(0);
         }}
-        className="relative inline-grid place-items-center w-8 h-8 rounded-md border border-surface-border bg-surface-raised text-ink-muted hover:text-ink-primary hover:border-surface-border-hi transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-brand"
+        className="relative inline-grid place-items-center w-8 h-8 rounded-md border border-surface-border bg-surface-raised text-ink-muted hover:text-ink-primary hover:border-surface-border-hi hover:shadow-[var(--shadow-raise)] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-brand"
         aria-label="Notifications"
       >
         <Bell size={14} />
@@ -190,7 +191,7 @@ function NotificationsBell() {
       </button>
       {open && (
         <div
-          className="absolute right-0 mt-2 w-[360px] rounded-xl border border-surface-border bg-surface-raised overflow-hidden card-pop"
+          className="absolute right-0 mt-2 w-[360px] rounded-xl border border-surface-border bg-surface-raised overflow-hidden card-pop animate-slide-in-down origin-top-right"
           style={{ boxShadow: "var(--shadow-pop)" }}
         >
           <div className="px-3.5 py-2.5 border-b border-surface-border flex items-center justify-between">
@@ -229,7 +230,7 @@ function NotificationsBell() {
   );
 }
 
-// ---------- User chip with role ----------
+// ---------- User chip with role — click to open the Profile panel ----------
 function UserChip() {
   const { user } = useAuth();
   const role = (user?.role ?? "admin").toLowerCase();
@@ -247,22 +248,32 @@ function UserChip() {
   const displayName = (user?.full_name ?? user?.email?.split("@")[0] ?? "clincase").toLowerCase();
 
   return (
-    <div className="hidden md:flex items-center gap-2 h-8 pl-1 pr-2.5 rounded-md border border-surface-border bg-surface-raised hover:border-surface-border-hi transition-colors">
-      <div
-        className="w-6 h-6 rounded-full grid place-items-center text-[10px] text-mono-tech font-semibold text-white"
-        style={{ background: "linear-gradient(135deg, #121212 0%, #737373 100%)" }}
-      >
-        {initials}
-      </div>
-      <div className="leading-tight hidden lg:block">
-        <div className="text-[11px] font-medium text-ink-primary truncate max-w-[110px]">{displayName}</div>
-        <div className="text-[9px] text-mono-tech text-ink-muted uppercase tracking-wider">
-          {isAdmin ? "Admin" : role}
-        </div>
-      </div>
-      <span className="hidden xl:inline-flex items-center text-[9px] text-mono-tech px-1.5 py-0.5 rounded bg-accent-green/10 text-accent-green border border-accent-green/30 uppercase tracking-wider">
-        Verified
-      </span>
-    </div>
+    <ProfilePanel
+      trigger={({ onClick, open }) => (
+        <button
+          type="button"
+          onClick={onClick}
+          aria-expanded={open}
+          aria-label="Profile and activity"
+          className="hidden md:flex items-center gap-2 h-8 pl-1 pr-2.5 rounded-md border border-surface-border bg-surface-raised hover:border-surface-border-hi hover:shadow-[var(--shadow-raise)] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-brand"
+        >
+          <div
+            className="w-6 h-6 rounded-full grid place-items-center text-[10px] text-mono-tech font-semibold text-white"
+            style={{ background: "linear-gradient(135deg, #121212 0%, #737373 100%)" }}
+          >
+            {initials}
+          </div>
+          <div className="leading-tight hidden lg:block">
+            <div className="text-[11px] font-medium text-ink-primary truncate max-w-[110px]">{displayName}</div>
+            <div className="text-[9px] text-mono-tech text-ink-muted uppercase tracking-wider">
+              {isAdmin ? "Admin" : role}
+            </div>
+          </div>
+          <span className="hidden xl:inline-flex items-center text-[9px] text-mono-tech px-1.5 py-0.5 rounded bg-accent-green/10 text-accent-green border border-accent-green/30 uppercase tracking-wider">
+            Verified
+          </span>
+        </button>
+      )}
+    />
   );
 }
