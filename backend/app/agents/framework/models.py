@@ -9,6 +9,7 @@ The router is also where Bedrock-vs-OpenRouter-vs-Anthropic provider
 routing happens — agents never name a provider directly; they name a
 size + a role and the router resolves to a concrete model id at call time.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -56,14 +57,17 @@ class ModelSpec:
 #   • Output grading (5-field score + paragraph feedback)  → HAIKU_GRADER     (1500)
 
 SONNET_REASONING = ModelSpec(
-    size="sonnet", role="reasoning",
+    size="sonnet",
+    role="reasoning",
     # max_tokens defaults to 3000 (post-round-15 base)
     cost_per_million_input_tokens=3.0,
     cost_per_million_output_tokens=15.0,
 )
 SONNET_LETTER = ModelSpec(
-    size="sonnet", role="letter_writing",
-    max_tokens=3500, temperature=0.2,
+    size="sonnet",
+    role="letter_writing",
+    max_tokens=3500,
+    temperature=0.2,
     cost_per_million_input_tokens=3.0,
     cost_per_million_output_tokens=15.0,
 )
@@ -71,8 +75,10 @@ SONNET_MEDIUM_JSON = ModelSpec(
     # Round-15: for agents that produce 5-15 structured items per call
     # (criterion_splitter, evidence_matcher per-criterion result, etc.).
     # 4000 tokens ~= 8-15 structured criteria with text + pointer + tags.
-    size="sonnet", role="medium_json_output",
-    max_tokens=4000, temperature=0.0,
+    size="sonnet",
+    role="medium_json_output",
+    max_tokens=4000,
+    temperature=0.0,
     cost_per_million_input_tokens=3.0,
     cost_per_million_output_tokens=15.0,
 )
@@ -80,29 +86,35 @@ SONNET_LONG_JSON = ModelSpec(
     # Round-15: dedicated spec for agents that produce large structured JSON
     # (counter_evidence_finder, letter_composer). 8000 tokens avoids the
     # mid-string truncation that broke parsing on DENY cases.
-    size="sonnet", role="large_json_output",
-    max_tokens=8000, temperature=0.0,
+    size="sonnet",
+    role="large_json_output",
+    max_tokens=8000,
+    temperature=0.0,
     cost_per_million_input_tokens=3.0,
     cost_per_million_output_tokens=15.0,
 )
 HAIKU_LITE = ModelSpec(
-    size="haiku", role="lightweight_extraction",
+    size="haiku",
+    role="lightweight_extraction",
     # Round-15: bumped from 2000 → 3000 to give safety margin to
     # appeal_path_recommender (nested AppealStrategy + reasoning),
     # citation_linker (1-10 citations + claim text), reason_predictor
     # (top-3 reasons), confidence_calibrator (per-criterion floats).
-    max_tokens=3000, temperature=0.0,
+    max_tokens=3000,
+    temperature=0.0,
     cost_per_million_input_tokens=1.0,
     cost_per_million_output_tokens=5.0,
 )
 HAIKU_GRADER = ModelSpec(
-    size="haiku", role="grading",
+    size="haiku",
+    role="grading",
     # Round-15 (CRITICAL FIX): bumped from 400 → 1500.
     # GraderScore = 4 floats + 1 paragraph string ≈ 350-500 tokens of JSON.
     # Old 400-token cap truncated the `feedback` field on EVERY grader call,
     # causing AgentExhaustedError retries on every LLM agent. This is a global
     # bug because the grader is invoked after every LLM agent's output.
-    max_tokens=1500, temperature=0.0,
+    max_tokens=1500,
+    temperature=0.0,
     cost_per_million_input_tokens=1.0,
     cost_per_million_output_tokens=5.0,
 )

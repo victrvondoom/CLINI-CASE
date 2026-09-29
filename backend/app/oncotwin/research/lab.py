@@ -25,6 +25,7 @@ events detected and median lead time. Event-level numbers use the probability
 threshold alone (no clinical rules, no hysteresis) so arms are comparable.
 Paired ΔAUROC vs a reference arm uses the same bootstrap resamples.
 """
+
 from __future__ import annotations
 
 import time
@@ -68,14 +69,20 @@ CONTEXT_GROUPS = {
 }
 ALL_GROUPS = (*SIGNAL_GROUPS, "multi_signal", *CONTEXT_GROUPS)
 GROUP_LABELS = {
-    "wearables": "Wearables (HR, HRV, temperature, SpO₂, steps, sleep)", "home": "Home devices (weight, BP)",
-    "symptoms": "Patient-reported symptoms", "multi_signal": "Multi-signal composites",
-    "labs_twin": "Labs + neutrophil twin", "treatment": "Treatment context", "adherence": "Adherence",
+    "wearables": "Wearables (HR, HRV, temperature, SpO₂, steps, sleep)",
+    "home": "Home devices (weight, BP)",
+    "symptoms": "Patient-reported symptoms",
+    "multi_signal": "Multi-signal composites",
+    "labs_twin": "Labs + neutrophil twin",
+    "treatment": "Treatment context",
+    "adherence": "Adherence",
     "demographics": "Demographics",
 }
-MODELS = {"logistic": "L2 logistic regression (numpy IRLS)",
-          "anomaly_score": "Mahalanobis anomaly score alone (no training)",
-          "vital_threshold_rule": "Population vital-sign thresholds (temp ≥ 38.0 °C, HR ≥ 100, SpO₂ < 92 %, SBP < 90)"}
+MODELS = {
+    "logistic": "L2 logistic regression (numpy IRLS)",
+    "anomaly_score": "Mahalanobis anomaly score alone (no training)",
+    "vital_threshold_rule": "Population vital-sign thresholds (temp ≥ 38.0 °C, HR ≥ 100, SpO₂ < 92 %, SBP < 90)",
+}
 L2_GRID = (0.3, 1.0, 3.0, 10.0, 30.0)
 ALERT_PPV = 0.25
 ALERT_SENS_FALLBACK = 0.60
@@ -86,20 +93,29 @@ BOOT_REPS = 200
 class ExperimentConfig:
     name: str
     groups: tuple[str, ...] = ALL_GROUPS
-    baseline: str = "personal"            # personal | population
+    baseline: str = "personal"  # personal | population
     horizon: int = 7
     model: str = "logistic"
     notes: str = ""
     extra: dict[str, Any] = field(default_factory=dict)
 
     def describe(self) -> dict[str, Any]:
-        return {"name": self.name, "groups": list(self.groups), "group_labels": [GROUP_LABELS[g] for g in self.groups],
-                "baseline": self.baseline, "horizon_days": self.horizon, "model": self.model,
-                "model_label": MODELS[self.model], "notes": self.notes}
+        return {
+            "name": self.name,
+            "groups": list(self.groups),
+            "group_labels": [GROUP_LABELS[g] for g in self.groups],
+            "baseline": self.baseline,
+            "horizon_days": self.horizon,
+            "model": self.model,
+            "model_label": MODELS[self.model],
+            "notes": self.notes,
+        }
 
 
 def _signals_for(groups: tuple[str, ...]) -> tuple[str, ...]:
-    return tuple(k for k in MODEL_SIGNALS if any(k in SIGNAL_GROUPS[g] for g in groups if g in SIGNAL_GROUPS))
+    return tuple(
+        k for k in MODEL_SIGNALS if any(k in SIGNAL_GROUPS[g] for g in groups if g in SIGNAL_GROUPS)
+    )
 
 
 def subset_features(p, groups: tuple[str, ...], baseline: Baseline) -> tuple[np.ndarray, list[str]]:
@@ -126,13 +142,18 @@ def subset_features(p, groups: tuple[str, ...], baseline: Baseline) -> tuple[np.
             signs = np.array([adverse_sign(k) for k in keys])
             corr = np.linalg.inv(baseline.corr_inv)[np.ix_(idx, idx)]
             anom = anomaly_score(z_cf * signs, np.linalg.inv(corr))[0]
-            cols += [np.nansum(z_cf[0] >= DEVIATION_Z, axis=-1).astype(float), np.clip(anom, 0.0, 10.0),
-                     np.clip(pers.max(axis=-1), 0.0, 7.0)]
+            cols += [
+                np.nansum(z_cf[0] >= DEVIATION_Z, axis=-1).astype(float),
+                np.clip(anom, 0.0, 10.0),
+                np.clip(pers.max(axis=-1), 0.0, 7.0),
+            ]
             names += ["n_concordant", "anomaly", "persist_max"]
     for g in groups:
         for f in CONTEXT_GROUPS.get(g, ()):
             if f == "adherence_gap":
-                v = (1.0 - np.asarray(ctx["adherence_7d"])) * (np.asarray(ctx["adherence_sched"]) > 0)
+                v = (1.0 - np.asarray(ctx["adherence_7d"])) * (
+                    np.asarray(ctx["adherence_sched"]) > 0
+                )
             elif f == "nadir_risk":
                 v = np.asarray(ctx["nadir"])
             else:
@@ -156,7 +177,9 @@ def labels(p, h: int) -> tuple[np.ndarray, np.ndarray]:
     return y, ok
 
 
-def _stack(parts: list[tuple[np.ndarray, np.ndarray, np.ndarray]]) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+def _stack(
+    parts: list[tuple[np.ndarray, np.ndarray, np.ndarray]],
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     X = np.concatenate([F[ok] for F, _, ok in parts])
     y = np.concatenate([y[ok] for _, y, ok in parts])
     pid = np.concatenate([np.full(int(ok.sum()), i) for i, (_, _, ok) in enumerate(parts)])
@@ -165,7 +188,11 @@ def _stack(parts: list[tuple[np.ndarray, np.ndarray, np.ndarray]]) -> tuple[np.n
 
 def ece(y: np.ndarray, p: np.ndarray, bins: int = 10) -> float:
     order = np.argsort(p)
-    tot = sum(len(c) * abs(float(np.mean(p[c])) - float(np.mean(y[c]))) for c in np.array_split(order, bins) if len(c))
+    tot = sum(
+        len(c) * abs(float(np.mean(p[c])) - float(np.mean(y[c])))
+        for c in np.array_split(order, bins)
+        if len(c)
+    )
     return round(tot / max(1, len(p)), 5)
 
 
@@ -191,15 +218,23 @@ def event_metrics(test, scores: list[np.ndarray], thr: float, h: int) -> dict[st
             if d.acute[t]:
                 prev = False
                 continue
-            if alerts[t] and not prev and ok[t] and not any(t + 1 < o <= t + 1 + h for o in d.onsets):
+            if (
+                alerts[t]
+                and not prev
+                and ok[t]
+                and not any(t + 1 < o <= t + 1 + h for o in d.onsets)
+            ):
                 false_on += 1
             prev = bool(alerts[t])
-    return {"events": n_events, "events_detected": detected,
-            "event_sensitivity": round(detected / n_events, 3) if n_events else None,
-            "median_lead_time_days": float(np.median(leads)) if leads else None,
-            "lead_times_days": sorted(int(x) for x in leads),
-            "false_alert_onsets_per_100_patient_days": round(100.0 * false_on / max(1, pdays), 2),
-            "patient_days": pdays}
+    return {
+        "events": n_events,
+        "events_detected": detected,
+        "event_sensitivity": round(detected / n_events, 3) if n_events else None,
+        "median_lead_time_days": float(np.median(leads)) if leads else None,
+        "lead_times_days": sorted(int(x) for x in leads),
+        "false_alert_onsets_per_100_patient_days": round(100.0 * false_on / max(1, pdays), 2),
+        "patient_days": pdays,
+    }
 
 
 @dataclass
@@ -212,7 +247,9 @@ class ArmResult:
     seconds: float
 
 
-def _boot_ci(y: np.ndarray, s: np.ndarray, pid: np.ndarray, reps: int = BOOT_REPS, seed: int = 17) -> list:
+def _boot_ci(
+    y: np.ndarray, s: np.ndarray, pid: np.ndarray, reps: int = BOOT_REPS, seed: int = 17
+) -> list:
     rng = np.random.default_rng(seed)
     ids = np.unique(pid)
     groups = [np.nonzero(pid == i)[0] for i in ids]
@@ -222,7 +259,11 @@ def _boot_ci(y: np.ndarray, s: np.ndarray, pid: np.ndarray, reps: int = BOOT_REP
         a = auroc(y[take], s[take])
         if not np.isnan(a):
             vals.append(a)
-    return [round(float(np.percentile(vals, 2.5)), 4), round(float(np.percentile(vals, 97.5)), 4)] if vals else [None, None]
+    return (
+        [round(float(np.percentile(vals, 2.5)), 4), round(float(np.percentile(vals, 97.5)), 4)]
+        if vals
+        else [None, None]
+    )
 
 
 def run_experiment(cohort, cfg: ExperimentConfig, *, pop_base: Baseline | None = None) -> ArmResult:
@@ -232,7 +273,16 @@ def run_experiment(cohort, cfg: ExperimentConfig, *, pop_base: Baseline | None =
     if cfg.model == "vital_threshold_rule":
         from app.oncotwin.engine.warning import RANK
         from app.oncotwin.ml.train import population_threshold_alerts
-        per = [np.array([1.0 if r >= RANK["EARLY WARNING"] else 0.0 for r in population_threshold_alerts(p.data)]) for p in te]
+
+        per = [
+            np.array(
+                [
+                    1.0 if r >= RANK["EARLY WARNING"] else 0.0
+                    for r in population_threshold_alerts(p.data)
+                ]
+            )
+            for p in te
+        ]
         ys, ss, ps = [], [], []
         for i, (p, s) in enumerate(zip(te, per, strict=True)):
             y, ok = labels(p, cfg.horizon)
@@ -242,13 +292,29 @@ def run_experiment(cohort, cfg: ExperimentConfig, *, pop_base: Baseline | None =
         y, s, pid = np.concatenate(ys), np.concatenate(ss), np.concatenate(ps)
         tp = float(((s >= 0.5) & (y == 1)).sum())
         prec, rec = tp / max(1.0, float((s >= 0.5).sum())), tp / max(1.0, float(y.sum()))
-        return ArmResult(cfg, {"auroc": None, "auroc_95ci": [None, None], "auprc": None, "brier": None, "ece": None,
-                               "precision": round(prec, 3), "recall": round(rec, 3),
-                               "f1": round(2 * prec * rec / max(1e-9, prec + rec), 3),
-                               "threshold": None, "threshold_basis": "single-reading population rule",
-                               **event_metrics(te, per, 0.5, cfg.horizon),
-                               "n_features": 0, "n_patient_days": int(len(y)), "n_positive": int(y.sum())},
-                         s, y, pid, time.time() - t0)
+        return ArmResult(
+            cfg,
+            {
+                "auroc": None,
+                "auroc_95ci": [None, None],
+                "auprc": None,
+                "brier": None,
+                "ece": None,
+                "precision": round(prec, 3),
+                "recall": round(rec, 3),
+                "f1": round(2 * prec * rec / max(1e-9, prec + rec), 3),
+                "threshold": None,
+                "threshold_basis": "single-reading population rule",
+                **event_metrics(te, per, 0.5, cfg.horizon),
+                "n_features": 0,
+                "n_patient_days": int(len(y)),
+                "n_positive": int(y.sum()),
+            },
+            s,
+            y,
+            pid,
+            time.time() - t0,
+        )
 
     base_of = (lambda p: p.baseline) if cfg.baseline == "personal" else (lambda p: pop_base)
 
@@ -271,12 +337,19 @@ def run_experiment(cohort, cfg: ExperimentConfig, *, pop_base: Baseline | None =
         pva, pte = Xva[:, j], Xte[:, j]
         per = [F[:, j] for F, _, _ in tep]
     else:
-        scores = {l2: log_loss(yva, fit_logistic(Xtr, ytr, l2).predict_proba(Xva)) for l2 in L2_GRID}
+        scores = {
+            l2: log_loss(yva, fit_logistic(Xtr, ytr, l2).predict_proba(Xva)) for l2 in L2_GRID
+        }
         chosen = min(scores, key=scores.get)
         m = fit_logistic(Xtr, ytr, chosen)
         pva, pte = m.predict_proba(Xva), m.predict_proba(Xte)
-        coefs = sorted(({"feature": n, "coef_standardised": round(float(c), 4)} for n, c in zip(names, m.coef, strict=True)),
-                       key=lambda d: -abs(d["coef_standardised"]))
+        coefs = sorted(
+            (
+                {"feature": n, "coef_standardised": round(float(c), 4)}
+                for n, c in zip(names, m.coef, strict=True)
+            ),
+            key=lambda d: -abs(d["coef_standardised"]),
+        )
         per = [m.predict_proba(F) for F, _, _ in tep]
     thr = threshold_for_ppv(yva, pva, ALERT_PPV)
     basis = f"lowest validation threshold with PPV ≥ {ALERT_PPV:.0%}"
@@ -288,24 +361,40 @@ def run_experiment(cohort, cfg: ExperimentConfig, *, pop_base: Baseline | None =
     prec, rec = tp / max(1.0, float(flag.sum())), tp / max(1.0, float(yte.sum()))
     is_prob = cfg.model == "logistic"
     metrics = {
-        "auroc": round(auroc(yte, pte), 4), "auroc_95ci": _boot_ci(yte, pte, pid),
+        "auroc": round(auroc(yte, pte), 4),
+        "auroc_95ci": _boot_ci(yte, pte, pid),
         "auprc": round(average_precision(yte, pte), 4),
-        "brier": round(brier(yte, pte), 5) if is_prob else None, "ece": ece(yte, pte) if is_prob else None,
+        "brier": round(brier(yte, pte), 5) if is_prob else None,
+        "ece": ece(yte, pte) if is_prob else None,
         "calibration": calibration_bins(yte, pte, 10) if is_prob else None,
-        "threshold": round(float(thr), 5), "threshold_basis": basis,
-        "precision": round(prec, 3), "recall": round(rec, 3), "f1": round(2 * prec * rec / max(1e-9, prec + rec), 3),
+        "threshold": round(float(thr), 5),
+        "threshold_basis": basis,
+        "precision": round(prec, 3),
+        "recall": round(rec, 3),
+        "f1": round(2 * prec * rec / max(1e-9, prec + rec), 3),
         **event_metrics(te, per, thr, cfg.horizon),
-        "n_features": len(names), "features": names, "l2": chosen, "top_coefficients": (coefs or [])[:8],
-        "n_train_days": int(len(ytr)), "n_patient_days": int(len(yte)), "n_positive": int(yte.sum()),
+        "n_features": len(names),
+        "features": names,
+        "l2": chosen,
+        "top_coefficients": (coefs or [])[:8],
+        "n_train_days": int(len(ytr)),
+        "n_patient_days": int(len(yte)),
+        "n_positive": int(yte.sum()),
         "prevalence": round(float(yte.mean()), 4),
     }
     return ArmResult(cfg, metrics, pte, yte, pid, time.time() - t0)
 
 
-def paired_delta(a: ArmResult, b: ArmResult, reps: int = BOOT_REPS, seed: int = 23) -> dict[str, Any] | None:
+def paired_delta(
+    a: ArmResult, b: ArmResult, reps: int = BOOT_REPS, seed: int = 23
+) -> dict[str, Any] | None:
     """ΔAUROC (a − b) with a paired patient bootstrap; both arms must score the same test rows."""
-    if a.metrics.get("auroc") is None or b.metrics.get("auroc") is None or not np.array_equal(a.test_y, b.test_y) \
-            or not np.array_equal(a.test_pid, b.test_pid):
+    if (
+        a.metrics.get("auroc") is None
+        or b.metrics.get("auroc") is None
+        or not np.array_equal(a.test_y, b.test_y)
+        or not np.array_equal(a.test_pid, b.test_pid)
+    ):
         return None
     rng = np.random.default_rng(seed)
     ids = np.unique(a.test_pid)
@@ -313,13 +402,23 @@ def paired_delta(a: ArmResult, b: ArmResult, reps: int = BOOT_REPS, seed: int = 
     d = []
     for _ in range(reps):
         take = np.concatenate([groups[i] for i in rng.integers(0, len(ids), size=len(ids))])
-        x, y = auroc(a.test_y[take], a.test_scores[take]), auroc(b.test_y[take], b.test_scores[take])
+        x, y = (
+            auroc(a.test_y[take], a.test_scores[take]),
+            auroc(b.test_y[take], b.test_scores[take]),
+        )
         if not (np.isnan(x) or np.isnan(y)):
             d.append(x - y)
     lo, hi = float(np.percentile(d, 2.5)), float(np.percentile(d, 97.5))
-    return {"delta_auroc": round(a.metrics["auroc"] - b.metrics["auroc"], 4), "ci95": [round(lo, 4), round(hi, 4)],
-            "significant": bool(lo > 0 or hi < 0),
-            "interpretation": "better" if lo > 0 else "worse" if hi < 0 else "not distinguishable at 95 %"}
+    return {
+        "delta_auroc": round(a.metrics["auroc"] - b.metrics["auroc"], 4),
+        "ci95": [round(lo, 4), round(hi, 4)],
+        "significant": bool(lo > 0 or hi < 0),
+        "interpretation": "better"
+        if lo > 0
+        else "worse"
+        if hi < 0
+        else "not distinguishable at 95 %",
+    }
 
 
 _POP_BASE: dict[tuple[int, int], Baseline] = {}
@@ -335,11 +434,19 @@ def pooled_baseline(train) -> Baseline:
     sigs = {}
     for key in MODEL_SIGNALS:
         meds = [p.baseline.signals[key].median_t for p in train if p.baseline.signals[key].n_days]
-        spreads = [p.baseline.signals[key].spread_t for p in train if p.baseline.signals[key].n_days]
+        spreads = [
+            p.baseline.signals[key].spread_t for p in train if p.baseline.signals[key].n_days
+        ]
         med = float(np.median(meds))
         between = float(np.median(np.abs(np.array(meds) - med)) * 1.4826)
         within = float(np.median(spreads))
-        sigs[key] = SignalBaseline(key, med, max(SIGNALS[key].spread_floor, float(np.hypot(between, within))), len(meds), True)
+        sigs[key] = SignalBaseline(
+            key,
+            med,
+            max(SIGNALS[key].spread_floor, float(np.hypot(between, within))),
+            len(meds),
+            True,
+        )
     return Baseline(sigs, (1, 13), "population", 1.0, np.eye(len(MODEL_SIGNALS)))
 
 
@@ -353,7 +460,12 @@ def population_base(cohort) -> Baseline:
 def run(cohort, cfg: ExperimentConfig, reference: ExperimentConfig | None = None) -> dict[str, Any]:
     pb = population_base(cohort)
     arm = run_experiment(cohort, cfg, pop_base=pb)
-    out = {"config": cfg.describe(), "metrics": arm.metrics, "seconds": round(arm.seconds, 1), "dataset": cohort.meta()}
+    out = {
+        "config": cfg.describe(),
+        "metrics": arm.metrics,
+        "seconds": round(arm.seconds, 1),
+        "dataset": cohort.meta(),
+    }
     if reference is not None:
         ref = run_experiment(cohort, reference, pop_base=pb)
         out["reference"] = {"config": reference.describe(), "metrics": ref.metrics}

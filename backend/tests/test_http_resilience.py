@@ -1,4 +1,5 @@
 """Offline regressions for public auth, liveness, and readiness boundaries."""
+
 from __future__ import annotations
 
 import json
@@ -67,11 +68,13 @@ async def test_idempotency_reservation_executes_once_and_persists_response(monke
         downstream_calls += 1
         request = await receive()
         assert request["body"] == b'{"case":"one"}'
-        await send({
-            "type": "http.response.start",
-            "status": 201,
-            "headers": [(b"content-type", b"application/json")],
-        })
+        await send(
+            {
+                "type": "http.response.start",
+                "status": 201,
+                "headers": [(b"content-type", b"application/json")],
+            }
+        )
         await send({"type": "http.response.body", "body": b'{"created":true}'})
 
     async def receive() -> dict:
@@ -113,9 +116,7 @@ async def test_idempotency_replay_does_not_execute_mutation(monkeypatch) -> None
     body = b'{"case":"one"}'
     import hashlib
 
-    request_hash = hashlib.sha256(
-        b"POST\0/api/v1/cases\0\0" + body
-    ).hexdigest()
+    request_hash = hashlib.sha256(b"POST\0/api/v1/cases\0\0" + body).hexdigest()
     row = {
         "in_flight": False,
         "request_hash": request_hash,

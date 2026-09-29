@@ -3,6 +3,7 @@
 LLM-backed (Sonnet). Reads the top-N PolicyExcerpts and emits a flat list
 of atomic, individually-checkable criteria with type tags + section pointers.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -21,7 +22,10 @@ from app.agents.necessity_reasoner.schemas import (
 
 _PROMPT_PATH = (
     Path(__file__).resolve().parents[3]
-    / "prompts" / "necessity_reasoner" / "sub_agents" / "criterion_splitter.txt"
+    / "prompts"
+    / "necessity_reasoner"
+    / "sub_agents"
+    / "criterion_splitter.txt"
 )
 
 

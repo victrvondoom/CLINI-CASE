@@ -9,6 +9,7 @@ Per PROPOSAL.md §9.7 — the Patient Communicator is the patient-facing exit
 point. It NEVER includes PHI beyond initials and MUST be readable at 6th-grade
 level (Flesch-Kincaid is enforced by reading_level_tuner downstream).
 """
+
 from __future__ import annotations
 
 import json
@@ -75,19 +76,25 @@ async def test_approve_verdict_yields_reassuring_patient_message():
         ),
         citations=[
             Citation(kind="clinical", text="HER2 IHC 3+", pointer="obs-her2"),
-            Citation(kind="policy", text="Aetna 0048 §II.B Initial Authorization",
-                     pointer="policy:0048#initial"),
+            Citation(
+                kind="policy",
+                text="Aetna 0048 §II.B Initial Authorization",
+                pointer="policy:0048#initial",
+            ),
         ],
         confidence=0.92,
         risk_flags=[],
     )
 
-    user_message = json.dumps({
-        "decision": decision.model_dump(),
-        "snapshot": snapshot.model_dump(),
-        "appeal": None,
-        "payer_id": "aetna",
-    }, default=str)
+    user_message = json.dumps(
+        {
+            "decision": decision.model_dump(),
+            "snapshot": snapshot.model_dump(),
+            "appeal": None,
+            "payer_id": "aetna",
+        },
+        default=str,
+    )
 
     response = await get_llm_client().complete(
         system=EMPATHY_PROMPT,
@@ -100,30 +107,27 @@ async def test_approve_verdict_yields_reassuring_patient_message():
     # 1. Tone selection — APPROVE should be reassuring (not urgent, not neutral)
     # Schema typically constrains tone to a Literal; assert on what's present.
     if hasattr(comm, "tone") and comm.tone is not None:
-        assert comm.tone in ("reassuring", "neutral"), (
-            f"APPROVE verdict should be reassuring or neutral, got {comm.tone}"
-        )
+        assert comm.tone in (
+            "reassuring",
+            "neutral",
+        ), f"APPROVE verdict should be reassuring or neutral, got {comm.tone}"
 
     # 2. Headline is short, patient-friendly
     assert comm.headline
-    assert 3 <= len(comm.headline.split()) <= 20, (
-        f"Headline word count out of range: '{comm.headline}'"
-    )
+    assert (
+        3 <= len(comm.headline.split()) <= 20
+    ), f"Headline word count out of range: '{comm.headline}'"
 
     # 3. Body is 2-4 paragraphs (separated by blank lines or newlines)
     paragraphs = [p for p in comm.body.split("\n\n") if p.strip()]
     if len(paragraphs) <= 1:
         # Fallback: single-newline split
         paragraphs = [p for p in comm.body.split("\n") if p.strip()]
-    assert 1 <= len(paragraphs) <= 6, (
-        f"Body should be 1-6 paragraphs, got {len(paragraphs)}"
-    )
+    assert 1 <= len(paragraphs) <= 6, f"Body should be 1-6 paragraphs, got {len(paragraphs)}"
 
     # 4. Body word count is patient-readable (target 80-300 words)
     word_count = len(comm.body.split())
-    assert 50 <= word_count <= 500, (
-        f"Body word count out of patient-readable range: {word_count}"
-    )
+    assert 50 <= word_count <= 500, f"Body word count out of patient-readable range: {word_count}"
 
     # 5. NO PHI beyond initials. Specifically: no full names, no exact dates,
     # no MRN-looking strings, no phone numbers. The model is INSTRUCTED not
@@ -131,16 +135,23 @@ async def test_approve_verdict_yields_reassuring_patient_message():
     body_lower = comm.body.lower()
     forbidden_phi_patterns = [
         # Phone-like patterns
-        "(555)", "555-", "+91-",
+        "(555)",
+        "555-",
+        "+91-",
         # Common full-name leak patterns
-        "john doe", "jane doe", "mr.", "mrs.", "ms.",
+        "john doe",
+        "jane doe",
+        "mr.",
+        "mrs.",
+        "ms.",
         # MRN-looking strings (heuristic)
-        "mrn:", "medical record number",
+        "mrn:",
+        "medical record number",
     ]
     for phi in forbidden_phi_patterns:
-        assert phi not in body_lower, (
-            f"Patient communication contains forbidden PHI-like pattern: '{phi}'"
-        )
+        assert (
+            phi not in body_lower
+        ), f"Patient communication contains forbidden PHI-like pattern: '{phi}'"
 
     # 6. The body should mention the treatment in patient-friendly terms
     # (trastuzumab IS the patient-friendly term for J9355 — it's the actual
@@ -151,6 +162,6 @@ async def test_approve_verdict_yields_reassuring_patient_message():
         or "medication" in body_lower
         or "therapy" in body_lower
     )
-    assert treatment_mentioned, (
-        f"Body should reference the treatment in some form. Got: {comm.body[:200]}..."
-    )
+    assert (
+        treatment_mentioned
+    ), f"Body should reference the treatment in some form. Got: {comm.body[:200]}..."

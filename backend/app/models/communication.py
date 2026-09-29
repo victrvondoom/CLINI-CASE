@@ -14,6 +14,7 @@ Decomposed into 3 named sub-agents (declared in the agent file):
   2. Empathy Layer        — adds compassionate framing (not robotic)
   3. Action-Step Writer   — concrete next steps the patient can take
 """
+
 from __future__ import annotations
 
 from typing import Literal
@@ -43,7 +44,9 @@ class PatientCommunication(BaseModel):
     next_steps: list[PatientNextStep] = Field(default_factory=list, max_length=5)
     tone: Literal["reassuring", "neutral", "urgent"] = "neutral"
     reading_level_grade: float = Field(
-        default=6.0, ge=3.0, le=12.0,
+        default=6.0,
+        ge=3.0,
+        le=12.0,
         description="Flesch-Kincaid grade level. Target ≤ 7.0.",
     )
     contains_phi: bool = Field(

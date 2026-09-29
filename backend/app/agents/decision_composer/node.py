@@ -1,4 +1,5 @@
 """LangGraph node + legacy compatibility shims for decision_composer."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -58,9 +59,9 @@ from pathlib import Path as _Path  # noqa: E402
 from app.models import ClinicalSnapshot as _CS  # noqa: E402
 from app.models import PolicyExcerpt as _PE  # noqa: E402
 
-_PROMPT = (_Path(__file__).resolve().parents[2] / "prompts" / "decision_composer" / "orchestrator.txt").read_text(
-    encoding="utf-8"
-)
+_PROMPT = (
+    _Path(__file__).resolve().parents[2] / "prompts" / "decision_composer" / "orchestrator.txt"
+).read_text(encoding="utf-8")
 
 
 def _strip_code_fence(text: str) -> str:

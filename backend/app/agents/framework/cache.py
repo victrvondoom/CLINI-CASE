@@ -49,6 +49,7 @@ Lifecycle integration (`framework/agent.py`):
           emit cache_hit event; return cached output as AgentResult
       ... else continue lifecycle, store on success at end ...
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -280,9 +281,7 @@ def schema_version_for(output_schema: type[BaseModel]) -> str:
     try:
         # `output_schema` is a Pydantic v2 model class
         schema_json = output_schema.model_json_schema()
-        digest = hashlib.sha256(
-            json.dumps(schema_json, sort_keys=True).encode("utf-8")
-        ).hexdigest()
+        digest = hashlib.sha256(json.dumps(schema_json, sort_keys=True).encode("utf-8")).hexdigest()
         return digest[:16]
     except Exception:  # noqa: BLE001
         # Fallback — class qualname. Won't catch field changes but won't crash.

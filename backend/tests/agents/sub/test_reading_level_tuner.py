@@ -1,4 +1,5 @@
 """Contract tests for reading_level_tuner DeterministicSubAgent."""
+
 from __future__ import annotations
 
 from app.agents.patient_communicator.schemas import ReadingLevelTunerInput

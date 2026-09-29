@@ -21,6 +21,7 @@ Otherwise it is returned as "not supported" with the reason.
 
     python -m app.oncotwin.ml.horizon            # train on the cached cohort → artifact
 """
+
 from __future__ import annotations
 
 import argparse
@@ -91,7 +92,9 @@ def person_period(patients) -> tuple[np.ndarray, np.ndarray]:
     return np.asarray(X), np.asarray(y)
 
 
-def _cumulative(intercept: float, coef: np.ndarray, Xf: np.ndarray, mean: np.ndarray, std: np.ndarray) -> np.ndarray:
+def _cumulative(
+    intercept: float, coef: np.ndarray, Xf: np.ndarray, mean: np.ndarray, std: np.ndarray
+) -> np.ndarray:
     """(N, 7) cumulative incidence for raw feature rows `Xf`."""
     out = np.zeros((len(Xf), MAX_LAG))
     surv = np.ones(len(Xf))
@@ -123,7 +126,9 @@ def horizon_labels(patients, h: int) -> tuple[np.ndarray, np.ndarray, np.ndarray
     return np.asarray(X), np.asarray(y), np.asarray(pid)
 
 
-def bootstrap_auroc_ci(y: np.ndarray, s: np.ndarray, pid: np.ndarray, reps: int = 200, seed: int = 7) -> list:
+def bootstrap_auroc_ci(
+    y: np.ndarray, s: np.ndarray, pid: np.ndarray, reps: int = 200, seed: int = 7
+) -> list:
     """95 % CI for AUROC by resampling PATIENTS (days of one patient are not independent)."""
     rng = np.random.default_rng(seed)
     ids = np.unique(pid)
@@ -134,7 +139,11 @@ def bootstrap_auroc_ci(y: np.ndarray, s: np.ndarray, pid: np.ndarray, reps: int 
         a = auroc(y[take], s[take])
         if not np.isnan(a):
             vals.append(a)
-    return [round(float(np.percentile(vals, 2.5)), 4), round(float(np.percentile(vals, 97.5)), 4)] if vals else [None, None]
+    return (
+        [round(float(np.percentile(vals, 2.5)), 4), round(float(np.percentile(vals, 97.5)), 4)]
+        if vals
+        else [None, None]
+    )
 
 
 def train(n: int = 1000, *, write: bool = True, verbose: bool = True) -> dict[str, Any]:
@@ -160,102 +169,188 @@ def train(n: int = 1000, *, write: bool = True, verbose: bool = True) -> dict[st
 
     lr = load_model()
     metrics: dict[str, Any] = {}
-    support: dict[str, Any] = {"6 h": {"supported": False, "reason": (
-        f"Signals are {DATA_CADENCE_HOURS}-hour (daily) aggregates; a sub-daily horizon would need intraday streams.")}}
+    support: dict[str, Any] = {
+        "6 h": {
+            "supported": False,
+            "reason": (
+                f"Signals are {DATA_CADENCE_HOURS}-hour (daily) aggregates; a sub-daily horizon would need intraday streams."
+            ),
+        }
+    }
     for h in EVAL_HORIZONS:
         Xh, yh, pid = horizon_labels(te, h)
         cum = _cumulative(model.intercept, model.coef, Xh, model.mean, model.std)[:, h - 1]
-        m = {"horizon_days": h, "n_patient_days": int(len(yh)), "n_positive": int(yh.sum()),
-             "prevalence": round(float(yh.mean()), 4), "auroc": round(auroc(yh, cum), 4),
-             "auroc_95ci_patient_bootstrap": bootstrap_auroc_ci(yh, cum, pid),
-             "auprc": round(average_precision(yh, cum), 4), "brier": round(brier(yh, cum), 5),
-             "calibration": calibration_bins(yh, cum, 10)}
+        m = {
+            "horizon_days": h,
+            "n_patient_days": int(len(yh)),
+            "n_positive": int(yh.sum()),
+            "prevalence": round(float(yh.mean()), 4),
+            "auroc": round(auroc(yh, cum), 4),
+            "auroc_95ci_patient_bootstrap": bootstrap_auroc_ci(yh, cum, pid),
+            "auprc": round(average_precision(yh, cum), 4),
+            "brier": round(brier(yh, cum), 5),
+            "calibration": calibration_bins(yh, cum, 10),
+        }
         if h == 7:
             m["deployed_lr_auroc_same_rows"] = round(auroc(yh, lr.predict(Xh)), 4)
         metrics[DISPLAY[h]] = m
         ok = m["auroc"] >= SUPPORT_MIN_AUROC and m["n_positive"] >= SUPPORT_MIN_POSITIVES
-        support[DISPLAY[h]] = {"supported": bool(ok), "reason": (
-            f"test AUROC {m['auroc']:.3f} (policy ≥ {SUPPORT_MIN_AUROC}) with {m['n_positive']} positive patient-days"
-            if ok else f"test AUROC {m['auroc']:.3f} / {m['n_positive']} positives below the support policy "
-                       f"(AUROC ≥ {SUPPORT_MIN_AUROC}, ≥ {SUPPORT_MIN_POSITIVES} positives)")}
+        support[DISPLAY[h]] = {
+            "supported": bool(ok),
+            "reason": (
+                f"test AUROC {m['auroc']:.3f} (policy ≥ {SUPPORT_MIN_AUROC}) with {m['n_positive']} positive patient-days"
+                if ok
+                else f"test AUROC {m['auroc']:.3f} / {m['n_positive']} positives below the support policy "
+                f"(AUROC ≥ {SUPPORT_MIN_AUROC}, ≥ {SUPPORT_MIN_POSITIVES} positives)"
+            ),
+        }
     artifact: dict[str, Any] = {
-        "model_id": MODEL_ID, "version": MODEL_VERSION, "oncotwin_version": ONCOTWIN_VERSION,
+        "model_id": MODEL_ID,
+        "version": MODEL_VERSION,
+        "oncotwin_version": ONCOTWIN_VERSION,
         "algorithm": "discrete-time survival: L2 logistic hazard over (patient-day × lag 1..7), numpy IRLS",
-        "outcome_id": OUTCOME_ID, "purpose": "consistent multi-horizon (24 h / 72 h / 7 d) risk of the OT-ACUTE outcome",
-        "feature_names": list(FEATURE_NAMES), "lag_names": list(LAG_NAMES),
-        "mean": model.mean.round(8).tolist(), "std": model.std.round(8).tolist(),
-        "intercept": round(model.intercept, 8), "coef": model.coef.round(8).tolist(), "l2": best,
+        "outcome_id": OUTCOME_ID,
+        "purpose": "consistent multi-horizon (24 h / 72 h / 7 d) risk of the OT-ACUTE outcome",
+        "feature_names": list(FEATURE_NAMES),
+        "lag_names": list(LAG_NAMES),
+        "mean": model.mean.round(8).tolist(),
+        "std": model.std.round(8).tolist(),
+        "intercept": round(model.intercept, 8),
+        "coef": model.coef.round(8).tolist(),
+        "l2": best,
         "l2_validation_logloss": {str(k): round(v, 6) for k, v in scores.items()},
         "bootstrap": [[round(x, 8) for x in b] for b in boots],
-        "metrics": {"data": "SYNTHETIC held-out test patients (same split as the deployed OT-ACUTE-7 model)", **metrics},
-        "support_policy": {"data_cadence_hours": DATA_CADENCE_HOURS, "min_test_auroc": SUPPORT_MIN_AUROC,
-                           "min_test_positives": SUPPORT_MIN_POSITIVES},
+        "metrics": {
+            "data": "SYNTHETIC held-out test patients (same split as the deployed OT-ACUTE-7 model)",
+            **metrics,
+        },
+        "support_policy": {
+            "data_cadence_hours": DATA_CADENCE_HOURS,
+            "min_test_auroc": SUPPORT_MIN_AUROC,
+            "min_test_positives": SUPPORT_MIN_POSITIVES,
+        },
         "support": support,
-        "training": {**cohort.meta(), "train_person_periods": int(len(ytr)), "train_events": int(ytr.sum()),
-                     "trained_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
-                     "duration_seconds": round(time.time() - t0, 1)},
+        "training": {
+            **cohort.meta(),
+            "train_person_periods": int(len(ytr)),
+            "train_events": int(ytr.sum()),
+            "trained_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+            "duration_seconds": round(time.time() - t0, 1),
+        },
         "limitations": [
             "Synthetic identical-twin experiment (the generator shares structure with the twin); not clinical validation.",
             "The hazard depends on the lag only through an additive term (proportional odds across lags).",
         ],
     }
-    payload = json.dumps({k: v for k, v in artifact.items() if k != "training"}, sort_keys=True).encode()
+    payload = json.dumps(
+        {k: v for k, v in artifact.items() if k != "training"}, sort_keys=True
+    ).encode()
     artifact["sha256"] = hashlib.sha256(payload).hexdigest()
     if write:
         ARTIFACT_PATH.write_text(json.dumps(artifact, indent=1), encoding="utf-8")
         load_horizon_model.cache_clear()
     if verbose:
-        print(json.dumps({"l2": best, "support": support,
-                          "metrics": {k: {kk: v for kk, v in m.items() if kk != "calibration"} for k, m in metrics.items()}},
-                         indent=1))
+        print(
+            json.dumps(
+                {
+                    "l2": best,
+                    "support": support,
+                    "metrics": {
+                        k: {kk: v for kk, v in m.items() if kk != "calibration"}
+                        for k, m in metrics.items()
+                    },
+                },
+                indent=1,
+            )
+        )
     return artifact
 
 
 class HorizonModel:
     def __init__(self, artifact: dict[str, Any]):
         if tuple(artifact["feature_names"]) != FEATURE_NAMES:
-            raise ValueError("Horizon artifact feature set does not match the running feature code — retrain.")
+            raise ValueError(
+                "Horizon artifact feature set does not match the running feature code — retrain."
+            )
         self.artifact = artifact
-        self.lr = LogisticModel(float(artifact["intercept"]), np.array(artifact["coef"]), np.array(artifact["mean"]),
-                                np.array(artifact["std"]), float(artifact["l2"]))
-        self.boots = np.array(artifact.get("bootstrap") or [[artifact["intercept"], *artifact["coef"]]])
-        payload = json.dumps({k: v for k, v in artifact.items() if k not in ("training", "sha256")}, sort_keys=True).encode()
+        self.lr = LogisticModel(
+            float(artifact["intercept"]),
+            np.array(artifact["coef"]),
+            np.array(artifact["mean"]),
+            np.array(artifact["std"]),
+            float(artifact["l2"]),
+        )
+        self.boots = np.array(
+            artifact.get("bootstrap") or [[artifact["intercept"], *artifact["coef"]]]
+        )
+        payload = json.dumps(
+            {k: v for k, v in artifact.items() if k not in ("training", "sha256")}, sort_keys=True
+        ).encode()
         self.integrity_verified = hashlib.sha256(payload).hexdigest() == artifact.get("sha256")
 
     def version_info(self) -> dict[str, Any]:
         a = self.artifact
-        return {"model_id": a["model_id"], "version": a["version"], "artifact_sha256": a.get("sha256", ""),
-                "integrity_verified": self.integrity_verified}
+        return {
+            "model_id": a["model_id"],
+            "version": a["version"],
+            "artifact_sha256": a.get("sha256", ""),
+            "integrity_verified": self.integrity_verified,
+        }
 
     def curve(self, x: np.ndarray) -> dict[str, Any]:
         x = np.atleast_2d(np.asarray(x, dtype=float))
         point = _cumulative(self.lr.intercept, self.lr.coef, x, self.lr.mean, self.lr.std)[0]
-        draws = np.stack([_cumulative(b[0], b[1:], x, self.lr.mean, self.lr.std)[0] for b in self.boots])
-        return {"days": list(range(1, MAX_LAG + 1)), "cumulative": [round(float(v), 4) for v in point],
-                "p10": [round(float(v), 4) for v in np.percentile(draws, 10, axis=0)],
-                "p90": [round(float(v), 4) for v in np.percentile(draws, 90, axis=0)]}
+        draws = np.stack(
+            [_cumulative(b[0], b[1:], x, self.lr.mean, self.lr.std)[0] for b in self.boots]
+        )
+        return {
+            "days": list(range(1, MAX_LAG + 1)),
+            "cumulative": [round(float(v), 4) for v in point],
+            "p10": [round(float(v), 4) for v in np.percentile(draws, 10, axis=0)],
+            "p90": [round(float(v), 4) for v in np.percentile(draws, 90, axis=0)],
+        }
 
     def horizons(self, x: np.ndarray, primary_7d: float | None = None) -> dict[str, Any]:
         c = self.curve(x)
         sup = self.artifact["support"]
-        rows = [{"horizon": "6 h", "supported": False, "reason": sup["6 h"]["reason"], "risk": None}]
+        rows = [
+            {"horizon": "6 h", "supported": False, "reason": sup["6 h"]["reason"], "risk": None}
+        ]
         for h in EVAL_HORIZONS:
             label = DISPLAY[h]
             s, m = sup[label], self.artifact["metrics"][label]
-            rows.append({"horizon": label, "days": h, "supported": s["supported"], "reason": s["reason"],
-                         "risk": c["cumulative"][h - 1] if s["supported"] else None,
-                         "p10": c["p10"][h - 1] if s["supported"] else None,
-                         "p90": c["p90"][h - 1] if s["supported"] else None,
-                         "test_auroc": m["auroc"], "test_auroc_95ci": m["auroc_95ci_patient_bootstrap"],
-                         "test_brier": m["brier"]})
+            rows.append(
+                {
+                    "horizon": label,
+                    "days": h,
+                    "supported": s["supported"],
+                    "reason": s["reason"],
+                    "risk": c["cumulative"][h - 1] if s["supported"] else None,
+                    "p10": c["p10"][h - 1] if s["supported"] else None,
+                    "p90": c["p90"][h - 1] if s["supported"] else None,
+                    "test_auroc": m["auroc"],
+                    "test_auroc_95ci": m["auroc_95ci_patient_bootstrap"],
+                    "test_brier": m["brier"],
+                }
+            )
         agree = None
         if primary_7d is not None:
-            agree = {"primary_lr_7d": round(primary_7d, 4), "survival_7d": c["cumulative"][6],
-                     "abs_difference": round(abs(primary_7d - c["cumulative"][6]), 4),
-                     "note": ("Two independently trained models; a large difference signals epistemic uncertainty. "
-                              "Tiers are driven by the primary OT-ACUTE-7 model.")}
-        return {"model": self.version_info(), "curve": c, "horizons": rows, "agreement_with_primary": agree,
-                "method": "discrete-time survival — cumulative incidence is monotone in the horizon by construction"}
+            agree = {
+                "primary_lr_7d": round(primary_7d, 4),
+                "survival_7d": c["cumulative"][6],
+                "abs_difference": round(abs(primary_7d - c["cumulative"][6]), 4),
+                "note": (
+                    "Two independently trained models; a large difference signals epistemic uncertainty. "
+                    "Tiers are driven by the primary OT-ACUTE-7 model."
+                ),
+            }
+        return {
+            "model": self.version_info(),
+            "curve": c,
+            "horizons": rows,
+            "agreement_with_primary": agree,
+            "method": "discrete-time survival — cumulative incidence is monotone in the horizon by construction",
+        }
 
 
 @lru_cache(maxsize=1)
@@ -267,7 +362,9 @@ def load_horizon_model() -> HorizonModel | None:
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     ap.add_argument("--n", type=int, default=1000)
     ap.add_argument("--dry-run", action="store_true")
     a = ap.parse_args()

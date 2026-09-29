@@ -9,6 +9,7 @@ Everything here runs without a database or LLM credentials — the module is
 deterministic and the store falls back to in-process state, matching how
 ClinCase itself boots in DB-less mode.
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
@@ -84,8 +85,12 @@ def test_unanswered_fields_never_become_evidence():
     """An all-unknown observation must produce no evidence at all."""
     obs = _obs(
         appearance=WaterAppearance(
-            floating_waste=UNK, foam=UNK, algae=UNK, oily_film=UNK,
-            unusual_colour=UNK, unusual_odour=UNK,
+            floating_waste=UNK,
+            foam=UNK,
+            algae=UNK,
+            oily_film=UNK,
+            unusual_colour=UNK,
+            unusual_odour=UNK,
         ),
         biodiversity=Biodiversity(fish=SKIP, birds=SKIP, insects=SKIP),
     )
@@ -94,9 +99,7 @@ def test_unanswered_fields_never_become_evidence():
         assess.assess_biodiversity(obs),
         assess.assess_context(obs),
     ):
-        assert finding.evidence == [], (
-            f"{finding.agent} invented evidence from non-answers"
-        )
+        assert finding.evidence == [], f"{finding.agent} invented evidence from non-answers"
 
 
 # =============================================================================
@@ -118,12 +121,21 @@ def test_sparse_observation_is_insufficient_not_healthy():
 def test_clean_well_answered_observation_is_healthy():
     obs = _obs(
         appearance=WaterAppearance(
-            floating_waste=NO, foam=NO, algae=NO, oily_film=NO,
-            unusual_colour=NO, unusual_odour=NO, clarity="clear",
+            floating_waste=NO,
+            foam=NO,
+            algae=NO,
+            oily_film=NO,
+            unusual_colour=NO,
+            unusual_odour=NO,
+            clarity="clear",
         ),
         biodiversity=Biodiversity(
-            fish=YES, birds=YES, insects=YES, aquatic_plants=YES,
-            macroinvertebrates=YES, dead_organisms=NO,
+            fish=YES,
+            birds=YES,
+            insects=YES,
+            aquatic_plants=YES,
+            macroinvertebrates=YES,
+            dead_organisms=NO,
         ),
         measurements=Measurements(ph=7.4, dissolved_oxygen_mgl=8.5, turbidity_ntu=6),
     )
@@ -134,8 +146,13 @@ def test_clean_well_answered_observation_is_healthy():
 def test_fish_kill_with_multiple_signals_is_critical():
     obs = _obs(
         appearance=WaterAppearance(
-            floating_waste=YES, foam=YES, algae=YES, oily_film=YES,
-            unusual_colour=YES, unusual_odour=YES, clarity="opaque",
+            floating_waste=YES,
+            foam=YES,
+            algae=YES,
+            oily_film=YES,
+            unusual_colour=YES,
+            unusual_odour=YES,
+            clarity="opaque",
         ),
         biodiversity=Biodiversity(fish=NO, birds=NO, insects=NO, dead_organisms=YES),
         measurements=Measurements(dissolved_oxygen_mgl=2.2),
@@ -182,7 +199,11 @@ def test_trend_reports_once_history_exists():
     current = _obs(
         reference="AQUA-000009",
         appearance=WaterAppearance(
-            floating_waste=YES, foam=YES, algae=YES, oily_film=YES, unusual_odour=YES,
+            floating_waste=YES,
+            foam=YES,
+            algae=YES,
+            oily_film=YES,
+            unusual_odour=YES,
         ),
     )
     finding = assess.assess_trend(current, history=history)
@@ -214,7 +235,11 @@ def test_one_health_never_diagnoses():
 def test_one_health_silent_without_a_pathway():
     obs = _obs(
         appearance=WaterAppearance(
-            algae=NO, foam=NO, oily_film=NO, unusual_odour=NO, floating_waste=NO,
+            algae=NO,
+            foam=NO,
+            oily_film=NO,
+            unusual_odour=NO,
+            floating_waste=NO,
         ),
         biodiversity=Biodiversity(fish=YES, birds=YES, dead_organisms=NO),
     )
@@ -261,7 +286,10 @@ async def test_create_observation_runs_all_agents():
         ObservationCreate(
             waterbody_name="Pipeline Brook",
             appearance=WaterAppearance(
-                algae=YES, foam=NO, floating_waste=YES, unusual_odour=NO,
+                algae=YES,
+                foam=NO,
+                floating_waste=YES,
+                unusual_odour=NO,
             ),
             biodiversity=Biodiversity(fish=NO, birds=YES, dead_organisms=NO),
         ),
@@ -292,7 +320,11 @@ async def test_reviewer_modification_overrides_ai_status():
         ObservationCreate(
             waterbody_name="Review Brook",
             appearance=WaterAppearance(
-                algae=YES, foam=YES, floating_waste=YES, unusual_odour=YES, oily_film=YES,
+                algae=YES,
+                foam=YES,
+                floating_waste=YES,
+                unusual_odour=YES,
+                oily_film=YES,
             ),
             biodiversity=Biodiversity(fish=NO, dead_organisms=YES, birds=NO),
         ),
@@ -382,9 +414,7 @@ async def test_community_stats_never_touch_assessment():
         st, payload, observer_id="u1", observer_label="Citizen A"
     )
     for _ in range(5):
-        await service.create_observation(
-            st, payload, observer_id="u1", observer_label="Citizen A"
-        )
+        await service.create_observation(st, payload, observer_id="u1", observer_label="Citizen A")
 
     stats = service.community_stats(st, observer_id="u1")
     assert stats.observations_contributed == 6
@@ -456,14 +486,11 @@ async def test_demo_triggers_early_warning_on_deteriorating_site():
     warned = [
         o
         for o in st.observations()
-        if o.assessment
-        and o.assessment.early_warning
-        and o.assessment.early_warning.active
+        if o.assessment and o.assessment.early_warning and o.assessment.early_warning.active
     ]
     assert warned, "the deteriorating demo site should raise a prototype warning"
     assert all(
-        "not a real-time emergency alert" in o.assessment.early_warning.notice
-        for o in warned
+        "not a real-time emergency alert" in o.assessment.early_warning.notice for o in warned
     )
 
 
@@ -497,9 +524,7 @@ async def test_fhir_export_is_structurally_valid_and_honestly_labelled():
     # UCUM units on quantities.
     quantities = [c for c in resource["component"] if "valueQuantity" in c]
     assert quantities
-    assert all(
-        q["valueQuantity"]["system"] == "http://unitsofmeasure.org" for q in quantities
-    )
+    assert all(q["valueQuantity"]["system"] == "http://unitsofmeasure.org" for q in quantities)
 
     # The standards claim must be explicit about what this is not.
     tags = [t["display"] for t in resource["meta"]["tag"]]

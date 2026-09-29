@@ -19,6 +19,7 @@ guardrail config) so what we declare always matches what we're running.
 The Markdown rendering at /api/v1/responsible-ai/model-card.md is
 copy-paste-ready for vendor security questionnaires.
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -46,7 +47,6 @@ def _build_model_card() -> dict[str, Any]:
         "schema": "v1",
         "asof_iso": asof,
         "clincase_version": "0.1.0",
-
         # ---- 1. Intended use + clinical scope ------------------------------
         "intended_use": {
             "primary": (
@@ -66,7 +66,6 @@ def _build_model_card() -> dict[str, Any]:
                 "Behavioral health (cohort not yet validated)",
             ],
         },
-
         # ---- 2. Risk classification ---------------------------------------
         "risk_classification": {
             "eu_ai_act_annex_iii": "High-risk — Healthcare access decisions support",
@@ -75,7 +74,6 @@ def _build_model_card() -> dict[str, Any]:
             "iso_42001_status": "AIMS certification roadmap — controls A.4.6, A.6.2.4, A.7.4, A.9.4 implemented",
             "cms_0057f_disposition": "In-scope; live scorecard at /api/v1/compliance/case/{id}",
         },
-
         # ---- 3. Models ----------------------------------------------------
         "models": [
             {
@@ -95,7 +93,6 @@ def _build_model_card() -> dict[str, Any]:
                 "last_validated_iso": "2026-04-15",
             },
         ],
-
         # ---- 4. Data ------------------------------------------------------
         "data": {
             "training_data": (
@@ -117,7 +114,6 @@ def _build_model_card() -> dict[str, Any]:
             "retention_days": 365 * 7,  # CMS-0057-F § IV.D 7-year audit retention
             "encryption": "AWS KMS multi-region key (envelope encryption at rest + in transit)",
         },
-
         # ---- 5. Performance ----------------------------------------------
         "performance": {
             "f1_macro": None,  # Filled live from app/api/eval.py if available
@@ -128,7 +124,6 @@ def _build_model_card() -> dict[str, Any]:
             "last_eval_iso": None,
             "eval_methodology": "/api/v1/eval/cohort — gold-labeled fixture cohort with macro F1",
         },
-
         # ---- 6. Fairness / bias --------------------------------------------
         "fairness": {
             "monitored_dimensions": [
@@ -147,7 +142,6 @@ def _build_model_card() -> dict[str, Any]:
             ),
             "last_bias_audit_iso": None,
         },
-
         # ---- 7. Human oversight (HITL) -------------------------------------
         "human_oversight": {
             "hitl_policy": (
@@ -159,7 +153,6 @@ def _build_model_card() -> dict[str, Any]:
             "review_gate_threshold": 0.75,
             "reviewer_action_log": "/api/v1/cases/{case_id}/audit",
         },
-
         # ---- 8. Hallucination mitigation -----------------------------------
         "hallucination_mitigation": {
             "guardrails": [
@@ -177,7 +170,6 @@ def _build_model_card() -> dict[str, Any]:
             "retry_with_feedback": True,
             "max_iterations_default": 3,
         },
-
         # ---- 9. Failure modes + escalation ---------------------------------
         "failure_modes_and_escalation": [
             {
@@ -201,7 +193,6 @@ def _build_model_card() -> dict[str, Any]:
                 "mitigation": "Multi-region Terraform + AgentCore Runtime cross-region failover",
             },
         ],
-
         # ---- 10. Logging / auditability ------------------------------------
         "logging": {
             "agent_runs_table": "Every agent invocation: input, output, model_id, tokens, latency, error",
@@ -210,7 +201,6 @@ def _build_model_card() -> dict[str, Any]:
             "evidence_pack_endpoint": "/api/v1/cases/{case_id}/evidence-pack",
             "tamper_evidence": "SHA-256 over (verdict|rationale|citations|model_id) on every Decision",
         },
-
         # ---- 11. NIST AI RMF function map ---------------------------------
         "nist_ai_rmf_map": {
             "GOVERN": "Per-case BudgetTracker, AgentContext ownership, auditable trace",
@@ -218,7 +208,6 @@ def _build_model_card() -> dict[str, Any]:
             "MEASURE": "/metrics, /eval/cohort, /business-value/*, /compliance/*",
             "MANAGE": "review_gate HITL · reviewer_actions audit · PagerDuty alerts on drift",
         },
-
         # ---- 12. ISO 42001 control map ------------------------------------
         "iso_42001_map": {
             "A.4.6": "AIMS roles + responsibilities documented in ops/k8s/config.yaml IRSA roles",
@@ -226,7 +215,6 @@ def _build_model_card() -> dict[str, Any]:
             "A.7.4": "Data quality controls — FHIR R4 schema validation pre-extraction",
             "A.9.4": "Performance + fairness monitoring per /metrics + quarterly bias audit",
         },
-
         # ---- Live system snapshot -----------------------------------------
         "system_snapshot": {
             "agents_total": len(AGENT_MANIFEST),
@@ -237,7 +225,6 @@ def _build_model_card() -> dict[str, Any]:
             "bedrock_guardrail_id": settings.BEDROCK_GUARDRAIL_ID or None,
             "hitl_threshold": settings.HITL_CONFIDENCE_THRESHOLD,
         },
-
         # ---- Standards crosswalk -----------------------------------------
         "standards": {
             "nist_ai_rmf": "1.0 — fully mapped above",
@@ -246,7 +233,6 @@ def _build_model_card() -> dict[str, Any]:
             "cms_0057f": "Compliant on the 6 in-force clauses today; full /api/v1/compliance/case/{id}",
             "anthropic_acceptable_use": "Compliant; system_cards/ subscribed for every model",
         },
-
         # ---- Accountability ------------------------------------------------
         "contacts": {
             "accountable_owner": "ClinCase Engineering (vsrupeshkumar)",

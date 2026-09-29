@@ -6,6 +6,7 @@ explicit ``organization_id`` predicates in API queries. The context variable
 is reserved for tracing and a future, separately tested RLS implementation;
 it must not be treated as a database security boundary today.
 """
+
 from __future__ import annotations
 
 import contextvars
@@ -22,6 +23,7 @@ current_organization_id: contextvars.ContextVar[str | None] = contextvars.Contex
 def _decode_jwt_unsafe(token: str) -> dict[str, Any] | None:
     """Compatibility helper; verifies signatures and expiry before using claims."""
     from app.auth.jwt_helpers import decode_access_token
+
     return decode_access_token(token)
 
 
@@ -50,9 +52,7 @@ class TenantContextMiddleware:
             payload = _decode_jwt_unsafe(token)
             if payload:
                 org_id = (
-                    payload.get("org")
-                    or payload.get("organization_id")
-                    or payload.get("org_id")
+                    payload.get("org") or payload.get("organization_id") or payload.get("org_id")
                 )
         token_marker = current_organization_id.set(org_id)
         try:

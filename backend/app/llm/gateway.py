@@ -29,6 +29,7 @@ Composition pattern. The factory returns `GenAIGateway(BedrockClient())` so:
 Design intent: context engineering + governance baked into how AI is
 called, not bolted on afterward.
 """
+
 from __future__ import annotations
 
 import contextvars
@@ -74,8 +75,8 @@ class GatewayCallContext:
     request_id: str | None
 
 
-_gateway_call_context: contextvars.ContextVar[GatewayCallContext | None] = (
-    contextvars.ContextVar("gateway_call_context", default=None)
+_gateway_call_context: contextvars.ContextVar[GatewayCallContext | None] = contextvars.ContextVar(
+    "gateway_call_context", default=None
 )
 
 
@@ -116,9 +117,9 @@ class TenantPolicy:
 
     organization_id: str
     allowed_model_ids: list[str]
-    daily_input_token_cap: int = 50_000_000   # 50M tokens/day default
+    daily_input_token_cap: int = 50_000_000  # 50M tokens/day default
     daily_output_token_cap: int = 10_000_000  # 10M tokens/day default
-    daily_usd_cap: float = 1_000.0            # $1K/day default
+    daily_usd_cap: float = 1_000.0  # $1K/day default
     bedrock_guardrail_id: str | None = None
 
 
@@ -183,6 +184,7 @@ CREATE TABLE IF NOT EXISTS tenant_policies (
 async def ensure_schema() -> None:
     """Idempotent schema bootstrap. Called from app lifespan + worker boot."""
     from app.db import db
+
     await db.execute(_SCHEMA)
 
 
@@ -200,6 +202,7 @@ async def get_tenant_policy(organization_id: str) -> TenantPolicy:
     brand-new tenant gets), so degrading to it never widens access.
     """
     from app.db import db
+
     try:
         row = await db.fetchrow(
             "SELECT * FROM tenant_policies WHERE organization_id = $1",
@@ -208,7 +211,8 @@ async def get_tenant_policy(organization_id: str) -> TenantPolicy:
     except Exception as e:  # noqa: BLE001 — documented fail-soft contract
         log.warning(
             "gateway.tenant_policy.unavailable",
-            organization_id=organization_id, error=str(e)[:200],
+            organization_id=organization_id,
+            error=str(e)[:200],
         )
         return _default_policy(organization_id)
     if row is None:
@@ -253,6 +257,7 @@ class GatewayPolicyViolationError(Exception):
 async def _check_quota(policy: TenantPolicy) -> None:
     """Rolling-24h check against tenant token + USD caps."""
     from app.db import db
+
     row = await db.fetchrow(
         """SELECT
               COALESCE(SUM(input_tokens),  0)::BIGINT AS in_tok,
@@ -269,18 +274,24 @@ async def _check_quota(policy: TenantPolicy) -> None:
 
     if in_tok >= policy.daily_input_token_cap:
         raise GatewayQuotaExceededError(
-            dimension="input_tokens", used=in_tok,
-            cap=policy.daily_input_token_cap, organization_id=policy.organization_id,
+            dimension="input_tokens",
+            used=in_tok,
+            cap=policy.daily_input_token_cap,
+            organization_id=policy.organization_id,
         )
     if out_tok >= policy.daily_output_token_cap:
         raise GatewayQuotaExceededError(
-            dimension="output_tokens", used=out_tok,
-            cap=policy.daily_output_token_cap, organization_id=policy.organization_id,
+            dimension="output_tokens",
+            used=out_tok,
+            cap=policy.daily_output_token_cap,
+            organization_id=policy.organization_id,
         )
     if spend >= policy.daily_usd_cap:
         raise GatewayQuotaExceededError(
-            dimension="cost_usd", used=spend,
-            cap=policy.daily_usd_cap, organization_id=policy.organization_id,
+            dimension="cost_usd",
+            used=spend,
+            cap=policy.daily_usd_cap,
+            organization_id=policy.organization_id,
         )
 
 
@@ -294,9 +305,15 @@ async def _check_quota(policy: TenantPolicy) -> None:
 # InvokeModel time. This pre-check exists so a leak detected in dev fails
 # loudly here, not silently in CloudWatch.
 _PHI_SUSPECT_PATTERNS = (
-    "ssn=", " ssn ", " ssn:", "social security",
-    "mrn=", " mrn ",
-    "dob=", " dob ", " dob:",
+    "ssn=",
+    " ssn ",
+    " ssn:",
+    "social security",
+    "mrn=",
+    " mrn ",
+    "dob=",
+    " dob ",
+    " dob:",
     # Phone-number-shaped strings handled by Bedrock Guardrails, not here.
 )
 
@@ -375,8 +392,11 @@ class GenAIGateway(LLMClient):
         if not self._enabled:
             # Bypass — preserve historical demo behavior when GATEWAY=disabled.
             return await self._underlying.complete(
-                system=system, user=user, max_tokens=max_tokens,
-                temperature=temperature, model_id=model_id,
+                system=system,
+                user=user,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                model_id=model_id,
             )
 
         ctx = get_call_context()
@@ -428,13 +448,18 @@ class GenAIGateway(LLMClient):
         # 5. Open audit row
         invocation_id = uuid.uuid4()
         from app.db import db
+
         row_id = await db.fetchval(
             """INSERT INTO llm_invocations
                   (invocation_id, organization_id, case_id, agent_name,
                    model_id, status, started_at)
                VALUES ($1, $2, $3, $4, $5, 'running', NOW())
                RETURNING id""",
-            invocation_id, org_id, case_id, agent_name, resolved_model_id,
+            invocation_id,
+            org_id,
+            case_id,
+            agent_name,
+            resolved_model_id,
         )
 
         started = time.time()
@@ -447,8 +472,11 @@ class GenAIGateway(LLMClient):
                 agent_name=agent_name,
             ) as otel_span:
                 resp = await self._underlying.complete(
-                    system=system, user=user, max_tokens=max_tokens,
-                    temperature=temperature, model_id=resolved_model_id,
+                    system=system,
+                    user=user,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    model_id=resolved_model_id,
                 )
                 otel_span.set_attribute("gen_ai.usage.input_tokens", resp.input_tokens)
                 otel_span.set_attribute("gen_ai.usage.output_tokens", resp.output_tokens)
@@ -460,7 +488,11 @@ class GenAIGateway(LLMClient):
                        input_tokens = $1, output_tokens = $2,
                        cost_usd = $3, latency_ms = $4
                    WHERE id = $5""",
-                resp.input_tokens, resp.output_tokens, cost, latency_ms, row_id,
+                resp.input_tokens,
+                resp.output_tokens,
+                cost,
+                latency_ms,
+                row_id,
             )
             await breaker.record_success()
             return resp
@@ -471,7 +503,9 @@ class GenAIGateway(LLMClient):
                        finished_at = NOW(), status = 'error',
                        error_text = $1, latency_ms = $2
                    WHERE id = $3""",
-                str(e)[:500], latency_ms, row_id,
+                str(e)[:500],
+                latency_ms,
+                row_id,
             )
             # Circuit breaker counts ALL failures (Bedrock 5xx, timeout, parse error).
             # CircuitBreakerOpenError itself is not counted (we're not actually calling).
@@ -491,8 +525,11 @@ class GenAIGateway(LLMClient):
         # Streaming path passes through unchanged (no audit). ClinCase doesn't
         # use streaming today — kept for interface conformance.
         async for chunk in self._underlying.stream(
-            system=system, user=user, max_tokens=max_tokens,
-            temperature=temperature, model_id=model_id,
+            system=system,
+            user=user,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            model_id=model_id,
         ):
             yield chunk
 
@@ -505,6 +542,7 @@ class GenAIGateway(LLMClient):
 async def tenant_usage(organization_id: str, *, hours: int = 24) -> dict[str, Any]:
     """Live rolling usage for a tenant. Used by SRE + customer compliance dashboards."""
     from app.db import db
+
     row = await db.fetchrow(
         f"""SELECT
               COUNT(*)::BIGINT AS calls,

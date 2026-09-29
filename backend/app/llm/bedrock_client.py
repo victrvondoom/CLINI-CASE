@@ -6,6 +6,7 @@ the environment (via task role on ECS, or `aws configure` locally).
 This client uses the Bedrock Converse API for vendor-neutral chat.
 Guardrails (BEDROCK_GUARDRAIL_ID) are applied automatically when set.
 """
+
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
@@ -103,9 +104,7 @@ class BedrockClient(LLMClient):
         model = model_id or self._default_model
         fmt = image_format.lower().replace("image/", "")
         if fmt not in {"png", "jpeg", "webp", "gif"}:
-            raise ValueError(
-                f"Bedrock vision supports png/jpeg/webp/gif; got {image_format!r}"
-            )
+            raise ValueError(f"Bedrock vision supports png/jpeg/webp/gif; got {image_format!r}")
 
         def _call() -> dict[str, Any]:
             response: dict[str, Any] = self._client.converse(

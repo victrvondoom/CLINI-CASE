@@ -1,4 +1,5 @@
 """GET /api/v1/rate-limits/me — caller's declared rate-limit table."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -24,6 +25,7 @@ async def my_rate_limits(
     tier = "silver"
     try:
         from app.db import db
+
         row = await db.fetchrow(
             "SELECT tier FROM org_quotas WHERE organization_id = $1",
             user["organization_id"],

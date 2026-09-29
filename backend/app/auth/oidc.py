@@ -19,6 +19,7 @@ Pairs with: ops/architecture/OIDC_SSO.md
 Deployed today as scaffold (returns 503 unless OIDC_DISCOVERY_URL is set).
 Actual production wiring waits for the first customer's IdP details.
 """
+
 from __future__ import annotations
 
 import base64
@@ -41,10 +42,10 @@ log = structlog.get_logger()
 
 @dataclass(frozen=True)
 class OIDCConfig:
-    discovery_url: str        # e.g. https://acme.okta.com/.well-known/openid-configuration
-    client_id: str            # IdP-issued
-    client_secret: str        # IdP-issued (read from Secrets Manager in prod)
-    redirect_uri: str         # https://api.clincase.example.com/api/v1/auth/oidc/callback
+    discovery_url: str  # e.g. https://acme.okta.com/.well-known/openid-configuration
+    client_id: str  # IdP-issued
+    client_secret: str  # IdP-issued (read from Secrets Manager in prod)
+    redirect_uri: str  # https://api.clincase.example.com/api/v1/auth/oidc/callback
     scopes: str = "openid profile email offline_access groups"
     organization_id_claim: str = "https://clincase.com/claims/organization_id"
     role_claim: str = "https://clincase.com/claims/role"
@@ -89,6 +90,7 @@ async def _fetch_discovery(discovery_url: str) -> dict[str, Any]:
         return _discovery_cache[discovery_url]
     try:
         import httpx  # type: ignore[import-not-found]
+
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.get(discovery_url)
             resp.raise_for_status()
@@ -167,7 +169,7 @@ async def build_authorize_url(*, return_to: str | None = None) -> tuple[str, str
 
 @dataclass(frozen=True)
 class OIDCExchangeResult:
-    user_id: str             # IdP `sub` claim
+    user_id: str  # IdP `sub` claim
     email: str
     full_name: str | None
     organization_id: str
@@ -190,6 +192,7 @@ async def exchange_code(*, code: str, state: str) -> OIDCExchangeResult:
 
     try:
         import httpx  # type: ignore[import-not-found]
+
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.post(
                 token_endpoint,
@@ -222,6 +225,7 @@ async def exchange_code(*, code: str, state: str) -> OIDCExchangeResult:
         if len(parts) != 3:
             raise ValueError("oidc.id_token.malformed")
         import json as _json
+
         payload_b64 = parts[1] + "=" * (-len(parts[1]) % 4)
         claims = _json.loads(base64.urlsafe_b64decode(payload_b64))
     except Exception as e:  # noqa: BLE001

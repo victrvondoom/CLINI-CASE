@@ -1,4 +1,5 @@
 """LangGraph node + legacy compatibility shims for policy_retriever."""
+
 from __future__ import annotations
 
 from typing import Any

@@ -19,6 +19,7 @@ A successfully-parsed PDF/DOCX could still be a non-clinical document
 score the text against a curated clinical lexicon and downgrade confidence
 + flag `non-clinical-content` when nothing oncology-shaped is in scope.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -54,18 +55,18 @@ _ACCEPTED_MIME = {
     "image/webp",
     "application/pdf",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",  # .docx
-    "application/msword",                                                        # .doc (legacy)
-    "text/plain",                                                                # .txt
+    "application/msword",  # .doc (legacy)
+    "text/plain",  # .txt
 }
 # Filename-extension fallback for browsers that mislabel DOCX uploads (Edge,
 # certain Outlook flows) as application/octet-stream or empty content_type.
 _EXTENSION_TO_MIME = {
-    ".pdf":  "application/pdf",
+    ".pdf": "application/pdf",
     ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    ".doc":  "application/msword",
-    ".txt":  "text/plain",
-    ".png":  "image/png",
-    ".jpg":  "image/jpeg",
+    ".doc": "application/msword",
+    ".txt": "text/plain",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
     ".jpeg": "image/jpeg",
     ".webp": "image/webp",
 }
@@ -82,35 +83,127 @@ _MIN_CONFIDENCE = 0.70
 # an architecture spec or marketing deck will hit zero.
 _CLINICAL_LEXICON = {
     # roles + sections common in clinical documents
-    "diagnosis", "patient", "physician", "oncology", "oncologist", "tumor",
-    "tumour", "cancer", "carcinoma", "metastatic", "neoplasm", "lesion",
-    "pathology", "biopsy", "specimen", "histology", "cytology", "stage",
-    "grade", "ecog", "kps", "performance status", "comorbidity",
+    "diagnosis",
+    "patient",
+    "physician",
+    "oncology",
+    "oncologist",
+    "tumor",
+    "tumour",
+    "cancer",
+    "carcinoma",
+    "metastatic",
+    "neoplasm",
+    "lesion",
+    "pathology",
+    "biopsy",
+    "specimen",
+    "histology",
+    "cytology",
+    "stage",
+    "grade",
+    "ecog",
+    "kps",
+    "performance status",
+    "comorbidity",
     # diagnostics + biomarkers
-    "biomarker", "her2", "egfr", "kras", "braf", "alk", "ros1", "brca",
-    "tmb", "msi-h", "msi", "pd-l1", "pdl1", "ihc", "fish", "ngs",
-    "fishtest", "ck20", "ki-67", "mmr", "dmmr", "hrd",
+    "biomarker",
+    "her2",
+    "egfr",
+    "kras",
+    "braf",
+    "alk",
+    "ros1",
+    "brca",
+    "tmb",
+    "msi-h",
+    "msi",
+    "pd-l1",
+    "pdl1",
+    "ihc",
+    "fish",
+    "ngs",
+    "fishtest",
+    "ck20",
+    "ki-67",
+    "mmr",
+    "dmmr",
+    "hrd",
     # treatments + drug classes
-    "chemotherapy", "chemo", "radiation", "radiotherapy", "infusion",
-    "trastuzumab", "pertuzumab", "pembrolizumab", "nivolumab", "olaparib",
-    "palbociclib", "osimertinib", "rituximab", "bevacizumab", "carboplatin",
-    "cisplatin", "paclitaxel", "docetaxel", "doxorubicin", "fluorouracil",
-    "5-fu", "5fu", "capecitabine", "temozolomide", "imatinib", "tucatinib",
-    "letrozole", "tamoxifen", "abiraterone", "enzalutamide", "everolimus",
-    "lapatinib", "mtor", "parp", "tki", "antibody", "checkpoint inhibitor",
+    "chemotherapy",
+    "chemo",
+    "radiation",
+    "radiotherapy",
+    "infusion",
+    "trastuzumab",
+    "pertuzumab",
+    "pembrolizumab",
+    "nivolumab",
+    "olaparib",
+    "palbociclib",
+    "osimertinib",
+    "rituximab",
+    "bevacizumab",
+    "carboplatin",
+    "cisplatin",
+    "paclitaxel",
+    "docetaxel",
+    "doxorubicin",
+    "fluorouracil",
+    "5-fu",
+    "5fu",
+    "capecitabine",
+    "temozolomide",
+    "imatinib",
+    "tucatinib",
+    "letrozole",
+    "tamoxifen",
+    "abiraterone",
+    "enzalutamide",
+    "everolimus",
+    "lapatinib",
+    "mtor",
+    "parp",
+    "tki",
+    "antibody",
+    "checkpoint inhibitor",
     # codes + units
-    "icd-10", "icd10", "cpt", "hcpcs", "j-code", "j code",
-    "mg/m²", "mg/m2", "mg/kg", "auc",
+    "icd-10",
+    "icd10",
+    "cpt",
+    "hcpcs",
+    "j-code",
+    "j code",
+    "mg/m²",
+    "mg/m2",
+    "mg/kg",
+    "auc",
     # workflow + payer terms
-    "prior authorization", "prior authorisation", "preauthorization",
-    "medical necessity", "denial", "appeal", "p2p", "peer-to-peer",
-    "fhir", "claim", "claimresponse", "x12 278",
+    "prior authorization",
+    "prior authorisation",
+    "preauthorization",
+    "medical necessity",
+    "denial",
+    "appeal",
+    "p2p",
+    "peer-to-peer",
+    "fhir",
+    "claim",
+    "claimresponse",
+    "x12 278",
     # NCCN / regulatory references
-    "nccn", "asco", "nci", "fda", "clinical guideline", "compendium",
+    "nccn",
+    "asco",
+    "nci",
+    "fda",
+    "clinical guideline",
+    "compendium",
 }
 _CLINICAL_SCORE_THRESHOLD = 0.30  # below this → flag as non-clinical
 _CLINICAL_PATTERN = re.compile(
-    r"\b(?:" + "|".join(re.escape(t) for t in sorted(_CLINICAL_LEXICON, key=len, reverse=True)) + r")\b",
+    r"\b(?:"
+    + "|".join(re.escape(t) for t in sorted(_CLINICAL_LEXICON, key=len, reverse=True))
+    + r")\b",
     re.IGNORECASE,
 )
 
@@ -124,8 +217,8 @@ def _clinical_content_score(text: str) -> tuple[float, list[str]]:
     # Word-count-aware density: a 200-word note with 5 clinical terms is
     # high-signal; a 10,000-word architecture doc with 5 terms is not.
     n_words = max(1, len(text.split()))
-    density = len(matches) / n_words   # hits per word
-    coverage = len(unique) / 30        # how many distinct concepts (cap at 30)
+    density = len(matches) / n_words  # hits per word
+    coverage = len(unique) / 30  # how many distinct concepts (cap at 30)
     # Combine: density is the primary signal; coverage breaks ties.
     score = min(1.0, max(0.0, density * 25 + coverage * 0.4))
     return round(score, 3), sorted(unique)
@@ -171,7 +264,12 @@ async def parse_document_endpoint(
         ext = _ext(filename)
         guessed = _EXTENSION_TO_MIME.get(ext)
         if guessed:
-            log.info("intake: rewriting MIME from %r to %r based on extension %r", content_type, guessed, ext)
+            log.info(
+                "intake: rewriting MIME from %r to %r based on extension %r",
+                content_type,
+                guessed,
+                ext,
+            )
             content_type = guessed
         else:
             raise HTTPException(
@@ -200,14 +298,26 @@ async def parse_document_endpoint(
     # Format dispatch — magic-byte detection always wins over MIME
     # ------------------------------------------------------------------
     detected_kind = _detect_kind(raw, content_type, filename)
-    log.info("intake: %s detected as %s (%d bytes, mime=%s)", filename, detected_kind, len(raw), content_type)
+    log.info(
+        "intake: %s detected as %s (%d bytes, mime=%s)",
+        filename,
+        detected_kind,
+        len(raw),
+        content_type,
+    )
 
     if detected_kind == "pdf":
-        return _with_privacy_receipt(await _extract_pdf_directly(raw=raw, filename=filename, sha256=sha256))
+        return _with_privacy_receipt(
+            await _extract_pdf_directly(raw=raw, filename=filename, sha256=sha256)
+        )
     if detected_kind == "docx":
-        return _with_privacy_receipt(await _extract_docx_directly(raw=raw, filename=filename, sha256=sha256))
+        return _with_privacy_receipt(
+            await _extract_docx_directly(raw=raw, filename=filename, sha256=sha256)
+        )
     if detected_kind == "txt":
-        return _with_privacy_receipt(_extract_txt_directly(raw=raw, filename=filename, sha256=sha256))
+        return _with_privacy_receipt(
+            _extract_txt_directly(raw=raw, filename=filename, sha256=sha256)
+        )
 
     # ------------------------------------------------------------------
     # Image path — go through the full pipeline (Vision/Textract/Tesseract)
@@ -231,20 +341,24 @@ async def parse_document_endpoint(
         or not new_ocr.full_text.strip()
         or "non-clinical-content" in new_flags
     )
-    return result.model_copy(update={
-        "ocr": new_ocr,
-        "risk_flags": new_flags,
-        "requires_human_review": result.requires_human_review or requires_review,
-    })
+    return result.model_copy(
+        update={
+            "ocr": new_ocr,
+            "risk_flags": new_flags,
+            "requires_human_review": result.requires_human_review or requires_review,
+        }
+    )
 
 
 def _with_privacy_receipt(result: IntakeResult) -> IntakeResult:
     audit = dict(result.audit)
-    audit.update({
-        "cloud_document_processing_enabled": settings.CLOUD_DOCUMENT_PROCESSING_ENABLED,
-        "pixel_redaction_verified": False,
-        "privacy_notice": "OCR is not de-identification. Review identifiers before sharing extracted content.",
-    })
+    audit.update(
+        {
+            "cloud_document_processing_enabled": settings.CLOUD_DOCUMENT_PROCESSING_ENABLED,
+            "pixel_redaction_verified": False,
+            "privacy_notice": "OCR is not de-identification. Review identifiers before sharing extracted content.",
+        }
+    )
     return result.model_copy(update={"audit": audit})
 
 
@@ -301,18 +415,22 @@ async def _extract_pdf_directly(*, raw: bytes, filename: str, sha256: str) -> In
     pypdf_t0 = time.monotonic()
     try:
         ocr = await asyncio.to_thread(_pypdf_extract, raw)
-        engines_attempted.append({
-            "engine": "pypdf_text",
-            "ok": True,
-            "elapsed_ms": int((time.monotonic() - pypdf_t0) * 1000),
-        })
+        engines_attempted.append(
+            {
+                "engine": "pypdf_text",
+                "ok": True,
+                "elapsed_ms": int((time.monotonic() - pypdf_t0) * 1000),
+            }
+        )
     except _PDFExtractFailureError as e:
-        engines_attempted.append({
-            "engine": "pypdf_text",
-            "ok": False,
-            "reason": str(e)[:160],
-            "elapsed_ms": int((time.monotonic() - pypdf_t0) * 1000),
-        })
+        engines_attempted.append(
+            {
+                "engine": "pypdf_text",
+                "ok": False,
+                "reason": str(e)[:160],
+                "elapsed_ms": int((time.monotonic() - pypdf_t0) * 1000),
+            }
+        )
         log.info("pypdf failed for %s: %s — trying Textract", filename, e)
 
     # 2. Textract fallback — for image-only PDFs (scanned, no text layer)
@@ -320,20 +438,28 @@ async def _extract_pdf_directly(*, raw: bytes, filename: str, sha256: str) -> In
         textract_t0 = time.monotonic()
         try:
             ocr = await asyncio.to_thread(_textract_extract, raw)
-            engines_attempted.append({
-                "engine": "aws_textract",
-                "ok": True,
-                "elapsed_ms": int((time.monotonic() - textract_t0) * 1000),
-            })
+            engines_attempted.append(
+                {
+                    "engine": "aws_textract",
+                    "ok": True,
+                    "elapsed_ms": int((time.monotonic() - textract_t0) * 1000),
+                }
+            )
             risk_flags.append("engine-fallback-used")
         except _PDFExtractFailureError as e:
-            engines_attempted.append({
-                "engine": "aws_textract",
-                "ok": False,
-                "reason": str(e)[:160],
-                "elapsed_ms": int((time.monotonic() - textract_t0) * 1000),
-            })
-            log.info("Textract unavailable for %s: %s — trying local OCR (pypdfium2 + tesseract)", filename, e)
+            engines_attempted.append(
+                {
+                    "engine": "aws_textract",
+                    "ok": False,
+                    "reason": str(e)[:160],
+                    "elapsed_ms": int((time.monotonic() - textract_t0) * 1000),
+                }
+            )
+            log.info(
+                "Textract unavailable for %s: %s — trying local OCR (pypdfium2 + tesseract)",
+                filename,
+                e,
+            )
 
     # 3. Local OCR fallback — rasterize pages with pypdfium2 and OCR with
     #    tesseract. Zero cloud dependency. Handles scanned/image-only PDFs
@@ -342,19 +468,23 @@ async def _extract_pdf_directly(*, raw: bytes, filename: str, sha256: str) -> In
         ocr_t0 = time.monotonic()
         try:
             ocr = await asyncio.to_thread(_pdfium_tesseract_extract, raw)
-            engines_attempted.append({
-                "engine": "tesseract_local",
-                "ok": True,
-                "elapsed_ms": int((time.monotonic() - ocr_t0) * 1000),
-            })
+            engines_attempted.append(
+                {
+                    "engine": "tesseract_local",
+                    "ok": True,
+                    "elapsed_ms": int((time.monotonic() - ocr_t0) * 1000),
+                }
+            )
             risk_flags.append("engine-fallback-used")
         except _PDFExtractFailureError as e:
-            engines_attempted.append({
-                "engine": "tesseract_local",
-                "ok": False,
-                "reason": str(e)[:160],
-                "elapsed_ms": int((time.monotonic() - ocr_t0) * 1000),
-            })
+            engines_attempted.append(
+                {
+                    "engine": "tesseract_local",
+                    "ok": False,
+                    "reason": str(e)[:160],
+                    "elapsed_ms": int((time.monotonic() - ocr_t0) * 1000),
+                }
+            )
             log.warning("Local OCR (pypdfium2+tesseract) failed for %s: %s", filename, e)
 
     # 4. All engines failed → HITL
@@ -379,7 +509,11 @@ async def _extract_pdf_directly(*, raw: bytes, filename: str, sha256: str) -> In
         or not ocr.full_text.strip()
         or "non-clinical-content" in risk_flags
     )
-    if requires_review and "intake-failed" not in risk_flags and "non-clinical-content" not in risk_flags:
+    if (
+        requires_review
+        and "intake-failed" not in risk_flags
+        and "non-clinical-content" not in risk_flags
+    ):
         risk_flags.append("low-confidence")
 
     total_ms = int((time.monotonic() - t_start) * 1000)
@@ -424,18 +558,22 @@ async def _extract_docx_directly(*, raw: bytes, filename: str, sha256: str) -> I
     ocr: OCRResult | None = None
     try:
         ocr = await asyncio.to_thread(_python_docx_extract, raw)
-        engines_attempted.append({
-            "engine": "python_docx",
-            "ok": True,
-            "elapsed_ms": int((time.monotonic() - docx_t0) * 1000),
-        })
+        engines_attempted.append(
+            {
+                "engine": "python_docx",
+                "ok": True,
+                "elapsed_ms": int((time.monotonic() - docx_t0) * 1000),
+            }
+        )
     except _DocExtractFailureError as e:
-        engines_attempted.append({
-            "engine": "python_docx",
-            "ok": False,
-            "reason": str(e)[:160],
-            "elapsed_ms": int((time.monotonic() - docx_t0) * 1000),
-        })
+        engines_attempted.append(
+            {
+                "engine": "python_docx",
+                "ok": False,
+                "reason": str(e)[:160],
+                "elapsed_ms": int((time.monotonic() - docx_t0) * 1000),
+            }
+        )
         log.warning("python-docx failed for %s: %s", filename, e)
 
     if ocr is None:
@@ -456,7 +594,11 @@ async def _extract_docx_directly(*, raw: bytes, filename: str, sha256: str) -> I
         or not ocr.full_text.strip()
         or "non-clinical-content" in risk_flags
     )
-    if requires_review and "intake-failed" not in risk_flags and "non-clinical-content" not in risk_flags:
+    if (
+        requires_review
+        and "intake-failed" not in risk_flags
+        and "non-clinical-content" not in risk_flags
+    ):
         risk_flags.append("low-confidence")
 
     return IntakeResult(
@@ -621,7 +763,9 @@ def _textract_extract(raw: bytes) -> OCRResult:
     from app.config import settings
 
     if not settings.CLOUD_DOCUMENT_PROCESSING_ENABLED:
-        raise _PDFExtractFailureError("Cloud document processing disabled; using local OCR or human review")
+        raise _PDFExtractFailureError(
+            "Cloud document processing disabled; using local OCR or human review"
+        )
 
     try:
         client = boto3.client(
@@ -667,10 +811,7 @@ def _textract_extract(raw: bytes) -> OCRResult:
 
     extracted: list[ExtractedField] = []
     for b in blocks:
-        if (
-            b.get("BlockType") == "KEY_VALUE_SET"
-            and "KEY" in (b.get("EntityTypes") or [])
-        ):
+        if b.get("BlockType") == "KEY_VALUE_SET" and "KEY" in (b.get("EntityTypes") or []):
             key = _resolve_text(b, by_id).strip()
             value_block = _find_value_for_key(b, by_id)
             value = _resolve_text(value_block, by_id).strip() if value_block else ""

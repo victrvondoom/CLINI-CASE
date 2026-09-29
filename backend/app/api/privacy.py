@@ -1,9 +1,10 @@
 """GDPR/HIPAA right-to-erasure endpoints.
 
-  POST /api/v1/privacy/erasure-request          file an erasure request
-  GET  /api/v1/privacy/erasure-requests         list (admin)
-  POST /api/v1/privacy/_run_hard_delete         operator job runner (admin)
+POST /api/v1/privacy/erasure-request          file an erasure request
+GET  /api/v1/privacy/erasure-requests         list (admin)
+POST /api/v1/privacy/_run_hard_delete         operator job runner (admin)
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -33,19 +34,21 @@ async def file_request(
     body: ErasureRequestBody,
     user: dict[str, Any] = Depends(require_role("admin")),
 ) -> dict[str, Any]:
-    res = await request_erasure(ErasureRequest(
-        organization_id=user["organization_id"],
-        subject_initials=body.subject_initials,
-        requested_by=user["id"],
-        reason=body.reason,
-        legal_basis=body.legal_basis,
-    ))
+    res = await request_erasure(
+        ErasureRequest(
+            organization_id=user["organization_id"],
+            subject_initials=body.subject_initials,
+            requested_by=user["id"],
+            reason=body.reason,
+            legal_basis=body.legal_basis,
+        )
+    )
     return {
-        "redaction_id":      res.redaction_id,
-        "subject_token":     res.subject_token,
-        "soft_deleted_at":   res.soft_deleted_at,
+        "redaction_id": res.redaction_id,
+        "subject_token": res.subject_token,
+        "soft_deleted_at": res.soft_deleted_at,
         "hard_delete_after": res.hard_delete_after,
-        "status":            res.status,
+        "status": res.status,
         "note": (
             "Soft-deleted. After the 7-day legal-hold window, audit-trail "
             "patient identifiers will be tokenized irreversibly. Decision "

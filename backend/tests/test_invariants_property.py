@@ -11,6 +11,7 @@ Verifies critical invariants of the round-11/12/13 primitives:
 These tests don't replace unit tests — they complement them by exhaustively
 exploring inputs the developer didn't think of.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -29,9 +30,14 @@ from app.residency import region_appropriate_model_id  # noqa: E402
 
 
 _REGIONS = [
-    "ap-south-1", "ap-southeast-1", "ap-northeast-1",
-    "us-east-1", "us-west-2",
-    "eu-west-1", "eu-central-1", "eu-west-3",
+    "ap-south-1",
+    "ap-southeast-1",
+    "ap-northeast-1",
+    "us-east-1",
+    "us-west-2",
+    "eu-west-1",
+    "eu-central-1",
+    "eu-west-3",
 ]
 
 
@@ -97,7 +103,9 @@ def test_cedar_deny_cross_org(org_a: str, org_b: str, role: str) -> None:
 def test_cedar_deny_coordinator_signoff(role: str) -> None:
     """A coordinator NEVER signs off a case; only reviewer/admin can."""
     p = Principal(user_id="u", organization_id="o", role=role)
-    r = Resource(kind="case", id="c", organization_id="o", attributes={"signed_by_physician": False})
+    r = Resource(
+        kind="case", id="c", organization_id="o", attributes={"signed_by_physician": False}
+    )
     decision = is_authorized(principal=p, action="case:sign-off", resource=r)
     assert decision.allowed is False
 
@@ -165,7 +173,9 @@ def test_rate_limiter_per_second_cap_holds() -> None:
     # Under tight in-process burst the bucket should let through at most
     # the per-second limit. (per-minute is 60, far above this 50-call burst
     # but that's fine for verification).
-    assert allowed <= limit_per_sec, f"per-second limit breached: allowed={allowed}, cap={limit_per_sec}"
+    assert (
+        allowed <= limit_per_sec
+    ), f"per-second limit breached: allowed={allowed}, cap={limit_per_sec}"
 
 
 # =============================================================================

@@ -9,6 +9,7 @@ build the full `IntakeResult` — those concerns live in dedicated stages.
 e.g. only Textract is good at extracting tables; only Claude vision can
 read handwriting reliably.
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

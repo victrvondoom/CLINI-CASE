@@ -17,6 +17,7 @@ The thresholds below are prototype heuristics chosen to be defensible and
 readable, not a validated environmental index. They are stated as constants
 with their rationale so a domain expert can tune them in one place.
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
@@ -203,17 +204,25 @@ def validate_observation(obs: Observation) -> AgentFinding:
     # impossible values; these are the "probably a typo" band.
     if m.ph is not None and not (PH_PLAUSIBLE[0] <= m.ph <= PH_PLAUSIBLE[1]):
         problems.append(f"pH {m.ph:g} is outside the plausible field range")
-        evidence.append(_measurement_evidence(
-            "ph", m.ph, "",
-            f"Outside {PH_PLAUSIBLE[0]:g}-{PH_PLAUSIBLE[1]:g}; verify the reading or the device.",
-        ))
+        evidence.append(
+            _measurement_evidence(
+                "ph",
+                m.ph,
+                "",
+                f"Outside {PH_PLAUSIBLE[0]:g}-{PH_PLAUSIBLE[1]:g}; verify the reading or the device.",
+            )
+        )
 
     if m.dissolved_oxygen_mgl is not None and m.dissolved_oxygen_mgl > 20:
         problems.append("dissolved oxygen is implausibly high")
-        evidence.append(_measurement_evidence(
-            "dissolved_oxygen_mgl", m.dissolved_oxygen_mgl, "mg/L",
-            "Above the normal saturation range; verify calibration.",
-        ))
+        evidence.append(
+            _measurement_evidence(
+                "dissolved_oxygen_mgl",
+                m.dissolved_oxygen_mgl,
+                "mg/L",
+                "Above the normal saturation range; verify calibration.",
+            )
+        )
 
     # Internal contradiction: abundant life reported alongside a fish kill.
     dead = _presence_of(obs, "dead_organisms")
@@ -278,76 +287,120 @@ def assess_water_quality(obs: Observation) -> AgentFinding:
         do = m.dissolved_oxygen_mgl
         if do < DO_CRITICAL_MGL:
             concerns += 2
-            evidence.append(_measurement_evidence(
-                "dissolved_oxygen_mgl", do, "mg/L",
-                f"Below {DO_CRITICAL_MGL:g} mg/L — acute hypoxia risk for aquatic life.",
-            ))
+            evidence.append(
+                _measurement_evidence(
+                    "dissolved_oxygen_mgl",
+                    do,
+                    "mg/L",
+                    f"Below {DO_CRITICAL_MGL:g} mg/L — acute hypoxia risk for aquatic life.",
+                )
+            )
         elif do < DO_LOW_MGL:
             concerns += 1
-            evidence.append(_measurement_evidence(
-                "dissolved_oxygen_mgl", do, "mg/L",
-                f"Below {DO_LOW_MGL:g} mg/L — many fish species are stressed.",
-            ))
+            evidence.append(
+                _measurement_evidence(
+                    "dissolved_oxygen_mgl",
+                    do,
+                    "mg/L",
+                    f"Below {DO_LOW_MGL:g} mg/L — many fish species are stressed.",
+                )
+            )
         else:
-            evidence.append(_measurement_evidence(
-                "dissolved_oxygen_mgl", do, "mg/L",
-                "Within the range that generally supports aquatic life.",
-            ))
+            evidence.append(
+                _measurement_evidence(
+                    "dissolved_oxygen_mgl",
+                    do,
+                    "mg/L",
+                    "Within the range that generally supports aquatic life.",
+                )
+            )
 
     if m.ph is not None:
         if not (PH_HEALTHY[0] <= m.ph <= PH_HEALTHY[1]):
             concerns += 1
-            evidence.append(_measurement_evidence(
-                "ph", m.ph, "",
-                f"Outside the typical {PH_HEALTHY[0]:g}-{PH_HEALTHY[1]:g} freshwater range.",
-            ))
+            evidence.append(
+                _measurement_evidence(
+                    "ph",
+                    m.ph,
+                    "",
+                    f"Outside the typical {PH_HEALTHY[0]:g}-{PH_HEALTHY[1]:g} freshwater range.",
+                )
+            )
         else:
-            evidence.append(_measurement_evidence(
-                "ph", m.ph, "", "Within the typical freshwater range.",
-            ))
+            evidence.append(
+                _measurement_evidence(
+                    "ph",
+                    m.ph,
+                    "",
+                    "Within the typical freshwater range.",
+                )
+            )
 
     if m.turbidity_ntu is not None:
         t = m.turbidity_ntu
         if t >= TURBIDITY_HIGH_NTU:
             concerns += 2
-            evidence.append(_measurement_evidence(
-                "turbidity_ntu", t, "NTU",
-                f"At or above {TURBIDITY_HIGH_NTU:g} NTU — strongly turbid.",
-            ))
+            evidence.append(
+                _measurement_evidence(
+                    "turbidity_ntu",
+                    t,
+                    "NTU",
+                    f"At or above {TURBIDITY_HIGH_NTU:g} NTU — strongly turbid.",
+                )
+            )
         elif t >= TURBIDITY_ELEVATED_NTU:
             concerns += 1
-            evidence.append(_measurement_evidence(
-                "turbidity_ntu", t, "NTU",
-                f"Above {TURBIDITY_ELEVATED_NTU:g} NTU — elevated, often runoff or disturbance.",
-            ))
+            evidence.append(
+                _measurement_evidence(
+                    "turbidity_ntu",
+                    t,
+                    "NTU",
+                    f"Above {TURBIDITY_ELEVATED_NTU:g} NTU — elevated, often runoff or disturbance.",
+                )
+            )
 
     if m.water_temperature_c is not None and m.water_temperature_c >= TEMP_HIGH_C:
         concerns += 1
-        evidence.append(_measurement_evidence(
-            "water_temperature_c", m.water_temperature_c, "C",
-            f"At or above {TEMP_HIGH_C:g} C — warm water holds less oxygen.",
-        ))
+        evidence.append(
+            _measurement_evidence(
+                "water_temperature_c",
+                m.water_temperature_c,
+                "C",
+                f"At or above {TEMP_HIGH_C:g} C — warm water holds less oxygen.",
+            )
+        )
 
     # Visual and olfactory signals — the citizen-science core.
     for field in (
-        "algae", "foam", "oily_film", "unusual_colour", "unusual_odour", "floating_waste",
+        "algae",
+        "foam",
+        "oily_film",
+        "unusual_colour",
+        "unusual_odour",
+        "floating_waste",
     ):
         p = _presence_of(obs, field)
         if p is not None and p == Presence.OBSERVED:
             concerns += 1
-            evidence.append(_evidence(
-                field, p, "Reported present — a visible water-quality signal.",
-            ))
+            evidence.append(
+                _evidence(
+                    field,
+                    p,
+                    "Reported present — a visible water-quality signal.",
+                )
+            )
 
     clarity = obs.appearance.clarity
     if clarity in ("cloudy", "opaque"):
         concerns += 1
-        evidence.append(Evidence(
-            field="clarity",
-            label="Water clarity",
-            value=clarity,
-            interpretation="Reduced clarity reported by the observer.",
-        ))
+        evidence.append(
+            Evidence(
+                field="clarity",
+                label="Water clarity",
+                value=clarity,
+                interpretation="Reduced clarity reported by the observer.",
+            )
+        )
 
     if not evidence:
         return AgentFinding(
@@ -377,12 +430,14 @@ def assess_water_quality(obs: Observation) -> AgentFinding:
         confidence=_confidence_from(concerns, quality, len(evidence)),
         data_quality=quality,
         uncertainty=(
-            None if m.present()
+            None
+            if m.present()
             else "Based on visual observation only — no instrument measurements supplied."
         ),
         recommended_next_step=(
             "Follow-up sampling with a probe kit would confirm these signals."
-            if concerns >= 2 and not m.present() else None
+            if concerns >= 2 and not m.present()
+            else None
         ),
     )
 
@@ -415,23 +470,34 @@ def assess_biodiversity(obs: Observation) -> AgentFinding:
                 evidence.append(_evidence(field, p, "Present — a sign of a living system."))
             else:
                 absences += 1
-                evidence.append(_evidence(
-                    field, p, "Looked for but not seen — a possible absence signal.",
-                ))
+                evidence.append(
+                    _evidence(
+                        field,
+                        p,
+                        "Looked for but not seen — a possible absence signal.",
+                    )
+                )
         elif field == "dead_organisms":
             if p == Presence.OBSERVED:
                 alarms += 2
-                evidence.append(_evidence(
-                    field, p, "Dead organisms reported — a strong adverse signal.",
-                ))
+                evidence.append(
+                    _evidence(
+                        field,
+                        p,
+                        "Dead organisms reported — a strong adverse signal.",
+                    )
+                )
             else:
                 evidence.append(_evidence(field, p, "No dead organisms seen."))
         elif field == "unusual_organisms" and p == Presence.OBSERVED:
             alarms += 1
-            evidence.append(_evidence(
-                field, p,
-                "Unusual organisms reported — may indicate a change in the community.",
-            ))
+            evidence.append(
+                _evidence(
+                    field,
+                    p,
+                    "Unusual organisms reported — may indicate a change in the community.",
+                )
+            )
 
     if not evidence:
         return AgentFinding(
@@ -472,8 +538,7 @@ def assess_biodiversity(obs: Observation) -> AgentFinding:
             "simply not being visible at the time."
         ),
         recommended_next_step=(
-            "Repeat the observation at a different time of day to confirm."
-            if barren else None
+            "Repeat the observation at a different time of day to confirm." if barren else None
         ),
     )
 
@@ -494,21 +559,32 @@ def assess_context(obs: Observation) -> AgentFinding:
             continue
         if field in ADVERSE_WHEN_OBSERVED:
             pressures += 1
-            evidence.append(_evidence(
-                field, p, "Reported present — a potential pressure on the waterbody.",
-            ))
+            evidence.append(
+                _evidence(
+                    field,
+                    p,
+                    "Reported present — a potential pressure on the waterbody.",
+                )
+            )
         else:
-            evidence.append(_evidence(
-                field, p,
-                "Reported present — relevant context for interpreting the other signals.",
-            ))
+            evidence.append(
+                _evidence(
+                    field,
+                    p,
+                    "Reported present — relevant context for interpreting the other signals.",
+                )
+            )
 
     # A natural explanation for turbidity is as important as a pollution one:
     # naming it stops the reviewer chasing a discharge that was just rain.
     rainfall = _presence_of(obs, "recent_rainfall")
     turbidity = obs.measurements.turbidity_ntu
     natural_cause = None
-    if rainfall == Presence.OBSERVED and turbidity is not None and turbidity >= TURBIDITY_ELEVATED_NTU:
+    if (
+        rainfall == Presence.OBSERVED
+        and turbidity is not None
+        and turbidity >= TURBIDITY_ELEVATED_NTU
+    ):
         natural_cause = (
             "Recent rainfall may explain the elevated turbidity; this is a "
             "plausible natural cause rather than a pollution event."
@@ -539,12 +615,12 @@ def assess_context(obs: Observation) -> AgentFinding:
         confidence=_confidence_from(pressures, quality, len(evidence)),
         data_quality=quality,
         uncertainty=(
-            natural_cause
-            or "Context is observer-reported and not independently verified."
+            natural_cause or "Context is observer-reported and not independently verified."
         ),
         recommended_next_step=(
             "Check local works notices or discharge consents for this reach."
-            if pressures >= 2 else None
+            if pressures >= 2
+            else None
         ),
     )
 
@@ -562,10 +638,9 @@ def assess_trend(obs: Observation, history: list[Observation]) -> AgentFinding:
     """
     cutoff = datetime.now(UTC) - timedelta(days=TREND_WINDOW_DAYS)
     prior = [
-        h for h in history
-        if h.waterbody_id == obs.waterbody_id
-        and h.id != obs.id
-        and h.observed_at >= cutoff
+        h
+        for h in history
+        if h.waterbody_id == obs.waterbody_id and h.id != obs.id and h.observed_at >= cutoff
     ]
     prior.sort(key=lambda h: h.observed_at)
 
@@ -588,15 +663,17 @@ def assess_trend(obs: Observation, history: list[Observation]) -> AgentFinding:
     adverse_prior = [_adverse_signal_count(h) for h in prior]
     mean_prior = sum(adverse_prior) / len(adverse_prior)
 
-    evidence = [Evidence(
-        field="history",
-        label="Prior observations at this waterbody",
-        value=f"{len(prior)} in the last {TREND_WINDOW_DAYS} days",
-        interpretation=(
-            f"Mean adverse signals previously {mean_prior:.1f}; "
-            f"this observation has {adverse_now}."
-        ),
-    )]
+    evidence = [
+        Evidence(
+            field="history",
+            label="Prior observations at this waterbody",
+            value=f"{len(prior)} in the last {TREND_WINDOW_DAYS} days",
+            interpretation=(
+                f"Mean adverse signals previously {mean_prior:.1f}; "
+                f"this observation has {adverse_now}."
+            ),
+        )
+    ]
 
     if adverse_now > mean_prior + 1:
         finding = "Adverse signals at this waterbody are higher than its recent baseline."
@@ -641,12 +718,17 @@ def assess_one_health(obs: Observation) -> AgentFinding:
         pathways.append(
             "dead organisms can indicate an acute water-quality event affecting animals"
         )
-        evidence.append(_evidence(
-            "dead_organisms", dead, "Animal-health signal observed directly.",
-        ))
+        evidence.append(
+            _evidence(
+                "dead_organisms",
+                dead,
+                "Animal-health signal observed directly.",
+            )
+        )
 
     discharge_like = [
-        f for f in ("suspected_discharge", "foam", "unusual_odour")
+        f
+        for f in ("suspected_discharge", "foam", "unusual_odour")
         if _presence_of(obs, f) == Presence.OBSERVED
     ]
     if discharge_like:
@@ -665,9 +747,13 @@ def assess_one_health(obs: Observation) -> AgentFinding:
             "algal blooms can produce toxins relevant to pets, livestock and "
             "people in contact with the water"
         )
-        evidence.append(_evidence(
-            "algae", algae, "Bloom signal with known animal/human relevance.",
-        ))
+        evidence.append(
+            _evidence(
+                "algae",
+                algae,
+                "Bloom signal with known animal/human relevance.",
+            )
+        )
 
     waste = _presence_of(obs, "waste_accumulation")
     if waste == Presence.OBSERVED:
@@ -684,17 +770,13 @@ def assess_one_health(obs: Observation) -> AgentFinding:
             evidence=[],
             confidence=Confidence.LOW,
             data_quality=data_quality(obs),
-            uncertainty=(
-                "Absence of a reported signal is not evidence that no pathway exists."
-            ),
+            uncertainty=("Absence of a reported signal is not evidence that no pathway exists."),
         )
 
     return AgentFinding(
         agent="one_health",
         finding=(
-            "Potential relevance to animal and community health: "
-            + "; ".join(pathways)
-            + "."
+            "Potential relevance to animal and community health: " + "; ".join(pathways) + "."
         ),
         evidence=evidence,
         confidence=Confidence.LOW if len(pathways) == 1 else Confidence.MEDIUM,
@@ -766,8 +848,7 @@ def derive_status(obs: Observation) -> tuple[EcosystemStatus, str, Confidence]:
     else:
         status = EcosystemStatus.HEALTHY_SIGNAL
         positives = sum(
-            1 for f in POSITIVE_WHEN_OBSERVED
-            if _presence_of(obs, f) == Presence.OBSERVED
+            1 for f in POSITIVE_WHEN_OBSERVED if _presence_of(obs, f) == Presence.OBSERVED
         )
         reasons.append(
             f"no adverse signals were reported and {positives} biodiversity "
@@ -813,7 +894,8 @@ def derive_early_warning(
 
     cutoff = datetime.now(UTC) - timedelta(days=30)
     recent_adverse = [
-        h for h in history
+        h
+        for h in history
         if h.waterbody_id == obs.waterbody_id
         and h.id != obs.id
         and h.observed_at >= cutoff

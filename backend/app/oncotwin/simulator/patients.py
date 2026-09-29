@@ -17,6 +17,7 @@ Determinism: every day draws from its own RNG keyed on (seed, day) and always
 consumes the same number of variates, so changing a FUTURE event (e.g. the
 "introduce deterioration" demo control) never alters PAST observations.
 """
+
 from __future__ import annotations
 
 import math
@@ -87,10 +88,10 @@ class SimScript:
     circ0: float = 4.5
     infection_growth: float = 0.60
     gi_sensitivity: float = 1.0
-    baselines: dict[str, float] | None = None       # linear-unit overrides
+    baselines: dict[str, float] | None = None  # linear-unit overrides
     infection_seeds: list[InfectionSeed] = field(default_factory=list)
     adherence_plan: list[tuple[int, float]] = field(default_factory=lambda: [(1, 0.95)])
-    gi_insults: list[tuple[int, float, int]] = field(default_factory=list)   # (day, size, n_days)
+    gi_insults: list[tuple[int, float, int]] = field(default_factory=list)  # (day, size, n_days)
     interventions: list[tuple[int, str]] = field(default_factory=list)
     extra_lab_days: list[int] = field(default_factory=list)
     quality_issues: list[QualityIssue] = field(default_factory=list)
@@ -171,7 +172,9 @@ def simulate(script: SimScript) -> SimulationResult:
     base_rng = np.random.default_rng([script.seed, 0])
     base_lin = _baselines(script, base_rng)
     base_t = {k: _to_transformed(k, v) for k, v in base_lin.items()}
-    hgb0 = float(base_rng.uniform(12.2, 14.2) if script.sex == "female" else base_rng.uniform(13.2, 15.4))
+    hgb0 = float(
+        base_rng.uniform(12.2, 14.2) if script.sex == "female" else base_rng.uniform(13.2, 15.4)
+    )
     plt0 = float(base_rng.uniform(210, 320))
     cr0 = float(base_rng.uniform(0.7, 1.05))
 
@@ -185,19 +188,31 @@ def simulate(script: SimScript) -> SimulationResult:
     events: list[ClinicalEvent] = []
     ev_counter = [0]
 
-    def add_event(day: int, kind: str, display: str, fhir_type: str, *, code=None, hour=9, **detail) -> None:
+    def add_event(
+        day: int, kind: str, display: str, fhir_type: str, *, code=None, hour=9, **detail
+    ) -> None:
         ev_counter[0] += 1
-        events.append(ClinicalEvent(
-            id=f"{pid}-ev{ev_counter[0]:03d}", day=day, kind=kind, display=display,  # type: ignore[arg-type]
-            effective=day_to_iso(day, hour), fhir_type=fhir_type, code=code, detail=dict(detail),
-        ))
+        events.append(
+            ClinicalEvent(
+                id=f"{pid}-ev{ev_counter[0]:03d}",
+                day=day,
+                kind=kind,
+                display=display,  # type: ignore[arg-type]
+                effective=day_to_iso(day, hour),
+                fhir_type=fhir_type,
+                code=code,
+                detail=dict(detail),
+            )
+        )
 
     _pre_treatment_history(script, reg, add_event)
 
     # ---- schedule state ------------------------------------------------------
-    planned = [script.treatment_start + k * reg.cycle_days
-               for k in range(0, 1 + (n - script.treatment_start) // reg.cycle_days)
-               if script.treatment_start + k * reg.cycle_days <= n]
+    planned = [
+        script.treatment_start + k * reg.cycle_days
+        for k in range(0, 1 + (n - script.treatment_start) // reg.cycle_days)
+        if script.treatment_start + k * reg.cycle_days <= n
+    ]
     next_dose_queue = list(planned)
     dose_days: dict[int, float] = {}
     gcsf_days: list[int] = []
@@ -232,9 +247,9 @@ def simulate(script: SimScript) -> SimulationResult:
 
     for day in range(1, n + 1):
         rng = np.random.default_rng([script.seed, day])
-        u_miss = rng.uniform(size=5)            # watch, temp, home, pro, cgm
+        u_miss = rng.uniform(size=5)  # watch, temp, home, pro, cgm
         z = rng.normal(size=len(DAILY_SIGNALS))
-        u_seed = rng.uniform(size=4)            # stochastic infection
+        u_seed = rng.uniform(size=4)  # stochastic infection
         u_doses = rng.uniform(size=2)
         z_lab = rng.normal(size=5)
 
@@ -253,16 +268,30 @@ def simulate(script: SimScript) -> SimulationResult:
                 last_dose_day = day
                 lab_days.add(day)
                 for drug in reg.drugs:
-                    add_event(day, "chemo_dose", f"{drug.name} administered (cycle {len(dose_days)}, {int(dose_scale * 100)}% dose)",
-                              "MedicationAdministration", code=_code(RXNORM, drug.rxnorm, drug.name),
-                              hour=10, cycle=len(dose_days), dose_scale=dose_scale, route=drug.route,
-                              status="completed")
+                    add_event(
+                        day,
+                        "chemo_dose",
+                        f"{drug.name} administered (cycle {len(dose_days)}, {int(dose_scale * 100)}% dose)",
+                        "MedicationAdministration",
+                        code=_code(RXNORM, drug.rxnorm, drug.name),
+                        hour=10,
+                        cycle=len(dose_days),
+                        dose_scale=dose_scale,
+                        route=drug.route,
+                        status="completed",
+                    )
                 if secondary_gcsf:
                     gcsf_days.append(day + 1)
-                    add_event(day + 1, "gcsf_dose", "pegfilgrastim 6 mg SC (G-CSF prophylaxis)",
-                              "MedicationAdministration",
-                              code=_code(RXNORM, SUPPORTIVE["pegfilgrastim"].rxnorm, "pegfilgrastim"),
-                              hour=10, indication="prophylaxis", status="completed")
+                    add_event(
+                        day + 1,
+                        "gcsf_dose",
+                        "pegfilgrastim 6 mg SC (G-CSF prophylaxis)",
+                        "MedicationAdministration",
+                        code=_code(RXNORM, SUPPORTIVE["pegfilgrastim"].rxnorm, "pegfilgrastim"),
+                        hour=10,
+                        indication="prophylaxis",
+                        status="completed",
+                    )
 
         dsd = (day - last_dose_day) if last_dose_day is not None else None
 
@@ -273,69 +302,139 @@ def simulate(script: SimScript) -> SimulationResult:
             if kind == "urgent_eval_abx":
                 abx_until = day + 6
                 lab_days.add(day)
-                add_event(day, "encounter", "Urgent oncology clinic evaluation (twin early warning)",
-                          "Encounter", code=_code("http://terminology.hl7.org/CodeSystem/v3-ActCode", "AMB", "ambulatory"),
-                          hour=11, encounter_class="AMB", qualifying=False, reason="Early-warning review")
+                add_event(
+                    day,
+                    "encounter",
+                    "Urgent oncology clinic evaluation (twin early warning)",
+                    "Encounter",
+                    code=_code(
+                        "http://terminology.hl7.org/CodeSystem/v3-ActCode", "AMB", "ambulatory"
+                    ),
+                    hour=11,
+                    encounter_class="AMB",
+                    qualifying=False,
+                    reason="Early-warning review",
+                )
                 for key in ("amoxicillin_clavulanate", "ciprofloxacin"):
                     drug = SUPPORTIVE[key]
-                    add_event(day, "antibiotic", f"{drug.name} PO × 7 days (empiric outpatient therapy)",
-                              "MedicationRequest", code=_code(RXNORM, drug.rxnorm, drug.name), hour=12,
-                              status="active", duration_days=7)
+                    add_event(
+                        day,
+                        "antibiotic",
+                        f"{drug.name} PO × 7 days (empiric outpatient therapy)",
+                        "MedicationRequest",
+                        code=_code(RXNORM, drug.rxnorm, drug.name),
+                        hour=12,
+                        status="active",
+                        duration_days=7,
+                    )
             elif kind == "gcsf":
                 gcsf_days.append(day)
-                add_event(day, "gcsf_dose", "pegfilgrastim 6 mg SC", "MedicationAdministration",
-                          code=_code(RXNORM, SUPPORTIVE["pegfilgrastim"].rxnorm, "pegfilgrastim"),
-                          hour=12, indication="treatment", status="completed")
+                add_event(
+                    day,
+                    "gcsf_dose",
+                    "pegfilgrastim 6 mg SC",
+                    "MedicationAdministration",
+                    code=_code(RXNORM, SUPPORTIVE["pegfilgrastim"].rxnorm, "pegfilgrastim"),
+                    hour=12,
+                    indication="treatment",
+                    status="completed",
+                )
             elif kind == "gcsf_secondary":
                 secondary_gcsf = True
-                add_event(day, "careplan", "CarePlan revised: add pegfilgrastim secondary prophylaxis from next cycle",
-                          "CarePlan", hour=13, change="add_gcsf_secondary_prophylaxis")
+                add_event(
+                    day,
+                    "careplan",
+                    "CarePlan revised: add pegfilgrastim secondary prophylaxis from next cycle",
+                    "CarePlan",
+                    hour=13,
+                    change="add_gcsf_secondary_prophylaxis",
+                )
             elif kind == "hydration":
                 hydration_boost = 1.0
                 lab_days.add(day)
-                add_event(day, "hydration", "IV fluids 1 L 0.9% NaCl at infusion center", "MedicationAdministration",
-                          code=_code(RXNORM, SUPPORTIVE["iv_fluids"].rxnorm, "sodium chloride 0.9%"),
-                          hour=11, status="completed")
+                add_event(
+                    day,
+                    "hydration",
+                    "IV fluids 1 L 0.9% NaCl at infusion center",
+                    "MedicationAdministration",
+                    code=_code(RXNORM, SUPPORTIVE["iv_fluids"].rxnorm, "sodium chloride 0.9%"),
+                    hour=11,
+                    status="completed",
+                )
             elif kind == "adherence_support":
                 adherence_override = 0.95
-                add_event(day, "clinician_note", "Nurse navigator call: supportive-medication adherence plan",
-                          "Communication", hour=15)
+                add_event(
+                    day,
+                    "clinician_note",
+                    "Nurse navigator call: supportive-medication adherence plan",
+                    "Communication",
+                    hour=15,
+                )
             elif kind == "dose_reduction":
                 dose_scale = 0.8
-                add_event(day, "careplan", "CarePlan revised: 20% dose reduction from next cycle",
-                          "CarePlan", hour=13, change="dose_reduction_20pct")
+                add_event(
+                    day,
+                    "careplan",
+                    "CarePlan revised: 20% dose reduction from next cycle",
+                    "CarePlan",
+                    hour=13,
+                    change="dose_reduction_20pct",
+                )
             elif kind == "activity":
                 activity_until = day + 14
-                add_event(day, "careplan", "Exercise-oncology referral: supervised activity program",
-                          "CarePlan", hour=13, change="activity_program")
+                add_event(
+                    day,
+                    "careplan",
+                    "Exercise-oncology referral: supervised activity program",
+                    "CarePlan",
+                    hour=13,
+                    change="activity_program",
+                )
         if day <= abx_until:
             abx_boost = 0.8
         if admitted:
             abx_boost = max(abx_boost, 1.2)
             hydration_boost = max(hydration_boost, 0.9)
-            virulence = 0.0          # inpatient therapy controls the pathogen
+            virulence = 0.0  # inpatient therapy controls the pathogen
             admitted_days.append(day)
         activity_boost = 0.8 if day <= activity_until else 0.0
 
         # ---- supportive-medication adherence (observed) --------------------
         sched_last = (reg.oral_days + 2) if reg.oral_days else 4
         scheduled = dsd is not None and 0 <= dsd <= sched_last and not admitted
-        level = adherence_override if adherence_override is not None else _adherence_level(script.adherence_plan, day)
+        level = (
+            adherence_override
+            if adherence_override is not None
+            else _adherence_level(script.adherence_plan, day)
+        )
         if scheduled:
             taken = [bool(u_doses[i] < level) for i in range(2)]
             adherence_today = sum(taken) / 2.0
-            drug = SUPPORTIVE["loperamide"] if (reg.oral_days and dsd is not None and dsd > 4) else SUPPORTIVE["ondansetron"]
+            drug = (
+                SUPPORTIVE["loperamide"]
+                if (reg.oral_days and dsd is not None and dsd > 4)
+                else SUPPORTIVE["ondansetron"]
+            )
             for i, ok in enumerate(taken):
-                add_event(day, "supportive_dose", f"{drug.name} dose {'taken' if ok else 'missed'}",
-                          "MedicationAdministration", code=_code(RXNORM, drug.rxnorm, drug.name),
-                          hour=8 + 12 * i, status="completed" if ok else "not-done", scheduled=True)
+                add_event(
+                    day,
+                    "supportive_dose",
+                    f"{drug.name} dose {'taken' if ok else 'missed'}",
+                    "MedicationAdministration",
+                    code=_code(RXNORM, drug.rxnorm, drug.name),
+                    hour=8 + 12 * i,
+                    status="completed" if ok else "not-done",
+                    scheduled=True,
+                )
         else:
             adherence_today = 1.0
 
         # ---- neutrophils (morning) ----------------------------------------
         anc_morning = float(fstate.circ[0])
         gcsf_active = any(g < day <= g + P.GCSF_ACTIVE_DAYS for g in gcsf_days)
-        fstate = P.friberg_advance_day(fstate, circ0, np.array([slope]), dose_scale=dose_today, gcsf_active=gcsf_active)
+        fstate = P.friberg_advance_day(
+            fstate, circ0, np.array([slope]), dose_scale=dose_today, gcsf_active=gcsf_active
+        )
 
         # ---- infection seeding ---------------------------------------------
         seed_size = 0.0
@@ -345,7 +444,10 @@ def simulate(script: SimScript) -> SimulationResult:
             virulence = max(virulence, s.virulence)
             pneumonia = pneumonia or s.pneumonia
         elif script.stochastic_infections and not admitted and inf[0] < 0.05:
-            hazard = script.stochastic_seed_rate * float(P.neutropenia_factor(anc_morning)) + P.BACKGROUND_INFECTION_HAZARD
+            hazard = (
+                script.stochastic_seed_rate * float(P.neutropenia_factor(anc_morning))
+                + P.BACKGROUND_INFECTION_HAZARD
+            )
             if u_seed[0] < hazard:
                 seed_size = 0.06 + 0.26 * u_seed[1]
                 virulence = P.seed_virulence(float(u_seed[2]))
@@ -355,14 +457,28 @@ def simulate(script: SimScript) -> SimulationResult:
             pneumonia = False
 
         drv = P.DayDrivers(
-            days_since_dose=dsd, emeto=reg.emeto, diarrhea=reg.diarrhea, fatigue=reg.fatigue,
-            oral_days=reg.oral_days, adherence=adherence_today, infection_seed=seed_size,
-            virulence=virulence, abx_boost=abx_boost, hydration_boost=hydration_boost,
-            activity_boost=activity_boost, gi_insult=gi_insult_days.get(day, 0.0),
+            days_since_dose=dsd,
+            emeto=reg.emeto,
+            diarrhea=reg.diarrhea,
+            fatigue=reg.fatigue,
+            oral_days=reg.oral_days,
+            adherence=adherence_today,
+            infection_seed=seed_size,
+            virulence=virulence,
+            abx_boost=abx_boost,
+            hydration_boost=hydration_boost,
+            activity_boost=activity_boost,
+            gi_insult=gi_insult_days.get(day, 0.0),
         )
-        inf, deh, fat, emesis = P.latent_step(inf, deh, fat, np.array([anc_morning]), drv,
-                                              infection_growth=script.infection_growth,
-                                              gi_sensitivity=script.gi_sensitivity)
+        inf, deh, fat, emesis = P.latent_step(
+            inf,
+            deh,
+            fat,
+            np.array([anc_morning]),
+            drv,
+            infection_growth=script.infection_growth,
+            gi_sensitivity=script.gi_sensitivity,
+        )
         truth_I.append(float(inf[0]))
         truth_D.append(float(deh[0]))
         truth_F.append(float(fat[0]))
@@ -372,7 +488,11 @@ def simulate(script: SimScript) -> SimulationResult:
         if not admitted:
             cond = None
             if inf[0] >= P.EVENT_THRESHOLDS["infection"]:
-                cond = "febrile_neutropenia" if anc_morning < 1.0 else ("pneumonia" if pneumonia else "sepsis")
+                cond = (
+                    "febrile_neutropenia"
+                    if anc_morning < 1.0
+                    else ("pneumonia" if pneumonia else "sepsis")
+                )
             elif deh[0] >= P.EVENT_THRESHOLDS["dehydration"]:
                 cond = "dehydration"
             if cond is not None:
@@ -381,10 +501,20 @@ def simulate(script: SimScript) -> SimulationResult:
                 discharge = day + los
                 event_onsets.append({"day": day, "condition": cond, "discharge_day": discharge})
                 qc = QUALIFYING_CONDITIONS[cond]
-                add_event(day, "encounter", f"Emergency department visit → inpatient admission: {qc['display']}",
-                          "Encounter", code=_code(ICD10, qc["icd10"], qc["display"]), hour=21,
-                          encounter_class="IMP", admit_source="emergency", qualifying=True,
-                          condition=cond, discharge_day=discharge, length_of_stay_days=los)
+                add_event(
+                    day,
+                    "encounter",
+                    f"Emergency department visit → inpatient admission: {qc['display']}",
+                    "Encounter",
+                    code=_code(ICD10, qc["icd10"], qc["display"]),
+                    hour=21,
+                    encounter_class="IMP",
+                    admit_source="emergency",
+                    qualifying=True,
+                    condition=cond,
+                    discharge_day=discharge,
+                    length_of_stay_days=los,
+                )
                 lab_days.add(day)
                 lab_days.add(min(n, discharge))
                 if cond in ("febrile_neutropenia", "sepsis", "pneumonia"):
@@ -445,26 +575,50 @@ def simulate(script: SimScript) -> SimulationResult:
                     stuck_values.setdefault(key, round(value, 1))
                     value = stuck_values[key]
                 elif qi.kind == "implausible" and key == qi.signal:
-                    value = {"resting_hr": 250.0, "temperature": 44.9, "spo2": 58.0}.get(key, value * 10)
+                    value = {"resting_hr": 250.0, "temperature": 44.9, "spo2": 58.0}.get(
+                        key, value * 10
+                    )
             if missing:
                 continue
-            hour = {"steps": 23, "sleep_hours": 7, "resting_hr": 7, "hrv_sdnn": 7, "spo2": 7,
-                    "temperature": 18, "weight": 7, "sbp": 8, "dbp": 8, "glucose_cgm": 23,
-                    "symptom_score": 20}.get(key, 8)
-            observations.append(Observation(
-                id=f"{pid}-{key}-d{day}", signal=key, day=day, value=_round(key, value),
-                effective=day_to_iso(day, hour, 55 if hour == 23 else 0), source=source,
-                device_id=f"{pid}-{spec.device.replace(' ', '-')}",
-            ))
+            hour = {
+                "steps": 23,
+                "sleep_hours": 7,
+                "resting_hr": 7,
+                "hrv_sdnn": 7,
+                "spo2": 7,
+                "temperature": 18,
+                "weight": 7,
+                "sbp": 8,
+                "dbp": 8,
+                "glucose_cgm": 23,
+                "symptom_score": 20,
+            }.get(key, 8)
+            observations.append(
+                Observation(
+                    id=f"{pid}-{key}-d{day}",
+                    signal=key,
+                    day=day,
+                    value=_round(key, value),
+                    effective=day_to_iso(day, hour, 55 if hour == 23 else 0),
+                    source=source,
+                    device_id=f"{pid}-{spec.device.replace(' ', '-')}",
+                )
+            )
         for qi in script.quality_issues:
             if qi.kind == "conflict" and qi.day == day:
                 w = next((o for o in observations if o.signal == "weight" and o.day == day), None)
                 ref = w.value if w else base_lin["weight"]
-                observations.append(Observation(
-                    id=f"{pid}-weight-d{day}-clinic", signal="weight", day=day,
-                    value=round(ref + 4.6, 1), effective=day_to_iso(day, 14), source="ehr/clinic-vitals",
-                    device_id="clinic-scale",
-                ))
+                observations.append(
+                    Observation(
+                        id=f"{pid}-weight-d{day}-clinic",
+                        signal="weight",
+                        day=day,
+                        value=round(ref + 4.6, 1),
+                        effective=day_to_iso(day, 14),
+                        source="ehr/clinic-vitals",
+                        device_id="clinic-scale",
+                    )
+                )
 
         # ---- laboratory results ----------------------------------------------
         if day in lab_days:
@@ -475,58 +629,151 @@ def simulate(script: SimScript) -> SimulationResult:
                 "wbc": anc_meas / 0.62 + 1.3 + 0.2 * float(z_lab[1]),
                 # hemoconcentration: dehydration raises measured hemoglobin slightly
                 "hemoglobin": hgb0 - 0.45 * cycles + 0.3 * float(deh[0]) + 0.2 * float(z_lab[2]),
-                "platelets": plt0 * (0.55 + 0.45 * min(1.0, anc_morning / script.circ0)) * math.exp(0.06 * float(z_lab[3])),
+                "platelets": plt0
+                * (0.55 + 0.45 * min(1.0, anc_morning / script.circ0))
+                * math.exp(0.06 * float(z_lab[3])),
                 "creatinine": cr0 * (1.0 + 0.3 * float(deh[0])) * math.exp(0.04 * float(z_lab[4])),
             }
             for key, v in labs.items():
-                observations.append(Observation(
-                    id=f"{pid}-{key}-d{day}", signal=key, day=day, value=_round(key, max(v, 0.01)),
-                    effective=day_to_iso(day, 7, 30), source="ehr/lab", device_id="lab-analyzer",
-                ))
+                observations.append(
+                    Observation(
+                        id=f"{pid}-{key}-d{day}",
+                        signal=key,
+                        day=day,
+                        value=_round(key, max(v, 0.01)),
+                        effective=day_to_iso(day, 7, 30),
+                        source="ehr/lab",
+                        device_id="lab-analyzer",
+                    )
+                )
 
     profile = PatientProfile(
-        patient_id=pid, label=script.label, age=script.age, sex=script.sex, cancer=script.cancer,
-        icd10=script.icd10, stage=script.stage, biomarkers=script.biomarkers,
-        regimen_code=script.regimen, payer_id=script.payer_id, comorbidities=script.comorbidities,
-        ecog=script.ecog, archetype=script.archetype, narrative=script.narrative, diabetic=script.diabetic,
+        patient_id=pid,
+        label=script.label,
+        age=script.age,
+        sex=script.sex,
+        cancer=script.cancer,
+        icd10=script.icd10,
+        stage=script.stage,
+        biomarkers=script.biomarkers,
+        regimen_code=script.regimen,
+        payer_id=script.payer_id,
+        comorbidities=script.comorbidities,
+        ecog=script.ecog,
+        archetype=script.archetype,
+        narrative=script.narrative,
+        diabetic=script.diabetic,
     )
     events.sort(key=lambda e: (e.day, e.effective, e.id))
     observations.sort(key=lambda o: (o.day, o.effective, o.id))
-    record = PatientRecord(profile=profile, observations=observations, events=events,
-                           n_days=n, planned_dose_days=planned)
-    truth = SimulationTruth(infection=truth_I, dehydration=truth_D, fatigue=truth_F,
-                            anc_true=truth_anc, event_onsets=event_onsets, admitted_days=admitted_days)
+    record = PatientRecord(
+        profile=profile,
+        observations=observations,
+        events=events,
+        n_days=n,
+        planned_dose_days=planned,
+    )
+    truth = SimulationTruth(
+        infection=truth_I,
+        dehydration=truth_D,
+        fatigue=truth_F,
+        anc_true=truth_anc,
+        event_onsets=event_onsets,
+        admitted_days=admitted_days,
+    )
     return SimulationResult(record=record, truth=truth, script=script)
 
 
 def _pre_treatment_history(script: SimScript, reg, add_event) -> None:
     """Diagnosis, pathology, genomics, staging, plan — the static EHR world."""
     t0 = script.treatment_start
-    add_event(-34, "diagnosis", f"{script.cancer}, stage {script.stage}", "Condition",
-              code=_code(ICD10, script.icd10, script.cancer), stage=script.stage, clinical_status="active")
+    add_event(
+        -34,
+        "diagnosis",
+        f"{script.cancer}, stage {script.stage}",
+        "Condition",
+        code=_code(ICD10, script.icd10, script.cancer),
+        stage=script.stage,
+        clinical_status="active",
+    )
     bm = "; ".join(f"{k} {v}" for k, v in script.biomarkers.items())
-    add_event(-32, "pathology", f"Surgical pathology: {script.cancer}. Biomarkers: {bm}", "DiagnosticReport",
-              code=_code(LOINC, "60567-5", "Comprehensive pathology report panel"), biomarkers=script.biomarkers)
-    add_event(-26, "imaging", f"Staging CT chest/abdomen/pelvis: consistent with stage {script.stage}", "DiagnosticReport",
-              code=_code(LOINC, "24627-2", "Chest CT"))
+    add_event(
+        -32,
+        "pathology",
+        f"Surgical pathology: {script.cancer}. Biomarkers: {bm}",
+        "DiagnosticReport",
+        code=_code(LOINC, "60567-5", "Comprehensive pathology report panel"),
+        biomarkers=script.biomarkers,
+    )
+    add_event(
+        -26,
+        "imaging",
+        f"Staging CT chest/abdomen/pelvis: consistent with stage {script.stage}",
+        "DiagnosticReport",
+        code=_code(LOINC, "24627-2", "Chest CT"),
+    )
     genomic = {k: v for k, v in script.biomarkers.items() if k not in ("ER", "PR", "Ki-67")}
     if genomic:
-        add_event(-20, "genomics", "Molecular profiling report: " + "; ".join(f"{k} {v}" for k, v in genomic.items()),
-                  "DiagnosticReport", code=_code(LOINC, "81247-9", "Master HL7 genetic variant reporting panel"),
-                  biomarkers=genomic)
+        add_event(
+            -20,
+            "genomics",
+            "Molecular profiling report: " + "; ".join(f"{k} {v}" for k, v in genomic.items()),
+            "DiagnosticReport",
+            code=_code(LOINC, "81247-9", "Master HL7 genetic variant reporting panel"),
+            biomarkers=genomic,
+        )
     for c in script.comorbidities:
-        add_event(-400, "diagnosis", c["display"], "Condition", code=_code(ICD10, c["icd10"], c["display"]),
-                  clinical_status="active", comorbidity=True)
+        add_event(
+            -400,
+            "diagnosis",
+            c["display"],
+            "Condition",
+            code=_code(ICD10, c["icd10"], c["display"]),
+            clinical_status="active",
+            comorbidity=True,
+        )
     if any(d.name == "trastuzumab" for d in reg.drugs):
-        add_event(t0 - 3, "imaging", "Transthoracic echocardiogram: LVEF 62%", "Observation",
-                  code=_code(LOINC, "10230-1", "Left ventricular Ejection fraction"), value=62, unit="%")
-    add_event(t0 - 7, "careplan", f"Treatment plan: {reg.name}", "CarePlan", regimen=reg.code,
-              cycle_days=reg.cycle_days, myelo_tier=reg.myelo_tier)
+        add_event(
+            t0 - 3,
+            "imaging",
+            "Transthoracic echocardiogram: LVEF 62%",
+            "Observation",
+            code=_code(LOINC, "10230-1", "Left ventricular Ejection fraction"),
+            value=62,
+            unit="%",
+        )
+    add_event(
+        t0 - 7,
+        "careplan",
+        f"Treatment plan: {reg.name}",
+        "CarePlan",
+        regimen=reg.code,
+        cycle_days=reg.cycle_days,
+        myelo_tier=reg.myelo_tier,
+    )
     for drug in reg.drugs:
-        add_event(t0 - 7, "medication_request", f"{drug.name} ordered ({reg.code})", "MedicationRequest",
-                  code=_code(RXNORM, drug.rxnorm, drug.name), status="active", route=drug.route)
+        add_event(
+            t0 - 7,
+            "medication_request",
+            f"{drug.name} ordered ({reg.code})",
+            "MedicationRequest",
+            code=_code(RXNORM, drug.rxnorm, drug.name),
+            status="active",
+            route=drug.route,
+        )
     if any(d.route == "IV" for d in reg.drugs):
-        add_event(t0 - 5, "procedure", "Implanted venous access port placement", "Procedure",
-                  code=_code(SNOMED, "233527006", "Insertion of central venous access port"))
-    add_event(t0 - 2, "performance_status", f"ECOG performance status {script.ecog}", "Observation",
-              code=_code(LOINC, "89247-1", "ECOG Performance Status score"), value=script.ecog)
+        add_event(
+            t0 - 5,
+            "procedure",
+            "Implanted venous access port placement",
+            "Procedure",
+            code=_code(SNOMED, "233527006", "Insertion of central venous access port"),
+        )
+    add_event(
+        t0 - 2,
+        "performance_status",
+        f"ECOG performance status {script.ecog}",
+        "Observation",
+        code=_code(LOINC, "89247-1", "ECOG Performance Status score"),
+        value=script.ecog,
+    )

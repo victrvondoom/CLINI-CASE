@@ -4,6 +4,7 @@ Every provider implementation (Anthropic direct, AWS Bedrock) must
 implement `LLMClient` and return `LLMResponse`. Agent code depends only
 on this interface.
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

@@ -23,6 +23,7 @@ The output is normalized to `QRetrievedSnippet` regardless of which API
 path produced it — same shape Bedrock KB returns, so the policy_retriever
 agent's downstream logic doesn't change.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -88,6 +89,7 @@ class AmazonQClient:
     def _ensure_client(self) -> Any:
         if self._client is None:
             import boto3
+
             self._client = boto3.client("qbusiness", region_name=self.region_name)
         return self._client
 
@@ -182,6 +184,7 @@ class AmazonQClient:
         self, *, query: str, payer_id: str | None, top_k: int
     ) -> list[QRetrievedSnippet]:
         import asyncio
+
         loop = asyncio.get_running_loop()
         client = self._ensure_client()
 
@@ -207,9 +210,7 @@ class AmazonQClient:
             request["attributeFilter"] = attribute_filter
 
         try:
-            resp = await loop.run_in_executor(
-                None, lambda: client.retrieve(**request)
-            )
+            resp = await loop.run_in_executor(None, lambda: client.retrieve(**request))
         except Exception as e:  # noqa: BLE001
             log.warning("amazon_q.retrieve_failed", error=str(e))
             return []
@@ -228,11 +229,13 @@ class AmazonQClient:
                 v = val.get("stringValue") or val.get("longValue") or val.get("dateValue")
                 if key and v is not None:
                     md[key] = v
-            out.append(QRetrievedSnippet(
-                text=text or "",
-                source_uri=uri,
-                title=title,
-                score=score,
-                metadata=md,
-            ))
+            out.append(
+                QRetrievedSnippet(
+                    text=text or "",
+                    source_uri=uri,
+                    title=title,
+                    score=score,
+                    metadata=md,
+                )
+            )
         return out

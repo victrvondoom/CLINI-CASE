@@ -18,6 +18,7 @@ Downstream, a clinician-accepted alert is handed to the EXISTING ClinCase
 7-agent graph (app/graph/build.py) as a new prior-auth case — see
 app/oncotwin/handoff.py. The ClinCase graph itself is unchanged.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -50,15 +51,27 @@ from app.oncotwin.records import PatientRecord
 from app.oncotwin.service import TwinComputation
 
 TOPOLOGY = {
-    "nodes": ["data_quality_agent", "twin_state_agent", "trajectory_intelligence_agent", "temporal_intelligence_agent",
-              "deterioration_prediction_agent", "simulation_agent", "clinical_evidence_agent",
-              "clinical_context_agent", "explanation_agent"],
+    "nodes": [
+        "data_quality_agent",
+        "twin_state_agent",
+        "trajectory_intelligence_agent",
+        "temporal_intelligence_agent",
+        "deterioration_prediction_agent",
+        "simulation_agent",
+        "clinical_evidence_agent",
+        "clinical_context_agent",
+        "explanation_agent",
+    ],
     "edges": [
         ["data_quality_agent", "twin_state_agent"],
         ["twin_state_agent", "trajectory_intelligence_agent"],
         ["trajectory_intelligence_agent", "temporal_intelligence_agent"],
         ["temporal_intelligence_agent", "deterioration_prediction_agent"],
-        ["deterioration_prediction_agent", "simulation_agent", "if tier ≥ WATCH or simulation requested"],
+        [
+            "deterioration_prediction_agent",
+            "simulation_agent",
+            "if tier ≥ WATCH or simulation requested",
+        ],
         ["deterioration_prediction_agent", "clinical_evidence_agent", "otherwise"],
         ["simulation_agent", "clinical_evidence_agent"],
         ["clinical_evidence_agent", "clinical_context_agent", "if tier ≥ WATCH"],
@@ -67,9 +80,11 @@ TOPOLOGY = {
         ["explanation_agent", "END"],
     ],
     "after_graph": "alert decision (tier escalation ≥ EARLY WARNING) → clinician HITL → optional ClinCase handoff",
-    "handoff": ("clinician-accepted alert → ClinCase case → existing 7-agent ClinCase graph "
-                "(Clinical Extractor → Policy Retriever → Necessity Reasoner → Decision Composer → "
-                "Denial Forecaster → Appeals Drafter → Patient Communicator) → HITL → audit"),
+    "handoff": (
+        "clinician-accepted alert → ClinCase case → existing 7-agent ClinCase graph "
+        "(Clinical Extractor → Policy Retriever → Necessity Reasoner → Decision Composer → "
+        "Denial Forecaster → Appeals Drafter → Patient Communicator) → HITL → audit"
+    ),
 }
 
 # In-flight runs: LangGraph state stays JSON-serialisable; heavy numpy objects
@@ -97,8 +112,12 @@ class TwinGraphState(BaseModel):
 async def _invoke(agent, state: TwinGraphState) -> dict[str, Any]:
     ctx, _ = _RUNS[state.run_id]
     res = await agent.invoke(
-        TwinAgentInput(patient_id=state.patient_id, organization_id=state.organization_id,
-                       as_of_day=state.as_of_day, run_id=state.run_id),
+        TwinAgentInput(
+            patient_id=state.patient_id,
+            organization_id=state.organization_id,
+            as_of_day=state.as_of_day,
+            run_id=state.run_id,
+        ),
         ctx=ctx,
     )
     return res.output.model_dump()
@@ -143,14 +162,18 @@ async def _evidence_node(s: TwinGraphState) -> dict[str, Any]:
 _ELEVATED = ("WATCH", "EARLY WARNING", "HIGH PRIORITY")
 
 
-def _route_after_prediction(s: TwinGraphState) -> Literal["simulation_agent", "clinical_evidence_agent"]:
+def _route_after_prediction(
+    s: TwinGraphState,
+) -> Literal["simulation_agent", "clinical_evidence_agent"]:
     tier = (s.prediction_summary or {}).get("tier", "NORMAL")
     if s.force_simulation or tier in _ELEVATED:
         return "simulation_agent"
     return "clinical_evidence_agent"
 
 
-def _route_after_evidence(s: TwinGraphState) -> Literal["clinical_context_agent", "explanation_agent"]:
+def _route_after_evidence(
+    s: TwinGraphState,
+) -> Literal["clinical_context_agent", "explanation_agent"]:
     tier = (s.prediction_summary or {}).get("tier", "NORMAL")
     return "clinical_context_agent" if tier in _ELEVATED else "explanation_agent"
 
@@ -172,13 +195,21 @@ def build_twin_graph():
     g.add_edge("trajectory_intelligence_agent", "temporal_intelligence_agent")
     g.add_edge("temporal_intelligence_agent", "deterioration_prediction_agent")
     g.add_conditional_edges(
-        "deterioration_prediction_agent", _route_after_prediction,
-        {"simulation_agent": "simulation_agent", "clinical_evidence_agent": "clinical_evidence_agent"},
+        "deterioration_prediction_agent",
+        _route_after_prediction,
+        {
+            "simulation_agent": "simulation_agent",
+            "clinical_evidence_agent": "clinical_evidence_agent",
+        },
     )
     g.add_edge("simulation_agent", "clinical_evidence_agent")
     g.add_conditional_edges(
-        "clinical_evidence_agent", _route_after_evidence,
-        {"clinical_context_agent": "clinical_context_agent", "explanation_agent": "explanation_agent"},
+        "clinical_evidence_agent",
+        _route_after_evidence,
+        {
+            "clinical_context_agent": "clinical_context_agent",
+            "explanation_agent": "explanation_agent",
+        },
     )
     g.add_edge("clinical_context_agent", "explanation_agent")
     g.add_edge("explanation_agent", END)
@@ -188,17 +219,29 @@ def build_twin_graph():
 _GRAPH = build_twin_graph()
 
 
-async def _run(record: PatientRecord, as_of_day: int, organization_id: str, history: list[dict[str, Any]],
-               force_simulation: bool, model: DeteriorationModel, bundle: tuple | None, drift: dict | None,
-               llm_traces: list | None) -> tuple[TwinComputation, dict[str, Any]]:
+async def _run(
+    record: PatientRecord,
+    as_of_day: int,
+    organization_id: str,
+    history: list[dict[str, Any]],
+    force_simulation: bool,
+    model: DeteriorationModel,
+    bundle: tuple | None,
+    drift: dict | None,
+    llm_traces: list | None,
+) -> tuple[TwinComputation, dict[str, Any]]:
     run_id = uuid.uuid4().hex
     comp = TwinComputation(record=record, as_of_day=as_of_day, model=model, history=history)
-    ctx = new_agent_context(case_id=f"oncotwin:{record.profile.patient_id}:d{as_of_day}",
-                            organization_id=organization_id, trace_sink=InMemoryTraceSink())
+    ctx = new_agent_context(
+        case_id=f"oncotwin:{record.profile.patient_id}:d{as_of_day}",
+        organization_id=organization_id,
+        trace_sink=InMemoryTraceSink(),
+    )
     if bundle is None:
         # Direct callers (tests, CLI) may pass only the history: derive the per-day facts + states.
         from app.oncotwin.intel.state import build_states
         from app.oncotwin.service import compute_history_bundle
+
         b = compute_history_bundle(record, as_of_day, model)
         bundle = (b.snapshots, b.day_facts, build_states(record, b.snapshots, b.day_facts))
     ctx.working_memory[WM_KEY] = comp
@@ -208,23 +251,51 @@ async def _run(record: PatientRecord, as_of_day: int, organization_id: str, hist
     _RUNS[run_id] = (ctx, comp)
     try:
         with METRICS.timed("oncotwin_twin_graph"):
-            await _GRAPH.ainvoke(TwinGraphState(
-                run_id=run_id, patient_id=record.profile.patient_id, organization_id=organization_id,
-                as_of_day=as_of_day, force_simulation=force_simulation,
-            ))
+            await _GRAPH.ainvoke(
+                TwinGraphState(
+                    run_id=run_id,
+                    patient_id=record.profile.patient_id,
+                    organization_id=organization_id,
+                    as_of_day=as_of_day,
+                    force_simulation=force_simulation,
+                )
+            )
     finally:
         _RUNS.pop(run_id, None)
-    trace = [{"agent": s.agent_name, "status": s.status, "latency_ms": s.latency_ms, "error": s.error}
-             for s in ctx.trace_sink.spans]
+    trace = [
+        {"agent": s.agent_name, "status": s.status, "latency_ms": s.latency_ms, "error": s.error}
+        for s in ctx.trace_sink.spans
+    ]
     for sp in trace:
-        METRICS.observe_ms("oncotwin_agent", float(sp["latency_ms"] or 0.0), agent=sp["agent"], status=sp["status"])
+        METRICS.observe_ms(
+            "oncotwin_agent", float(sp["latency_ms"] or 0.0), agent=sp["agent"], status=sp["status"]
+        )
     return comp, {"run_id": run_id, "agent_trace": trace, "topology": "oncotwin-twin-graph-v2"}
 
 
-def run_twin_graph(record: PatientRecord, as_of_day: int, organization_id: str, *,
-                   history: list[dict[str, Any]], force_simulation: bool = False,
-                   model: DeteriorationModel | None = None, bundle: tuple | None = None,
-                   drift: dict | None = None, llm_traces: list | None = None) -> tuple[TwinComputation, dict[str, Any]]:
+def run_twin_graph(
+    record: PatientRecord,
+    as_of_day: int,
+    organization_id: str,
+    *,
+    history: list[dict[str, Any]],
+    force_simulation: bool = False,
+    model: DeteriorationModel | None = None,
+    bundle: tuple | None = None,
+    drift: dict | None = None,
+    llm_traces: list | None = None,
+) -> tuple[TwinComputation, dict[str, Any]]:
     """Synchronous entry point (call from a worker thread; owns its own event loop)."""
-    return asyncio.run(_run(record, as_of_day, organization_id, history, force_simulation, model or load_model(),
-                            bundle, drift, llm_traces))
+    return asyncio.run(
+        _run(
+            record,
+            as_of_day,
+            organization_id,
+            history,
+            force_simulation,
+            model or load_model(),
+            bundle,
+            drift,
+            llm_traces,
+        )
+    )

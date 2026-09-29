@@ -1,9 +1,10 @@
 """Per-tenant data residency introspection endpoint.
 
-  GET /api/v1/residency           — caller's org residency + resolved resources
-  GET /api/v1/residency/{org_id}  — admin (same-org only) inspection
-  GET /api/v1/residency/regions   — list of supported regions
+GET /api/v1/residency           — caller's org residency + resolved resources
+GET /api/v1/residency/{org_id}  — admin (same-org only) inspection
+GET /api/v1/residency/regions   — list of supported regions
 """
+
 from __future__ import annotations
 
 from typing import Any

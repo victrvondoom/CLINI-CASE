@@ -23,6 +23,7 @@ Use:
     await db.fetch_ro("SELECT 1")             # reader endpoint
     await db.execute("INSERT ...", val)
 """
+
 from __future__ import annotations
 
 import os

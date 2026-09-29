@@ -31,6 +31,7 @@ Topology:
                                                        v
                                                       END
 """
+
 from __future__ import annotations
 
 from typing import Any, Literal
@@ -91,11 +92,7 @@ async def review_gate_node(state: ClinCaseState) -> dict[str, Any]:
     and (if DENY) runs the Appeals Drafter out-of-graph.
     """
     threshold = getattr(settings, "HITL_CONFIDENCE_THRESHOLD", DEFAULT_HITL_THRESHOLD)
-    overall = (
-        state.necessity_assessment.overall_confidence
-        if state.necessity_assessment
-        else 0.0
-    )
+    overall = state.necessity_assessment.overall_confidence if state.necessity_assessment else 0.0
     return {
         "paused_for_review": True,
         "pause_reason": (

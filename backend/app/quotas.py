@@ -27,6 +27,7 @@ Why a separate file (not in `app/db.py`):
   • Quota policy belongs to the API tier's domain logic, not the DB connection layer.
   • Keeps `db.py` to ~60 LOC pool ops only.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -121,9 +122,7 @@ class QuotaExceededError(Exception):
 
 async def get_quota(organization_id: str) -> dict[str, Any]:
     """Read current quota state for an org. Used by /metrics + admin UI."""
-    row = await db.fetchrow(
-        "SELECT * FROM org_quotas WHERE organization_id = $1", organization_id
-    )
+    row = await db.fetchrow("SELECT * FROM org_quotas WHERE organization_id = $1", organization_id)
     if row is None:
         return {
             "organization_id": organization_id,
@@ -142,7 +141,9 @@ async def _ensure_quota_row(organization_id: str) -> None:
         """INSERT INTO org_quotas (organization_id, daily_case_limit, monthly_case_limit)
            VALUES ($1, $2, $3)
            ON CONFLICT (organization_id) DO NOTHING""",
-        organization_id, _DEFAULT_DAILY_LIMIT, _DEFAULT_MONTHLY_LIMIT,
+        organization_id,
+        _DEFAULT_DAILY_LIMIT,
+        _DEFAULT_MONTHLY_LIMIT,
     )
 
 
@@ -277,8 +278,7 @@ def quota_exceeded_to_http(exc: QuotaExceededError) -> dict[str, Any]:
         "limit": exc.limit,
         "used": exc.used,
         "resets_at": exc.resets_at_iso,
-        "message": (
-            "Daily" if exc.kind == "daily" else "Monthly"
-        ) + f" case quota of {exc.limit} reached for organization "
+        "message": ("Daily" if exc.kind == "daily" else "Monthly")
+        + f" case quota of {exc.limit} reached for organization "
         + f"{exc.organization_id}. Resets at {exc.resets_at_iso} UTC.",
     }

@@ -25,6 +25,7 @@ Schema (idempotent on first import):
       trace_id       TEXT                          -- W3C trace_id for correlation
     )
 """
+
 from __future__ import annotations
 
 import json
@@ -71,6 +72,7 @@ CREATE INDEX IF NOT EXISTS idx_event_outbox_aggregate
 async def ensure_schema() -> None:
     """Idempotent. Called from app lifespan."""
     from app.db import db
+
     await db.execute(_SCHEMA)
 
 
@@ -93,9 +95,9 @@ class DomainEvent:
       time            ↔ occurred_at
     """
 
-    event_type: str                # e.g. "clincase.case.decided.v1"
+    event_type: str  # e.g. "clincase.case.decided.v1"
     organization_id: str
-    aggregate_type: str             # "case" | "appeal" | "reviewer_action" | "trizetto_envelope"
+    aggregate_type: str  # "case" | "appeal" | "reviewer_action" | "trizetto_envelope"
     aggregate_id: str
     payload: dict[str, Any]
     event_version: str = "v1"
@@ -121,6 +123,7 @@ async def emit_event(
     Returns the event_id.
     """
     from app.db import db
+
     event_id = uuid.uuid4()
     sql = """
         INSERT INTO event_outbox
@@ -159,6 +162,7 @@ async def pending_events(*, batch_size: int = 100) -> list[dict[str, Any]]:
     concurrently without claiming the same events.
     """
     from app.db import db
+
     async with db.pool.acquire() as conn, conn.transaction():
         rows = await conn.fetch(
             """SELECT id, event_id, event_type, event_version, organization_id,
@@ -178,6 +182,7 @@ async def mark_published(row_id: int) -> None:
     """Mark an event as successfully published. Publisher worker calls this
     after the message bus accepts the event."""
     from app.db import db
+
     await db.execute(
         "UPDATE event_outbox SET published_at = NOW() WHERE id = $1",
         row_id,
@@ -187,11 +192,13 @@ async def mark_published(row_id: int) -> None:
 async def mark_failed(row_id: int, error: str) -> None:
     """Increment attempts + record last error. Publisher worker calls on bus failure."""
     from app.db import db
+
     await db.execute(
         """UPDATE event_outbox
            SET attempts = attempts + 1, last_error = $1
            WHERE id = $2""",
-        error[:500], row_id,
+        error[:500],
+        row_id,
     )
 
 

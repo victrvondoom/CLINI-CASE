@@ -24,6 +24,7 @@ writes a row to `security_anomalies` for the SOC team's review.
 
 Pairs with: ops/architecture/HIPAA_BREACH_DETECTION.md
 """
+
 from __future__ import annotations
 
 import os
@@ -42,9 +43,9 @@ log = structlog.get_logger()
 
 _SNS_TOPIC_ARN = os.getenv("SECURITY_ANOMALY_SNS_TOPIC_ARN", "").strip()
 _PHI_PATTERNS: list[re.Pattern[str]] = [
-    re.compile(r"\b\d{3}-\d{2}-\d{4}\b"),                  # SSN
-    re.compile(r"\bMRN[:\s#-]*\d{6,}\b", re.IGNORECASE),   # MRN
-    re.compile(r"\b\d{4}-\d{2}-\d{2}\b"),                  # DOB-shaped (low-precision; review)
+    re.compile(r"\b\d{3}-\d{2}-\d{4}\b"),  # SSN
+    re.compile(r"\bMRN[:\s#-]*\d{6,}\b", re.IGNORECASE),  # MRN
+    re.compile(r"\b\d{4}-\d{2}-\d{2}\b"),  # DOB-shaped (low-precision; review)
 ]
 
 
@@ -81,7 +82,7 @@ class _Window:
 
 
 _authz_denied_window = _Window(threshold=10, window_s=60)
-_jwt_failure_window  = _Window(threshold=20, window_s=60)
+_jwt_failure_window = _Window(threshold=20, window_s=60)
 
 
 async def _record_anomaly(
@@ -96,20 +97,23 @@ async def _record_anomaly(
     if _SNS_TOPIC_ARN:
         try:
             import boto3  # type: ignore[import-not-found]
+
             client = boto3.client("sns")
             client.publish(
                 TopicArn=_SNS_TOPIC_ARN,
                 Subject=f"ClinCase security anomaly: {signal}",
-                Message=__import__("json").dumps({
-                    "signal": signal,
-                    "severity": severity,
-                    "organization_id": organization_id,
-                    "payload": payload,
-                    "ts": time.time(),
-                }),
+                Message=__import__("json").dumps(
+                    {
+                        "signal": signal,
+                        "severity": severity,
+                        "organization_id": organization_id,
+                        "payload": payload,
+                        "ts": time.time(),
+                    }
+                ),
                 MessageAttributes={
                     "severity": {"DataType": "String", "StringValue": severity},
-                    "signal":   {"DataType": "String", "StringValue": signal},
+                    "signal": {"DataType": "String", "StringValue": signal},
                 },
             )
             sns_ok = True
@@ -137,7 +141,9 @@ async def _record_anomaly(
 # =============================================================================
 
 
-async def signal_authz_denied(*, principal: str, action: str, resource: str, organization_id: str | None) -> None:
+async def signal_authz_denied(
+    *, principal: str, action: str, resource: str, organization_id: str | None
+) -> None:
     now = time.time()
     w = _authz_denied_window
     w.events.append(now)
@@ -159,7 +165,9 @@ async def signal_authz_denied(*, principal: str, action: str, resource: str, org
         w.events.clear()
 
 
-async def signal_residency_violation(*, organization_id: str, declared_region: str, attempted_region: str, resource: str) -> None:
+async def signal_residency_violation(
+    *, organization_id: str, declared_region: str, attempted_region: str, resource: str
+) -> None:
     await _record_anomaly(
         signal="residency_violation",
         severity="critical",
@@ -206,7 +214,9 @@ async def scan_log_for_phi(*, line: str, context: dict[str, Any]) -> None:
         )
 
 
-async def signal_cross_org_query(*, organization_id: str, principal: str, table: str, returned_rows: int) -> None:
+async def signal_cross_org_query(
+    *, organization_id: str, principal: str, table: str, returned_rows: int
+) -> None:
     await _record_anomaly(
         signal="cross_org_query",
         severity="critical",
@@ -224,12 +234,15 @@ async def signal_cross_org_query(*, organization_id: str, principal: str, table:
 # =============================================================================
 
 
-async def recent_anomalies(*, organization_id: str | None, limit: int = 100) -> list[dict[str, Any]]:
+async def recent_anomalies(
+    *, organization_id: str | None, limit: int = 100
+) -> list[dict[str, Any]]:
     if organization_id:
         rows = await db.fetch_ro(
             "SELECT * FROM security_anomalies WHERE organization_id = $1 "
             "ORDER BY detected_at DESC LIMIT $2",
-            organization_id, limit,
+            organization_id,
+            limit,
         )
     else:
         rows = await db.fetch_ro(

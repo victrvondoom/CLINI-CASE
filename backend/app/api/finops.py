@@ -14,6 +14,7 @@ Inputs:
 This is a read-only aggregation endpoint. The CFO + customer success use it
 for invoice reconciliation; SRE uses it for anomaly investigation.
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -48,48 +49,64 @@ async def _tenant_rollup(*, organization_id: str, since: datetime) -> TenantRoll
     bedrock_cost = 0.0
     # llm_invocations not yet bootstrapped — treat as 0.
     with contextlib.suppress(Exception):
-        bedrock_cost = await db.fetchval_ro(
-            """
+        bedrock_cost = (
+            await db.fetchval_ro(
+                """
             SELECT COALESCE(SUM(cost_usd), 0)::FLOAT
               FROM llm_invocations
              WHERE organization_id = $1 AND started_at >= $2
             """,
-            organization_id, since,
-        ) or 0.0
+                organization_id,
+                since,
+            )
+            or 0.0
+        )
 
     case_count = 0
     with contextlib.suppress(Exception):
-        case_count = await db.fetchval_ro(
-            """
+        case_count = (
+            await db.fetchval_ro(
+                """
             SELECT COUNT(*)
               FROM cases
              WHERE organization_id = $1 AND created_at >= $2
             """,
-            organization_id, since,
-        ) or 0
+                organization_id,
+                since,
+            )
+            or 0
+        )
 
     # Mean Bedrock latency per call (case_runs table does not exist in current
     # schema — use llm_invocations.latency_ms as a proxy until case_runs lands).
     avg_latency = 0.0
     with contextlib.suppress(Exception):
-        avg_latency = await db.fetchval_ro(
-            """
+        avg_latency = (
+            await db.fetchval_ro(
+                """
             SELECT COALESCE(AVG(latency_ms), 0)::FLOAT
               FROM llm_invocations
              WHERE organization_id = $1 AND started_at >= $2
             """,
-            organization_id, since,
-        ) or 0.0
+                organization_id,
+                since,
+            )
+            or 0.0
+        )
 
     dlq_count = 0
     with contextlib.suppress(Exception):
-        dlq_count = await db.fetchval_ro(
-            """
+        dlq_count = (
+            await db.fetchval_ro(
+                """
             SELECT COUNT(*) FROM event_outbox_dlq
              WHERE organization_id = $1 AND moved_to_dlq_at >= $2
             """,
-            organization_id, since,
-        ) or 0
+                organization_id,
+                since,
+            )
+            or 0
+        )
 
     avg_cost = (bedrock_cost / case_count) if case_count > 0 else 0.0
     return TenantRollup(
@@ -155,25 +172,34 @@ async def per_cell_rollup(
     grand_total_cost = 0.0
     grand_total_cases = 0
     for cell in list_cells():
-        cost = await db.fetchval_ro(
-            """
+        cost = (
+            await db.fetchval_ro(
+                """
             SELECT COALESCE(SUM(li.cost_usd), 0)::FLOAT
               FROM llm_invocations li
              WHERE li.started_at >= $1
             """,
-            since,
-        ) or 0.0
-        cases = await db.fetchval_ro(
-            "SELECT COUNT(*) FROM cases WHERE created_at >= $1", since,
-        ) or 0
-        cells_data.append({
-            "cell_id": cell.cell_id,
-            "region": cell.region,
-            "k8s_namespace": cell.k8s_namespace,
-            "approx_total_cost_usd": round(float(cost), 4),
-            "approx_case_count": int(cases),
-            "capacity_tenants": cell.capacity_tenants,
-        })
+                since,
+            )
+            or 0.0
+        )
+        cases = (
+            await db.fetchval_ro(
+                "SELECT COUNT(*) FROM cases WHERE created_at >= $1",
+                since,
+            )
+            or 0
+        )
+        cells_data.append(
+            {
+                "cell_id": cell.cell_id,
+                "region": cell.region,
+                "k8s_namespace": cell.k8s_namespace,
+                "approx_total_cost_usd": round(float(cost), 4),
+                "approx_case_count": int(cases),
+                "capacity_tenants": cell.capacity_tenants,
+            }
+        )
         grand_total_cost += float(cost)
         grand_total_cases += int(cases)
     return {
@@ -204,18 +230,21 @@ async def leaderboard(
          ORDER BY cost_usd DESC
          LIMIT $2
         """,
-        since, limit,
+        since,
+        limit,
     )
     out = []
     for r in rows:
         cell = cell_for_organization(organization_id=r["organization_id"])
-        out.append({
-            "organization_id": r["organization_id"],
-            "cell_id": cell.cell_id,
-            "region": cell.region,
-            "cost_usd": round(float(r["cost_usd"]), 4),
-            "invocation_count": int(r["invocation_count"]),
-        })
+        out.append(
+            {
+                "organization_id": r["organization_id"],
+                "cell_id": cell.cell_id,
+                "region": cell.region,
+                "cost_usd": round(float(r["cost_usd"]), 4),
+                "invocation_count": int(r["invocation_count"]),
+            }
+        )
     return {"window": window, "since": since.isoformat(), "tenants": out}
 
 
@@ -225,10 +254,13 @@ async def projection(
 ) -> dict[str, Any]:
     """Forward-30d projection from last 7d run-rate."""
     since = datetime.now(UTC) - timedelta(days=7)
-    cost_7d = await db.fetchval_ro(
-        "SELECT COALESCE(SUM(cost_usd), 0)::FLOAT FROM llm_invocations WHERE started_at >= $1",
-        since,
-    ) or 0.0
+    cost_7d = (
+        await db.fetchval_ro(
+            "SELECT COALESCE(SUM(cost_usd), 0)::FLOAT FROM llm_invocations WHERE started_at >= $1",
+            since,
+        )
+        or 0.0
+    )
     daily = float(cost_7d) / 7.0
     return {
         "as_of": datetime.now(UTC).isoformat(),

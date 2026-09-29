@@ -15,6 +15,7 @@ falls back to calling the same deterministic functions directly — an
 assessment must never fail just because tracing is unavailable, and because
 both paths call `app.aquahealth.assess`, the result is identical either way.
 """
+
 from __future__ import annotations
 
 from collections import Counter
@@ -82,7 +83,11 @@ _FALLBACKS = {
 }
 
 _POSITIVE_BIO_FIELDS = (
-    "fish", "birds", "insects", "aquatic_plants", "macroinvertebrates",
+    "fish",
+    "birds",
+    "insects",
+    "aquatic_plants",
+    "macroinvertebrates",
 )
 
 
@@ -310,9 +315,7 @@ async def apply_review(
         reviewer_label=reviewer_label,
         comment=request.comment,
         corrected_status=(
-            request.corrected_status
-            if request.decision == ReviewDecision.MODIFIED
-            else None
+            request.corrected_status if request.decision == ReviewDecision.MODIFIED else None
         ),
         rejected_findings=request.rejected_findings,
     )
@@ -388,7 +391,8 @@ def dashboard(org_store: store.OrgAquaStore, *, recent_limit: int = 8) -> Dashbo
             dq_counts[o.assessment.data_quality.value] += 1
 
     warnings = [
-        o for o in rows
+        o
+        for o in rows
         if o.assessment is not None
         and o.assessment.early_warning is not None
         and o.assessment.early_warning.active
@@ -397,9 +401,7 @@ def dashboard(org_store: store.OrgAquaStore, *, recent_limit: int = 8) -> Dashbo
     return DashboardOverview(
         waterbody_count=len(org_store.waterbodies()),
         observation_count=len(rows),
-        awaiting_review=sum(
-            1 for o in rows if o.review_status != ReviewStatus.COMPLETED
-        ),
+        awaiting_review=sum(1 for o in rows if o.review_status != ReviewStatus.COMPLETED),
         demo_observation_count=sum(1 for o in rows if o.is_demo),
         status_distribution=dict(status_counts),
         confidence_distribution=dict(conf_counts),
@@ -423,10 +425,7 @@ def trends(
     instead of drawing a misleading line.
     """
     cutoff = datetime.now(UTC) - timedelta(days=days)
-    rows = [
-        o for o in org_store.observations(waterbody_id=waterbody_id)
-        if o.observed_at >= cutoff
-    ]
+    rows = [o for o in org_store.observations(waterbody_id=waterbody_id) if o.observed_at >= cutoff]
     rows.sort(key=lambda o: o.observed_at)
 
     if len(rows) < assess.MIN_TREND_OBSERVATIONS:
@@ -456,9 +455,7 @@ def trends(
             if o.measurements.dissolved_oxygen_mgl is not None
         ]
         measured_turb = [
-            o.measurements.turbidity_ntu
-            for o in bucket
-            if o.measurements.turbidity_ntu is not None
+            o.measurements.turbidity_ntu for o in bucket if o.measurements.turbidity_ntu is not None
         ]
         biodiversity_positives = sum(
             1
@@ -466,18 +463,20 @@ def trends(
             for f in _POSITIVE_BIO_FIELDS
             if getattr(o.biodiversity, f, None) == Presence.OBSERVED
         )
-        series.append({
-            "date": day,
-            "observations": len(bucket),
-            "adverse_signals": sum(adverse_signal_count(o) for o in bucket),
-            "biodiversity_positives": biodiversity_positives,
-            "mean_dissolved_oxygen_mgl": (
-                round(sum(measured_do) / len(measured_do), 2) if measured_do else None
-            ),
-            "mean_turbidity_ntu": (
-                round(sum(measured_turb) / len(measured_turb), 1) if measured_turb else None
-            ),
-        })
+        series.append(
+            {
+                "date": day,
+                "observations": len(bucket),
+                "adverse_signals": sum(adverse_signal_count(o) for o in bucket),
+                "biodiversity_positives": biodiversity_positives,
+                "mean_dissolved_oxygen_mgl": (
+                    round(sum(measured_do) / len(measured_do), 2) if measured_do else None
+                ),
+                "mean_turbidity_ntu": (
+                    round(sum(measured_turb) / len(measured_turb), 1) if measured_turb else None
+                ),
+            }
+        )
 
     return {
         "sufficient": True,
@@ -527,17 +526,19 @@ def one_health_view(org_store: store.OrgAquaStore) -> dict[str, Any]:
             continue
         oh = next((f for f in o.assessment.findings if f.agent == "one_health"), None)
         if oh is not None and oh.evidence:
-            pathways.append({
-                "observation_id": o.id,
-                "reference": o.reference,
-                "waterbody_name": o.waterbody_name,
-                "observed_at": o.observed_at.isoformat(),
-                "finding": oh.finding,
-                "confidence": oh.confidence.value,
-                "evidence": [e.model_dump() for e in oh.evidence],
-                "uncertainty": oh.uncertainty,
-                "status": o.effective_status.value,
-            })
+            pathways.append(
+                {
+                    "observation_id": o.id,
+                    "reference": o.reference,
+                    "waterbody_name": o.waterbody_name,
+                    "observed_at": o.observed_at.isoformat(),
+                    "finding": oh.finding,
+                    "confidence": oh.confidence.value,
+                    "evidence": [e.model_dump() for e in oh.evidence],
+                    "uncertainty": oh.uncertainty,
+                    "status": o.effective_status.value,
+                }
+            )
 
     return {
         "chain": [
@@ -546,18 +547,14 @@ def one_health_view(org_store: store.OrgAquaStore) -> dict[str, Any]:
                 "label": "Ecosystem",
                 "signal_count": sum(ecosystem_signals.values()),
                 "signals": dict(ecosystem_signals),
-                "description": (
-                    "Water-quality signals observed in the freshwater body itself."
-                ),
+                "description": ("Water-quality signals observed in the freshwater body itself."),
             },
             {
                 "layer": "animal",
                 "label": "Biodiversity / animal",
                 "signal_count": sum(animal_signals.values()),
                 "signals": dict(animal_signals),
-                "description": (
-                    "Signals observed in the organisms living in or around the water."
-                ),
+                "description": ("Signals observed in the organisms living in or around the water."),
             },
             {
                 "layer": "community",
@@ -599,31 +596,37 @@ def community_stats(
     my_biodiversity = sum(
         1
         for o in mine
-        if any(
-            getattr(o.biodiversity, f).is_informative for f in _POSITIVE_BIO_FIELDS
-        )
+        if any(getattr(o.biodiversity, f).is_informative for f in _POSITIVE_BIO_FIELDS)
     )
 
     badges = [
         _badge(
-            "first_observation", "First Observation",
+            "first_observation",
+            "First Observation",
             "Contribute your first freshwater observation.",
-            my_count, 1,
+            my_count,
+            1,
         ),
         _badge(
-            "water_watcher", "Water Watcher",
+            "water_watcher",
+            "Water Watcher",
             "Contribute 5 observations.",
-            my_count, 5,
+            my_count,
+            5,
         ),
         _badge(
-            "biodiversity_observer", "Biodiversity Observer",
+            "biodiversity_observer",
+            "Biodiversity Observer",
             "Record biodiversity on 3 observations.",
-            my_biodiversity, 3,
+            my_biodiversity,
+            3,
         ),
         _badge(
-            "community_contributor", "Community Contributor",
+            "community_contributor",
+            "Community Contributor",
             "Observe at 3 different waterbodies.",
-            my_waterbodies, 3,
+            my_waterbodies,
+            3,
         ),
     ]
 
@@ -655,22 +658,24 @@ def map_points(org_store: store.OrgAquaStore) -> list[dict[str, Any]]:
         if o.location is None:
             continue
         a = o.assessment
-        out.append({
-            "observation_id": o.id,
-            "reference": o.reference,
-            "waterbody_id": o.waterbody_id,
-            "waterbody_name": o.waterbody_name,
-            "latitude": o.location.latitude,
-            "longitude": o.location.longitude,
-            "observed_at": o.observed_at.isoformat(),
-            "status": o.effective_status.value,
-            "confidence": (a.confidence.value if a else Confidence.LOW.value),
-            "review_status": o.review_status.value,
-            "verification": o.verification.value,
-            "source": o.source.value,
-            "is_demo": o.is_demo,
-            "summary": (a.findings[0].finding if a and a.findings else None),
-        })
+        out.append(
+            {
+                "observation_id": o.id,
+                "reference": o.reference,
+                "waterbody_id": o.waterbody_id,
+                "waterbody_name": o.waterbody_name,
+                "latitude": o.location.latitude,
+                "longitude": o.location.longitude,
+                "observed_at": o.observed_at.isoformat(),
+                "status": o.effective_status.value,
+                "confidence": (a.confidence.value if a else Confidence.LOW.value),
+                "review_status": o.review_status.value,
+                "verification": o.verification.value,
+                "source": o.source.value,
+                "is_demo": o.is_demo,
+                "summary": (a.findings[0].finding if a and a.findings else None),
+            }
+        )
     return out
 
 
@@ -695,9 +700,7 @@ def status_catalog() -> list[dict[str, str]]:
         {
             "status": EcosystemStatus.CRITICAL_SIGNAL.value,
             "label": "Critical Signal",
-            "meaning": (
-                "A combination of adverse signals consistent with an acute event."
-            ),
+            "meaning": ("A combination of adverse signals consistent with an acute event."),
         },
         {
             "status": EcosystemStatus.INSUFFICIENT_DATA.value,

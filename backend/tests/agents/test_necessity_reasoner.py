@@ -4,6 +4,7 @@ Bypasses trace_agent (no DB needed) - validates the LLM contract directly.
 Targets the canonical demo case (HER2+ stage IIIA breast cancer, requesting
 trastuzumab) against an Aetna trastuzumab policy excerpt.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -72,9 +73,7 @@ async def test_assesses_her2_trastuzumab_criteria():
     )
     assess = NecessityAssessment.model_validate_json(_strip_code_fence(response.text))
 
-    assert len(assess.criteria) >= 3, (
-        f"Expected at least 3 criteria, got {len(assess.criteria)}"
-    )
+    assert len(assess.criteria) >= 3, f"Expected at least 3 criteria, got {len(assess.criteria)}"
 
     # HER2 should be MET (snapshot has IHC 3+)
     her2 = next(
@@ -94,9 +93,9 @@ async def test_assesses_her2_trastuzumab_criteria():
         None,
     )
     assert lvef is not None, "LVEF criterion missing from assessment"
-    assert lvef.status == "AMBIGUOUS", (
-        f"LVEF should be AMBIGUOUS (no LVEF in snapshot), got {lvef.status}"
-    )
+    assert (
+        lvef.status == "AMBIGUOUS"
+    ), f"LVEF should be AMBIGUOUS (no LVEF in snapshot), got {lvef.status}"
     assert lvef.missing_evidence is not None
 
     # ECOG should be MET (snapshot has ECOG=1, in 0-2 range)

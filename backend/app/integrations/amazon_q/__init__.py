@@ -31,6 +31,7 @@ NOTE on the May 15, 2026 Q Developer EOS: this module is for **Q Business**
 (retrieval), NOT Q Developer (IDE assistant). Q Business is unaffected by
 the Q Developer signup freeze.
 """
+
 from app.integrations.amazon_q.client import (
     AmazonQClient,
     QRetrievedSnippet,

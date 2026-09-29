@@ -18,6 +18,7 @@ Drain loop:
 
 Multiple replicas can run safely (SKIP LOCKED).
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -65,17 +66,22 @@ async def _publish_eventbridge(envelope: dict[str, Any]) -> None:
       EVENTBRIDGE_SOURCE=clincase
     """
     import aioboto3  # type: ignore[import-not-found]
+
     bus_name = os.getenv("EVENTBRIDGE_BUS_NAME", "clincase-domain-events")
     source = os.getenv("EVENTBRIDGE_SOURCE", "clincase")
     region = os.getenv("AWS_REGION", "ap-south-1")
     session = aioboto3.Session(region_name=region)
     async with session.client("events") as eb:
-        await eb.put_events(Entries=[{
-            "Source": source,
-            "DetailType": envelope["type"],
-            "Detail": json.dumps(envelope),
-            "EventBusName": bus_name,
-        }])
+        await eb.put_events(
+            Entries=[
+                {
+                    "Source": source,
+                    "DetailType": envelope["type"],
+                    "Detail": json.dumps(envelope),
+                    "EventBusName": bus_name,
+                }
+            ]
+        )
 
 
 async def _publish_kinesis(envelope: dict[str, Any]) -> None:
@@ -85,6 +91,7 @@ async def _publish_kinesis(envelope: dict[str, Any]) -> None:
       KINESIS_STREAM_NAME=clincase-domain-events
     """
     import aioboto3  # type: ignore[import-not-found]
+
     stream = os.getenv("KINESIS_STREAM_NAME", "clincase-domain-events")
     region = os.getenv("AWS_REGION", "ap-south-1")
     partition_key = envelope.get("subject", envelope["id"])
@@ -143,13 +150,16 @@ async def main() -> None:
     )
 
     from app.db import db
+
     await db.connect()
 
     # Signal handling for graceful shutdown
     loop = asyncio.get_running_loop()
+
     def _stop() -> None:
         log.info("outbox.publisher.signal.shutdown")
         _shutdown.set()
+
     try:
         loop.add_signal_handler(signal.SIGTERM, _stop)
         loop.add_signal_handler(signal.SIGINT, _stop)

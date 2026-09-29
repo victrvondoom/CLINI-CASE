@@ -8,6 +8,7 @@ These are PRIVATE to the parent package. Cross-package imports come from
 canonical types in `app.models` (NecessityAssessment, ClinicalSnapshot, etc.)
 which are stable, app-wide contracts.
 """
+
 from __future__ import annotations
 
 from typing import Annotated, Literal
@@ -28,12 +29,14 @@ from app.models import (
 
 class NecessityReasonerInput(BaseModel):
     """Input contract for the Necessity Reasoner parent agent."""
+
     snapshot: ClinicalSnapshot
     excerpts: list[PolicyExcerpt] = Field(..., min_length=1)
 
 
 class NecessityReasonerOutput(BaseModel):
     """Output contract for the Necessity Reasoner parent agent."""
+
     assessment: NecessityAssessment
     n_atomic_criteria: int
     n_evidence_matches: int
@@ -48,6 +51,7 @@ class NecessityReasonerOutput(BaseModel):
 
 class AtomicCriterion(BaseModel):
     """One indivisible inclusion/exclusion criterion."""
+
     text: str = Field(..., min_length=1)
     criterion_type: Literal["inclusion", "exclusion"] = "inclusion"
     policy_excerpt_index: int = Field(..., ge=0)
@@ -112,7 +116,9 @@ class ConfidenceCalibratorOutput(BaseModel):
     not echoing back all the match content).
     """
 
-    confidences: list[Annotated[float, Field(ge=0.0, le=1.0, allow_inf_nan=False)]] = Field(..., min_length=1, description="One confidence ∈ [0,1] per input match, in input order.")
+    confidences: list[Annotated[float, Field(ge=0.0, le=1.0, allow_inf_nan=False)]] = Field(
+        ..., min_length=1, description="One confidence ∈ [0,1] per input match, in input order."
+    )
     overall_confidence: float = Field(..., ge=0.0, le=1.0)
     summary: str
 

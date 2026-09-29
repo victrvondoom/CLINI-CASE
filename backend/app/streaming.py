@@ -31,6 +31,7 @@ API replica the ALB routes it to — without Redis, the replica running the case
 publishes events to its in-memory queues and the SSE consumer on a different
 replica sees nothing. Redis pub/sub closes that gap.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -189,7 +190,7 @@ class RedisPubSubBackend(PubSubBackend):
                 channel = msg.get("channel") or ""
                 if not channel.startswith(_REDIS_CHANNEL_PREFIX):
                     continue
-                case_id = channel[len(_REDIS_CHANNEL_PREFIX):]
+                case_id = channel[len(_REDIS_CHANNEL_PREFIX) :]
                 try:
                     event = json.loads(msg["data"])
                 except (TypeError, json.JSONDecodeError) as e:  # noqa: BLE001
@@ -214,9 +215,7 @@ class RedisPubSubBackend(PubSubBackend):
             return
         try:
             payload = json.dumps(event, default=str)
-            await self._publish_client.publish(
-                f"{_REDIS_CHANNEL_PREFIX}{case_id}", payload
-            )
+            await self._publish_client.publish(f"{_REDIS_CHANNEL_PREFIX}{case_id}", payload)
         except Exception as e:  # noqa: BLE001
             # Never let SSE failures cascade into agent failures.
             log.warning("streaming.redis.publish_failed", case_id=case_id, error=str(e))

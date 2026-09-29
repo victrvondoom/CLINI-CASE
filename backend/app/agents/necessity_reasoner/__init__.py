@@ -24,6 +24,7 @@ Layout:
         ├── evidence_matcher.py
         └── confidence_calibrator.py
 """
+
 from app.agents.necessity_reasoner.node import (
     # Legacy shims — re-exported for tests written pre-refactor
     _PROMPT,

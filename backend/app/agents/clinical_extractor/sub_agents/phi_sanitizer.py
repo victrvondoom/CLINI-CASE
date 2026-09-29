@@ -6,6 +6,7 @@ detection that emits the same shape Bedrock Guardrails returns from its
 `assessments[].sensitiveInformationPolicy.piiEntities[]` block. Provider guardrails, when configured, are an additional control; this code
 does not verify arbitrary free-text de-identification.
 """
+
 from __future__ import annotations
 
 import re
@@ -19,17 +20,27 @@ from app.agents.clinical_extractor.schemas import (
 from app.agents.framework import Agent, AgentContext
 
 _PATTERNS: list[tuple[str, re.Pattern[str], str]] = [
-    ("SSN",     re.compile(r"\b\d{3}-\d{2}-\d{4}\b"),                 "{US_SOCIAL_SECURITY_NUMBER}"),
-    ("MRN",     re.compile(r"\bMRN[:\s]?\d{6,10}\b", re.I),           "{MRN}"),
-    ("DOB",     re.compile(r"\bDOB[:\s]?\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b", re.I), "{DATE_OF_BIRTH}"),
-    ("DOB",     re.compile(r"\b\d{4}-\d{2}-\d{2}\b"),                 "{DATE}"),
-    ("EMAIL",   re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"), "{EMAIL}"),
-    ("PHONE",   re.compile(r"\b\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}\b"), "{PHONE}"),
-    ("NAME",    re.compile(r"\b(?:patient(?: name)?|name)\s*:\s*[^\n;,]+", re.I), "{NAME}"),
+    ("SSN", re.compile(r"\b\d{3}-\d{2}-\d{4}\b"), "{US_SOCIAL_SECURITY_NUMBER}"),
+    ("MRN", re.compile(r"\bMRN[:\s]?\d{6,10}\b", re.I), "{MRN}"),
+    ("DOB", re.compile(r"\bDOB[:\s]?\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b", re.I), "{DATE_OF_BIRTH}"),
+    ("DOB", re.compile(r"\b\d{4}-\d{2}-\d{2}\b"), "{DATE}"),
+    ("EMAIL", re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"), "{EMAIL}"),
+    ("PHONE", re.compile(r"\b\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}\b"), "{PHONE}"),
+    ("NAME", re.compile(r"\b(?:patient(?: name)?|name)\s*:\s*[^\n;,]+", re.I), "{NAME}"),
     # Conservative unlabeled-name context. Avoid masking clinical phrases such
     # as "Malignant neoplasm" merely because both words are capitalized.
-    ("NAME",    re.compile(r"\b[A-Z][a-z]{1,20} [A-Z][a-z]{1,20}(?=\s+(?:presented|arrived|reports|was|is|admitted)\b)"), "{NAME}"),
-    ("ADDRESS", re.compile(r"\b\d{1,5} [A-Z][a-z]+ (Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd)\b"), "{ADDRESS}"),
+    (
+        "NAME",
+        re.compile(
+            r"\b[A-Z][a-z]{1,20} [A-Z][a-z]{1,20}(?=\s+(?:presented|arrived|reports|was|is|admitted)\b)"
+        ),
+        "{NAME}",
+    ),
+    (
+        "ADDRESS",
+        re.compile(r"\b\d{1,5} [A-Z][a-z]+ (Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd)\b"),
+        "{ADDRESS}",
+    ),
 ]
 
 

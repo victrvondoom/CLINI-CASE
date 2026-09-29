@@ -8,6 +8,7 @@ Observed motivation: on a Windows dev machine with HTTP-inspecting antivirus, lo
 than ~64 KB were intermittently reset after ~19 s (reproduced even with Python's stdlib http.server), which
 left twin pages hanging. Compressed payloads stay well under that size.
 """
+
 from __future__ import annotations
 
 from starlette.middleware.gzip import GZipMiddleware

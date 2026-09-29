@@ -21,6 +21,7 @@ two tenants can use the same key without collision.
 
 Pairs with: ops/architecture/IDEMPOTENCY.md
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -86,7 +87,9 @@ class IdempotencyMiddleware:
             return
         method, path = scope.get("method", "GET").upper(), scope.get("path", "")
         headers = scope.get("headers", [])
-        key = next((v.decode("latin-1").strip() for k, v in headers if k.lower() == b"idempotency-key"), "")
+        key = next(
+            (v.decode("latin-1").strip() for k, v in headers if k.lower() == b"idempotency-key"), ""
+        )
         if (
             not key
             or method not in _ELIGIBLE_METHODS
@@ -115,11 +118,17 @@ class IdempotencyMiddleware:
                 Request(scope), HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
             )
         except HTTPException as exc:
-            await self._respond(send, exc.status_code, "authentication_unavailable" if exc.status_code == 503 else "invalid_session")
+            await self._respond(
+                send,
+                exc.status_code,
+                "authentication_unavailable" if exc.status_code == 503 else "invalid_session",
+            )
             return
         org_id = user["organization_id"]
         # Prevent same-tenant users/roles from replaying one another's responses.
-        scoped_key = hashlib.sha256(json.dumps([user["id"], user["role"], key]).encode()).hexdigest()
+        scoped_key = hashlib.sha256(
+            json.dumps([user["id"], user["role"], key]).encode()
+        ).hexdigest()
         chunks: list[bytes] = []
         messages: list[Message] = []
         size = 0
@@ -137,7 +146,13 @@ class IdempotencyMiddleware:
             if not message.get("more_body", False):
                 break
         request_hash = hashlib.sha256(
-            method.encode() + b"\0" + path.encode() + b"\0" + scope.get("query_string", b"") + b"\0" + b"".join(chunks)
+            method.encode()
+            + b"\0"
+            + path.encode()
+            + b"\0"
+            + scope.get("query_string", b"")
+            + b"\0"
+            + b"".join(chunks)
         ).hexdigest()
         try:
             # Expired keys may be reused. Only the winner of this INSERT/UPDATE
@@ -151,32 +166,60 @@ class IdempotencyMiddleware:
                      in_flight=TRUE,expires_at=EXCLUDED.expires_at,created_at=NOW(),
                      response_status=NULL,response_body=NULL,response_headers=NULL,completed_at=NULL
                    WHERE idempotency_keys.expires_at <= NOW()
-                   RETURNING key""", org_id, scoped_key, method, path, request_hash, _TTL_SECONDS,
+                   RETURNING key""",
+                org_id,
+                scoped_key,
+                method,
+                path,
+                request_hash,
+                _TTL_SECONDS,
             )
             if reserved is None:
                 row = await db.fetchrow(
-                    "SELECT * FROM idempotency_keys WHERE organization_id=$1 AND key=$2", org_id, scoped_key,
+                    "SELECT * FROM idempotency_keys WHERE organization_id=$1 AND key=$2",
+                    org_id,
+                    scoped_key,
                 )
                 if row is None or row["in_flight"]:
                     await self._respond(send, 409, "idempotency_key_in_flight")
                     return
-                if row["request_hash"] != request_hash or row["method"] != method or row["path"] != path:
+                if (
+                    row["request_hash"] != request_hash
+                    or row["method"] != method
+                    or row["path"] != path
+                ):
                     await self._respond(send, 409, "idempotency_key_request_mismatch")
                     return
                 saved_headers = row["response_headers"] or {}
                 if isinstance(saved_headers, str):
                     saved_headers = json.loads(saved_headers)
-                replay_headers = [(k.encode("latin-1"), str(v).encode("latin-1")) for k,v in saved_headers.items()]
+                replay_headers = [
+                    (k.encode("latin-1"), str(v).encode("latin-1"))
+                    for k, v in saved_headers.items()
+                ]
                 replay_headers.append((b"idempotency-replayed", b"true"))
-                await send({"type": "http.response.start", "status": int(row["response_status"]), "headers": replay_headers})
-                await send({"type": "http.response.body", "body": bytes(row["response_body"] or b"")})
+                await send(
+                    {
+                        "type": "http.response.start",
+                        "status": int(row["response_status"]),
+                        "headers": replay_headers,
+                    }
+                )
+                await send(
+                    {"type": "http.response.body", "body": bytes(row["response_body"] or b"")}
+                )
                 return
         except Exception as exc:
             log.warning("idempotency.storage_unavailable", error_type=type(exc).__name__)
             await self._respond(send, 503, "idempotency_storage_unavailable")
             return
 
-        captured: dict[str, Any] = {"status": 500, "headers": [], "body": bytearray(), "complete": False}
+        captured: dict[str, Any] = {
+            "status": 500,
+            "headers": [],
+            "body": bytearray(),
+            "complete": False,
+        }
 
         async def replay_receive() -> Message:
             return messages.pop(0) if messages else await receive()
@@ -199,20 +242,29 @@ class IdempotencyMiddleware:
                 try:
                     safe_headers = {
                         k.decode("latin-1"): v.decode("latin-1")
-                        for k,v in captured["headers"]
+                        for k, v in captured["headers"]
                         if k.lower() in {b"content-type", b"location"}
                     }
                     await db.execute(
                         """UPDATE idempotency_keys SET in_flight=FALSE,response_status=$1,
                            response_body=$2,response_headers=$3::jsonb,completed_at=NOW()
                            WHERE organization_id=$4 AND key=$5 AND request_hash=$6""",
-                        captured["status"], bytes(captured["body"]), json.dumps(safe_headers),
-                        org_id, scoped_key, request_hash,
+                        captured["status"],
+                        bytes(captured["body"]),
+                        json.dumps(safe_headers),
+                        org_id,
+                        scoped_key,
+                        request_hash,
                     )
                 except Exception as exc:
                     log.error("idempotency.persist_failed", error_type=type(exc).__name__)
 
     async def _respond(self, send: Send, status: int, code: str) -> None:
-        await send({"type": "http.response.start", "status": status,
-                    "headers": [(b"content-type", b"application/json")]})
+        await send(
+            {
+                "type": "http.response.start",
+                "status": status,
+                "headers": [(b"content-type", b"application/json")],
+            }
+        )
         await send({"type": "http.response.body", "body": json.dumps({"error": code}).encode()})

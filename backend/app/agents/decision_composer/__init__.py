@@ -1,4 +1,5 @@
 """decision_composer — parent agent package."""
+
 # node.py is imported for its side effects + legacy shims
 from app.agents.decision_composer import node as _node
 

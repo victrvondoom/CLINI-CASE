@@ -30,6 +30,7 @@ The wire shape is JSON-RPC 2.0 (matching the public MCP spec). Request:
       }
     }
 """
+
 from __future__ import annotations
 
 import json
@@ -136,7 +137,9 @@ class TriZettoGatewayClient:
         token: str | None = None,
         timeout_seconds: float = 5.0,
     ) -> None:
-        self.gateway_url = (gateway_url or getattr(settings, "TRIZETTO_GATEWAY_URL", "") or "").rstrip("/")
+        self.gateway_url = (
+            gateway_url or getattr(settings, "TRIZETTO_GATEWAY_URL", "") or ""
+        ).rstrip("/")
         self.token = token or getattr(settings, "TRIZETTO_GATEWAY_TOKEN", "") or ""
         self.timeout = timeout_seconds
 
@@ -196,7 +199,11 @@ class TriZettoGatewayClient:
             gateway_id=gateway_id,
             fanout_targets=targets,
             received_at=received_at,
-            raw={"jsonrpc": "2.0", "id": envelope["id"], "result": {"ok": True, "gateway_id": gateway_id}},
+            raw={
+                "jsonrpc": "2.0",
+                "id": envelope["id"],
+                "result": {"ok": True, "gateway_id": gateway_id},
+            },
         )
 
     # ------------------------------------------------------------------
@@ -227,7 +234,11 @@ class TriZettoGatewayClient:
         try:
             body = resp.json()
         except json.JSONDecodeError:
-            body = {"error": "non-json response", "status": resp.status_code, "text_preview": resp.text[:200]}
+            body = {
+                "error": "non-json response",
+                "status": resp.status_code,
+                "text_preview": resp.text[:200],
+            }
 
         accepted = resp.status_code < 400 and "error" not in body
         result = body.get("result", {}) if isinstance(body, dict) else {}

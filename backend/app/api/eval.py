@@ -13,6 +13,7 @@ Why this matters: health-sciences buyers trust measured numbers, not claims.
 A working eval harness with concrete precision/recall numbers — and an honest
 framing that disagreements skew conservative — is what earns that trust.
 """
+
 from __future__ import annotations
 
 import json
@@ -39,9 +40,7 @@ def _load_gold_labels() -> dict[str, Any]:
 VERDICTS = ["APPROVE", "DENY", "REFER"]
 
 
-def _per_class_prf(
-    truth: list[str], pred: list[str], cls: str
-) -> dict[str, float]:
+def _per_class_prf(truth: list[str], pred: list[str], cls: str) -> dict[str, float]:
     """Compute precision, recall, F1 for a single class."""
     tp = sum(1 for t, p in zip(truth, pred, strict=False) if t == cls and p == cls)
     fp = sum(1 for t, p in zip(truth, pred, strict=False) if t != cls and p == cls)
@@ -60,18 +59,14 @@ def _per_class_prf(
 
 
 def _confusion_matrix(truth: list[str], pred: list[str]) -> dict[str, dict[str, int]]:
-    matrix: dict[str, dict[str, int]] = {
-        t: {p: 0 for p in VERDICTS} for t in VERDICTS
-    }
+    matrix: dict[str, dict[str, int]] = {t: {p: 0 for p in VERDICTS} for t in VERDICTS}
     for t, p in zip(truth, pred, strict=False):
         if t in VERDICTS and p in VERDICTS:
             matrix[t][p] += 1
     return matrix
 
 
-def _disagreement_taxonomy(
-    truth: list[str], pred: list[str]
-) -> dict[str, int]:
+def _disagreement_taxonomy(truth: list[str], pred: list[str]) -> dict[str, int]:
     """Bucket the disagreements as conservative vs aggressive vs neutral.
 
     Conservative: gold says REFER but ClinCase said APPROVE/DENY (gold prefers
@@ -143,14 +138,16 @@ async def cohort_eval(
             continue
         truth.append(gold_v)
         pred.append(clincase_v)
-        rows_for_breakdown.append({
-            "case_id": cid,
-            "treatment": r["requested_treatment_name"] or "(unspecified)",
-            "payer": r["payer_id"] or "unknown",
-            "gold": gold_v,
-            "clincase": clincase_v,
-            "agree": gold_v == clincase_v,
-        })
+        rows_for_breakdown.append(
+            {
+                "case_id": cid,
+                "treatment": r["requested_treatment_name"] or "(unspecified)",
+                "payer": r["payer_id"] or "unknown",
+                "gold": gold_v,
+                "clincase": clincase_v,
+                "agree": gold_v == clincase_v,
+            }
+        )
 
     n = len(truth)
     overall_accuracy = (
@@ -174,9 +171,7 @@ async def cohort_eval(
         weighted_f1 = 0.0
 
     # Per-payer breakdown
-    per_payer: dict[str, dict[str, Any]] = defaultdict(
-        lambda: {"n": 0, "agree": 0}
-    )
+    per_payer: dict[str, dict[str, Any]] = defaultdict(lambda: {"n": 0, "agree": 0})
     for row in rows_for_breakdown:
         p = per_payer[row["payer"]]
         p["n"] += 1
@@ -192,9 +187,7 @@ async def cohort_eval(
     }
 
     # Per-treatment breakdown (top 5 by volume)
-    per_treatment: dict[str, dict[str, Any]] = defaultdict(
-        lambda: {"n": 0, "agree": 0}
-    )
+    per_treatment: dict[str, dict[str, Any]] = defaultdict(lambda: {"n": 0, "agree": 0})
     for row in rows_for_breakdown:
         t = per_treatment[row["treatment"]]
         t["n"] += 1

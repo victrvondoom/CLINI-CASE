@@ -1,4 +1,5 @@
 """FastAPI application entry point."""
+
 from __future__ import annotations
 
 import logging
@@ -83,81 +84,107 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     # OpenTelemetry — no-op when OTEL_EXPORTER_OTLP_ENDPOINT is unset.
     def _otel_setup():
         from app.observability.otel import instrument_fastapi, setup_otel
+
         setup_otel(service_name="clincase", service_version="0.1.0")
         instrument_fastapi(_app)
+
     _install_optional_sync("otel", _otel_setup)
 
     # Idempotent schema bootstraps. Each is safe to re-run; the worker
     # process also runs them. Failure here does NOT prevent boot.
     async def _outbox():
         from app.events.outbox import ensure_schema
+
         await ensure_schema()
+
     await _bootstrap_optional("outbox_schema", _outbox)
 
     async def _saga():
         from app.saga import ensure_schema
+
         await ensure_schema()
+
     await _bootstrap_optional("saga_schema", _saga)
 
     async def _dlq():
         from app.events.dlq import ensure_schema
+
         await ensure_schema()
+
     await _bootstrap_optional("dlq_schema", _dlq)
 
     async def _secanom():
         from app.security.breach_detector import ensure_schema
+
         await ensure_schema()
+
     await _bootstrap_optional("security_anomalies_schema", _secanom)
 
     def _shutdown_handlers():
         from app.graceful_shutdown import install_signal_handlers
+
         install_signal_handlers()
+
     _install_optional_sync("graceful_shutdown", _shutdown_handlers)
 
     # Round-13 batch (idempotent)
     for module_path, label in (
         ("app.api.idempotency_middleware", "idempotency_schema"),
-        ("app.api.fhir_bulk",              "fhir_bulk_jobs_schema"),
-        ("app.privacy.erasure",            "subject_redactions_schema"),
-        ("app.privacy.tokenization",       "phi_vault_schema"),
-        ("app.prompts_versioning",         "prompts_schema"),
-        ("app.api.cases",                  "cases_status_schema"),
+        ("app.api.fhir_bulk", "fhir_bulk_jobs_schema"),
+        ("app.privacy.erasure", "subject_redactions_schema"),
+        ("app.privacy.tokenization", "phi_vault_schema"),
+        ("app.prompts_versioning", "prompts_schema"),
+        ("app.api.cases", "cases_status_schema"),
     ):
+
         async def _ensure(mp=module_path):
             mod = __import__(mp, fromlist=["ensure_schema"])
             await mod.ensure_schema()
+
         await _bootstrap_optional(label, _ensure)
 
     async def _jobs_queue():
         from app.jobs import queue
+
         await queue.ensure_schema()
+
     await _bootstrap_optional("jobs_queue_schema", _jobs_queue)
 
     async def _quotas():
         from app.quotas import ensure_schema
+
         await ensure_schema()
+
     await _bootstrap_optional("quotas_schema", _quotas)
 
     async def _cache():
         from app.agents.framework.cache import ensure_schema
+
         await ensure_schema()
+
     await _bootstrap_optional("cache_schema", _cache)
 
     async def _gateway():
         from app.llm.gateway import ensure_schema
+
         await ensure_schema()
+
     await _bootstrap_optional("genai_gateway_schema", _gateway)
 
     # OncoTwin (digital-twin layer) — hash-chained prediction/HITL audit ledger.
     async def _oncotwin():
         from app.oncotwin.store import ensure_schema
+
         await ensure_schema()
+
     await _bootstrap_optional("oncotwin_audit_schema", _oncotwin)
 
     # AquaHealth (OneAquaHealth freshwater module) — additive; own tables only.
     async def _aquahealth():
         from app.aquahealth.store import ensure_schema
+
         await ensure_schema()
+
     await _bootstrap_optional("aquahealth_schema", _aquahealth)
 
     # Redis SSE pub/sub — in-process is the safe fallback for single-replica.
@@ -165,9 +192,12 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     # asymmetrically. We log loudly when this fails because in production
     # it's a degraded mode worth alerting on.
     if settings.REDIS_URL:
+
         async def _redis_backend():
             from app.streaming import use_redis_backend
+
             await use_redis_backend(settings.REDIS_URL)
+
         await _bootstrap_optional("redis_sse_backend", _redis_backend)
 
     # Seed demo admin/reviewer/coordinator if not present (idempotent).
@@ -178,13 +208,14 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         from app.auth import hash_password
 
         _demo_users = (
-            ("user_demoadmin",    "admin@clincase.health",       "Demo Administrator", "admin"),
-            ("user_demoreviewer", "reviewer@clincase.health",    "Demo Reviewer",      "reviewer"),
-            ("user_democoord",    "coordinator@clincase.health", "Demo Coordinator",   "coordinator"),
+            ("user_demoadmin", "admin@clincase.health", "Demo Administrator", "admin"),
+            ("user_demoreviewer", "reviewer@clincase.health", "Demo Reviewer", "reviewer"),
+            ("user_democoord", "coordinator@clincase.health", "Demo Coordinator", "coordinator"),
         )
 
         existing = await db.fetchval(
-            "SELECT id FROM users WHERE email = $1", _demo_users[0][1],
+            "SELECT id FROM users WHERE email = $1",
+            _demo_users[0][1],
         )
         if existing is None:
             _hashed_demo_password = hash_password(settings.DEMO_USER_PASSWORD)
@@ -194,12 +225,18 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
                                           organization_id, role)
                        VALUES ($1, $2, $3, $4, $5, $6)
                        ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email""",
-                    user_id, email, _hashed_demo_password,
-                    full_name, "org_demo", role,
+                    user_id,
+                    email,
+                    _hashed_demo_password,
+                    full_name,
+                    "org_demo",
+                    role,
                 )
             await db.execute(
                 "UPDATE organizations SET name = $1, slug = $2 WHERE id = $3",
-                "ClinCase Demo Health", "clincase-demo", "org_demo",
+                "ClinCase Demo Health",
+                "clincase-demo",
+                "org_demo",
             )
             log.info("clincase.seed.demo_users_created", count=len(_demo_users))
 
@@ -217,6 +254,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     finally:
         try:
             from app.streaming import shutdown_backend
+
             await shutdown_backend()
         except Exception as e:  # noqa: BLE001
             log.warning("clincase.redis.shutdown_failed", error=str(e))
@@ -284,12 +322,14 @@ async def request_id_middleware(request, call_next):
     structlog contextvar so every log line in this request carries it.
     """
     import uuid as _uuid
+
     rid = request.headers.get("x-request-id") or _uuid.uuid4().hex[:16]
     structlog.contextvars.bind_contextvars(request_id=rid)
     response = await call_next(request)
     response.headers["X-Request-Id"] = rid
     structlog.contextvars.unbind_contextvars("request_id")
     return response
+
 
 # --- Routes ------------------------------------------------------------------
 from app.api import (  # noqa: E402
@@ -408,26 +448,26 @@ from app.api import (  # noqa: E402
 from app.integrations.trizetto.router import router as trizetto_router  # noqa: E402
 from app.mcp.server import router as mcp_router  # noqa: E402
 
-app.include_router(healthz.router,         prefix="/api/v1")
-app.include_router(llm_ping.router,        prefix="/api/v1")
-app.include_router(auth.router,            prefix="/api/v1")
-app.include_router(cases.router,           prefix="/api/v1")
-app.include_router(appeals_api.router,     prefix="/api/v1")
-app.include_router(intake_api.router,      prefix="/api/v1")
-app.include_router(jobs_api.router,        prefix="/api/v1")
-app.include_router(stream.router,          prefix="/api/v1")
-app.include_router(demo.router,            prefix="/api/v1")
+app.include_router(healthz.router, prefix="/api/v1")
+app.include_router(llm_ping.router, prefix="/api/v1")
+app.include_router(auth.router, prefix="/api/v1")
+app.include_router(cases.router, prefix="/api/v1")
+app.include_router(appeals_api.router, prefix="/api/v1")
+app.include_router(intake_api.router, prefix="/api/v1")
+app.include_router(jobs_api.router, prefix="/api/v1")
+app.include_router(stream.router, prefix="/api/v1")
+app.include_router(demo.router, prefix="/api/v1")
 # /metrics is mounted at root (no /api/v1 prefix) per Prometheus convention
 app.include_router(metrics_api.router)
-app.include_router(eval_api.router,        prefix="/api/v1")
+app.include_router(eval_api.router, prefix="/api/v1")
 app.include_router(agents_manifest.router, prefix="/api/v1")
-app.include_router(quotas_api.router,      prefix="/api/v1")
-app.include_router(compliance_api.router,  prefix="/api/v1")
+app.include_router(quotas_api.router, prefix="/api/v1")
+app.include_router(compliance_api.router, prefix="/api/v1")
 app.include_router(business_value_api.router, prefix="/api/v1")
-app.include_router(kiro_api.router,        prefix="/api/v1")
-app.include_router(trizetto_router,        prefix="/api/v1")
+app.include_router(kiro_api.router, prefix="/api/v1")
+app.include_router(trizetto_router, prefix="/api/v1")
 app.include_router(evidence_pack_api.router, prefix="/api/v1")
-app.include_router(foundry_api.router,     prefix="/api/v1")
+app.include_router(foundry_api.router, prefix="/api/v1")
 app.include_router(responsible_ai_api.router, prefix="/api/v1")
 app.include_router(architecture_api.router, prefix="/api/v1")
 app.include_router(llm_gateway_api.router, prefix="/api/v1")
@@ -451,7 +491,7 @@ app.include_router(policies_api.router, prefix="/api/v1")
 app.include_router(oncology_stack.router, prefix="/api/v1")
 # OncoTwin — dynamic digital-twin layer (additive; hands off into the cases API above)
 app.include_router(oncotwin_api.router, prefix="/api/v1")
-app.include_router(oncotwin_intel_api.router, prefix="/api/v1")    # OncoTwin 2.0 (additive)
+app.include_router(oncotwin_intel_api.router, prefix="/api/v1")  # OncoTwin 2.0 (additive)
 # AquaHealth — OneAquaHealth freshwater ecosystem module (additive; own tables,
 # own agents, own routes. ClinCase's clinical workflow is unchanged).
 app.include_router(aquahealth_api.router, prefix="/api/v1")

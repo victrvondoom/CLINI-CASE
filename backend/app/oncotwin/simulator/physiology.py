@@ -28,6 +28,7 @@ experiment" — model STRUCTURE is shared, patient PARAMETERS and latent
 states are unknown to the twin and must be estimated from observations.
 Real-world use requires validation of this structure on real cohorts.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -39,24 +40,32 @@ LATENT = ("infection", "dehydration", "fatigue")
 # Effect of +1 unit of each latent load on each signal (transformed units:
 # log for hrv_sdnn / steps, linear otherwise). Columns follow LATENT.
 LOADINGS: dict[str, tuple[float, float, float]] = {
-    "resting_hr":    (8.0, 6.0, 3.0),
-    "hrv_sdnn":      (-0.30, -0.20, -0.15),
-    "temperature":   (1.15, 0.10, 0.0),
-    "spo2":          (-0.9, 0.0, 0.0),
-    "steps":         (-0.55, -0.35, -0.45),
-    "sleep_hours":   (-0.55, -0.35, -0.25),
-    "weight":        (0.0, -1.4, 0.0),
-    "sbp":           (-6.0, -7.0, 0.0),
+    "resting_hr": (8.0, 6.0, 3.0),
+    "hrv_sdnn": (-0.30, -0.20, -0.15),
+    "temperature": (1.15, 0.10, 0.0),
+    "spo2": (-0.9, 0.0, 0.0),
+    "steps": (-0.55, -0.35, -0.45),
+    "sleep_hours": (-0.55, -0.35, -0.25),
+    "weight": (0.0, -1.4, 0.0),
+    "sbp": (-6.0, -7.0, 0.0),
     "symptom_score": (2.2, 2.0, 1.2),
-    "dbp":           (-4.0, -4.0, 0.0),
-    "glucose_cgm":   (10.0, 6.0, 0.0),
+    "dbp": (-4.0, -4.0, 0.0),
+    "glucose_cgm": (10.0, 6.0, 0.0),
 }
 
 # Day-to-day biological + measurement noise, transformed units.
 OBS_NOISE: dict[str, float] = {
-    "resting_hr": 1.8, "hrv_sdnn": 0.10, "temperature": 0.13, "spo2": 0.5,
-    "steps": 0.22, "sleep_hours": 0.5, "weight": 0.3, "sbp": 5.0,
-    "symptom_score": 0.6, "dbp": 4.0, "glucose_cgm": 7.0,
+    "resting_hr": 1.8,
+    "hrv_sdnn": 0.10,
+    "temperature": 0.13,
+    "spo2": 0.5,
+    "steps": 0.22,
+    "sleep_hours": 0.5,
+    "weight": 0.3,
+    "sbp": 5.0,
+    "symptom_score": 0.6,
+    "dbp": 4.0,
+    "glucose_cgm": 7.0,
 }
 
 # A qualifying acute-care event occurs when a latent load crosses these.
@@ -64,18 +73,18 @@ EVENT_THRESHOLDS = {"infection": 1.5, "dehydration": 1.6}
 
 # Population neutrophil-model parameters (days). MTT/gamma are held at
 # population values; the patient-specific drug sensitivity (`slope`) is fitted.
-FRIBERG_MTT_DAYS = 4.5       # ≈108 h, within the published docetaxel/paclitaxel range
+FRIBERG_MTT_DAYS = 4.5  # ≈108 h, within the published docetaxel/paclitaxel range
 FRIBERG_GAMMA = 0.17
-EXPOSURE_KEL_PER_DAY = 0.5   # effective myelotoxic exposure half-life ≈ 1.4 d
-SLOPE_PER_MYELOTOX = 1.6     # slope = regimen.myelotox × patient sensitivity × this
+EXPOSURE_KEL_PER_DAY = 0.5  # effective myelotoxic exposure half-life ≈ 1.4 d
+SLOPE_PER_MYELOTOX = 1.6  # slope = regimen.myelotox × patient sensitivity × this
 GCSF_ACTIVE_DAYS = 10
 # G-CSF: self-limiting proliferation stimulus (only while ANC is below twice
 # its baseline) plus faster maturation. Keeps the model bounded.
 GCSF_STIM = 3.0
 GCSF_KTR_MULT = 1.4
 
-EMETO_PULSE = (0.9, 1.0, 0.8, 0.5, 0.25)                  # days 0..4 after dose
-FATIGUE_PULSE = (0.6, 1.0, 1.0, 0.8, 0.6, 0.4, 0.2)       # days 0..6 after dose
+EMETO_PULSE = (0.9, 1.0, 0.8, 0.5, 0.25)  # days 0..4 after dose
+FATIGUE_PULSE = (0.6, 1.0, 1.0, 0.8, 0.6, 0.4, 0.2)  # days 0..6 after dose
 IV_DIARRHEA_PULSE = {3: 0.4, 4: 0.5, 5: 0.5, 6: 0.4, 7: 0.25}
 
 
@@ -121,8 +130,12 @@ class FribergState:
         return cls(c.copy(), c.copy(), c.copy(), c.copy(), c.copy(), np.zeros_like(c))
 
     def copy(self) -> FribergState:
-        return FribergState(*(np.array(getattr(self, f), copy=True) for f in
-                              ("prol", "t1", "t2", "t3", "circ", "exposure")))
+        return FribergState(
+            *(
+                np.array(getattr(self, f), copy=True)
+                for f in ("prol", "t1", "t2", "t3", "circ", "exposure")
+            )
+        )
 
 
 def friberg_advance_day(
@@ -193,7 +206,9 @@ def simulate_anc(
         day = start_day + j
         out[:, j] = st.circ
         active = any(g < day <= g + GCSF_ACTIVE_DAYS for g in gcsf_days)
-        st = friberg_advance_day(st, circ0, slope, dose_scale=doses.get(day, 0.0), gcsf_active=active)
+        st = friberg_advance_day(
+            st, circ0, slope, dose_scale=doses.get(day, 0.0), gcsf_active=active
+        )
     return out, st
 
 
@@ -205,21 +220,24 @@ def simulate_anc(
 @dataclass
 class DayDrivers:
     """Everything that drives the latent loads on one day (per run)."""
-    days_since_dose: int | None       # None = no dose yet this course
-    emeto: float                      # regimen emetogenic load
-    diarrhea: float                   # regimen diarrhea load
-    fatigue: float                    # regimen fatigue load
+
+    days_since_dose: int | None  # None = no dose yet this course
+    emeto: float  # regimen emetogenic load
+    diarrhea: float  # regimen diarrhea load
+    fatigue: float  # regimen fatigue load
     oral_days: int
-    adherence: np.ndarray | float     # supportive-medication adherence today (0..1)
+    adherence: np.ndarray | float  # supportive-medication adherence today (0..1)
     infection_seed: np.ndarray | float = 0.0
     virulence: np.ndarray | float = 0.0
     abx_boost: np.ndarray | float = 0.0
     hydration_boost: np.ndarray | float = 0.0
     activity_boost: np.ndarray | float = 0.0
-    gi_insult: np.ndarray | float = 0.0   # acute GI illness (injected / exogenous)
+    gi_insult: np.ndarray | float = 0.0  # acute GI illness (injected / exogenous)
 
 
-def gi_pulses(days_since_dose: int | None, emeto: float, diarrhea: float, oral_days: int) -> tuple[float, float]:
+def gi_pulses(
+    days_since_dose: int | None, emeto: float, diarrhea: float, oral_days: int
+) -> tuple[float, float]:
     """(emesis pulse, diarrhea pulse) on a given day of the cycle."""
     if days_since_dose is None or days_since_dose < 0:
         return 0.0, 0.0
@@ -268,9 +286,13 @@ def latent_step(
     deh = dehydration + 0.5 * (emesis + diarrhea) - recovery * dehydration
     deh = np.clip(deh, 0.0, 4.0)
 
-    fat = (fatigue + 0.10 * fatigue_pulse(drv.days_since_dose, drv.fatigue)
-           + 0.08 * infection + 0.05 * dehydration
-           - 0.10 * (1.0 + np.asarray(drv.activity_boost, dtype=float)) * fatigue)
+    fat = (
+        fatigue
+        + 0.10 * fatigue_pulse(drv.days_since_dose, drv.fatigue)
+        + 0.08 * infection
+        + 0.05 * dehydration
+        - 0.10 * (1.0 + np.asarray(drv.activity_boost, dtype=float)) * fatigue
+    )
     fat = np.clip(fat, 0.0, 4.0)
     return inf, deh, fat, emesis
 

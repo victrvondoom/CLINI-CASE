@@ -2,6 +2,7 @@
 
 Source of truth for every schema: PROPOSAL.md §9 and §10.
 """
+
 from app.models.appeal import AppealArgument, AppealDraft
 from app.models.clinical import (
     Biomarker,

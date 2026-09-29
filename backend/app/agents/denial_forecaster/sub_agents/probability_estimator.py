@@ -4,6 +4,7 @@ LLM-backed (Sonnet). Calibrated payer-denial probability anchored against
 MA / oncology-PA base rates. Outputs estimator_confidence and a one-line
 summary fit for a coordinator dashboard.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -21,13 +22,14 @@ from app.agents.framework import (
 
 _PROMPT = (
     Path(__file__).resolve().parents[3]
-    / "prompts" / "denial_forecaster" / "sub_agents" / "probability_estimator.txt"
+    / "prompts"
+    / "denial_forecaster"
+    / "sub_agents"
+    / "probability_estimator.txt"
 ).read_text(encoding="utf-8")
 
 
-class ProbabilityEstimatorAgent(
-    Agent[ProbabilityEstimatorInput, ProbabilityEstimatorOutput]
-):
+class ProbabilityEstimatorAgent(Agent[ProbabilityEstimatorInput, ProbabilityEstimatorOutput]):
     name: ClassVar[str] = "probability_estimator"
     parent: ClassVar[str] = "denial_forecaster"
     role: ClassVar[str] = "denial_probability_calibration"

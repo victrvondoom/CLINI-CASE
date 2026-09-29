@@ -1,12 +1,13 @@
 """Prompt-versioning admin endpoints.
 
-  GET  /api/v1/prompts                                list all prompt versions
-  GET  /api/v1/prompts/{agent_name}                   list one agent's versions
-  POST /api/v1/prompts                                add a new version (draft)
-  POST /api/v1/prompts/{agent_name}/{version}/activate  activate this version
-  POST /api/v1/prompts/{agent_name}/traffic-split     set A/B split
-  POST /api/v1/prompts/{agent_name}/assign            pin a tenant to a version
+GET  /api/v1/prompts                                list all prompt versions
+GET  /api/v1/prompts/{agent_name}                   list one agent's versions
+POST /api/v1/prompts                                add a new version (draft)
+POST /api/v1/prompts/{agent_name}/{version}/activate  activate this version
+POST /api/v1/prompts/{agent_name}/traffic-split     set A/B split
+POST /api/v1/prompts/{agent_name}/assign            pin a tenant to a version
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -28,10 +29,10 @@ router = APIRouter(prefix="/prompts", tags=["prompts"])
 
 class AddPromptBody(BaseModel):
     agent_name: str = Field(..., min_length=1, max_length=64)
-    version:    str = Field(..., min_length=1, max_length=32)
-    body:       str = Field(..., min_length=1)
+    version: str = Field(..., min_length=1, max_length=32)
+    body: str = Field(..., min_length=1)
     description: str | None = None
-    status:     str = Field(default="draft", pattern="^(draft|shadow|active|retired)$")
+    status: str = Field(default="draft", pattern="^(draft|shadow|active|retired)$")
 
 
 class TrafficSplitBody(BaseModel):
@@ -40,7 +41,7 @@ class TrafficSplitBody(BaseModel):
 
 class AssignBody(BaseModel):
     organization_id: str
-    version:         str
+    version: str
 
 
 @router.get("")
@@ -111,4 +112,9 @@ async def post_assign(
         agent_name=agent_name,
         version=body.version,
     )
-    return {"status": "assigned", "organization_id": body.organization_id, "agent_name": agent_name, "version": body.version}
+    return {
+        "status": "assigned",
+        "organization_id": body.organization_id,
+        "agent_name": agent_name,
+        "version": body.version,
+    }

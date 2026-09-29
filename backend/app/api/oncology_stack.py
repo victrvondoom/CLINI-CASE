@@ -17,6 +17,7 @@ USP index:
    9. /onco/policies/diffs                       — Multi-payer policy diff
   10. /onco/audit/trail/{ref}                    — Cryptographic decision audit
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -95,7 +96,14 @@ def policy_diffs() -> dict[str, Any]:
 _AUDIT_CHAIN: list[dict[str, Any]] = []
 
 
-def _audit_record(*, kind: str, agent: str, inputs: dict[str, Any], output: dict[str, Any], confidence: float | None = None) -> dict[str, Any]:
+def _audit_record(
+    *,
+    kind: str,
+    agent: str,
+    inputs: dict[str, Any],
+    output: dict[str, Any],
+    confidence: float | None = None,
+) -> dict[str, Any]:
     """Append a tamper-evident audit entry. Returns the entry (with hash)."""
     prev_hash = _AUDIT_CHAIN[-1]["hash"] if _AUDIT_CHAIN else "0" * 64
     payload = {
@@ -104,8 +112,12 @@ def _audit_record(*, kind: str, agent: str, inputs: dict[str, Any], output: dict
         "agent": agent,
         "model_id": "claude-sonnet-4-6",  # TODO: pull from actual call
         "timestamp": datetime.now(UTC).isoformat(),
-        "inputs_sha256": hashlib.sha256(json.dumps(inputs, sort_keys=True, default=str).encode()).hexdigest(),
-        "output_sha256": hashlib.sha256(json.dumps(output, sort_keys=True, default=str).encode()).hexdigest(),
+        "inputs_sha256": hashlib.sha256(
+            json.dumps(inputs, sort_keys=True, default=str).encode()
+        ).hexdigest(),
+        "output_sha256": hashlib.sha256(
+            json.dumps(output, sort_keys=True, default=str).encode()
+        ).hexdigest(),
         "confidence": confidence,
         "prev_hash": prev_hash,
     }
@@ -117,6 +129,7 @@ def _audit_record(*, kind: str, agent: str, inputs: dict[str, Any], output: dict
 # ===========================================================================
 # USP #1 — OncoGuideline Engine (NCCN/ASCO RAG)
 # ===========================================================================
+
 
 class GuidelineHit(BaseModel):
     id: str
@@ -144,7 +157,9 @@ def _tokenize(text: str) -> list[str]:
     return re.findall(r"[a-z0-9]+", text.lower())
 
 
-def _tfidf_score(query_tokens: list[str], doc_tokens: list[str], all_docs: list[list[str]]) -> float:
+def _tfidf_score(
+    query_tokens: list[str], doc_tokens: list[str], all_docs: list[list[str]]
+) -> float:
     """Cheap TF-IDF: term-freq in doc weighted by inverse-doc-freq across corpus."""
     if not query_tokens or not doc_tokens:
         return 0.0
@@ -165,10 +180,15 @@ def _tfidf_score(query_tokens: list[str], doc_tokens: list[str], all_docs: list[
     return score
 
 
-@router.get("/guidelines/search", response_model=GuidelineSearchResponse,
-            summary="USP #1 — Real-time NCCN/ASCO guideline retrieval (RAG)")
+@router.get(
+    "/guidelines/search",
+    response_model=GuidelineSearchResponse,
+    summary="USP #1 — Real-time NCCN/ASCO guideline retrieval (RAG)",
+)
 async def guideline_search(
-    tumor: str | None = Query(None, description="e.g. 'NSCLC', 'Breast', 'Ovarian', 'any' for tumor-agnostic"),
+    tumor: str | None = Query(
+        None, description="e.g. 'NSCLC', 'Breast', 'Ovarian', 'any' for tumor-agnostic"
+    ),
     biomarker: str | None = Query(None, description="e.g. 'EGFR L858R', 'BRCA1', 'TMB-H'"),
     line: str | None = Query(None, description="'first', 'second', 'maintenance', 'any'"),
     q: str | None = Query(None, description="Free-text query"),
@@ -183,10 +203,18 @@ async def guideline_search(
     # Build doc texts
     docs = []
     for g in corpus:
-        text = " ".join(str(g.get(k) or "") for k in (
-            "tumor_type", "biomarker", "line_of_therapy", "regimen",
-            "section_heading", "excerpt", "guideline",
-        ))
+        text = " ".join(
+            str(g.get(k) or "")
+            for k in (
+                "tumor_type",
+                "biomarker",
+                "line_of_therapy",
+                "regimen",
+                "section_heading",
+                "excerpt",
+                "guideline",
+            )
+        )
         docs.append(_tokenize(text))
 
     scored = []
@@ -215,7 +243,9 @@ async def guideline_search(
 
     return GuidelineSearchResponse(
         query={"tumor": tumor, "biomarker": biomarker, "line": line, "q": q, "top_k": top_k},
-        hits=hits, n=len(hits), audit_id=audit["id"],
+        hits=hits,
+        n=len(hits),
+        audit_id=audit["id"],
         latency_ms=int((time.monotonic() - t0) * 1000),
     )
 
@@ -224,10 +254,13 @@ async def guideline_search(
 # USP #2 — Genomic Authorization Agent (FoundationOne / Tempus / Caris)
 # ===========================================================================
 
+
 class ExtractedVariant(BaseModel):
-    canonical_id: str           # key in biomarker_regimen_map
-    text_match: str             # the literal substring matched
-    variant_class: Literal["snv", "fusion", "amplification", "deletion", "signature", "other"] = "other"
+    canonical_id: str  # key in biomarker_regimen_map
+    text_match: str  # the literal substring matched
+    variant_class: Literal["snv", "fusion", "amplification", "deletion", "signature", "other"] = (
+        "other"
+    )
     fda_approved: list[str]
     nccn_preferred: str
     evidence: str
@@ -257,8 +290,11 @@ _VARIANT_CLASS_HINTS = {
 }
 
 
-@router.post("/genomic/parse", response_model=GenomicParseResponse,
-             summary="USP #2 — Parse a FoundationOne/Tempus/Caris NGS PDF into actionable variants")
+@router.post(
+    "/genomic/parse",
+    response_model=GenomicParseResponse,
+    summary="USP #2 — Parse a FoundationOne/Tempus/Caris NGS PDF into actionable variants",
+)
 async def genomic_parse(
     file: UploadFile = File(...),
     user: dict[str, Any] = Depends(get_current_user),
@@ -269,6 +305,7 @@ async def genomic_parse(
     if raw[:5] == b"%PDF-":
         try:
             from pypdf import PdfReader
+
             reader = PdfReader(io.BytesIO(raw))
             text = "\n".join((p.extract_text() or "") for p in reader.pages)
         except Exception:
@@ -293,21 +330,29 @@ async def genomic_parse(
                     if hint.lower() in variant_label.lower():
                         vclass = cls
                         break
-                found.setdefault(canonical_id, ExtractedVariant(
-                    canonical_id=canonical_id,
-                    text_match=m.group(0),
-                    variant_class=vclass,  # type: ignore[arg-type]
-                    fda_approved=entry["fda_approved"],
-                    nccn_preferred=entry["nccn_preferred"],
-                    evidence=entry["evidence"],
-                    tumor_types=entry["tumor_types"],
-                    guideline_ref=entry.get("guideline_ref"),
-                ))
+                found.setdefault(
+                    canonical_id,
+                    ExtractedVariant(
+                        canonical_id=canonical_id,
+                        text_match=m.group(0),
+                        variant_class=vclass,  # type: ignore[arg-type]
+                        fda_approved=entry["fda_approved"],
+                        nccn_preferred=entry["nccn_preferred"],
+                        evidence=entry["evidence"],
+                        tumor_types=entry["tumor_types"],
+                        guideline_ref=entry.get("guideline_ref"),
+                    ),
+                )
                 break  # only need one literal match per canonical variant
 
     audit = _audit_record(
-        kind="genomic_parse", agent="GenomicAgent",
-        inputs={"filename": file.filename, "bytes": len(raw), "sha256": hashlib.sha256(raw).hexdigest()},
+        kind="genomic_parse",
+        agent="GenomicAgent",
+        inputs={
+            "filename": file.filename,
+            "bytes": len(raw),
+            "sha256": hashlib.sha256(raw).hexdigest(),
+        },
         output={"variants": list(found.keys()), "n": len(found)},
         confidence=0.95 if found else 0.4,
     )
@@ -324,7 +369,9 @@ async def genomic_parse(
 
 @router.get("/genomic/regimens", summary="USP #2b — Look up regimens for a known biomarker variant")
 async def genomic_regimens(
-    variant: str = Query(..., description="A canonical_id (e.g. 'EGFR_L858R') or substring of a variant label"),
+    variant: str = Query(
+        ..., description="A canonical_id (e.g. 'EGFR_L858R') or substring of a variant label"
+    ),
     user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
     bm = biomarkers()["mappings"]
@@ -340,6 +387,7 @@ async def genomic_regimens(
 # ===========================================================================
 # USP #3 — Denial Avoidance + Auto-Appeal Generator
 # ===========================================================================
+
 
 class DenialPredictionRequest(BaseModel):
     treatment: str
@@ -363,8 +411,11 @@ class DenialPredictionResponse(BaseModel):
     audit_id: str
 
 
-@router.post("/denial/predict", response_model=DenialPredictionResponse,
-             summary="USP #3a — Predict denial probability + recommend pre-emptive documentation")
+@router.post(
+    "/denial/predict",
+    response_model=DenialPredictionResponse,
+    summary="USP #3a — Predict denial probability + recommend pre-emptive documentation",
+)
 async def denial_predict(
     req: DenialPredictionRequest,
     user: dict[str, Any] = Depends(get_current_user),
@@ -386,7 +437,9 @@ async def denial_predict(
     if req.biomarkers and not req.has_biomarker_test:
         p += 0.22
         risks.append("biomarker claimed but no test report attached")
-        actions.append("Attach NGS / IHC report from CLIA-certified lab (FoundationOne, Tempus, MSK-IMPACT).")
+        actions.append(
+            "Attach NGS / IHC report from CLIA-certified lab (FoundationOne, Tempus, MSK-IMPACT)."
+        )
     if not req.has_nccn_citation:
         p += 0.14
         risks.append("no NCCN/ASCO citation in submission")
@@ -394,12 +447,16 @@ async def denial_predict(
     if req.prior_lines == 0 and "second" in (req.line_of_therapy or "").lower():
         p += 0.20
         risks.append("second-line claimed without prior-therapy documentation")
-        actions.append("Document prior regimens with start/stop dates + reason for discontinuation.")
+        actions.append(
+            "Document prior regimens with start/stop dates + reason for discontinuation."
+        )
 
     p = min(p, 0.95)
     audit = _audit_record(
-        kind="denial_predict", agent="DenialPredictor",
-        inputs=req.model_dump(), output={"p": p, "n_risks": len(risks)},
+        kind="denial_predict",
+        agent="DenialPredictor",
+        inputs=req.model_dump(),
+        output={"p": p, "n_risks": len(risks)},
         confidence=0.78,
     )
 
@@ -436,8 +493,11 @@ class AppealDraftResponse(BaseModel):
     audit_id: str
 
 
-@router.post("/appeal/draft", response_model=AppealDraftResponse,
-             summary="USP #3b — Generate evidence-graph-cited appeal letter")
+@router.post(
+    "/appeal/draft",
+    response_model=AppealDraftResponse,
+    summary="USP #3b — Generate evidence-graph-cited appeal letter",
+)
 async def appeal_draft(
     req: AppealDraftRequest,
     user: dict[str, Any] = Depends(get_current_user),
@@ -448,7 +508,10 @@ async def appeal_draft(
     if req.nccn_section:
         matched_guideline = next((g for g in matches if g["id"] == req.nccn_section), None)
     if matched_guideline is None and req.biomarker:
-        matched_guideline = next((g for g in matches if req.biomarker.lower() in (g.get("biomarker") or "").lower()), None)
+        matched_guideline = next(
+            (g for g in matches if req.biomarker.lower() in (g.get("biomarker") or "").lower()),
+            None,
+        )
 
     ev_section = ""
     if matched_guideline:
@@ -503,14 +566,17 @@ Citations:
 """.strip()
 
     audit = _audit_record(
-        kind="appeal_draft", agent="AppealsDrafter",
+        kind="appeal_draft",
+        agent="AppealsDrafter",
         inputs=req.model_dump(),
         output={"word_count": len(letter.split()), "n_citations": len(citations)},
         confidence=0.88,
     )
 
     return AppealDraftResponse(
-        letter=letter, word_count=len(letter.split()), citations=citations,
+        letter=letter,
+        word_count=len(letter.split()),
+        citations=citations,
         audit_id=audit["id"],
     )
 
@@ -518,6 +584,7 @@ Citations:
 # ===========================================================================
 # USP #4 — CMS-0057-F Native FHIR Compliance (Da Vinci PAS / CRD / DTR)
 # ===========================================================================
+
 
 class PASSubmitRequest(BaseModel):
     payer_id: str
@@ -530,7 +597,9 @@ class PASSubmitRequest(BaseModel):
 
 
 @router.post("/davinci/pas/submit", summary="USP #4a — Submit a Da Vinci PAS Bundle (FHIR R4)")
-async def davinci_pas_submit(req: PASSubmitRequest, user: dict[str, Any] = Depends(get_current_user)) -> dict[str, Any]:
+async def davinci_pas_submit(
+    req: PASSubmitRequest, user: dict[str, Any] = Depends(get_current_user)
+) -> dict[str, Any]:
     """Returns a Da Vinci PAS-conformant Bundle + ClaimResponse decision."""
     bundle_id = uuid.uuid4().hex
     claim_id = uuid.uuid4().hex
@@ -539,7 +608,11 @@ async def davinci_pas_submit(req: PASSubmitRequest, user: dict[str, Any] = Depen
     bundle = {
         "resourceType": "Bundle",
         "id": bundle_id,
-        "meta": {"profile": ["http://hl7.org/fhir/us/davinci-pas/StructureDefinition/profile-pas-request-bundle"]},
+        "meta": {
+            "profile": [
+                "http://hl7.org/fhir/us/davinci-pas/StructureDefinition/profile-pas-request-bundle"
+            ]
+        },
         "type": "collection",
         "timestamp": now,
         "entry": [
@@ -549,39 +622,72 @@ async def davinci_pas_submit(req: PASSubmitRequest, user: dict[str, Any] = Depen
                     "resourceType": "Claim",
                     "id": claim_id,
                     "status": "active",
-                    "type": {"coding": [{"system": "http://terminology.hl7.org/CodeSystem/claim-type", "code": "professional"}]},
+                    "type": {
+                        "coding": [
+                            {
+                                "system": "http://terminology.hl7.org/CodeSystem/claim-type",
+                                "code": "professional",
+                            }
+                        ]
+                    },
                     "use": "preauthorization",
                     "patient": {"reference": "Patient/example", "display": req.patient_initials},
                     "created": now,
                     "insurer": {"display": req.payer_id},
-                    "diagnosis": [{
-                        "sequence": 1,
-                        "diagnosisCodeableConcept": {
-                            "coding": [{"system": "http://hl7.org/fhir/sid/icd-10-cm", "code": req.diagnosis_icd10}],
-                        },
-                    }],
-                    "item": [{
-                        "sequence": 1,
-                        "productOrService": {
-                            "coding": [{"system": "http://www.ama-assn.org/go/cpt", "code": req.treatment_hcpcs, "display": req.treatment_name}],
-                        },
-                        "quantity": {"value": req.requested_units},
-                    }],
+                    "diagnosis": [
+                        {
+                            "sequence": 1,
+                            "diagnosisCodeableConcept": {
+                                "coding": [
+                                    {
+                                        "system": "http://hl7.org/fhir/sid/icd-10-cm",
+                                        "code": req.diagnosis_icd10,
+                                    }
+                                ],
+                            },
+                        }
+                    ],
+                    "item": [
+                        {
+                            "sequence": 1,
+                            "productOrService": {
+                                "coding": [
+                                    {
+                                        "system": "http://www.ama-assn.org/go/cpt",
+                                        "code": req.treatment_hcpcs,
+                                        "display": req.treatment_name,
+                                    }
+                                ],
+                            },
+                            "quantity": {"value": req.requested_units},
+                        }
+                    ],
                 },
             },
         ],
     }
     if req.biomarker:
-        bundle["entry"].append({
-            "fullUrl": f"urn:uuid:{uuid.uuid4().hex}",
-            "resource": {
-                "resourceType": "Observation",
-                "status": "final",
-                "category": [{"coding": [{"system": "http://terminology.hl7.org/CodeSystem/observation-category", "code": "laboratory"}]}],
-                "code": {"text": req.biomarker},
-                "valueString": "positive",
-            },
-        })
+        bundle["entry"].append(
+            {
+                "fullUrl": f"urn:uuid:{uuid.uuid4().hex}",
+                "resource": {
+                    "resourceType": "Observation",
+                    "status": "final",
+                    "category": [
+                        {
+                            "coding": [
+                                {
+                                    "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                                    "code": "laboratory",
+                                }
+                            ]
+                        }
+                    ],
+                    "code": {"text": req.biomarker},
+                    "valueString": "positive",
+                },
+            }
+        )
 
     # Synthesize the ClaimResponse (decision)
     decision = "approved" if req.biomarker else "pended"
@@ -590,7 +696,14 @@ async def davinci_pas_submit(req: PASSubmitRequest, user: dict[str, Any] = Depen
         "resourceType": "ClaimResponse",
         "id": uuid.uuid4().hex,
         "status": "active",
-        "type": {"coding": [{"system": "http://terminology.hl7.org/CodeSystem/claim-type", "code": "professional"}]},
+        "type": {
+            "coding": [
+                {
+                    "system": "http://terminology.hl7.org/CodeSystem/claim-type",
+                    "code": "professional",
+                }
+            ]
+        },
         "use": "preauthorization",
         "patient": {"reference": "Patient/example"},
         "created": now,
@@ -599,11 +712,29 @@ async def davinci_pas_submit(req: PASSubmitRequest, user: dict[str, Any] = Depen
         "preAuthRef": auth_number,
         "preAuthPeriod": {"start": now, "end": "2027-01-01T00:00:00Z"},
         "disposition": "Authorization issued; valid through end of plan year.",
-        "item": [{"itemSequence": 1, "adjudication": [{"category": {"coding": [{"system": "http://terminology.hl7.org/CodeSystem/adjudication", "code": decision}]}, "amount": {"value": 0, "currency": "USD"}}]}],
+        "item": [
+            {
+                "itemSequence": 1,
+                "adjudication": [
+                    {
+                        "category": {
+                            "coding": [
+                                {
+                                    "system": "http://terminology.hl7.org/CodeSystem/adjudication",
+                                    "code": decision,
+                                }
+                            ]
+                        },
+                        "amount": {"value": 0, "currency": "USD"},
+                    }
+                ],
+            }
+        ],
     }
 
     audit = _audit_record(
-        kind="davinci_pas_submit", agent="PASOrchestrator",
+        kind="davinci_pas_submit",
+        agent="PASOrchestrator",
         inputs=req.model_dump(),
         output={"bundle_id": bundle_id, "auth_number": auth_number, "decision": decision},
         confidence=0.95,
@@ -619,25 +750,48 @@ async def davinci_pas_submit(req: PASSubmitRequest, user: dict[str, Any] = Depen
     }
 
 
-@router.post("/davinci/crd", summary="USP #4b — Coverage Requirements Discovery (CRD) hook response")
-async def davinci_crd(payload: dict[str, Any], user: dict[str, Any] = Depends(get_current_user)) -> dict[str, Any]:
-    treatment = (payload.get("context", {}).get("medications", [{}])[0].get("medicationCodeableConcept", {}).get("text") or "treatment")
+@router.post(
+    "/davinci/crd", summary="USP #4b — Coverage Requirements Discovery (CRD) hook response"
+)
+async def davinci_crd(
+    payload: dict[str, Any], user: dict[str, Any] = Depends(get_current_user)
+) -> dict[str, Any]:
+    treatment = (
+        payload.get("context", {})
+        .get("medications", [{}])[0]
+        .get("medicationCodeableConcept", {})
+        .get("text")
+        or "treatment"
+    )
     return {
-        "cards": [{
-            "summary": f"Prior authorization required for {treatment}",
-            "indicator": "warning",
-            "detail": (
-                "Coverage requires NCCN-supported indication, biomarker test report, and pathology. "
-                "Submit via Da Vinci PAS or invoke the DTR Questionnaire to gather missing fields."
-            ),
-            "source": {"label": "ClinCase CRD service", "url": "https://clincase.com/crd"},
-            "links": [{"label": "Launch DTR", "url": "/api/v1/onco/davinci/dtr/questionnaire", "type": "smart"}],
-        }],
+        "cards": [
+            {
+                "summary": f"Prior authorization required for {treatment}",
+                "indicator": "warning",
+                "detail": (
+                    "Coverage requires NCCN-supported indication, biomarker test report, and pathology. "
+                    "Submit via Da Vinci PAS or invoke the DTR Questionnaire to gather missing fields."
+                ),
+                "source": {"label": "ClinCase CRD service", "url": "https://clincase.com/crd"},
+                "links": [
+                    {
+                        "label": "Launch DTR",
+                        "url": "/api/v1/onco/davinci/dtr/questionnaire",
+                        "type": "smart",
+                    }
+                ],
+            }
+        ],
     }
 
 
-@router.get("/davinci/dtr/questionnaire", summary="USP #4c — Documentation Templates and Rules (DTR) questionnaire")
-async def davinci_dtr_questionnaire(user: dict[str, Any] = Depends(get_current_user)) -> dict[str, Any]:
+@router.get(
+    "/davinci/dtr/questionnaire",
+    summary="USP #4c — Documentation Templates and Rules (DTR) questionnaire",
+)
+async def davinci_dtr_questionnaire(
+    user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
     """Return a FHIR Questionnaire that captures the missing PA documentation."""
     return {
         "resourceType": "Questionnaire",
@@ -646,15 +800,40 @@ async def davinci_dtr_questionnaire(user: dict[str, Any] = Depends(get_current_u
         "name": "ClinCaseOncologyDTR",
         "title": "ClinCase Oncology Documentation Template",
         "item": [
-            {"linkId": "1", "text": "Primary diagnosis (ICD-10-CM)", "type": "string", "required": True},
-            {"linkId": "2", "text": "Stage at diagnosis", "type": "choice", "required": True,
-             "answerOption": [{"valueString": s} for s in ("I", "II", "III", "IV")]},
-            {"linkId": "3", "text": "Line of therapy", "type": "choice", "required": True,
-             "answerOption": [{"valueString": s} for s in ("first", "second", "third", "maintenance")]},
-            {"linkId": "4", "text": "Targetable biomarker (e.g. EGFR L858R, BRCA1)", "type": "string"},
+            {
+                "linkId": "1",
+                "text": "Primary diagnosis (ICD-10-CM)",
+                "type": "string",
+                "required": True,
+            },
+            {
+                "linkId": "2",
+                "text": "Stage at diagnosis",
+                "type": "choice",
+                "required": True,
+                "answerOption": [{"valueString": s} for s in ("I", "II", "III", "IV")],
+            },
+            {
+                "linkId": "3",
+                "text": "Line of therapy",
+                "type": "choice",
+                "required": True,
+                "answerOption": [
+                    {"valueString": s} for s in ("first", "second", "third", "maintenance")
+                ],
+            },
+            {
+                "linkId": "4",
+                "text": "Targetable biomarker (e.g. EGFR L858R, BRCA1)",
+                "type": "string",
+            },
             {"linkId": "5", "text": "NGS report attached?", "type": "boolean"},
-            {"linkId": "6", "text": "Performance status (ECOG)", "type": "choice",
-             "answerOption": [{"valueInteger": i} for i in (0, 1, 2, 3, 4)]},
+            {
+                "linkId": "6",
+                "text": "Performance status (ECOG)",
+                "type": "choice",
+                "answerOption": [{"valueInteger": i} for i in (0, 1, 2, 3, 4)],
+            },
             {"linkId": "7", "text": "Prior therapies (free text)", "type": "text"},
         ],
     }
@@ -663,6 +842,7 @@ async def davinci_dtr_questionnaire(user: dict[str, Any] = Depends(get_current_u
 # ===========================================================================
 # USP #5 — Peer-to-Peer Briefing Kit (PDF)
 # ===========================================================================
+
 
 class P2PBriefingRequest(BaseModel):
     patient_initials: str
@@ -689,22 +869,44 @@ async def p2p_briefing(
     except ImportError as e:
         raise HTTPException(503, f"reportlab not available: {e}") from e
 
-    matched = next((g for g in nccn()["guidelines"]
-                    if (req.nccn_section and g["id"] == req.nccn_section)
-                    or (req.biomarker and req.biomarker.lower() in (g.get("biomarker") or "").lower())), None)
+    matched = next(
+        (
+            g
+            for g in nccn()["guidelines"]
+            if (req.nccn_section and g["id"] == req.nccn_section)
+            or (req.biomarker and req.biomarker.lower() in (g.get("biomarker") or "").lower())
+        ),
+        None,
+    )
 
     buf = io.BytesIO()
-    doc = SimpleDocTemplate(buf, pagesize=letter,
-                            leftMargin=0.6*inch, rightMargin=0.6*inch,
-                            topMargin=0.5*inch, bottomMargin=0.5*inch)
+    doc = SimpleDocTemplate(
+        buf,
+        pagesize=letter,
+        leftMargin=0.6 * inch,
+        rightMargin=0.6 * inch,
+        topMargin=0.5 * inch,
+        bottomMargin=0.5 * inch,
+    )
     styles = getSampleStyleSheet()
     h1 = ParagraphStyle("h1", parent=styles["Heading1"], fontSize=14, spaceAfter=4)
-    h2 = ParagraphStyle("h2", parent=styles["Heading2"], fontSize=11, textColor=colors.HexColor("#1f4ed8"), spaceAfter=2)
+    h2 = ParagraphStyle(
+        "h2",
+        parent=styles["Heading2"],
+        fontSize=11,
+        textColor=colors.HexColor("#1f4ed8"),
+        spaceAfter=2,
+    )
     body = ParagraphStyle("body", parent=styles["BodyText"], fontSize=9.5, leading=12)
 
     story = []
     story.append(Paragraph(f"Peer-to-Peer Briefing — {req.patient_initials}", h1))
-    story.append(Paragraph(f"<b>Payer:</b> {req.payer_id} &nbsp; <b>Treatment:</b> {req.treatment} &nbsp; <b>Diagnosis:</b> {req.diagnosis}", body))
+    story.append(
+        Paragraph(
+            f"<b>Payer:</b> {req.payer_id} &nbsp; <b>Treatment:</b> {req.treatment} &nbsp; <b>Diagnosis:</b> {req.diagnosis}",
+            body,
+        )
+    )
     story.append(Spacer(1, 8))
 
     story.append(Paragraph("Denial cited", h2))
@@ -714,13 +916,23 @@ async def p2p_briefing(
     story.append(Paragraph("Counter-arguments (3 strongest)", h2))
     counter = []
     if matched:
-        counter.append(f"<b>1.</b> NCCN {matched['guideline']} § {matched['id']} (Category {matched['evidence_category']}) recommends {matched['regimen']} for the patient's exact biomarker profile ({matched['biomarker']}).")
-        counter.append(f"<b>2.</b> Reference: PMID {matched.get('reference_pmid', '—')} — pivotal trial supporting Category {matched['evidence_category']} evidence.")
+        counter.append(
+            f"<b>1.</b> NCCN {matched['guideline']} § {matched['id']} (Category {matched['evidence_category']}) recommends {matched['regimen']} for the patient's exact biomarker profile ({matched['biomarker']})."
+        )
+        counter.append(
+            f"<b>2.</b> Reference: PMID {matched.get('reference_pmid', '—')} — pivotal trial supporting Category {matched['evidence_category']} evidence."
+        )
         counter.append(f"<b>3.</b> Excerpt: \"{matched['excerpt'][:200]}...\"")
     else:
-        counter.append("<b>1.</b> NCCN guideline retrieval pending — request the specific compendium ID from the reviewer.")
-        counter.append("<b>2.</b> FDA label review demonstrates approved indication for the requested treatment.")
-        counter.append("<b>3.</b> Standard-of-care pivotal trials support efficacy and safety in this setting.")
+        counter.append(
+            "<b>1.</b> NCCN guideline retrieval pending — request the specific compendium ID from the reviewer."
+        )
+        counter.append(
+            "<b>2.</b> FDA label review demonstrates approved indication for the requested treatment."
+        )
+        counter.append(
+            "<b>3.</b> Standard-of-care pivotal trials support efficacy and safety in this setting."
+        )
     for c in counter:
         story.append(Paragraph(c, body))
         story.append(Spacer(1, 3))
@@ -740,26 +952,36 @@ async def p2p_briefing(
     story.append(Spacer(1, 8))
 
     story.append(Paragraph("Patient summary", h2))
-    story.append(Paragraph(
-        f"{req.patient_initials} — {req.diagnosis}. "
-        + (f"Targetable variant {req.biomarker} confirmed by NGS. " if req.biomarker else "")
-        + f"Treatment requested: {req.treatment}. ClinCase confidence-routed to physician review per CMS-0057-F audit policy.",
-        body))
+    story.append(
+        Paragraph(
+            f"{req.patient_initials} — {req.diagnosis}. "
+            + (f"Targetable variant {req.biomarker} confirmed by NGS. " if req.biomarker else "")
+            + f"Treatment requested: {req.treatment}. ClinCase confidence-routed to physician review per CMS-0057-F audit policy.",
+            body,
+        )
+    )
 
     doc.build(story)
     pdf_bytes = buf.getvalue()
 
     audit = _audit_record(
-        kind="p2p_briefing", agent="P2PBriefingComposer",
+        kind="p2p_briefing",
+        agent="P2PBriefingComposer",
         inputs=req.model_dump(),
-        output={"pdf_bytes": len(pdf_bytes), "matched_guideline": matched["id"] if matched else None},
+        output={
+            "pdf_bytes": len(pdf_bytes),
+            "matched_guideline": matched["id"] if matched else None,
+        },
         confidence=0.9,
     )
     fname = f"p2p-briefing-{req.patient_initials.replace('.', '')}-{audit['id'][:8]}.pdf"
     return Response(
-        content=pdf_bytes, media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{fname}"',
-                 "X-Audit-Id": audit["id"]},
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{fname}"',
+            "X-Audit-Id": audit["id"],
+        },
     )
 
 
@@ -767,14 +989,18 @@ async def p2p_briefing(
 # USP #6 — Off-Label Justification (multi-agent debate)
 # ===========================================================================
 
+
 class OffLabelRequest(BaseModel):
     drug: str
-    indication: str       # off-label disease/use the request seeks
+    indication: str  # off-label disease/use the request seeks
     biomarker: str | None = None
     rationale: str | None = None
 
 
-@router.post("/off-label/justify", summary="USP #6 — Off-label justification via simulated proposer/opponent debate")
+@router.post(
+    "/off-label/justify",
+    summary="USP #6 — Off-label justification via simulated proposer/opponent debate",
+)
 async def off_label_justify(
     req: OffLabelRequest,
     user: dict[str, Any] = Depends(get_current_user),
@@ -828,8 +1054,12 @@ async def off_label_justify(
             f"in {', '.join(bm_entry['tumor_types'])} with Category {bm_entry['evidence']} evidence; "
             "the molecular biology generalizes to the off-label indication via shared-pathway argument."
         )
-    counter.append("FDA tumor-agnostic approvals (pembrolizumab MSI-H/TMB-H, larotrectinib NTRK, dostarlimab dMMR) establish regulatory precedent for cross-tumor approvals on biomarker-driven mechanisms.")
-    counter.append("Cost-of-no-treatment analysis: 27-day median delay for cancer denials (per JCO Patient Impact Study) translates to measurable disease progression.")
+    counter.append(
+        "FDA tumor-agnostic approvals (pembrolizumab MSI-H/TMB-H, larotrectinib NTRK, dostarlimab dMMR) establish regulatory precedent for cross-tumor approvals on biomarker-driven mechanisms."
+    )
+    counter.append(
+        "Cost-of-no-treatment analysis: 27-day median delay for cancer denials (per JCO Patient Impact Study) translates to measurable disease progression."
+    )
 
     rounds.append({"role": "proposer", "round": 3, "text": " ".join(counter)})
 
@@ -837,15 +1067,16 @@ async def off_label_justify(
     judge = (
         "Verdict: APPROVE with conditions. The compendium pathway is satisfied "
         "via the biomarker-class listing; pathology + NGS report must be on file."
-        if verdict_passed else
-        "Verdict: REFER. Adjacent-tumor evidence is suggestive but does not meet "
+        if verdict_passed
+        else "Verdict: REFER. Adjacent-tumor evidence is suggestive but does not meet "
         "the policy's RCT-or-compendium threshold for the specific indication. "
         "Recommend escalation to medical director or peer-to-peer review."
     )
     rounds.append({"role": "judge", "round": 3, "text": judge})
 
     audit = _audit_record(
-        kind="off_label_debate", agent="OffLabelJustificationAgent",
+        kind="off_label_debate",
+        agent="OffLabelJustificationAgent",
         inputs=req.model_dump(),
         output={"verdict": "APPROVE" if verdict_passed else "REFER", "rounds": len(rounds)},
         confidence=0.82 if verdict_passed else 0.55,
@@ -867,49 +1098,82 @@ async def off_label_justify(
 # USP #7 — Bundled Regimen Authorization
 # ===========================================================================
 
+
 @router.get("/regimen/templates", summary="USP #7a — List NCCN-style bundled regimen templates")
 async def regimen_templates(user: dict[str, Any] = Depends(get_current_user)) -> dict[str, Any]:
     return regimens()
 
 
 class RegimenBundleRequest(BaseModel):
-    regimen_key: str       # e.g. "TCHP", "FOLFIRINOX", "RCHOP"
+    regimen_key: str  # e.g. "TCHP", "FOLFIRINOX", "RCHOP"
     patient_initials: str
     diagnosis_icd10: str
     payer_id: str
     cycles_requested: int = 1
 
 
-@router.post("/regimen/bundle", summary="USP #7b — Build a single FHIR PAS Bundle covering an entire regimen")
+@router.post(
+    "/regimen/bundle", summary="USP #7b — Build a single FHIR PAS Bundle covering an entire regimen"
+)
 async def regimen_bundle(
     req: RegimenBundleRequest,
     user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
     rgm = regimens()["regimens"].get(req.regimen_key)
     if rgm is None:
-        raise HTTPException(404, f"unknown regimen '{req.regimen_key}'. Try GET /onco/regimen/templates.")
+        raise HTTPException(
+            404, f"unknown regimen '{req.regimen_key}'. Try GET /onco/regimen/templates."
+        )
 
     bundle_id = uuid.uuid4().hex
     now = datetime.now(UTC).isoformat()
     items = []
     for i, drug in enumerate(rgm["drugs"], start=1):
-        items.append({
-            "sequence": i,
-            "productOrService": {"coding": [{"system": "http://hl7.org/fhir/sid/hcpcs", "code": drug["j_code"], "display": drug["name"]}]},
-            "quantity": {"value": req.cycles_requested},
-            "extension": [{"url": "https://clincase.io/fhir/StructureDefinition/regimen-step",
-                           "valueString": f"{drug['cycle_day']} · {drug['dose']} · {drug['route']}"}],
-        })
+        items.append(
+            {
+                "sequence": i,
+                "productOrService": {
+                    "coding": [
+                        {
+                            "system": "http://hl7.org/fhir/sid/hcpcs",
+                            "code": drug["j_code"],
+                            "display": drug["name"],
+                        }
+                    ]
+                },
+                "quantity": {"value": req.cycles_requested},
+                "extension": [
+                    {
+                        "url": "https://clincase.io/fhir/StructureDefinition/regimen-step",
+                        "valueString": f"{drug['cycle_day']} · {drug['dose']} · {drug['route']}",
+                    }
+                ],
+            }
+        )
     sup_seq = len(items)
     for s in rgm["supportive_care"]:
         sup_seq += 1
-        items.append({
-            "sequence": sup_seq,
-            "productOrService": {"coding": [{"system": "http://hl7.org/fhir/sid/hcpcs", "code": s.get("j_code", "—"), "display": s["name"]}]},
-            "quantity": {"value": req.cycles_requested},
-            "extension": [{"url": "https://clincase.io/fhir/StructureDefinition/supportive-care",
-                           "valueString": s["indication"]}],
-        })
+        items.append(
+            {
+                "sequence": sup_seq,
+                "productOrService": {
+                    "coding": [
+                        {
+                            "system": "http://hl7.org/fhir/sid/hcpcs",
+                            "code": s.get("j_code", "—"),
+                            "display": s["name"],
+                        }
+                    ]
+                },
+                "quantity": {"value": req.cycles_requested},
+                "extension": [
+                    {
+                        "url": "https://clincase.io/fhir/StructureDefinition/supportive-care",
+                        "valueString": s["indication"],
+                    }
+                ],
+            }
+        )
 
     claim = {
         "resourceType": "Claim",
@@ -919,11 +1183,26 @@ async def regimen_bundle(
         "patient": {"display": req.patient_initials},
         "created": now,
         "insurer": {"display": req.payer_id},
-        "diagnosis": [{"sequence": 1, "diagnosisCodeableConcept": {"coding": [{"system": "http://hl7.org/fhir/sid/icd-10-cm", "code": req.diagnosis_icd10}]}}],
+        "diagnosis": [
+            {
+                "sequence": 1,
+                "diagnosisCodeableConcept": {
+                    "coding": [
+                        {"system": "http://hl7.org/fhir/sid/icd-10-cm", "code": req.diagnosis_icd10}
+                    ]
+                },
+            }
+        ],
         "item": items,
         "extension": [
-            {"url": "https://clincase.io/fhir/StructureDefinition/regimen-template", "valueString": req.regimen_key},
-            {"url": "https://clincase.io/fhir/StructureDefinition/cycles-requested", "valueInteger": req.cycles_requested},
+            {
+                "url": "https://clincase.io/fhir/StructureDefinition/regimen-template",
+                "valueString": req.regimen_key,
+            },
+            {
+                "url": "https://clincase.io/fhir/StructureDefinition/cycles-requested",
+                "valueInteger": req.cycles_requested,
+            },
         ],
     }
 
@@ -936,7 +1215,8 @@ async def regimen_bundle(
     }
 
     audit = _audit_record(
-        kind="regimen_bundle", agent="RegimenAgent",
+        kind="regimen_bundle",
+        agent="RegimenAgent",
         inputs=req.model_dump(),
         output={"regimen": req.regimen_key, "n_items": len(items)},
         confidence=0.96,
@@ -945,7 +1225,11 @@ async def regimen_bundle(
         "bundle": bundle,
         "regimen": rgm,
         "n_items": len(items),
-        "vs_unbundled": {"separate_pas_count": len(items), "consolidated_pas_count": 1, "reduction_pct": round(100 * (len(items) - 1) / len(items), 1) if items else 0},
+        "vs_unbundled": {
+            "separate_pas_count": len(items),
+            "consolidated_pas_count": 1,
+            "reduction_pct": round(100 * (len(items) - 1) / len(items), 1) if items else 0,
+        },
         "audit_id": audit["id"],
     }
 
@@ -954,21 +1238,27 @@ async def regimen_bundle(
 # USP #8 — Site-of-Care Optimizer
 # ===========================================================================
 
+
 class SiteOfCareRequest(BaseModel):
-    drug_key: str   # e.g. "pembrolizumab_200mg_q3w"
+    drug_key: str  # e.g. "pembrolizumab_200mg_q3w"
     payer_id: str
     deductible_remaining_usd: float = 0
     coinsurance_pct: float = 0.20
 
 
-@router.post("/site-of-care/compare", summary="USP #8 — Compare hospital vs office vs home infusion costs")
+@router.post(
+    "/site-of-care/compare", summary="USP #8 — Compare hospital vs office vs home infusion costs"
+)
 async def site_of_care_compare(
     req: SiteOfCareRequest,
     user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
     drug = site_costs()["drugs"].get(req.drug_key)
     if drug is None:
-        raise HTTPException(404, f"unknown drug_key '{req.drug_key}'. Available: {list(site_costs()['drugs'].keys())}")
+        raise HTTPException(
+            404,
+            f"unknown drug_key '{req.drug_key}'. Available: {list(site_costs()['drugs'].keys())}",
+        )
 
     sites_out = []
     for site_key, site_data in drug["sites"].items():
@@ -977,38 +1267,45 @@ async def site_of_care_compare(
         post_ded = max(0, site_data["total_cost"] - pre_ded)
         coins = post_ded * req.coinsurance_pct
         patient_oop = round(pre_ded + coins, 2)
-        sites_out.append({
-            "site_key": site_key,
-            "label": site_data["site_label"],
-            "total_cost": site_data["total_cost"],
-            "facility_fee": site_data.get("facility_fee", 0),
-            "patient_oop_estimate": patient_oop,
-            "patient_oop_typical_published": site_data["patient_oop_typical"],
-            "eligibility_notes": site_data.get("eligibility_notes", ""),
-        })
+        sites_out.append(
+            {
+                "site_key": site_key,
+                "label": site_data["site_label"],
+                "total_cost": site_data["total_cost"],
+                "facility_fee": site_data.get("facility_fee", 0),
+                "patient_oop_estimate": patient_oop,
+                "patient_oop_typical_published": site_data["patient_oop_typical"],
+                "eligibility_notes": site_data.get("eligibility_notes", ""),
+            }
+        )
     sites_out.sort(key=lambda s: s["total_cost"])
 
     cheapest = sites_out[0]
     most_expensive = sites_out[-1]
     payer_savings_per_session = most_expensive["total_cost"] - cheapest["total_cost"]
-    patient_savings_per_session = most_expensive["patient_oop_estimate"] - cheapest["patient_oop_estimate"]
+    patient_savings_per_session = (
+        most_expensive["patient_oop_estimate"] - cheapest["patient_oop_estimate"]
+    )
 
     audit = _audit_record(
-        kind="site_of_care", agent="SiteOfCareAgent",
+        kind="site_of_care",
+        agent="SiteOfCareAgent",
         inputs=req.model_dump(),
         output={"cheapest_site": cheapest["site_key"], "savings": payer_savings_per_session},
         confidence=0.9,
     )
 
     return {
-        "drug": drug["name"], "j_code": drug["j_code"],
+        "drug": drug["name"],
+        "j_code": drug["j_code"],
         "sites": sites_out,
         "recommendation": {
             "preferred_site_key": cheapest["site_key"],
             "preferred_label": cheapest["label"],
             "payer_savings_per_session_usd": payer_savings_per_session,
             "patient_savings_per_session_usd": round(patient_savings_per_session, 2),
-            "annualized_savings_estimate_usd": payer_savings_per_session * 17,  # ~17 q3w infusions/yr
+            "annualized_savings_estimate_usd": payer_savings_per_session
+            * 17,  # ~17 q3w infusions/yr
         },
         "audit_id": audit["id"],
     }
@@ -1017,6 +1314,7 @@ async def site_of_care_compare(
 # ===========================================================================
 # USP #9 — Multi-Payer Policy Reconciliation
 # ===========================================================================
+
 
 @router.get("/policies/diffs", summary="USP #9 — Recent payer policy changes (with diff)")
 async def policies_diffs(
@@ -1035,13 +1333,17 @@ async def policies_diffs(
         filtered = [d for d in filtered if d["changed_at"] >= since]
     total_affected = sum(d.get("in_flight_pas_affected", 0) for d in filtered)
     return {
-        "n": len(filtered), "diffs": filtered,
+        "n": len(filtered),
+        "diffs": filtered,
         "in_flight_pas_affected_total": total_affected,
         "snapshots_taken_at": policy_diffs()["_meta"]["snapshots_taken_at"],
     }
 
 
-@router.post("/policies/reconcile", summary="USP #9b — Reconcile a treatment across all payers (which payer is least friction?)")
+@router.post(
+    "/policies/reconcile",
+    summary="USP #9b — Reconcile a treatment across all payers (which payer is least friction?)",
+)
 async def policies_reconcile(
     treatment: str = Form(...),
     user: dict[str, Any] = Depends(get_current_user),
@@ -1058,12 +1360,19 @@ async def policies_reconcile(
         score = removed * 3 + modified * 1
         if any("step therapy" in (x.get("section") or "").lower() for x in d["diff"]):
             score += 5
-        summary_by_payer.append({
-            "payer": d["payer"], "policy_id": d["policy_id"],
-            "version_new": d["version_new"], "changed_at": d["changed_at"],
-            "n_added": added, "n_removed": removed, "n_modified": modified,
-            "friction_score": score, "summary": d["summary"],
-        })
+        summary_by_payer.append(
+            {
+                "payer": d["payer"],
+                "policy_id": d["policy_id"],
+                "version_new": d["version_new"],
+                "changed_at": d["changed_at"],
+                "n_added": added,
+                "n_removed": removed,
+                "n_modified": modified,
+                "friction_score": score,
+                "summary": d["summary"],
+            }
+        )
     summary_by_payer.sort(key=lambda x: x["friction_score"])
     return {
         "treatment": treatment,
@@ -1077,7 +1386,11 @@ async def policies_reconcile(
 # USP #10 — Cryptographically Auditable AI Decision Trail
 # ===========================================================================
 
-@router.get("/audit/trail", summary="USP #10 — Tamper-evident audit chain (SHA-256 chained, QLDB-equivalent)")
+
+@router.get(
+    "/audit/trail",
+    summary="USP #10 — Tamper-evident audit chain (SHA-256 chained, QLDB-equivalent)",
+)
 async def audit_trail(
     limit: int = Query(50, ge=1, le=500),
     kind: str | None = Query(None),
@@ -1093,7 +1406,11 @@ async def audit_trail(
 
     # Verify the chain integrity on the way out — recompute hashes and
     # cross-check prev_hash links. Returns chain_valid + first-broken-link.
-    integrity = {"chain_valid": True, "n_total_records": len(_AUDIT_CHAIN), "first_broken_link": None}
+    integrity = {
+        "chain_valid": True,
+        "n_total_records": len(_AUDIT_CHAIN),
+        "first_broken_link": None,
+    }
     for i, rec in enumerate(_AUDIT_CHAIN):
         prev = _AUDIT_CHAIN[i - 1]["hash"] if i > 0 else "0" * 64
         if rec["prev_hash"] != prev:
@@ -1109,7 +1426,9 @@ async def audit_trail(
             break
 
     return {
-        "n": len(chain), "records": chain, "integrity": integrity,
+        "n": len(chain),
+        "records": chain,
+        "integrity": integrity,
         "anchor_note": "DEMO: in-memory chain. Production anchors each record to QLDB (Quantum Ledger Database) or S3 with Object Lock + KMS. Tamper-evidence is preserved under both backends.",
     }
 

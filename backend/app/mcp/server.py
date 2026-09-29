@@ -15,6 +15,7 @@ Methods supported:
 
 Reference: https://modelcontextprotocol.io/specification
 """
+
 from __future__ import annotations
 
 import json
@@ -45,9 +46,7 @@ def _ok(req_id: str | int | None, result: dict[str, Any]) -> dict[str, Any]:
     return {"jsonrpc": "2.0", "id": req_id, "result": result}
 
 
-def _err(
-    req_id: str | int | None, code: int, message: str, data: Any = None
-) -> dict[str, Any]:
+def _err(req_id: str | int | None, code: int, message: str, data: Any = None) -> dict[str, Any]:
     err: dict[str, Any] = {"code": code, "message": message}
     if data is not None:
         err["data"] = data
@@ -100,9 +99,7 @@ async def _handle_tools_list(req_id: str | int | None) -> dict[str, Any]:
     return _ok(req_id, {"tools": TOOL_DEFINITIONS})
 
 
-async def _handle_tools_call(
-    req_id: str | int | None, params: dict[str, Any]
-) -> dict[str, Any]:
+async def _handle_tools_call(req_id: str | int | None, params: dict[str, Any]) -> dict[str, Any]:
     name = params.get("name")
     args = params.get("arguments") or {}
     if not name or name not in TOOL_IMPLS:

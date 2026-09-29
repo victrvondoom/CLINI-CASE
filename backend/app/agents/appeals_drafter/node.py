@@ -1,4 +1,5 @@
 """LangGraph node + legacy compatibility shims for appeals_drafter."""
+
 from __future__ import annotations
 
 from datetime import date
@@ -21,12 +22,11 @@ from app.models import (  # noqa: F401
 
 
 async def draft_appeal(state: ClinCaseState, *, patient_initials: str = "JD") -> ClinCaseState:
-
     if state.clinical_snapshot is None:
         raise ValueError("clinical_snapshot must be set before appeals_drafter")
-    has_denial = (
-        state.decision is not None and state.decision.verdict == "DENY"
-    ) or bool(state.external_denial_letter)
+    has_denial = (state.decision is not None and state.decision.verdict == "DENY") or bool(
+        state.external_denial_letter
+    )
     if not has_denial:
         raise ValueError(
             "appeals_drafter requires either a DENY decision or external_denial_letter"
@@ -70,9 +70,9 @@ from app.models import (  # noqa: E402
     PolicyExcerpt as _PE,
 )
 
-_PROMPT = (_Path(__file__).resolve().parents[2] / "prompts" / "appeals_drafter" / "orchestrator.txt").read_text(
-    encoding="utf-8"
-)
+_PROMPT = (
+    _Path(__file__).resolve().parents[2] / "prompts" / "appeals_drafter" / "orchestrator.txt"
+).read_text(encoding="utf-8")
 
 
 def _strip_code_fence(text: str) -> str:

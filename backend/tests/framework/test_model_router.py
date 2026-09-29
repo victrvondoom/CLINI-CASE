@@ -1,4 +1,5 @@
 """Contract tests for ModelRouter + cost estimation."""
+
 from __future__ import annotations
 
 import pytest
@@ -31,7 +32,7 @@ def test_cost_estimate_known_pricing():
 
 def test_haiku_is_5x_cheaper_than_sonnet():
     s = estimate_cost(SONNET_REASONING, input_tokens=10_000, output_tokens=2_000)
-    h = estimate_cost(HAIKU_LITE,        input_tokens=10_000, output_tokens=2_000)
+    h = estimate_cost(HAIKU_LITE, input_tokens=10_000, output_tokens=2_000)
     assert h * 3 == pytest.approx(s, rel=0.0001)
     # Sonnet $3/$15 vs Haiku $1/$5 → exactly 1/3 the cost.
 

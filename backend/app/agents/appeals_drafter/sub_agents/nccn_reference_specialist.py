@@ -4,6 +4,7 @@ LLM-backed (Haiku). Returns 1–5 precise NCCN Clinical Practice Guidelines
 references that support the patient's counter-position (e.g.
 'NCCN Breast 4.2025 § BINV-J').
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -21,7 +22,10 @@ from app.agents.framework import (
 
 _PROMPT = (
     Path(__file__).resolve().parents[3]
-    / "prompts" / "appeals_drafter" / "sub_agents" / "nccn_reference_specialist.txt"
+    / "prompts"
+    / "appeals_drafter"
+    / "sub_agents"
+    / "nccn_reference_specialist.txt"
 ).read_text(encoding="utf-8")
 
 

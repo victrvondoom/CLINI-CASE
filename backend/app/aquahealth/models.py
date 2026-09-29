@@ -8,6 +8,7 @@ Measurement values are all `float | None` and every qualitative field is a
 is exactly as valid a record as one from a volunteer with a probe kit. The
 agents report data quality rather than rejecting sparse records.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -176,9 +177,7 @@ class ObservationCreate(BaseModel):
     latitude: float | None = Field(default=None, ge=-90, le=90)
     longitude: float | None = Field(default=None, ge=-180, le=180)
 
-    observed_at: datetime | None = Field(
-        default=None, description="Defaults to now when omitted."
-    )
+    observed_at: datetime | None = Field(default=None, description="Defaults to now when omitted.")
     observer_note: str | None = Field(default=None, max_length=2000)
 
     appearance: WaterAppearance = Field(default_factory=WaterAppearance)

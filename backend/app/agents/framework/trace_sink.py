@@ -15,6 +15,7 @@ implementations:
 Both implementations share the same async interface so swapping them is a
 one-line change at the call site (`new_agent_context(trace_sink=...)`).
 """
+
 from __future__ import annotations
 
 import json
@@ -112,11 +113,14 @@ class PostgresTraceSink(TraceSink):
             agent_name,
             json.dumps(input_payload),
         )
-        await publish(case_id, {
-            "type": "agent_started",
-            "agent_name": agent_name,
-            "ts": time.time(),
-        })
+        await publish(
+            case_id,
+            {
+                "type": "agent_started",
+                "agent_name": agent_name,
+                "ts": time.time(),
+            },
+        )
         return SpanHandle(sink_internal_id=row_id)
 
     async def close_span_ok(
@@ -150,14 +154,17 @@ class PostgresTraceSink(TraceSink):
             output_tokens,
             handle.sink_internal_id,
         )
-        await publish(case_id, {
-            "type": "agent_finished",
-            "agent_name": agent_name,
-            "output": output_payload,
-            "latency_ms": latency_ms,
-            "model_id": model_id,
-            "ts": time.time(),
-        })
+        await publish(
+            case_id,
+            {
+                "type": "agent_finished",
+                "agent_name": agent_name,
+                "output": output_payload,
+                "latency_ms": latency_ms,
+                "model_id": model_id,
+                "ts": time.time(),
+            },
+        )
 
     async def close_span_error(
         self,
@@ -178,12 +185,15 @@ class PostgresTraceSink(TraceSink):
             latency_ms,
             handle.sink_internal_id,
         )
-        await publish(case_id, {
-            "type": "agent_error",
-            "agent_name": agent_name,
-            "error": error,
-            "ts": time.time(),
-        })
+        await publish(
+            case_id,
+            {
+                "type": "agent_error",
+                "agent_name": agent_name,
+                "error": error,
+                "ts": time.time(),
+            },
+        )
 
 
 # =============================================================================
@@ -219,11 +229,13 @@ class InMemoryTraceSink(TraceSink):
         input_payload: dict[str, Any],
     ) -> SpanHandle:
         idx = len(self.spans)
-        self.spans.append(_InMemorySpan(
-            case_id=case_id,
-            agent_name=agent_name,
-            input_payload=input_payload,
-        ))
+        self.spans.append(
+            _InMemorySpan(
+                case_id=case_id,
+                agent_name=agent_name,
+                input_payload=input_payload,
+            )
+        )
         return SpanHandle(sink_internal_id=idx)
 
     async def close_span_ok(

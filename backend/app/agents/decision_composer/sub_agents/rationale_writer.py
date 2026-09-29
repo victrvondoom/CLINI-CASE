@@ -4,6 +4,7 @@ LLM-backed (Sonnet). Composes a 2–4 sentence executive-grade rationale
 paragraph that justifies the (already-determined) verdict using snapshot
 fields and policy phrases. Reflection enabled to catch hallucinations.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -18,7 +19,10 @@ from app.agents.framework import (
 
 _PROMPT = (
     Path(__file__).resolve().parents[3]
-    / "prompts" / "decision_composer" / "sub_agents" / "rationale_writer.txt"
+    / "prompts"
+    / "decision_composer"
+    / "sub_agents"
+    / "rationale_writer.txt"
 ).read_text(encoding="utf-8")
 
 

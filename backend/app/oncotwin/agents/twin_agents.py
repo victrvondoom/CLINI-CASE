@@ -10,6 +10,7 @@ They live in `app.oncotwin.agents` (NOT `app.agents`) on purpose: ClinCase's
 manifest auto-discovers parents under `app.agents`, and OncoTwin must not
 change the 7-agent ClinCase manifest.
 """
+
 from __future__ import annotations
 
 from typing import Any, ClassVar
@@ -138,7 +139,7 @@ class ExplanationOutput(BaseModel):
     llm_used: bool = False
 
 
-WM_BUNDLE = "oncotwin_bundle"          # (snapshots, facts, states) for the evaluation day
+WM_BUNDLE = "oncotwin_bundle"  # (snapshots, facts, states) for the evaluation day
 WM_DRIFT = "oncotwin_drift"
 WM_LLM_TRACES = "oncotwin_llm_traces"
 
@@ -149,6 +150,7 @@ def _twin(ctx: AgentContext) -> TwinComputation:
 
 class _TwinAgent:
     """Shared ClassVars for the deterministic twin agents."""
+
     parent: ClassVar[str | None] = None
     input_schema: ClassVar[type[BaseModel]] = TwinAgentInput
     primary_model: ClassVar = None
@@ -167,14 +169,21 @@ class TwinStateAgent(_TwinAgent, Agent[TwinAgentInput, TwinStateOutput]):
     )
     output_schema: ClassVar[type[BaseModel]] = TwinStateOutput
 
-    async def _execute_deterministic(self, input: TwinAgentInput, ctx: AgentContext) -> TwinStateOutput:
+    async def _execute_deterministic(
+        self, input: TwinAgentInput, ctx: AgentContext
+    ) -> TwinStateOutput:
         st = stage_state(_twin(ctx))
         ct = st["cancer_treatment_state"]
         return TwinStateOutput(
-            as_of_day=st["as_of_day"], care_setting=st["care_setting"],
-            baseline_window=st["baseline_state"]["window"], baseline_adequacy=st["baseline_state"]["adequacy"],
-            latent_loads={k: v["value"] for k, v in st["physiological_state"]["latent_loads"].items()},
-            anc_estimate=ct["neutrophil"]["twin_estimate_today"], in_nadir_window=ct["in_expected_nadir_window"],
+            as_of_day=st["as_of_day"],
+            care_setting=st["care_setting"],
+            baseline_window=st["baseline_state"]["window"],
+            baseline_adequacy=st["baseline_state"]["adequacy"],
+            latent_loads={
+                k: v["value"] for k, v in st["physiological_state"]["latent_loads"].items()
+            },
+            anc_estimate=ct["neutrophil"]["twin_estimate_today"],
+            in_nadir_window=ct["in_expected_nadir_window"],
             adherence_7d=st["adherence_state"]["supportive_medication_7d"],
             quality_flags=len([f for f in st["data_quality"]["flags"] if f["kind"] != "gap"]),
         )
@@ -189,12 +198,18 @@ class TrajectoryIntelligenceAgent(_TwinAgent, Agent[TwinAgentInput, TrajectoryOu
     )
     output_schema: ClassVar[type[BaseModel]] = TrajectoryOutput
 
-    async def _execute_deterministic(self, input: TwinAgentInput, ctx: AgentContext) -> TrajectoryOutput:
+    async def _execute_deterministic(
+        self, input: TwinAgentInput, ctx: AgentContext
+    ) -> TrajectoryOutput:
         tr = stage_trajectory(_twin(ctx))
         return TrajectoryOutput(
-            pattern=tr["pattern"], signals_adverse=tr["signals_adverse"], signals_rising=tr["signals_rising"],
-            n_concordant=tr["n_concordant"], anomaly_score=tr["anomaly_score"],
-            sudden_changes=tr["sudden_changes"], drift_alarms=tr["drift_alarms"],
+            pattern=tr["pattern"],
+            signals_adverse=tr["signals_adverse"],
+            signals_rising=tr["signals_rising"],
+            n_concordant=tr["n_concordant"],
+            anomaly_score=tr["anomaly_score"],
+            sudden_changes=tr["sudden_changes"],
+            drift_alarms=tr["drift_alarms"],
         )
 
 
@@ -208,15 +223,27 @@ class DeteriorationPredictionAgent(_TwinAgent, Agent[TwinAgentInput, PredictionO
     )
     output_schema: ClassVar[type[BaseModel]] = PredictionOutput
 
-    async def _execute_deterministic(self, input: TwinAgentInput, ctx: AgentContext) -> PredictionOutput:
+    async def _execute_deterministic(
+        self, input: TwinAgentInput, ctx: AgentContext
+    ) -> PredictionOutput:
         p = stage_prediction(_twin(ctx))
         return PredictionOutput(
-            outcome_id=p["outcome_id"], horizon_days=p["horizon_days"], risk=p["risk"], risk_p10=p["risk_p10"],
-            risk_p90=p["risk_p90"], tier=p["tier"], previous_tier=p["previous_tier"], escalated=p["escalated"],
+            outcome_id=p["outcome_id"],
+            horizon_days=p["horizon_days"],
+            risk=p["risk"],
+            risk_p10=p["risk_p10"],
+            risk_p90=p["risk_p90"],
+            tier=p["tier"],
+            previous_tier=p["previous_tier"],
+            escalated=p["escalated"],
             rules_fired=[r["rule"] for r in p["rules_fired"]],
-            top_contributors=[{"label": g["label"], "logit": g["logit"]} for g in p["contributors"][:5]],
-            confidence=p["confidence"]["score"], confidence_label=p["confidence"]["label"],
-            model_version=p["model"]["version"], model_artifact_sha256=p["model"]["artifact_sha256"],
+            top_contributors=[
+                {"label": g["label"], "logit": g["logit"]} for g in p["contributors"][:5]
+            ],
+            confidence=p["confidence"]["score"],
+            confidence_label=p["confidence"]["label"],
+            model_version=p["model"]["version"],
+            model_artifact_sha256=p["model"]["artifact_sha256"],
         )
 
 
@@ -230,12 +257,21 @@ class SimulationAgent(_TwinAgent, Agent[TwinAgentInput, SimulationOutput]):
     )
     output_schema: ClassVar[type[BaseModel]] = SimulationOutput
 
-    async def _execute_deterministic(self, input: TwinAgentInput, ctx: AgentContext) -> SimulationOutput:
+    async def _execute_deterministic(
+        self, input: TwinAgentInput, ctx: AgentContext
+    ) -> SimulationOutput:
         sim = stage_simulation(_twin(ctx))
         return SimulationOutput(
-            ran=True, horizon_days=sim["horizon_days"], disclaimer=sim["disclaimer"],
-            scenarios={k: {"event_probability_7d": v["event_probability_7d"], "risk_day7_median": v["risk_day7_median"]}
-                       for k, v in sim["scenarios"].items()},
+            ran=True,
+            horizon_days=sim["horizon_days"],
+            disclaimer=sim["disclaimer"],
+            scenarios={
+                k: {
+                    "event_probability_7d": v["event_probability_7d"],
+                    "risk_day7_median": v["risk_day7_median"],
+                }
+                for k, v in sim["scenarios"].items()
+            },
         )
 
 
@@ -248,16 +284,23 @@ class ClinicalEvidenceAgent(_TwinAgent, Agent[TwinAgentInput, EvidenceOutput]):
     )
     output_schema: ClassVar[type[BaseModel]] = EvidenceOutput
 
-    async def _execute_deterministic(self, input: TwinAgentInput, ctx: AgentContext) -> EvidenceOutput:
+    async def _execute_deterministic(
+        self, input: TwinAgentInput, ctx: AgentContext
+    ) -> EvidenceOutput:
         c = _twin(ctx)
         ev = stage_evidence(c)
         snapshots, facts, states = ctx.working_memory[WM_BUNDLE]
         stage_intelligence(c, snapshots, facts, states, drift=ctx.working_memory.get(WM_DRIFT))
         return EvidenceOutput(
-            headline=ev["headline"], what_changed=[w["text"] for w in ev["what_changed"]], why=ev["why"],
-            compared_with=ev["compared_with"], period=ev["period"]["text"], review=ev["review"],
+            headline=ev["headline"],
+            what_changed=[w["text"] for w in ev["what_changed"]],
+            why=ev["why"],
+            compared_with=ev["compared_with"],
+            period=ev["period"]["text"],
+            review=ev["review"],
             references=[r["id"] for r in ev["references"]],
-            why_now=c.intel["why_now"]["text"], readiness=c.intel["readiness"]["score"],
+            why_now=c.intel["why_now"]["text"],
+            readiness=c.intel["readiness"]["score"],
             uncertainty_statements=c.intel["uncertainty"]["statements"],
         )
 
@@ -272,16 +315,22 @@ class DataQualityAgent(_TwinAgent, Agent[TwinAgentInput, DataQualityOutput]):
     )
     output_schema: ClassVar[type[BaseModel]] = DataQualityOutput
 
-    async def _execute_deterministic(self, input: TwinAgentInput, ctx: AgentContext) -> DataQualityOutput:
+    async def _execute_deterministic(
+        self, input: TwinAgentInput, ctx: AgentContext
+    ) -> DataQualityOutput:
         c = _twin(ctx)
         stage_validate(c)
         q = stage_quality(c)
         cs = c.intel["consistency_record"]
         failed = [x["id"] for x in cs["checks"] if x["status"] != "pass"]
         return DataQualityOutput(
-            completeness_7d=q["completeness_7d"], n_flags=len(q["flags"]),
-            flag_kinds=sorted({f["kind"] for f in q["flags"]}), consistency_status=cs["status"], failed_checks=failed,
-            note=cs["summary"])
+            completeness_7d=q["completeness_7d"],
+            n_flags=len(q["flags"]),
+            flag_kinds=sorted({f["kind"] for f in q["flags"]}),
+            consistency_status=cs["status"],
+            failed_checks=failed,
+            note=cs["summary"],
+        )
 
 
 class TemporalIntelligenceAgent(_TwinAgent, Agent[TwinAgentInput, TemporalOutput]):
@@ -294,16 +343,23 @@ class TemporalIntelligenceAgent(_TwinAgent, Agent[TwinAgentInput, TemporalOutput
     )
     output_schema: ClassVar[type[BaseModel]] = TemporalOutput
 
-    async def _execute_deterministic(self, input: TwinAgentInput, ctx: AgentContext) -> TemporalOutput:
+    async def _execute_deterministic(
+        self, input: TwinAgentInput, ctx: AgentContext
+    ) -> TemporalOutput:
         c = _twin(ctx)
         snapshots, facts, _ = ctx.working_memory[WM_BUNDLE]
         out = stage_temporal(c, snapshots, facts)
-        cps = [p for p in out["change_points"]["change_points"] if p["significance"] == "significant"]
+        cps = [
+            p for p in out["change_points"]["change_points"] if p["significance"] == "significant"
+        ]
         return TemporalOutput(
-            n_change_points=len(cps), latest_significant_change_day=cps[-1]["day"] if cps else None,
-            risk_dynamics=out["dynamics"]["dynamics"], current_cycle=out["memory"]["current_cycle"],
+            n_change_points=len(cps),
+            latest_significant_change_day=cps[-1]["day"] if cps else None,
+            risk_dynamics=out["dynamics"]["dynamics"],
+            current_cycle=out["memory"]["current_cycle"],
             cycle_similarity=[s["text"] for s in out["memory"]["similarity"]],
-            conflicts_detected=[x["id"] for x in out["conflicts"] if x["detected"]])
+            conflicts_detected=[x["id"] for x in out["conflicts"] if x["detected"]],
+        )
 
 
 class ClinicalContextAgent(_TwinAgent, Agent[TwinAgentInput, ContextOutput]):
@@ -316,10 +372,15 @@ class ClinicalContextAgent(_TwinAgent, Agent[TwinAgentInput, ContextOutput]):
     )
     output_schema: ClassVar[type[BaseModel]] = ContextOutput
 
-    async def _execute_deterministic(self, input: TwinAgentInput, ctx: AgentContext) -> ContextOutput:
+    async def _execute_deterministic(
+        self, input: TwinAgentInput, ctx: AgentContext
+    ) -> ContextOutput:
         out = await stage_context(_twin(ctx), input.organization_id)
-        return ContextOutput(requested_treatment=out["clincase_request_if_accepted"]["name"],
-                             policy_sections_matched=len(out["policy_preview"]), rationale=out["rationale"])
+        return ContextOutput(
+            requested_treatment=out["clincase_request_if_accepted"]["name"],
+            policy_sections_matched=len(out["policy_preview"]),
+            rationale=out["rationale"],
+        )
 
 
 class ExplanationAgent(_TwinAgent, Agent[TwinAgentInput, ExplanationOutput]):
@@ -332,22 +393,39 @@ class ExplanationAgent(_TwinAgent, Agent[TwinAgentInput, ExplanationOutput]):
     )
     output_schema: ClassVar[type[BaseModel]] = ExplanationOutput
 
-    async def _execute_deterministic(self, input: TwinAgentInput, ctx: AgentContext) -> ExplanationOutput:
+    async def _execute_deterministic(
+        self, input: TwinAgentInput, ctx: AgentContext
+    ) -> ExplanationOutput:
         from app.oncotwin.intel.narrative import explain
 
         c = _twin(ctx)
         _, facts, states = ctx.working_memory[WM_BUNDLE]
         t = c.as_of_day
-        intel = {"as_of_day": t, "why_now": c.intel["why_now"], "facts": facts[t - 1], "correlation": c.intel["correlation"],
-                 "uncertainty": c.intel["uncertainty"], "trajectory": c.intel["trajectory_dynamics"],
-                 "prediction": c.prediction, "change_points": c.intel["change_points"]}
-        res = await explain(c.record, intel, model_integrity=c.model.integrity_verified,
-                            traces=ctx.working_memory.get(WM_LLM_TRACES))
+        intel = {
+            "as_of_day": t,
+            "why_now": c.intel["why_now"],
+            "facts": facts[t - 1],
+            "correlation": c.intel["correlation"],
+            "uncertainty": c.intel["uncertainty"],
+            "trajectory": c.intel["trajectory_dynamics"],
+            "prediction": c.prediction,
+            "change_points": c.intel["change_points"],
+        }
+        res = await explain(
+            c.record,
+            intel,
+            model_integrity=c.model.integrity_verified,
+            traces=ctx.working_memory.get(WM_LLM_TRACES),
+        )
         c.intel["explanation"] = res
         return ExplanationOutput(
-            source=res["source"], summary=res["summary"][:1500], safety_gates_passed=res["safety_gates"]["passed"],
+            source=res["source"],
+            summary=res["summary"][:1500],
+            safety_gates_passed=res["safety_gates"]["passed"],
             failed_gates=[g["gate"] for g in res["safety_gates"]["gates"] if not g["passed"]],
-            llm_enabled=res["llm"]["enabled"], llm_used=bool(res["llm"].get("used")))
+            llm_enabled=res["llm"]["enabled"],
+            llm_used=bool(res["llm"].get("used")),
+        )
 
 
 data_quality_agent = DataQualityAgent()
@@ -361,7 +439,13 @@ clinical_context_agent = ClinicalContextAgent()
 explanation_agent = ExplanationAgent()
 
 ONCOTWIN_AGENTS: list[Agent[Any, Any]] = [
-    data_quality_agent, twin_state_agent, trajectory_intelligence_agent, temporal_intelligence_agent,
-    deterioration_prediction_agent, simulation_agent, clinical_evidence_agent, clinical_context_agent,
+    data_quality_agent,
+    twin_state_agent,
+    trajectory_intelligence_agent,
+    temporal_intelligence_agent,
+    deterioration_prediction_agent,
+    simulation_agent,
+    clinical_evidence_agent,
+    clinical_context_agent,
     explanation_agent,
 ]

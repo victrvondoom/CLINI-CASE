@@ -7,6 +7,7 @@ PDF short-circuit: PIL can't decode PDFs natively, so we trust the
 preprocess stage's magic-byte verdict and route directly to the PDF-capable
 extraction engines (PyPDF + Textract). The PIL classifier never sees a PDF.
 """
+
 from __future__ import annotations
 
 from typing import ClassVar
@@ -29,7 +30,10 @@ class ClassifyStage(IntakeStage):
         # PDF fast path — preprocess already verified the %PDF- magic bytes,
         # so we know it's a valid PDF. PIL cannot decode PDFs and will always
         # raise; bypass the classifier entirely and route to PDF engines.
-        if ctx.image_format == "pdf" or ctx.payload.get("preprocess.detected_mime") == "application/pdf":
+        if (
+            ctx.image_format == "pdf"
+            or ctx.payload.get("preprocess.detected_mime") == "application/pdf"
+        ):
             classification = DocumentClassification(
                 document_type="typed_print",
                 confidence=0.90,

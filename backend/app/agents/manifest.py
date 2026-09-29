@@ -15,6 +15,7 @@ The contract: a directory under `app/agents/` is a parent package iff its
 `SUB_AGENTS` list. Anything else (the `framework` runtime, the
 `__pycache__` dir, etc.) is skipped.
 """
+
 from __future__ import annotations
 
 import importlib
@@ -67,12 +68,14 @@ def _parent_manifest_entry(
     parent: Agent[Any, Any], subs: list[Agent[Any, Any]], index: int
 ) -> dict[str, Any]:
     base = parent.manifest_entry()
-    base.update({
-        "index": index,
-        "kind": "orchestrator",
-        "n_sub_agents": len(subs),
-        "sub_agents": [s.manifest_entry() for s in subs],
-    })
+    base.update(
+        {
+            "index": index,
+            "kind": "orchestrator",
+            "n_sub_agents": len(subs),
+            "sub_agents": [s.manifest_entry() for s in subs],
+        }
+    )
     return base
 
 
@@ -92,9 +95,7 @@ def total_sub_agents() -> int:
 
 
 def llm_backed_sub_agents_count() -> int:
-    return sum(
-        1 for a in AGENT_MANIFEST for s in a["sub_agents"] if s["is_llm_backed"]
-    )
+    return sum(1 for a in AGENT_MANIFEST for s in a["sub_agents"] if s["is_llm_backed"])
 
 
 def deterministic_sub_agents_count() -> int:
@@ -104,8 +105,7 @@ def deterministic_sub_agents_count() -> int:
 def reflection_enabled_count() -> int:
     """Sub-agents with quality_threshold > 0 (i.e. self-grading enabled)."""
     return sum(
-        1 for a in AGENT_MANIFEST for s in a["sub_agents"]
-        if s.get("quality_threshold", 0) > 0
+        1 for a in AGENT_MANIFEST for s in a["sub_agents"] if s.get("quality_threshold", 0) > 0
     )
 
 
@@ -114,11 +114,13 @@ def flatten_sub_agents() -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     for parent in AGENT_MANIFEST:
         for sub in parent["sub_agents"]:
-            out.append({
-                "parent_id": parent["name"],
-                "parent_display": parent["name"],
-                **sub,
-            })
+            out.append(
+                {
+                    "parent_id": parent["name"],
+                    "parent_display": parent["name"],
+                    **sub,
+                }
+            )
     return out
 
 

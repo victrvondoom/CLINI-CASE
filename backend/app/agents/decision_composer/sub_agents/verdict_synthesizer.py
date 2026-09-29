@@ -11,6 +11,7 @@ Returns the verdict + a `VerdictDecisionTrace` describing exactly which rule
 fired and on which criterion. Byte-for-byte replayable from the
 NecessityAssessment alone.
 """
+
 from __future__ import annotations
 
 from typing import ClassVar
@@ -74,9 +75,8 @@ def evaluate_verdict(input: VerdictSynthesizerInput) -> VerdictSynthesizerOutput
         ),
     )
 
-class VerdictSynthesizerAgent(
-    Agent[VerdictSynthesizerInput, VerdictSynthesizerOutput]
-):
+
+class VerdictSynthesizerAgent(Agent[VerdictSynthesizerInput, VerdictSynthesizerOutput]):
     name: ClassVar[str] = "verdict_synthesizer"
     parent: ClassVar[str] = "decision_composer"
     role: ClassVar[str] = "deterministic_verdict_rule"

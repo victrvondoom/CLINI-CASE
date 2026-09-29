@@ -25,6 +25,7 @@ SHADOW output is NEVER returned to the user.
 
 Pairs with: ops/architecture/PROMPT_VERSIONING.md
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -79,7 +80,7 @@ class ResolvedPrompt:
     agent_name: str
     version: str
     body: str
-    source: str          # 'tenant_override' | 'traffic_split' | 'active' | 'file_fallback'
+    source: str  # 'tenant_override' | 'traffic_split' | 'active' | 'file_fallback'
 
 
 async def resolve_prompt(*, agent_name: str, organization_id: str | None = None) -> ResolvedPrompt:
@@ -93,7 +94,8 @@ async def resolve_prompt(*, agent_name: str, organization_id: str | None = None)
               JOIN prompts p USING (agent_name, version)
              WHERE pa.organization_id = $1 AND pa.agent_name = $2
             """,
-            organization_id, agent_name,
+            organization_id,
+            agent_name,
         )
         if row is not None:
             return ResolvedPrompt(agent_name, row["version"], row["body"], "tenant_override")
@@ -115,7 +117,7 @@ async def resolve_prompt(*, agent_name: str, organization_id: str | None = None)
             # calls from the same tenant pick the same arm (avoids flicker).
             seed = organization_id or "anon"
             h = int(hashlib.sha256(f"{seed}|{agent_name}".encode()).hexdigest()[:8], 16)
-            pick = (h % 10000) / 100.0   # 0.00 .. 99.99
+            pick = (h % 10000) / 100.0  # 0.00 .. 99.99
             cum = 0.0
             for r in splits:
                 cum += float(r["w"])
@@ -172,7 +174,11 @@ async def add_prompt(
           SET body = EXCLUDED.body,
               description = COALESCE(EXCLUDED.description, prompts.description)
         """,
-        agent_name, version, body, status, description,
+        agent_name,
+        version,
+        body,
+        status,
+        description,
     )
 
 
@@ -187,7 +193,8 @@ async def activate_prompt(*, agent_name: str, version: str) -> None:
         await conn.execute(
             "UPDATE prompts SET status='active', activated_at=NOW() "
             "WHERE agent_name=$1 AND version=$2",
-            agent_name, version,
+            agent_name,
+            version,
         )
 
 
@@ -204,7 +211,9 @@ async def set_traffic_split(*, agent_name: str, weights: dict[str, float]) -> No
             await conn.execute(
                 "INSERT INTO prompt_traffic_splits (agent_name, version, weight_percent) "
                 "VALUES ($1, $2, $3)",
-                agent_name, version, w,
+                agent_name,
+                version,
+                w,
             )
 
 
@@ -216,7 +225,9 @@ async def assign_to_tenant(*, organization_id: str, agent_name: str, version: st
         ON CONFLICT (organization_id, agent_name) DO UPDATE
           SET version = EXCLUDED.version, assigned_at = NOW()
         """,
-        organization_id, agent_name, version,
+        organization_id,
+        agent_name,
+        version,
     )
 
 
@@ -224,7 +235,8 @@ async def list_prompts(*, agent_name: str | None = None) -> list[dict[str, Any]]
     if agent_name:
         rows = await db.fetch_ro(
             "SELECT agent_name, version, status, description, created_at, activated_at "
-            "FROM prompts WHERE agent_name=$1 ORDER BY created_at DESC", agent_name,
+            "FROM prompts WHERE agent_name=$1 ORDER BY created_at DESC",
+            agent_name,
         )
     else:
         rows = await db.fetch_ro(

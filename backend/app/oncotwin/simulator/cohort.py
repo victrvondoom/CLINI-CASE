@@ -6,6 +6,7 @@ and data quality. No clinician interventions are scripted, so the only acute
 care in the cohort is the qualifying outcome itself — labels therefore
 reflect the natural course, which is what the model is asked to anticipate.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -30,7 +31,11 @@ def cohort_script(index: int, seed: int) -> SimScript:
     regimen = codes[int(rng.choice(len(codes), p=probs / probs.sum()))]
     reg = REGIMENS[regimen]
     tumor = reg.tumor_types[int(rng.integers(len(reg.tumor_types)))]
-    sex = "female" if tumor in ("breast", "ovarian") else ("female" if rng.uniform() < 0.45 else "male")
+    sex = (
+        "female"
+        if tumor in ("breast", "ovarian")
+        else ("female" if rng.uniform() < 0.45 else "male")
+    )
     age = int(np.clip(rng.normal(61, 11), 28, 88))
     ecog = int(rng.choice([0, 1, 2], p=[0.35, 0.5, 0.15]))
 
@@ -38,28 +43,54 @@ def cohort_script(index: int, seed: int) -> SimScript:
     if pattern < 0.68:
         plan = [(1, float(rng.uniform(0.88, 1.0)))]
     elif pattern < 0.88:
-        plan = [(1, float(rng.uniform(0.88, 1.0))),
-                (int(rng.integers(16, 40)), float(rng.uniform(0.15, 0.6)))]
+        plan = [
+            (1, float(rng.uniform(0.88, 1.0))),
+            (int(rng.integers(16, 40)), float(rng.uniform(0.15, 0.6))),
+        ]
     else:
         plan = [(1, float(rng.uniform(0.35, 0.7)))]
 
     issues: list[QualityIssue] = []
     if rng.uniform() < 0.3:
-        issues.append(QualityIssue(kind="gap", day=int(rng.integers(5, 50)), n_days=int(rng.integers(1, 4))))
+        issues.append(
+            QualityIssue(kind="gap", day=int(rng.integers(5, 50)), n_days=int(rng.integers(1, 4)))
+        )
     if rng.uniform() < 0.08:
-        issues.append(QualityIssue(kind="stuck", day=int(rng.integers(5, 50)), n_days=int(rng.integers(2, 5)),
-                                   signal=str(rng.choice(["spo2", "resting_hr", "sleep_hours"]))))
+        issues.append(
+            QualityIssue(
+                kind="stuck",
+                day=int(rng.integers(5, 50)),
+                n_days=int(rng.integers(2, 5)),
+                signal=str(rng.choice(["spo2", "resting_hr", "sleep_hours"])),
+            )
+        )
     if rng.uniform() < 0.05:
-        issues.append(QualityIssue(kind="implausible", day=int(rng.integers(5, 55)),
-                                   signal=str(rng.choice(["resting_hr", "temperature", "spo2"]))))
+        issues.append(
+            QualityIssue(
+                kind="implausible",
+                day=int(rng.integers(5, 55)),
+                signal=str(rng.choice(["resting_hr", "temperature", "spo2"])),
+            )
+        )
 
     diabetic = bool(rng.uniform() < 0.2)
     return SimScript(
-        patient_id=f"coh-{seed}-{index:04d}", label=f"COH-{index:04d}", seed=seed * 100_003 + index,
-        archetype="cohort", age=age, sex=sex,  # type: ignore[arg-type]
-        cancer=_TUMOR[tumor][0], icd10=_TUMOR[tumor][1], stage=str(rng.choice(["II", "III", "IV"])),
-        biomarkers={}, regimen=regimen, ecog=ecog, diabetic=diabetic,
-        comorbidities=[{"icd10": "E11.9", "display": "Type 2 diabetes mellitus"}] if diabetic else [],
+        patient_id=f"coh-{seed}-{index:04d}",
+        label=f"COH-{index:04d}",
+        seed=seed * 100_003 + index,
+        archetype="cohort",
+        age=age,
+        sex=sex,  # type: ignore[arg-type]
+        cancer=_TUMOR[tumor][0],
+        icd10=_TUMOR[tumor][1],
+        stage=str(rng.choice(["II", "III", "IV"])),
+        biomarkers={},
+        regimen=regimen,
+        ecog=ecog,
+        diabetic=diabetic,
+        comorbidities=[{"icd10": "E11.9", "display": "Type 2 diabetes mellitus"}]
+        if diabetic
+        else [],
         treatment_start=int(rng.integers(10, 17)),
         sensitivity=float(np.exp(rng.normal(0.1, 0.3))),
         circ0=float(np.clip(rng.normal(4.4, 1.1), 2.0, 8.0)),

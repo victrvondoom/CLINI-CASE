@@ -13,6 +13,7 @@ deprecation runway documented in `ops/architecture/API_VERSIONING.md`.
 Today /api/v2 ships ONE endpoint as the proof-of-life: /api/v2/healthz. It
 returns the same payload as /api/v1/healthz wrapped in the new envelope.
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -66,5 +67,6 @@ async def version(response: Response) -> dict[str, Any]:
     """v2 version — wraps the v1 payload in the new envelope."""
     response.headers["X-API-Version"] = "v2"
     from app.api.ops import version as v1_version
+
     payload = await v1_version()
     return _v2_envelope(payload)

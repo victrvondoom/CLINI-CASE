@@ -12,6 +12,7 @@ ALSO get:
 
 These are the standards Stripe/Twilio/AWS use.
 """
+
 from __future__ import annotations
 
 import os
@@ -61,10 +62,12 @@ class VersionHeadersMiddleware:
                             headers.append((b"sunset", sunset_http.encode()))
                             headers.append((b"deprecation", b"true"))
                             successor_path = path.replace("/api/v1/", _V1_SUCCESSOR_PREFIX + "/", 1)
-                            headers.append((
-                                b"link",
-                                f'<{successor_path}>; rel="successor-version"'.encode(),
-                            ))
+                            headers.append(
+                                (
+                                    b"link",
+                                    f'<{successor_path}>; rel="successor-version"'.encode(),
+                                )
+                            )
                 elif is_v2:
                     headers.append((b"x-api-version", b"v2"))
                 message["headers"] = headers

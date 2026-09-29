@@ -25,6 +25,7 @@ Event types (all CloudEvents 1.0 spec compliant):
   clincase.reviewer.signed_off.v1
   clincase.trizetto.envelope_dispatched.v1
 """
+
 from app.events.outbox import (
     DomainEvent,
     emit_event,

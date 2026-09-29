@@ -1,4 +1,5 @@
 """denial_forecaster — parent agent package."""
+
 # node.py is imported for its side effects + legacy shims
 from app.agents.denial_forecaster import node as _node
 

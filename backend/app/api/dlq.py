@@ -1,9 +1,10 @@
 """Operator endpoints for the outbox dead-letter queue.
 
-  GET  /api/v1/dlq/me                         caller's DLQ events
-  GET  /api/v1/dlq/me/stats                   counts by event_type
-  POST /api/v1/dlq/{event_id}/replay          push back to event_outbox (admin)
+GET  /api/v1/dlq/me                         caller's DLQ events
+GET  /api/v1/dlq/me/stats                   counts by event_type
+POST /api/v1/dlq/{event_id}/replay          push back to event_outbox (admin)
 """
+
 from __future__ import annotations
 
 from typing import Any

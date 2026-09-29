@@ -20,6 +20,7 @@ This module installs a SIGTERM handler that:
 
 The result: rolling deploys lose ZERO in-flight cases.
 """
+
 from __future__ import annotations
 
 import asyncio

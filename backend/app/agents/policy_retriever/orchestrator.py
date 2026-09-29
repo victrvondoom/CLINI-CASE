@@ -8,6 +8,7 @@ Orchestrator on the production framework. Composes 3 sub-agents:
 
 Each emits its own row in `agent_runs` named `policy_retriever.<sub_name>`.
 """
+
 from __future__ import annotations
 
 from typing import ClassVar
@@ -79,9 +80,7 @@ class PolicyRetrieverAgent(Agent[PolicyRetrieverInput, PolicyRetrieverOutput]):
         candidates = kw_result.output.candidates
 
         if not candidates:
-            return PolicyRetrieverOutput(
-                excerpts=[], n_candidates=0, reranked=False
-            )
+            return PolicyRetrieverOutput(excerpts=[], n_candidates=0, reranked=False)
 
         # 2) Rerank if more than 5 candidates
         if len(candidates) > 5:
@@ -100,10 +99,7 @@ class PolicyRetrieverAgent(Agent[PolicyRetrieverInput, PolicyRetrieverOutput]):
                 ),
                 ctx=ctx,
             )
-            ranks = [
-                i for i in rerank_result.output.top_indices
-                if 0 <= i < len(candidates)
-            ][:5]
+            ranks = [i for i in rerank_result.output.top_indices if 0 <= i < len(candidates)][:5]
             reranked = True
         else:
             ranks = list(range(len(candidates)))
@@ -123,6 +119,3 @@ class PolicyRetrieverAgent(Agent[PolicyRetrieverInput, PolicyRetrieverOutput]):
 
 
 policy_retriever = PolicyRetrieverAgent()
-
-
-

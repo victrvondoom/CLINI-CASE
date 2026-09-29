@@ -5,6 +5,7 @@ the orchestrator dispatches one invocation per atomic criterion via
 asyncio.gather. Self-grades via the framework Grader; below quality_threshold
 the agent retries with the grader's feedback embedded in the next call.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -23,7 +24,10 @@ from app.agents.necessity_reasoner.schemas import (
 
 _PROMPT_PATH = (
     Path(__file__).resolve().parents[3]
-    / "prompts" / "necessity_reasoner" / "sub_agents" / "evidence_matcher.txt"
+    / "prompts"
+    / "necessity_reasoner"
+    / "sub_agents"
+    / "evidence_matcher.txt"
 )
 
 

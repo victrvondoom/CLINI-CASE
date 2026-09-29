@@ -9,6 +9,7 @@ Design follows AAOSA bounded responsibility: every failure mode is a
 specific class, not a generic Exception. Audit + monitoring tools can
 group on `code` for cohort analysis.
 """
+
 from __future__ import annotations
 
 
@@ -27,10 +28,9 @@ class IntakeError(Exception):
     def to_dict(self) -> dict:
         return {
             "code": self.code,
-            "message": self.message if self.safe_to_show_user else (
-                "Document intake failed. The case has been routed to the "
-                "Reviewer queue."
-            ),
+            "message": self.message
+            if self.safe_to_show_user
+            else ("Document intake failed. The case has been routed to the " "Reviewer queue."),
             "detail": self.detail if self.safe_to_show_user else {},
         }
 

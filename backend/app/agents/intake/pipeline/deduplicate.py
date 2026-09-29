@@ -13,6 +13,7 @@ Industry-grade improvements over a plain dict:
   - TTL prevents stale results after prompt/model updates
   - Per-tenant scoping prevents cross-org leakage
 """
+
 from __future__ import annotations
 
 import time

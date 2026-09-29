@@ -4,6 +4,7 @@ Deterministic. Iterates the curated 22-policy corpus and emits all
 (policy, section) pairs whose payer matches and whose treatment_keywords
 fuzzy-match the requested treatment name.
 """
+
 from __future__ import annotations
 
 import json
@@ -18,9 +19,7 @@ from app.agents.policy_retriever.schemas import (
 )
 
 _POLICIES_PATH = Path(__file__).resolve().parents[3] / "data" / "policies.json"
-_POLICIES: list[dict[str, Any]] = json.loads(
-    _POLICIES_PATH.read_text(encoding="utf-8")
-)["policies"]
+_POLICIES: list[dict[str, Any]] = json.loads(_POLICIES_PATH.read_text(encoding="utf-8"))["policies"]
 
 
 class KeywordFilterAgent(Agent[KeywordFilterInput, KeywordFilterOutput]):

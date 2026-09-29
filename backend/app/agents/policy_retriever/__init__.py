@@ -1,4 +1,5 @@
 """policy_retriever — parent agent package."""
+
 # node.py is imported for its side effects + legacy shims
 from app.agents.policy_retriever import node as _node
 

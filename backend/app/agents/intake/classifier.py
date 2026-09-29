@@ -10,6 +10,7 @@ Heuristics (tuned for prior-auth document types):
   - Aspect / DPI        — phone-camera scans tend to be skewed; we flag
   - Text-region detection (Otsu binarization → connected components)
 """
+
 from __future__ import annotations
 
 import io

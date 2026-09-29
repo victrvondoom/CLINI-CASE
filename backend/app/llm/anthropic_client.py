@@ -3,6 +3,7 @@
 Used when LLM_PROVIDER=anthropic. Switching to LLM_PROVIDER=bedrock needs
 no agent code changes.
 """
+
 from __future__ import annotations
 
 from collections.abc import AsyncIterator

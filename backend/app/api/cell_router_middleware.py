@@ -15,6 +15,7 @@ This is also where future cells-aware routing can plug in: today a single
 deployment serves all cells, but at scale the middleware would 307-redirect
 mis-cell traffic to the cell's own ALB.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -27,6 +28,7 @@ from app.cells import cell_for_organization
 def _decode_jwt_unsafe(token: str) -> dict[str, Any] | None:
     """Compatibility helper; verifies signatures and expiry before using claims."""
     from app.auth.jwt_helpers import decode_access_token
+
     return decode_access_token(token)
 
 
@@ -54,9 +56,7 @@ class CellRouterMiddleware:
             payload = _decode_jwt_unsafe(token)
             if payload:
                 org_id = (
-                    payload.get("org")
-                    or payload.get("organization_id")
-                    or payload.get("org_id")
+                    payload.get("org") or payload.get("organization_id") or payload.get("org_id")
                 )
                 data_region = payload.get("data_region")
                 if org_id:

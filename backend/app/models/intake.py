@@ -13,6 +13,7 @@ to `intake_documents`, and referenced by source_resource_id in any
 downstream agent_runs row that consumes it. A scanned-fax verdict is as
 auditable as a clean-FHIR verdict.
 """
+
 from __future__ import annotations
 
 from typing import Any, Literal
@@ -57,11 +58,11 @@ class DocumentClassification(BaseModel):
     """
 
     document_type: Literal[
-        "typed_print",        # Word/PDF-generated, scanned at high DPI
-        "handwritten",        # pen-on-paper, photographed
-        "mixed",              # typed letterhead + handwritten margins / Rx pad
-        "structured_form",    # PA form / checkbox-heavy intake form
-        "unreadable",         # severe blur / tilt / low resolution
+        "typed_print",  # Word/PDF-generated, scanned at high DPI
+        "handwritten",  # pen-on-paper, photographed
+        "mixed",  # typed letterhead + handwritten margins / Rx pad
+        "structured_form",  # PA form / checkbox-heavy intake form
+        "unreadable",  # severe blur / tilt / low resolution
     ]
     confidence: float = Field(..., ge=0.0, le=1.0)
     rationale: str = Field(..., description="One sentence why")

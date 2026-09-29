@@ -10,6 +10,7 @@ Limitations vs Textract:
   - Field extraction is skipped — the Clinical Extractor agent downstream
     receives `full_text` and parses structured fields from it.
 """
+
 from __future__ import annotations
 
 import io
@@ -70,7 +71,7 @@ class PyPDFEngine(OCREngine):
         return OCRResult(
             engine=self.name,
             full_text=full_text,
-            extracted_fields=[],   # No field-level parsing; Clinical Extractor handles it
+            extracted_fields=[],  # No field-level parsing; Clinical Extractor handles it
             overall_confidence=0.70,
             phi_redactions_applied=0,
             pages=n_pages,

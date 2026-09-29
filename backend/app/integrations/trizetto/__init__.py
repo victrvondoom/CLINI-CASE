@@ -27,6 +27,7 @@ What ships here:
                            GET  /api/v1/integrations/trizetto/_mock/inbox
                               (so the demo can show what the Gateway received)
 """
+
 from app.integrations.trizetto.facets_pa_event import FacetsPAEvent, build_facets_event
 from app.integrations.trizetto.gateway_client import (
     GatewayAck,

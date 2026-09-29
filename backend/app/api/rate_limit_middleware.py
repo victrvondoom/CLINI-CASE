@@ -11,6 +11,7 @@ The middleware is JWT-aware: it pulls the org_id + tier from the verified
 JWT (already on `request.state.user` by then). Anonymous routes (e.g.
 /healthz, /metrics) skip the limiter — they're protected by WAF instead.
 """
+
 from __future__ import annotations
 
 import json
@@ -57,6 +58,7 @@ def _bearer_token(headers: Iterable[tuple[bytes, bytes]]) -> str | None:
 def _decode_jwt_unsafe(token: str) -> dict[str, Any] | None:
     """Compatibility helper; verifies signatures and expiry before using claims."""
     from app.auth.jwt_helpers import decode_access_token
+
     return decode_access_token(token)
 
 
@@ -115,23 +117,27 @@ class RateLimitMiddleware:
                 limit=decision.limit,
             )
             retry_after_s = max(int((decision.retry_after_ms / 1000.0) + 0.999), 1)
-            body = json.dumps({
-                "error": "rate_limit_exceeded",
-                "bucket": decision.bucket,
-                "limit": decision.limit,
-                "retry_after_seconds": retry_after_s,
-            }).encode()
-            await send({
-                "type": "http.response.start",
-                "status": 429,
-                "headers": [
-                    (b"content-type", b"application/json"),
-                    (b"retry-after", str(retry_after_s).encode()),
-                    (b"x-ratelimit-bucket", decision.bucket.encode()),
-                    (b"x-ratelimit-limit", str(decision.limit).encode()),
-                    (b"x-ratelimit-remaining", b"0"),
-                ],
-            })
+            body = json.dumps(
+                {
+                    "error": "rate_limit_exceeded",
+                    "bucket": decision.bucket,
+                    "limit": decision.limit,
+                    "retry_after_seconds": retry_after_s,
+                }
+            ).encode()
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 429,
+                    "headers": [
+                        (b"content-type", b"application/json"),
+                        (b"retry-after", str(retry_after_s).encode()),
+                        (b"x-ratelimit-bucket", decision.bucket.encode()),
+                        (b"x-ratelimit-limit", str(decision.limit).encode()),
+                        (b"x-ratelimit-remaining", b"0"),
+                    ],
+                }
+            )
             await send({"type": "http.response.body", "body": body})
             return
 
@@ -142,7 +148,9 @@ class RateLimitMiddleware:
 # Path normalization — strip UUIDs / case_ids so /cases/{x} maps to one bucket
 # =============================================================================
 
-_UUID_RE = re.compile(r"/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", re.IGNORECASE)
+_UUID_RE = re.compile(
+    r"/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", re.IGNORECASE
+)
 _HEX_RE = re.compile(r"/[0-9a-f]{16,}", re.IGNORECASE)
 _DIGIT_RE = re.compile(r"/\d+(?=/|$)")
 

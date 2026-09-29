@@ -10,6 +10,7 @@ Verifies that POST /fhir/Claim/$submit:
 These tests use FastAPI's TestClient with the auth dependency overridden so
 we don't need a live DB session per test.
 """
+
 from __future__ import annotations
 
 import json
@@ -55,9 +56,7 @@ async def client() -> AsyncIterator[AsyncClient]:
                    'Test Administrator', 'org_demo', 'admin')
            ON CONFLICT (id) DO NOTHING"""
     )
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://testserver"
-    ) as c:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as c:
         yield c
     await db.disconnect()
     app.dependency_overrides.clear()
@@ -87,13 +86,16 @@ async def test_pas_submit_trastuzumab_returns_claimresponse(client: AsyncClient)
     cr = entries[0]["resource"]
     assert cr["resourceType"] == "ClaimResponse"
     assert cr["use"] == "preauthorization"
-    assert cr["outcome"] in {"queued", "complete", "partial", "error"}, (
-        f"outcome must be a PAS-conformant value, got: {cr.get('outcome')!r}"
-    )
+    assert cr["outcome"] in {
+        "queued",
+        "complete",
+        "partial",
+        "error",
+    }, f"outcome must be a PAS-conformant value, got: {cr.get('outcome')!r}"
     assert cr.get("preAuthRef"), "preAuthRef must be set so payer can poll"
-    assert cr.get("preAuthPeriod", {}).get("end"), (
-        "preAuthPeriod.end must be set per CMS-0057-F § IV.B"
-    )
+    assert cr.get("preAuthPeriod", {}).get(
+        "end"
+    ), "preAuthPeriod.end must be set per CMS-0057-F § IV.B"
 
     # Second entry: Provenance pointing back at the ClaimResponse
     prov = entries[1]["resource"]
@@ -139,13 +141,11 @@ async def test_capability_statement_advertises_pas(client: AsyncClient) -> None:
     cs = response.json()
     assert cs["resourceType"] == "CapabilityStatement"
     igs = cs.get("implementationGuide", [])
-    assert any("davinci-pas" in ig for ig in igs), (
-        "CapabilityStatement must declare Da Vinci PAS IG"
-    )
+    assert any(
+        "davinci-pas" in ig for ig in igs
+    ), "CapabilityStatement must declare Da Vinci PAS IG"
     # $submit operation declared
-    rest_ops = (
-        cs.get("rest", [{}])[0].get("resource", [{}])[0].get("operation", [])
-    )
-    assert any(op.get("name") == "submit" for op in rest_ops), (
-        "Claim/$submit operation must be advertised"
-    )
+    rest_ops = cs.get("rest", [{}])[0].get("resource", [{}])[0].get("operation", [])
+    assert any(
+        op.get("name") == "submit" for op in rest_ops
+    ), "Claim/$submit operation must be advertised"

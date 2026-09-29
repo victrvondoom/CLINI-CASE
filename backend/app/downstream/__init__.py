@@ -14,6 +14,7 @@ Each downstream gets a per-(host, route) breaker. Failures don't spread.
 
 Pairs with: ops/architecture/DOWNSTREAM_BREAKERS.md
 """
+
 from app.downstream.breaker import (
     DownstreamBreaker,
     DownstreamBreakerOpenError,

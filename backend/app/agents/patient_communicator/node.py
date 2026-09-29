@@ -1,4 +1,5 @@
 """LangGraph node + legacy compatibility shims for patient_communicator."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -20,7 +21,6 @@ from app.models import (  # noqa: F401
 
 
 async def communicate_to_patient(state: ClinCaseState) -> ClinCaseState:
-
     if state.decision is None:
         raise ValueError("decision must be set before patient_communicator")
     if state.clinical_snapshot is None:

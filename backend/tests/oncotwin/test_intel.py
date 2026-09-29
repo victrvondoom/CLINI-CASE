@@ -1,5 +1,6 @@
 """OncoTwin 2.0 intelligence engines: state, change points, correlation, trajectory, memory,
 consistency, uncertainty, explanation, graph, what-if, counterfactual, safety gates."""
+
 from __future__ import annotations
 
 import json
@@ -37,8 +38,12 @@ def test_incremental_history_equals_full_recompute(demo_sims):
         full = compute_history_bundle(rec, 40)
         inc = compute_history_bundle(rec, 40, prior=compute_history_bundle(rec, 30))
         assert inc.extended_from == 30
-        assert json.dumps(full.snapshots, sort_keys=True, default=str) == json.dumps(inc.snapshots, sort_keys=True, default=str)
-        assert json.dumps(full.day_facts, sort_keys=True, default=str) == json.dumps(inc.day_facts, sort_keys=True, default=str)
+        assert json.dumps(full.snapshots, sort_keys=True, default=str) == json.dumps(
+            inc.snapshots, sort_keys=True, default=str
+        )
+        assert json.dumps(full.day_facts, sort_keys=True, default=str) == json.dumps(
+            inc.day_facts, sort_keys=True, default=str
+        )
 
 
 def test_living_state_has_19_dimensions_with_provenance(ot001_bundle):
@@ -46,7 +51,15 @@ def test_living_state_has_19_dimensions_with_provenance(ot001_bundle):
     s = states[25]
     assert tuple(s["dimensions"]) == DIMENSION_ORDER and len(DIMENSION_ORDER) == 19
     for d in s["dimensions"].values():
-        assert {"status", "severity", "basis", "fields", "confidence", "data_quality", "sources"} <= set(d)
+        assert {
+            "status",
+            "severity",
+            "basis",
+            "fields",
+            "confidence",
+            "data_quality",
+            "sources",
+        } <= set(d)
     assert s["dimensions"]["risk"]["basis"] == "model-derived"
     assert re.fullmatch(r"[0-9a-f]{64}", s["sha256"])
 
@@ -56,10 +69,22 @@ def test_transitions_carry_required_fields_and_history_is_reproducible(ot001_bun
     tr = transitions(states, from_day=20, to_day=30)
     assert tr, "the infection episode must produce state transitions"
     for t in tr:
-        assert {"day", "at", "dimension", "previous", "new", "reason", "sources", "confidence", "data_quality"} <= set(t)
+        assert {
+            "day",
+            "at",
+            "dimension",
+            "previous",
+            "new",
+            "reason",
+            "sources",
+            "confidence",
+            "data_quality",
+        } <= set(t)
         assert t["previous"] != t["new"] and t["reason"]
     again = build_states(rec, b.snapshots, b.day_facts)
-    assert [s["sha256"] for s in again] == [s["sha256"] for s in states]      # never overwritten; recomputable
+    assert [s["sha256"] for s in again] == [
+        s["sha256"] for s in states
+    ]  # never overwritten; recomputable
 
 
 def test_bocpd_localises_a_known_step():
@@ -68,11 +93,15 @@ def test_bocpd_localises_a_known_step():
     z[20:, :3] += 2.5
     R = changepoint.run_bocpd(z, np.full(9, 0.8))
     assert np.allclose(R.sum(axis=1), 1.0)
-    assert 22 - int(np.argmax(R[21])) in (20, 21, 22)               # regime start found around Day 21
+    assert 22 - int(np.argmax(R[21])) in (20, 21, 22)  # regime start found around Day 21
 
 
 def test_changepoint_finds_the_infection_regime(ot001_intel):
-    cps = [p for p in ot001_intel["change_points"]["change_points"] if p["significance"] == "significant"]
+    cps = [
+        p
+        for p in ot001_intel["change_points"]["change_points"]
+        if p["significance"] == "significant"
+    ]
     assert any(21 <= p["day"] <= 25 and p["contributors"] for p in cps)
     assert "not proof" in ot001_intel["change_points"]["language_note"]
 
@@ -81,7 +110,13 @@ def test_cross_signal_engine_is_one_trajectory_and_avoids_causal_language(ot001_
     co = ot001_intel["correlation"]
     assert co["headline"] == "Multi-signal trajectory change detected" and co["n_deviating"] >= 3
     for r in co["signals"]:
-        assert {"direction", "z_adverse_3d", "baseline_median", "time_window", "model_contribution_logit"} <= set(r)
+        assert {
+            "direction",
+            "z_adverse_3d",
+            "baseline_median",
+            "time_window",
+            "model_contribution_logit",
+        } <= set(r)
     text = json.dumps(co).lower()
     assert "caused" not in text and "due to" not in text
 
@@ -91,8 +126,13 @@ def test_trajectory_dynamics_names_the_state(ot001_bundle):
     m = load_model()
     d26 = trajectory.dynamics(b.snapshots, 26, m.thresholds)
     assert d26["dynamics"] == "persistent deterioration"
-    assert d26["narrative"][-1]["offset"] == "Today" and d26["narrative"][-1]["label"] == "High concern"
-    assert trajectory.dynamics(b.snapshots, 36, m.thresholds)["dynamics"] != "persistent deterioration"
+    assert (
+        d26["narrative"][-1]["offset"] == "Today"
+        and d26["narrative"][-1]["label"] == "High concern"
+    )
+    assert (
+        trajectory.dynamics(b.snapshots, 36, m.thresholds)["dynamics"] != "persistent deterioration"
+    )
 
 
 def test_twin_memory_compares_cycles_as_statistics_not_equivalence(demo_sims):
@@ -110,8 +150,14 @@ def test_uncertainty_decomposition_and_readiness(ot001_intel):
     assert "ood" in u["distribution_shift"]
     rd = ot001_intel["readiness"]
     assert 0 <= rd["score"] <= 1 and "not a health score" in rd["note"].lower()
-    assert set(rd["components"]) == {"data_completeness", "temporal_coverage", "signal_reliability",
-                                     "personalization_quality", "prediction_confidence", "model_validity"}
+    assert set(rd["components"]) == {
+        "data_completeness",
+        "temporal_coverage",
+        "signal_reliability",
+        "personalization_quality",
+        "prediction_confidence",
+        "model_validity",
+    }
 
 
 def test_why_now_numbers_are_computed_not_hardcoded(ot001_intel):
@@ -138,9 +184,21 @@ def test_state_graph_separates_facts_from_model_associations(ot001_intel):
 def test_custom_what_if_runs_through_the_same_simulator(demo_sims):
     rec = demo_sims["ot-002"].record
     b = compute_history_bundle(rec, 24)
-    c = compute_twin(rec, 24, history=b.snapshots, custom_scenario={"adherence": 0.95, "iv_hydration_day_offsets": [1, 2]})
+    c = compute_twin(
+        rec,
+        24,
+        history=b.snapshots,
+        custom_scenario={"adherence": 0.95, "iv_hydration_day_offsets": [1, 2]},
+    )
     sc = c.simulation["scenarios"]
-    assert set(sc) == {"current", "early_intervention", "improved_recovery", "reduced_adherence", "regimen_change", "custom"}
+    assert set(sc) == {
+        "current",
+        "early_intervention",
+        "improved_recovery",
+        "reduced_adherence",
+        "regimen_change",
+        "custom",
+    }
     assert sc["custom"]["event_probability_7d"] <= sc["current"]["event_probability_7d"]
     assert len(sc["custom"]["delta_vs_current"]["risk_median_by_day"]) == len(sc["custom"]["days"])
     assert sc["custom"]["assumptions"]
@@ -152,18 +210,34 @@ def test_counterfactual_ground_truth_validates_the_intervention():
     assert truth["counterfactual_first_event_after_anchor"]["condition"] == "febrile_neutropenia"
 
 
-def test_safety_gates_pass_the_deterministic_statement_and_block_fabrication(ot001_bundle, ot001_intel):
+def test_safety_gates_pass_the_deterministic_statement_and_block_fabrication(
+    ot001_bundle, ot001_intel
+):
     from app.oncotwin.intel.narrative import deterministic, gate_context
 
     rec, _, _ = ot001_bundle
     ctx = gate_context(rec, ot001_intel, True)
     det = deterministic(ot001_intel)
     text = " ".join([det["summary"], *[p["text"] for p in det["key_points"]], *det["caveats"]])
-    ok = gates.check({"text": text, "as_of_day": 26, "risk": ot001_intel["prediction"]["risk"],
-                      "evidence_ids": [i for p in det["key_points"] for i in p["evidence_ids"]]}, ctx)
+    ok = gates.check(
+        {
+            "text": text,
+            "as_of_day": 26,
+            "risk": ot001_intel["prediction"]["risk"],
+            "evidence_ids": [i for p in det["key_points"] for i in p["evidence_ids"]],
+        },
+        ctx,
+    )
     assert ok["passed"], ok["gates"]
-    bad = gates.check({"text": "The patient has sepsis caused by neutropenia; start antibiotics. Temperature 39.9 °C.",
-                       "as_of_day": 26, "evidence_ids": ["obs-FAKE"], "source": "llm"}, ctx)
+    bad = gates.check(
+        {
+            "text": "The patient has sepsis caused by neutropenia; start antibiotics. Temperature 39.9 °C.",
+            "as_of_day": 26,
+            "evidence_ids": ["obs-FAKE"],
+            "source": "llm",
+        },
+        ctx,
+    )
     failed = {g["gate"] for g in bad["gates"] if not g["passed"]}
     assert not bad["passed"] and {"evidence", "safety"} <= failed and bad["action"] == "fallback"
 

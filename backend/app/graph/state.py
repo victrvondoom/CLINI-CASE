@@ -2,6 +2,7 @@
 
 Source of truth: PROPOSAL.md §8.
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Literal
@@ -55,7 +56,7 @@ class ClinCaseState(BaseModel):
     policy_excerpts: list[PolicyExcerpt] = Field(default_factory=list)
     necessity_assessment: NecessityAssessment | None = None
     decision: Decision | None = None
-    denial_forecast: DenialForecast | None = None      # 6th agent — runs on every case
+    denial_forecast: DenialForecast | None = None  # 6th agent — runs on every case
     appeal_draft: AppealDraft | None = None
     patient_communication: PatientCommunication | None = None  # 7th agent — terminal
 

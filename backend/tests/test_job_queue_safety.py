@@ -42,9 +42,7 @@ async def test_enqueue_recovers_atomic_idempotency_conflict(monkeypatch) -> None
         return None if calls == 1 else existing
 
     monkeypatch.setattr(queue.db, "fetchrow", fetchrow)
-    job = await queue.enqueue(
-        case_id="case-1", organization_id="org-1", idempotency_key="same-key"
-    )
+    job = await queue.enqueue(case_id="case-1", organization_id="org-1", idempotency_key="same-key")
     assert job.id == existing["id"]
     assert calls == 2
 
@@ -60,9 +58,7 @@ async def test_completion_is_fenced_by_worker_and_attempt(monkeypatch) -> None:
 
     monkeypatch.setattr(queue.db, "execute", execute)
     job_id = uuid4()
-    updated = await queue.mark_done(
-        job_id, {"verdict": "REFER"}, worker_id="worker-new", attempt=2
-    )
+    updated = await queue.mark_done(job_id, {"verdict": "REFER"}, worker_id="worker-new", attempt=2)
     assert updated is False
     assert captured is not None
     query, args = captured
@@ -85,10 +81,19 @@ async def test_lease_loss_cancels_expensive_handler(monkeypatch) -> None:
         stop.set()
 
     job = queue.Job(
-        id=uuid4(), case_id="case-1", organization_id="org-1",
-        job_type="run_full", status="running", payload={}, result=None,
-        error=None, attempts=1, max_attempts=3, created_at=datetime.now(UTC),
-        claimed_at=datetime.now(UTC), finished_at=None,
+        id=uuid4(),
+        case_id="case-1",
+        organization_id="org-1",
+        job_type="run_full",
+        status="running",
+        payload={},
+        result=None,
+        error=None,
+        attempts=1,
+        max_attempts=3,
+        created_at=datetime.now(UTC),
+        claimed_at=datetime.now(UTC),
+        finished_at=None,
     )
     monkeypatch.setitem(case_runner.JOB_HANDLERS, "run_full", slow_handler)
     monkeypatch.setattr(case_runner, "_heartbeat_loop", lose_lease)

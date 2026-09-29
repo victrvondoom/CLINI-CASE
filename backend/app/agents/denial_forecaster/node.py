@@ -1,4 +1,5 @@
 """LangGraph node + legacy compatibility shims for denial_forecaster."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -20,7 +21,6 @@ from app.models import (  # noqa: F401
 
 
 async def forecast_denial(state: ClinCaseState) -> ClinCaseState:
-
     if state.necessity_assessment is None:
         raise ValueError("necessity_assessment must be set before denial_forecaster")
     if state.clinical_snapshot is None:

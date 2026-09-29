@@ -19,6 +19,7 @@ What's in the bundle:
 This endpoint is the backbone of the "every decision is reproducible in 12
 seconds" compliance claim in the demo deck. It is read-only and idempotent.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -52,9 +53,7 @@ def _row_to_dict(row: Any) -> dict[str, Any]:
 
 def _canonical_sha256(obj: dict[str, Any]) -> str:
     """Deterministic SHA-256 over a JSON object. Keys sorted; UTF-8 input."""
-    return hashlib.sha256(
-        json.dumps(obj, sort_keys=True, default=str).encode("utf-8")
-    ).hexdigest()
+    return hashlib.sha256(json.dumps(obj, sort_keys=True, default=str).encode("utf-8")).hexdigest()
 
 
 @router.get("/cases/{case_id}/evidence-pack")
@@ -76,7 +75,8 @@ async def evidence_pack(
                   requested_treatment_name, requested_j_code, fhir_bundle,
                   physician_note, created_at
            FROM cases WHERE id = $1 AND organization_id = $2""",
-        case_id, user["organization_id"],
+        case_id,
+        user["organization_id"],
     )
     if case is None:
         raise HTTPException(status_code=404, detail=f"Case {case_id} not found")
@@ -105,7 +105,9 @@ async def evidence_pack(
 
     # Live compliance + ROI
     try:
-        compliance = (await case_scorecard(case_id, organization_id=user["organization_id"])).to_dict()
+        compliance = (
+            await case_scorecard(case_id, organization_id=user["organization_id"])
+        ).to_dict()
     except Exception as e:  # noqa: BLE001
         compliance = {"error": str(e)}
     try:
@@ -117,9 +119,12 @@ async def evidence_pack(
     # Most recent TriZetto envelope (mock inbox), if any
     try:
         from app.integrations.trizetto.gateway_client import get_mock_inbox
+
         envelopes = [
-            it for it in get_mock_inbox()
-            if it.get("envelope", {}).get("params", {}).get("arguments", {}).get("case_id") == case_id
+            it
+            for it in get_mock_inbox()
+            if it.get("envelope", {}).get("params", {}).get("arguments", {}).get("case_id")
+            == case_id
         ]
         trizetto_envelope = envelopes[-1] if envelopes else None
     except Exception:  # noqa: BLE001
@@ -130,7 +135,11 @@ async def evidence_pack(
     if decision:
         citations_raw = decision["citations_json"]
         try:
-            citations = json.loads(citations_raw) if isinstance(citations_raw, str) else (citations_raw or [])
+            citations = (
+                json.loads(citations_raw)
+                if isinstance(citations_raw, str)
+                else (citations_raw or [])
+            )
         except (json.JSONDecodeError, TypeError):
             citations = []
         last_run = next((r for r in agent_runs if r["model_id"]), None)

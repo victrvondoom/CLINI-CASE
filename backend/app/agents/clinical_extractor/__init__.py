@@ -1,4 +1,5 @@
 """clinical_extractor — parent agent package."""
+
 # node.py is imported for its side effects + legacy shims
 from app.agents.clinical_extractor import node as _node
 

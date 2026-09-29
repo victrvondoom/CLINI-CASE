@@ -1,4 +1,5 @@
 """Contract tests for the Guardrails framework."""
+
 from __future__ import annotations
 
 import asyncio

@@ -3,6 +3,7 @@
 Lets the demo show "regenerate Kiro specs from the live manifest" with one
 button, and lets a developer show one example spec without leaving the UI.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -38,6 +39,7 @@ async def get_parent_spec(
 ) -> dict[str, Any]:
     """Return one parent agent's three spec files (no disk write)."""
     from app.agents.manifest import AGENT_MANIFEST
+
     match = next((p for p in AGENT_MANIFEST if p["name"] == parent), None)
     if match is None:
         raise HTTPException(status_code=404, detail=f"Parent agent {parent!r} not found")
@@ -55,6 +57,7 @@ async def get_sub_spec(
 ) -> dict[str, Any]:
     """Return one sub-agent's three spec files."""
     from app.agents.manifest import AGENT_MANIFEST
+
     parent_match = next((p for p in AGENT_MANIFEST if p["name"] == parent), None)
     if parent_match is None:
         raise HTTPException(status_code=404, detail=f"Parent {parent!r} not found")

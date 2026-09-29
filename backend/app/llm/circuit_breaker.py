@@ -24,6 +24,7 @@ Why this matters at industry scale:
 Pairs with `app/sre/SLO.yaml` SLO `api-availability` — circuit breaker state
 transitions are exposed as Prometheus gauge metrics for the burn-rate alerts.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -100,12 +101,16 @@ class CircuitBreaker:
                     self.half_open_successes = 0
                     log.info("circuit.half_open", model_id=self.model_id)
                 else:
-                    raise CircuitBreakerOpenError(self.model_id, self.opened_at, self.config.cooldown_seconds)
+                    raise CircuitBreakerOpenError(
+                        self.model_id, self.opened_at, self.config.cooldown_seconds
+                    )
 
             if self.state == CircuitState.HALF_OPEN:
                 if self.half_open_attempts >= self.config.half_open_probe_calls:
                     # Probe quota exhausted; defer to next eval
-                    raise CircuitBreakerOpenError(self.model_id, self.opened_at, self.config.cooldown_seconds)
+                    raise CircuitBreakerOpenError(
+                        self.model_id, self.opened_at, self.config.cooldown_seconds
+                    )
                 self.half_open_attempts += 1
 
     async def record_success(self) -> None:
@@ -130,7 +135,10 @@ class CircuitBreaker:
                 return
 
             # Evaluate failure rate
-            if self.state == CircuitState.CLOSED and len(self._outcomes) >= self.config.min_samples_to_open:
+            if (
+                self.state == CircuitState.CLOSED
+                and len(self._outcomes) >= self.config.min_samples_to_open
+            ):
                 failures = sum(1 for o in self._outcomes if not o)
                 rate = failures / len(self._outcomes)
                 if rate >= self.config.failure_rate_threshold:
@@ -151,7 +159,8 @@ class CircuitBreaker:
             "samples": len(self._outcomes),
             "failure_rate": (
                 round(sum(1 for o in self._outcomes if not o) / max(1, len(self._outcomes)), 3)
-                if self._outcomes else 0.0
+                if self._outcomes
+                else 0.0
             ),
             "config": {
                 "window_size": self.config.window_size,

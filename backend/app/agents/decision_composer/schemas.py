@@ -1,4 +1,5 @@
 """Schemas for the decision_composer package — orchestrator + sub-agents."""
+
 from __future__ import annotations
 
 from typing import Literal
@@ -16,6 +17,7 @@ from app.models import (
 # =============================================================================
 # Orchestrator I/O — parent agent contract
 # =============================================================================
+
 
 class DecisionComposerInput(BaseModel):
     snapshot: ClinicalSnapshot

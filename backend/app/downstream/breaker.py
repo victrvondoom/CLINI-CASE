@@ -13,6 +13,7 @@ Pre-registered components:
 
 A custom breaker is created on first reference via `get_breaker(name)`.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -46,7 +47,7 @@ class DownstreamBreakerOpenError(Exception):
 
 @dataclass
 class _Cfg:
-    failure_threshold: int = 5      # consecutive failures or rate breach to OPEN
+    failure_threshold: int = 5  # consecutive failures or rate breach to OPEN
     failure_rate_threshold: float = 0.5
     rolling_window_size: int = 20
     cooldown_seconds: int = 30
@@ -68,14 +69,18 @@ class DownstreamBreaker:
             now = time.time()
             if self._state is State.OPEN:
                 if now - self._opened_at < self.cfg.cooldown_seconds:
-                    raise DownstreamBreakerOpenError(self.name, self._opened_at, self.cfg.cooldown_seconds)
+                    raise DownstreamBreakerOpenError(
+                        self.name, self._opened_at, self.cfg.cooldown_seconds
+                    )
                 # cooldown expired → HALF_OPEN
                 self._state = State.HALF_OPEN
                 self._half_open_remaining = self.cfg.probe_calls
                 log.info("downstream.breaker.half_open", name=self.name)
             if self._state is State.HALF_OPEN and self._half_open_remaining <= 0:
                 # Concurrent probe limit reached
-                raise DownstreamBreakerOpenError(self.name, self._opened_at, self.cfg.cooldown_seconds)
+                raise DownstreamBreakerOpenError(
+                    self.name, self._opened_at, self.cfg.cooldown_seconds
+                )
             if self._state is State.HALF_OPEN:
                 self._half_open_remaining -= 1
 
@@ -100,7 +105,7 @@ class DownstreamBreaker:
     def _should_open(self) -> bool:
         if len(self._results) < self.cfg.rolling_window_size:
             # consecutive-failures rule for cold start
-            tail = list(self._results)[-self.cfg.failure_threshold:]
+            tail = list(self._results)[-self.cfg.failure_threshold :]
             return len(tail) >= self.cfg.failure_threshold and not any(tail)
         failures = sum(1 for r in self._results if not r)
         return (failures / self.cfg.rolling_window_size) >= self.cfg.failure_rate_threshold
@@ -109,7 +114,12 @@ class DownstreamBreaker:
         self._state = State.OPEN
         self._opened_at = time.time()
         self._results.clear()
-        log.warning("downstream.breaker.open", name=self.name, reason=reason, cooldown=self.cfg.cooldown_seconds)
+        log.warning(
+            "downstream.breaker.open",
+            name=self.name,
+            reason=reason,
+            cooldown=self.cfg.cooldown_seconds,
+        )
 
     def snapshot(self) -> dict[str, Any]:
         return {
@@ -135,11 +145,11 @@ _registry_lock = asyncio.Lock()
 
 _PRESETS: dict[str, _Cfg] = {
     # Conservative defaults; loosened for high-volume / forgiving downstreams
-    "trizetto_facets":   _Cfg(failure_threshold=5, cooldown_seconds=30),
-    "trizetto_qnxt":     _Cfg(failure_threshold=5, cooldown_seconds=30),
+    "trizetto_facets": _Cfg(failure_threshold=5, cooldown_seconds=30),
+    "trizetto_qnxt": _Cfg(failure_threshold=5, cooldown_seconds=30),
     "amazon_q_retrieve": _Cfg(failure_threshold=5, cooldown_seconds=20),
-    "fhir_pas_submit":   _Cfg(failure_threshold=3, cooldown_seconds=60),
-    "anthropic_api":     _Cfg(failure_threshold=10, cooldown_seconds=15),
+    "fhir_pas_submit": _Cfg(failure_threshold=3, cooldown_seconds=60),
+    "anthropic_api": _Cfg(failure_threshold=10, cooldown_seconds=15),
     "bedrock_kb_retrieve": _Cfg(failure_threshold=5, cooldown_seconds=20),
 }
 

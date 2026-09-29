@@ -4,6 +4,7 @@ LLM-backed (Sonnet, slightly raised temperature for tone variety). Picks
 tone (reassuring/neutral/urgent) by verdict and writes a patient-facing
 headline + 2–4 paragraph body in plain language.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -29,7 +30,10 @@ SONNET_PATIENT_VOICE = ModelSpec(
 
 _PROMPT = (
     Path(__file__).resolve().parents[3]
-    / "prompts" / "patient_communicator" / "sub_agents" / "empathy_layer.txt"
+    / "prompts"
+    / "patient_communicator"
+    / "sub_agents"
+    / "empathy_layer.txt"
 ).read_text(encoding="utf-8")
 
 

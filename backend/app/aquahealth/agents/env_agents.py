@@ -15,6 +15,7 @@ Each agent owns exactly one stage, and they share one in-flight assessment
 through the AgentContext working memory, the same way ClinCase parents share
 one AgentContext per case.
 """
+
 from __future__ import annotations
 
 from typing import Any, ClassVar
@@ -216,9 +217,7 @@ class TrendAgent(JsonSafeTraceMixin, Agent[EnvAgentInput, FindingOutput]):
     async def _execute_deterministic(
         self, input: EnvAgentInput, ctx: AgentContext
     ) -> FindingOutput:
-        return FindingOutput(
-            finding=assess.assess_trend(input.observation, input.history)
-        )
+        return FindingOutput(finding=assess.assess_trend(input.observation, input.history))
 
 
 class OneHealthAgent(JsonSafeTraceMixin, Agent[EnvAgentInput, FindingOutput]):
@@ -270,13 +269,9 @@ class ExplanationAgent(JsonSafeTraceMixin, Agent[EnvAgentInput, StatusOutput]):
     estimated_input_tokens: ClassVar[int] = 0
     estimated_output_tokens: ClassVar[int] = 0
 
-    async def _execute_deterministic(
-        self, input: EnvAgentInput, ctx: AgentContext
-    ) -> StatusOutput:
+    async def _execute_deterministic(self, input: EnvAgentInput, ctx: AgentContext) -> StatusOutput:
         obs = input.observation
-        findings: list[AgentFinding] = list(
-            ctx.working_memory.get(WM_KEY, {}).get("findings", [])
-        )
+        findings: list[AgentFinding] = list(ctx.working_memory.get(WM_KEY, {}).get("findings", []))
 
         status, reason, confidence = assess.derive_status(obs)
         warning = assess.derive_early_warning(obs, input.history, status)

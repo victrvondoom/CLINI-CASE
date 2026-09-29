@@ -3,6 +3,7 @@
 LLM-backed (Haiku). Generates up to 5 concrete next-step imperatives with
 timing tags (today/this_week/this_month/after_decision).
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -20,7 +21,10 @@ from app.agents.patient_communicator.schemas import (
 
 _PROMPT = (
     Path(__file__).resolve().parents[3]
-    / "prompts" / "patient_communicator" / "sub_agents" / "action_step_writer.txt"
+    / "prompts"
+    / "patient_communicator"
+    / "sub_agents"
+    / "action_step_writer.txt"
 ).read_text(encoding="utf-8")
 
 

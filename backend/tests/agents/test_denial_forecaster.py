@@ -9,6 +9,7 @@ Per PROPOSAL.md §9.5 — the Denial Forecaster runs on EVERY case (regardless
 of ClinCase's verdict) so the coordinator can see "what will the payer do?"
 and pre-load the appeal pipeline.
 """
+
 from __future__ import annotations
 
 import json
@@ -63,10 +64,12 @@ async def test_high_risk_deny_yields_high_denial_probability():
         ),
         biomarkers=[
             Biomarker(name="HER2 IHC", value="0", source_resource_id="obs-her2-ihc"),
-            Biomarker(name="HER2 FISH", value="non-amplified (ratio 1.1)",
-                      source_resource_id="obs-her2-fish"),
-            Biomarker(name="ER", value="positive (88%)",
-                      source_resource_id="obs-er"),
+            Biomarker(
+                name="HER2 FISH",
+                value="non-amplified (ratio 1.1)",
+                source_resource_id="obs-her2-fish",
+            ),
+            Biomarker(name="ER", value="positive (88%)", source_resource_id="obs-er"),
         ],
         performance_status="0",
         requested_treatment=RequestedTreatment(name="trastuzumab", j_code="J9355"),
@@ -119,21 +122,25 @@ async def test_high_risk_deny_yields_high_denial_probability():
         ),
         citations=[
             Citation(kind="clinical", text="HER2 IHC 0", pointer="obs-her2-ihc"),
-            Citation(kind="policy", text="UHC ONC.00043 §3.1 exclusion",
-                     pointer="policy:ONC.00043#3.1"),
+            Citation(
+                kind="policy", text="UHC ONC.00043 §3.1 exclusion", pointer="policy:ONC.00043#3.1"
+            ),
         ],
         confidence=0.97,
         risk_flags=["biomarker-mismatch", "exclusion-criterion-failed"],
     )
 
     # 2. Build the user message exactly as the framework does (JSON dump)
-    user_message = json.dumps({
-        "decision": decision.model_dump(),
-        "assessment": assessment.model_dump(),
-        "snapshot": snapshot.model_dump(),
-        "excerpts": [excerpt.model_dump()],
-        "payer_id": "uhc",
-    }, default=str)
+    user_message = json.dumps(
+        {
+            "decision": decision.model_dump(),
+            "assessment": assessment.model_dump(),
+            "snapshot": snapshot.model_dump(),
+            "excerpts": [excerpt.model_dump()],
+            "payer_id": "uhc",
+        },
+        default=str,
+    )
 
     # 3. Direct LLM call — bypasses trace_agent / DB
     response = await get_llm_client().complete(
@@ -142,9 +149,7 @@ async def test_high_risk_deny_yields_high_denial_probability():
         max_tokens=500,
         temperature=0.0,
     )
-    forecast = ProbabilityEstimatorOutput.model_validate_json(
-        _strip_code_fence(response.text)
-    )
+    forecast = ProbabilityEstimatorOutput.model_validate_json(_strip_code_fence(response.text))
 
     # 4. Assertions on the contract
     # High-confidence DENY for a clear policy violation should yield a HIGH
@@ -160,15 +165,12 @@ async def test_high_risk_deny_yields_high_denial_probability():
 
     # Estimator confidence should be reasonably high (we gave clear inputs)
     assert forecast.estimator_confidence >= 0.5, (
-        f"Estimator confidence too low for clear case: "
-        f"{forecast.estimator_confidence}"
+        f"Estimator confidence too low for clear case: " f"{forecast.estimator_confidence}"
     )
 
     # Summary is a non-empty single sentence
     assert forecast.summary
-    assert len(forecast.summary.split()) >= 5, (
-        f"Summary too short: '{forecast.summary}'"
-    )
-    assert len(forecast.summary) <= 300, (
-        f"Summary too long for coordinator dashboard: '{forecast.summary}'"
-    )
+    assert len(forecast.summary.split()) >= 5, f"Summary too short: '{forecast.summary}'"
+    assert (
+        len(forecast.summary) <= 300
+    ), f"Summary too long for coordinator dashboard: '{forecast.summary}'"

@@ -8,6 +8,7 @@ Model IDs follow OpenRouter's `provider/model` convention, e.g.:
     anthropic/claude-opus-4.6
     anthropic/claude-haiku-4.5
 """
+
 from __future__ import annotations
 
 from collections.abc import AsyncIterator

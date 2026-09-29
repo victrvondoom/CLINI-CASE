@@ -13,6 +13,7 @@ Why ReportLab over WeasyPrint: ReportLab is pure Python and installs
 cleanly on Windows without GTK/Pango. Platypus gives us precise control
 over page breaks and the deterministic output we need for audit hashing.
 """
+
 from __future__ import annotations
 
 import io
@@ -292,10 +293,10 @@ def render_appeal_pdf(draft: AppealDraft, *, case_id: str | None = None) -> byte
 
     # --- Header info table (compact; reads like a fax cover) ------------
     header_rows = [
-        ["Patient initials:",        draft.patient_initials],
-        ["Treatment requested:",     draft.requested_treatment],
-        ["Original denial date:",    draft.denial_date],
-        ["Payer:",                   draft.payer_id.upper()],
+        ["Patient initials:", draft.patient_initials],
+        ["Treatment requested:", draft.requested_treatment],
+        ["Original denial date:", draft.denial_date],
+        ["Payer:", draft.payer_id.upper()],
     ]
     header_tbl = Table(
         header_rows,
@@ -442,9 +443,4 @@ def _safe(text: str) -> str:
     """
     if not text:
         return ""
-    return (
-        text
-        .replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-    )
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")

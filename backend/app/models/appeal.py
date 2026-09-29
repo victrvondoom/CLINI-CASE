@@ -2,6 +2,7 @@
 
 Source of truth: PROPOSAL.md §9.5.
 """
+
 from __future__ import annotations
 
 from pydantic import BaseModel
@@ -21,7 +22,7 @@ class AppealDraft(BaseModel):
     payer_id: str
     requested_treatment: str
     denial_date: str
-    appeal_body: str                       # full letter text, ~500-800 words
+    appeal_body: str  # full letter text, ~500-800 words
     structured_arguments: list[AppealArgument]
     attachments_referenced: list[str]
-    requested_action: str                  # e.g. "Overturn the denial and authorise..."
+    requested_action: str  # e.g. "Overturn the denial and authorise..."

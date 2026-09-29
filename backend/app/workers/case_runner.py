@@ -26,6 +26,7 @@ Concurrency:
     race conditions
   - Recommended: 2× CPU cores per replica × 4 replicas = 8 concurrent cases
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -91,7 +92,8 @@ async def _execute_run_full(job: jq.Job) -> tuple[ClinCaseState, dict[str, Any]]
     # too so a hung provider cannot heartbeat forever.
     final_raw = await asyncio.wait_for(_FULL_GRAPH.ainvoke(initial), timeout=600)
     final = (
-        final_raw if isinstance(final_raw, ClinCaseState)
+        final_raw
+        if isinstance(final_raw, ClinCaseState)
         else ClinCaseState.model_validate(final_raw)
     )
     # Compose result for the result_json column
@@ -103,8 +105,7 @@ async def _execute_run_full(job: jq.Job) -> tuple[ClinCaseState, dict[str, Any]]
         "n_criteria": len(final.necessity_assessment.criteria) if final.necessity_assessment else 0,
         "appeal_drafted": final.appeal_draft is not None,
         "patient_communication_grade": (
-            final.patient_communication.reading_level_grade
-            if final.patient_communication else None
+            final.patient_communication.reading_level_grade if final.patient_communication else None
         ),
     }
     return final, result
@@ -123,7 +124,9 @@ async def _commit_run(
         owns_lease = await conn.fetchval(
             """SELECT 1 FROM case_jobs WHERE id=$1 AND status='running'
                AND claimed_by=$2 AND attempts=$3 FOR UPDATE""",
-            job.id, worker_id, job.attempts,
+            job.id,
+            worker_id,
+            job.attempts,
         )
         if not owns_lease:
             return False
@@ -131,7 +134,8 @@ async def _commit_run(
         if final.paused_for_review:
             await conn.execute(
                 "UPDATE cases SET status='awaiting_review' WHERE id=$1 AND organization_id=$2",
-                job.case_id, job.organization_id,
+                job.case_id,
+                job.organization_id,
             )
         elif final.decision is not None:
             await conn.execute(
@@ -147,7 +151,9 @@ async def _commit_run(
             case_status = "appealed" if final.appeal_draft else status_map[final.decision.verdict]
             await conn.execute(
                 "UPDATE cases SET status=$1 WHERE id=$2 AND organization_id=$3",
-                case_status, job.case_id, job.organization_id,
+                case_status,
+                job.case_id,
+                job.organization_id,
             )
             await emit_case_decided(
                 organization_id=job.organization_id,
@@ -157,8 +163,12 @@ async def _commit_run(
                 triggered_hitl=False,
                 decision_run_id=str(job.id),
                 primary_model_id="recorded-per-agent",
-                cost_usd=float(final._agent_context.budget.spent_usd) if final._agent_context else 0.0,
-                duration_seconds=(float(final._agent_context.budget.elapsed_ms) / 1000) if final._agent_context else 0.0,
+                cost_usd=float(final._agent_context.budget.spent_usd)
+                if final._agent_context
+                else 0.0,
+                duration_seconds=(float(final._agent_context.budget.elapsed_ms) / 1000)
+                if final._agent_context
+                else 0.0,
                 conn=conn,
             )
         if final.appeal_draft is not None:
@@ -179,7 +189,10 @@ async def _commit_run(
         completed = await conn.fetchval(
             """UPDATE case_jobs SET status='done',result_json=$2,finished_at=now(),heartbeat_at=now()
                WHERE id=$1 AND status='running' AND claimed_by=$3 AND attempts=$4 RETURNING id""",
-            job.id, json.dumps(result), worker_id, job.attempts,
+            job.id,
+            json.dumps(result),
+            worker_id,
+            job.attempts,
         )
         return completed is not None
 
@@ -192,13 +205,22 @@ JOB_HANDLERS = {
 
 async def _process_job(job: jq.Job, worker_id: str) -> None:
     """Run a single job with heartbeat + retry handling."""
-    log.info("worker.job.start", job_id=str(job.id), case_id=job.case_id, type=job.job_type, attempt=job.attempts)
+    log.info(
+        "worker.job.start",
+        job_id=str(job.id),
+        case_id=job.case_id,
+        type=job.job_type,
+        attempt=job.attempts,
+    )
 
     handler = JOB_HANDLERS.get(job.job_type)
     if handler is None:
         await jq.mark_error(
-            job.id, f"Unknown job_type: {job.job_type}",
-            worker_id=worker_id, attempt=job.attempts, dead=True,
+            job.id,
+            f"Unknown job_type: {job.job_type}",
+            worker_id=worker_id,
+            attempt=job.attempts,
+            dead=True,
         )
         return
 
@@ -239,7 +261,11 @@ async def _process_job(job: jq.Job, worker_id: str) -> None:
             attempt=job.attempts,
         )
         await jq.mark_error(
-            job.id, str(e), worker_id=worker_id, attempt=job.attempts, dead=False,
+            job.id,
+            str(e),
+            worker_id=worker_id,
+            attempt=job.attempts,
+            dead=False,
         )
     finally:
         stop_heartbeat.set()
@@ -260,9 +286,11 @@ def _install_signal_handlers() -> None:
     deploys: K8s sends SIGTERM, gives us 30s grace, then SIGKILL. We must
     finish in-flight jobs and stop claiming new ones."""
     loop = asyncio.get_running_loop()
+
     def _stop():
         log.info("worker.signal.shutdown")
         _shutdown.set()
+
     try:
         loop.add_signal_handler(signal.SIGTERM, _stop)
         loop.add_signal_handler(signal.SIGINT, _stop)
@@ -297,11 +325,13 @@ async def main() -> None:
     # paths run this so a worker started before the API still has the tables).
     try:
         from app.quotas import ensure_schema as _ensure_quota_schema
+
         await _ensure_quota_schema()
     except Exception as e:  # noqa: BLE001
         log.warning("worker.quotas.schema_bootstrap_failed", error=str(e))
     try:
         from app.agents.framework.cache import ensure_schema as _ensure_cache_schema
+
         await _ensure_cache_schema()
     except Exception as e:  # noqa: BLE001
         log.warning("worker.cache.schema_bootstrap_failed", error=str(e))
@@ -309,9 +339,11 @@ async def main() -> None:
     # Wire Redis SSE pub/sub so events from this worker reach SSE
     # consumers landed on any API replica. See SCALE-7 in ops/SCALING.md.
     from app.config import settings
+
     if settings.REDIS_URL:
         try:
             from app.streaming import use_redis_backend
+
             await use_redis_backend(settings.REDIS_URL)
             log.info("worker.redis.connected")
         except Exception as e:  # noqa: BLE001
@@ -344,6 +376,7 @@ async def main() -> None:
             await janitor
         try:
             from app.streaming import shutdown_backend
+
             await shutdown_backend()
         except Exception:  # noqa: BLE001
             pass

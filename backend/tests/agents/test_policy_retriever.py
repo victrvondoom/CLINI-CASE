@@ -1,4 +1,5 @@
 """Contract tests for the Policy Retriever agent."""
+
 from __future__ import annotations
 
 from app.agents.policy_retriever import _candidate_sections

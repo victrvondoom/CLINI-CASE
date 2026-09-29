@@ -1,4 +1,5 @@
 """Contract tests for BudgetTracker — production-grade budget enforcement."""
+
 from __future__ import annotations
 
 import pytest

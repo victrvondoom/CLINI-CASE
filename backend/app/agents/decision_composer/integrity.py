@@ -4,6 +4,7 @@ These checks establish that a pointer resolves to supplied evidence. They do
 not establish clinical truth or prove that every factual claim is supported;
 the human reviewer remains responsible for those judgments.
 """
+
 from __future__ import annotations
 
 import re
@@ -33,9 +34,7 @@ def _clinical_pointers(value: Any, path: str = "") -> set[str]:
     return pointers
 
 
-def validate_citation_provenance(
-    input: CitationLinkerInput, output: CitationLinkerOutput
-) -> None:
+def validate_citation_provenance(input: CitationLinkerInput, output: CitationLinkerOutput) -> None:
     """Reject incomplete or unresolvable citations before creating a decision."""
     if not output.every_claim_has_pointer:
         raise ValueError("Citation linker reported incomplete claim coverage; review is required")
@@ -61,7 +60,9 @@ def validate_citation_provenance(
         if any(
             excerpt.policy_id
             and excerpt.section_heading
-            and re.search(r"(?<!\w)" + re.escape(excerpt.policy_id.casefold()) + r"(?!\w)", normalized)
+            and re.search(
+                r"(?<!\w)" + re.escape(excerpt.policy_id.casefold()) + r"(?!\w)", normalized
+            )
             and excerpt.payer_id.casefold() in normalized
             and " ".join(excerpt.section_heading.casefold().split()) in normalized
             for excerpt in input.excerpts

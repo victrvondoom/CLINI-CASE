@@ -4,6 +4,7 @@ Surfaces the 7-agent / 21-sub-agent decomposition for the frontend Agents
 page and any external MCP / TriZetto AI Gateway integration that wants to
 introspect the system.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -61,7 +62,9 @@ async def agent_recent_runs(
                  AND c.organization_id = $2
                ORDER BY ar.started_at DESC
                LIMIT $3""",
-            agent_name, user["organization_id"], limit,
+            agent_name,
+            user["organization_id"],
+            limit,
         )
         return {"agent_name": agent_name, "runs": [dict(r) for r in rows]}
     except Exception:
@@ -82,7 +85,7 @@ def _resolve_prompt_path(prompt_path: str) -> Path:
     p = prompt_path.lstrip("/")
     for prefix in ("backend/app/", "app/"):
         if p.startswith(prefix):
-            p = p[len(prefix):]
+            p = p[len(prefix) :]
             break
     candidate = (_APP_DIR / p).resolve()
     if not str(candidate).startswith(str(_APP_DIR.resolve())):
@@ -144,8 +147,7 @@ async def agent_prompt(
             "content": None,
             "byte_size": 0,
             "error": (
-                "Prompt file not found. Searched: " +
-                ", ".join(_candidate_prompt_paths(agent_name))
+                "Prompt file not found. Searched: " + ", ".join(_candidate_prompt_paths(agent_name))
             ),
         }
     content = await asyncio.to_thread(path.read_text, "utf-8")
@@ -179,33 +181,69 @@ async def agent_contract_test(
         raise HTTPException(404, f"Unknown agent '{agent_name}'")
 
     import time
+
     t0 = time.monotonic()
     checks: list[dict[str, Any]] = []
 
-    checks.append({"name": "manifest.registered", "passed": True,
-                   "detail": f"agent {agent_name} present (kind={agent.get('kind')})"})
+    checks.append(
+        {
+            "name": "manifest.registered",
+            "passed": True,
+            "detail": f"agent {agent_name} present (kind={agent.get('kind')})",
+        }
+    )
 
     path, prompt_path = _locate_prompt_file(agent_name)
     if path is not None:
         content = await asyncio.to_thread(path.read_text, "utf-8")
-        checks.append({"name": "prompt.file_exists", "passed": True,
-                       "detail": f"{prompt_path} ({path.stat().st_size} B)"})
-        checks.append({"name": "prompt.non_empty", "passed": bool(content.strip()),
-                       "detail": f"{len(content)} chars, {content.count(chr(10)) + 1} lines"})
+        checks.append(
+            {
+                "name": "prompt.file_exists",
+                "passed": True,
+                "detail": f"{prompt_path} ({path.stat().st_size} B)",
+            }
+        )
+        checks.append(
+            {
+                "name": "prompt.non_empty",
+                "passed": bool(content.strip()),
+                "detail": f"{len(content)} chars, {content.count(chr(10)) + 1} lines",
+            }
+        )
     else:
-        checks.append({"name": "prompt.file_exists", "passed": False,
-                       "detail": "no prompt file found via convention"})
+        checks.append(
+            {
+                "name": "prompt.file_exists",
+                "passed": False,
+                "detail": "no prompt file found via convention",
+            }
+        )
 
     has_input = bool(agent.get("input_schema"))
     has_output = bool(agent.get("output_schema"))
-    checks.append({"name": "contract.input_schema", "passed": has_input,
-                   "detail": str(agent.get("input_schema", "?"))[:80]})
-    checks.append({"name": "contract.output_schema", "passed": has_output,
-                   "detail": str(agent.get("output_schema", "?"))[:80]})
+    checks.append(
+        {
+            "name": "contract.input_schema",
+            "passed": has_input,
+            "detail": str(agent.get("input_schema", "?"))[:80],
+        }
+    )
+    checks.append(
+        {
+            "name": "contract.output_schema",
+            "passed": has_output,
+            "detail": str(agent.get("output_schema", "?"))[:80],
+        }
+    )
 
     n_sub = agent.get("n_sub_agents", len(agent.get("sub_agents") or []))
-    checks.append({"name": "decomposition.sub_agents", "passed": n_sub >= 1,
-                   "detail": f"{n_sub} sub-agents declared"})
+    checks.append(
+        {
+            "name": "decomposition.sub_agents",
+            "passed": n_sub >= 1,
+            "detail": f"{n_sub} sub-agents declared",
+        }
+    )
 
     elapsed_ms = int((time.monotonic() - t0) * 1000)
     passed = sum(1 for c in checks if c["passed"])

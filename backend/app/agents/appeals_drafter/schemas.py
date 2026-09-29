@@ -1,4 +1,5 @@
 """Schemas for the appeals_drafter package — orchestrator + sub-agents."""
+
 from __future__ import annotations
 
 from pydantic import BaseModel, Field
@@ -15,6 +16,7 @@ from app.models import (
 # =============================================================================
 # Orchestrator I/O — parent agent contract
 # =============================================================================
+
 
 class AppealsDrafterInput(BaseModel):
     snapshot: ClinicalSnapshot
@@ -69,7 +71,9 @@ class NCCNReferenceSpecialistInput(BaseModel):
 
 class NCCNReferenceSpecialistOutput(BaseModel):
     nccn_references: list[str] = Field(
-        ..., min_length=1, max_length=5,
+        ...,
+        min_length=1,
+        max_length=5,
         description="Precise NCCN guideline references (e.g. 'NCCN Breast 4.2025 § BINV-J').",
     )
 

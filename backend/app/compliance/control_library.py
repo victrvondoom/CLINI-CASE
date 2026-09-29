@@ -18,6 +18,7 @@ Surfaced as JSON at:
 
 Pairs with: ops/compliance/CONTROL_LIBRARY.md
 """
+
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
@@ -26,11 +27,11 @@ from typing import Any
 
 @dataclass(frozen=True)
 class Control:
-    framework: str        # 'NIST_AI_RMF' | 'ISO_42001' | 'SOC2_TYPE2' | 'HIPAA' | 'CMS_0057F'
-    clause_id: str        # framework-specific
+    framework: str  # 'NIST_AI_RMF' | 'ISO_42001' | 'SOC2_TYPE2' | 'HIPAA' | 'CMS_0057F'
+    clause_id: str  # framework-specific
     title: str
     description: str
-    status: str           # 'in_place' | 'partial' | 'not_applicable' | 'deferred'
+    status: str  # 'in_place' | 'partial' | 'not_applicable' | 'deferred'
     implementation_evidence: tuple[str, ...] = ()
     last_verified_date: str = "2026-05-03"
     notes: str = ""
@@ -41,7 +42,8 @@ class Control:
 # =============================================================================
 NIST_AI_RMF: tuple[Control, ...] = (
     Control(
-        framework="NIST_AI_RMF", clause_id="GOVERN-1.1",
+        framework="NIST_AI_RMF",
+        clause_id="GOVERN-1.1",
         title="Legal/regulatory requirements involving AI are understood, managed, and documented",
         description="The organization tracks which regulations apply (CMS-0057-F, CA SB-1120, EU AI Act, HIPAA) and how they map to the AI system.",
         status="in_place",
@@ -52,7 +54,8 @@ NIST_AI_RMF: tuple[Control, ...] = (
         ),
     ),
     Control(
-        framework="NIST_AI_RMF", clause_id="GOVERN-1.2",
+        framework="NIST_AI_RMF",
+        clause_id="GOVERN-1.2",
         title="Roles and responsibilities for AI risk management are documented and clear",
         description="Owner per agent, owner per layer, escalation path documented.",
         status="in_place",
@@ -63,7 +66,8 @@ NIST_AI_RMF: tuple[Control, ...] = (
         ),
     ),
     Control(
-        framework="NIST_AI_RMF", clause_id="MAP-1.1",
+        framework="NIST_AI_RMF",
+        clause_id="MAP-1.1",
         title="Context in which AI system will be deployed is understood and documented",
         description="The deployment, operational, and intended-use context is captured.",
         status="in_place",
@@ -74,7 +78,8 @@ NIST_AI_RMF: tuple[Control, ...] = (
         ),
     ),
     Control(
-        framework="NIST_AI_RMF", clause_id="MAP-2.3",
+        framework="NIST_AI_RMF",
+        clause_id="MAP-2.3",
         title="Data sources are documented and provenance is tracked",
         description="Lineage from input data → model output is auditable.",
         status="in_place",
@@ -85,7 +90,8 @@ NIST_AI_RMF: tuple[Control, ...] = (
         ),
     ),
     Control(
-        framework="NIST_AI_RMF", clause_id="MEASURE-2.1",
+        framework="NIST_AI_RMF",
+        clause_id="MEASURE-2.1",
         title="Test sets, metrics, and model performance are documented",
         description="Per-agent eval suite + business-value metrics are auditable.",
         status="in_place",
@@ -96,7 +102,8 @@ NIST_AI_RMF: tuple[Control, ...] = (
         ),
     ),
     Control(
-        framework="NIST_AI_RMF", clause_id="MEASURE-2.6",
+        framework="NIST_AI_RMF",
+        clause_id="MEASURE-2.6",
         title="The AI system is evaluated for safety, security, resilience",
         description="Resilience proven via chaos engineering + DR drills.",
         status="in_place",
@@ -107,7 +114,8 @@ NIST_AI_RMF: tuple[Control, ...] = (
         ),
     ),
     Control(
-        framework="NIST_AI_RMF", clause_id="MANAGE-1.3",
+        framework="NIST_AI_RMF",
+        clause_id="MANAGE-1.3",
         title="High-risk AI uses have documented risk controls",
         description="HITL signoff, hard cost ceiling, denial guardrail.",
         status="in_place",
@@ -118,7 +126,8 @@ NIST_AI_RMF: tuple[Control, ...] = (
         ),
     ),
     Control(
-        framework="NIST_AI_RMF", clause_id="MANAGE-4.1",
+        framework="NIST_AI_RMF",
+        clause_id="MANAGE-4.1",
         title="Mechanisms exist to deactivate the AI system when warranted",
         description="Kill-switch + tenant-level disable + tier-cap.",
         status="in_place",
@@ -135,7 +144,8 @@ NIST_AI_RMF: tuple[Control, ...] = (
 # =============================================================================
 ISO_42001: tuple[Control, ...] = (
     Control(
-        framework="ISO_42001", clause_id="A.5.2",
+        framework="ISO_42001",
+        clause_id="A.5.2",
         title="AI Policy",
         description="Organization has a documented AI policy aligned with strategy.",
         status="in_place",
@@ -146,7 +156,8 @@ ISO_42001: tuple[Control, ...] = (
         ),
     ),
     Control(
-        framework="ISO_42001", clause_id="A.6.2",
+        framework="ISO_42001",
+        clause_id="A.6.2",
         title="Roles, responsibilities, and authorities for AI management",
         description="Clear ownership for AI risk decisions.",
         status="in_place",
@@ -157,7 +168,8 @@ ISO_42001: tuple[Control, ...] = (
         ),
     ),
     Control(
-        framework="ISO_42001", clause_id="A.7.4",
+        framework="ISO_42001",
+        clause_id="A.7.4",
         title="AI system impact assessment",
         description="Documented assessment of AI system's impact on individuals.",
         status="in_place",
@@ -168,7 +180,8 @@ ISO_42001: tuple[Control, ...] = (
         ),
     ),
     Control(
-        framework="ISO_42001", clause_id="A.8.2",
+        framework="ISO_42001",
+        clause_id="A.8.2",
         title="AI system requirements",
         description="Functional + non-functional requirements documented.",
         status="in_place",
@@ -179,7 +192,8 @@ ISO_42001: tuple[Control, ...] = (
         ),
     ),
     Control(
-        framework="ISO_42001", clause_id="A.9.3",
+        framework="ISO_42001",
+        clause_id="A.9.3",
         title="Performance evaluation",
         description="Metrics, monitoring, and audit results documented.",
         status="in_place",
@@ -190,7 +204,8 @@ ISO_42001: tuple[Control, ...] = (
         ),
     ),
     Control(
-        framework="ISO_42001", clause_id="A.10.4",
+        framework="ISO_42001",
+        clause_id="A.10.4",
         title="Improvement",
         description="Continual improvement loop with documented action items.",
         status="in_place",
@@ -208,14 +223,16 @@ ISO_42001: tuple[Control, ...] = (
 # =============================================================================
 SOC2_TYPE2: tuple[Control, ...] = (
     Control(
-        framework="SOC2_TYPE2", clause_id="CC1.1",
+        framework="SOC2_TYPE2",
+        clause_id="CC1.1",
         title="Control Environment — Integrity and Ethical Values",
         description="Code of conduct + acceptable-use policy.",
         status="in_place",
         implementation_evidence=("CONTRIBUTING.md", "SECURITY.md", "CLAUDE.md"),
     ),
     Control(
-        framework="SOC2_TYPE2", clause_id="CC2.1",
+        framework="SOC2_TYPE2",
+        clause_id="CC2.1",
         title="Communication — Information Quality",
         description="Information used by personnel is high-quality and timely.",
         status="in_place",
@@ -226,7 +243,8 @@ SOC2_TYPE2: tuple[Control, ...] = (
         ),
     ),
     Control(
-        framework="SOC2_TYPE2", clause_id="CC6.1",
+        framework="SOC2_TYPE2",
+        clause_id="CC6.1",
         title="Logical Access — Access Controls",
         description="Access is restricted by role and need-to-know.",
         status="in_place",
@@ -237,7 +255,8 @@ SOC2_TYPE2: tuple[Control, ...] = (
         ),
     ),
     Control(
-        framework="SOC2_TYPE2", clause_id="CC6.6",
+        framework="SOC2_TYPE2",
+        clause_id="CC6.6",
         title="System boundaries are designed and documented",
         description="Boundaries between cloud + on-prem + customer + vendor are explicit.",
         status="in_place",
@@ -248,7 +267,8 @@ SOC2_TYPE2: tuple[Control, ...] = (
         ),
     ),
     Control(
-        framework="SOC2_TYPE2", clause_id="CC7.2",
+        framework="SOC2_TYPE2",
+        clause_id="CC7.2",
         title="Anomalies are identified and analyzed",
         description="Real-time anomaly detection with documented response.",
         status="in_place",
@@ -259,7 +279,8 @@ SOC2_TYPE2: tuple[Control, ...] = (
         ),
     ),
     Control(
-        framework="SOC2_TYPE2", clause_id="CC7.3",
+        framework="SOC2_TYPE2",
+        clause_id="CC7.3",
         title="Incidents are responded to and remediated",
         description="Documented incident response runbook + escalation.",
         status="in_place",
@@ -270,7 +291,8 @@ SOC2_TYPE2: tuple[Control, ...] = (
         ),
     ),
     Control(
-        framework="SOC2_TYPE2", clause_id="CC8.1",
+        framework="SOC2_TYPE2",
+        clause_id="CC8.1",
         title="Change Management",
         description="Changes go through documented change management.",
         status="in_place",
@@ -281,7 +303,8 @@ SOC2_TYPE2: tuple[Control, ...] = (
         ),
     ),
     Control(
-        framework="SOC2_TYPE2", clause_id="A1.2",
+        framework="SOC2_TYPE2",
+        clause_id="A1.2",
         title="Availability — Capacity",
         description="Capacity is planned to meet commitments.",
         status="in_place",
@@ -292,7 +315,8 @@ SOC2_TYPE2: tuple[Control, ...] = (
         ),
     ),
     Control(
-        framework="SOC2_TYPE2", clause_id="C1.1",
+        framework="SOC2_TYPE2",
+        clause_id="C1.1",
         title="Confidentiality of customer data",
         description="Customer data is encrypted, segregated, deleted on request.",
         status="in_place",
@@ -327,7 +351,10 @@ def get(framework: str, clause_id: str) -> Control | None:
 def summary() -> dict[str, Any]:
     by_fw: dict[str, dict[str, int]] = {}
     for c in all_controls():
-        by_fw.setdefault(c.framework, {"in_place": 0, "partial": 0, "deferred": 0, "not_applicable": 0, "total": 0})
+        by_fw.setdefault(
+            c.framework,
+            {"in_place": 0, "partial": 0, "deferred": 0, "not_applicable": 0, "total": 0},
+        )
         by_fw[c.framework][c.status] = by_fw[c.framework].get(c.status, 0) + 1
         by_fw[c.framework]["total"] += 1
     return {

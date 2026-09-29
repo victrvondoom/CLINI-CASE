@@ -1,4 +1,5 @@
 """Load the trained deterioration model artifact and serve explainable predictions."""
+
 from __future__ import annotations
 
 import hashlib
@@ -28,14 +29,21 @@ class DeteriorationModel:
             )
         self.artifact = artifact
         self.lr = LogisticModel(
-            intercept=float(artifact["intercept"]), coef=np.array(artifact["coef"]),
-            mean=np.array(artifact["mean"]), std=np.array(artifact["std"]), l2=float(artifact["l2"]),
+            intercept=float(artifact["intercept"]),
+            coef=np.array(artifact["coef"]),
+            mean=np.array(artifact["mean"]),
+            std=np.array(artifact["std"]),
+            l2=float(artifact["l2"]),
         )
         boots = np.array(artifact.get("bootstrap") or [[artifact["intercept"], *artifact["coef"]]])
         self.boot_intercepts = boots[:, 0]
         self.boot_coefs = boots[:, 1:]
-        self.thresholds = {k: float(v) for k, v in artifact["thresholds"].items() if k != "derivation"}
-        payload = json.dumps({k: v for k, v in artifact.items() if k not in ("training", "sha256")}, sort_keys=True).encode()
+        self.thresholds = {
+            k: float(v) for k, v in artifact["thresholds"].items() if k != "derivation"
+        }
+        payload = json.dumps(
+            {k: v for k, v in artifact.items() if k not in ("training", "sha256")}, sort_keys=True
+        ).encode()
         self.integrity_verified = hashlib.sha256(payload).hexdigest() == artifact.get("sha256")
 
     @property
@@ -51,17 +59,24 @@ class DeteriorationModel:
         return self.artifact.get("sha256", "")
 
     def version_info(self) -> dict[str, Any]:
-        return {"model_id": self.model_id, "version": self.version, "artifact_sha256": self.sha256,
-                "integrity_verified": self.integrity_verified, "outcome_id": self.artifact["outcome_id"],
-                "horizon_days": self.artifact["horizon_days"]}
+        return {
+            "model_id": self.model_id,
+            "version": self.version,
+            "artifact_sha256": self.sha256,
+            "integrity_verified": self.integrity_verified,
+            "outcome_id": self.artifact["outcome_id"],
+            "horizon_days": self.artifact["horizon_days"],
+        }
 
     def predict(self, X: np.ndarray) -> np.ndarray:
         return self.lr.predict_proba(np.atleast_2d(X))
 
-    def predict_interval(self, X: np.ndarray, lo: float = 10, hi: float = 90) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def predict_interval(
+        self, X: np.ndarray, lo: float = 10, hi: float = 90
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         X = np.atleast_2d(X)
         Z = self.lr.standardise(X)
-        logits = self.boot_intercepts[None, :] + Z @ self.boot_coefs.T      # (N, B)
+        logits = self.boot_intercepts[None, :] + Z @ self.boot_coefs.T  # (N, B)
         probs = 1.0 / (1.0 + np.exp(-np.clip(logits, -35, 35)))
         return self.predict(X), np.percentile(probs, lo, axis=1), np.percentile(probs, hi, axis=1)
 

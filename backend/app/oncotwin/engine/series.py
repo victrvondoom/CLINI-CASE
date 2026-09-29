@@ -4,6 +4,7 @@
 dated on or before `as_of_day` — this is the no-look-ahead boundary that the
 leakage test in tests/oncotwin pins down.
 """
+
 from __future__ import annotations
 
 import math
@@ -25,14 +26,14 @@ INTERVENTION_KINDS = ("antibiotic", "hydration", "gcsf_dose", "careplan", "clini
 class PatientSeries:
     profile: PatientProfile
     as_of_day: int
-    values: dict[str, np.ndarray]                    # linear units, NaN = missing; index = day-1
+    values: dict[str, np.ndarray]  # linear units, NaN = missing; index = day-1
     obs_ids: dict[str, list[str | None]]
     labs: dict[str, list[tuple[int, float, str]]]
     flags: list[QualityFlag]
     quality: dict[str, SignalQuality]
     dose_days: dict[int, float]
     gcsf_days: list[int]
-    adherence: dict[int, tuple[int, int]]            # day -> (taken, scheduled)
+    adherence: dict[int, tuple[int, int]]  # day -> (taken, scheduled)
     admissions: list[dict]
     interventions: list[ClinicalEvent]
     events: list[ClinicalEvent]
@@ -64,7 +65,9 @@ class PatientSeries:
         cache_key = ("t", key)
         if cache_key not in self._cache:
             v = self.values[key]
-            self._cache[cache_key] = np.log(np.maximum(v, 1e-6)) if SIGNALS[key].transform == "log" else v.copy()
+            self._cache[cache_key] = (
+                np.log(np.maximum(v, 1e-6)) if SIGNALS[key].transform == "log" else v.copy()
+            )
         return self._cache[cache_key]
 
     def days_since_dose(self) -> np.ndarray:
@@ -107,7 +110,9 @@ class PatientSeries:
             frac[day - 1] = taken / sched if sched else 1.0
         return frac, count
 
-    def last_lab(self, key: str, day: int, max_age: int = 10) -> tuple[float | None, int | None, str | None]:
+    def last_lab(
+        self, key: str, day: int, max_age: int = 10
+    ) -> tuple[float | None, int | None, str | None]:
         best = None
         for d, v, oid in self.labs.get(key, []):
             if d <= day and day - d <= max_age and (best is None or d >= best[0]):
@@ -120,7 +125,11 @@ class PatientSeries:
         for adm in self.admissions:
             start = adm["day"]
             end = adm.get("discharge_day")
-            end = self.n if end is None or end > self.as_of_day else end + POST_DISCHARGE_EXCLUSION_DAYS
+            end = (
+                self.n
+                if end is None or end > self.as_of_day
+                else end + POST_DISCHARGE_EXCLUSION_DAYS
+            )
             for d in range(start, min(end, self.n) + 1):
                 mask[d - 1] = True
         return mask
@@ -133,12 +142,16 @@ class PatientSeries:
         return None
 
 
-def build_series(record: PatientRecord, as_of_day: int, *, reference_time: datetime | None = None) -> PatientSeries:
+def build_series(
+    record: PatientRecord, as_of_day: int, *, reference_time: datetime | None = None
+) -> PatientSeries:
     as_of_day = max(1, min(as_of_day, record.n_days))
     obs = record.observations_until(as_of_day)
     events = record.events_until(as_of_day)
 
-    usable, flags, quality = assess(obs, as_of_day, reference_time=reference_time, signals=DAILY_SIGNALS)
+    usable, flags, quality = assess(
+        obs, as_of_day, reference_time=reference_time, signals=DAILY_SIGNALS
+    )
     values: dict[str, np.ndarray] = {}
     obs_ids: dict[str, list[str | None]] = {}
     for key in DAILY_SIGNALS:
@@ -174,20 +187,38 @@ def build_series(record: PatientRecord, as_of_day: int, *, reference_time: datet
             adherence[e.day] = (t + (1 if e.detail.get("status") == "completed" else 0), s + 1)
         elif e.kind == "encounter" and e.detail.get("qualifying"):
             discharge = e.detail.get("discharge_day")
-            admissions.append({
-                "id": e.id, "day": e.day, "condition": e.detail.get("condition"),
-                "discharge_day": discharge if (discharge is not None and discharge <= as_of_day) else None,
-                "display": e.display,
-            })
+            admissions.append(
+                {
+                    "id": e.id,
+                    "day": e.day,
+                    "condition": e.detail.get("condition"),
+                    "discharge_day": discharge
+                    if (discharge is not None and discharge <= as_of_day)
+                    else None,
+                    "display": e.display,
+                }
+            )
         if (
-            e.kind in INTERVENTION_KINDS or (e.kind == "encounter" and not e.detail.get("qualifying"))
+            e.kind in INTERVENTION_KINDS
+            or (e.kind == "encounter" and not e.detail.get("qualifying"))
         ) and e.day >= 1:
             interventions.append(e)
 
     return PatientSeries(
-        profile=record.profile, as_of_day=as_of_day, values=values, obs_ids=obs_ids, labs=labs,
-        flags=flags, quality=quality, dose_days=dose_days, gcsf_days=sorted(gcsf_days),
-        adherence=adherence, admissions=admissions, interventions=interventions, events=events,
-        regimen=REGIMENS[record.profile.regimen_code], planned_dose_days=record.planned_dose_days,
+        profile=record.profile,
+        as_of_day=as_of_day,
+        values=values,
+        obs_ids=obs_ids,
+        labs=labs,
+        flags=flags,
+        quality=quality,
+        dose_days=dose_days,
+        gcsf_days=sorted(gcsf_days),
+        adherence=adherence,
+        admissions=admissions,
+        interventions=interventions,
+        events=events,
+        regimen=REGIMENS[record.profile.regimen_code],
+        planned_dose_days=record.planned_dose_days,
         reference_time=reference_time,
     )

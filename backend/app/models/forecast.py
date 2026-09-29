@@ -13,6 +13,7 @@ Decomposed into 3 sub-agents (declared in the agent file):
   2. Reason Predictor         — top 3 likely denial rationales the payer would cite
   3. Appeal Path Recommender  — which appeal angle is highest-probability of overturn
 """
+
 from __future__ import annotations
 
 from typing import Literal
@@ -51,8 +52,10 @@ class AppealStrategy(BaseModel):
     )
     rationale: str = Field(default="", description="Why this angle is strongest for this case.")
     expected_overturn_probability: float = Field(
-        ..., ge=0.0, le=1.0,
-        description="Expected probability the appeal succeeds, calibrated against KFF 2024 (80.7% baseline)."
+        ...,
+        ge=0.0,
+        le=1.0,
+        description="Expected probability the appeal succeeds, calibrated against KFF 2024 (80.7% baseline).",
     )
 
 
@@ -68,8 +71,9 @@ class DenialForecast(BaseModel):
     """
 
     denial_probability: float = Field(..., ge=0.0, le=1.0)
-    confidence: float = Field(..., ge=0.0, le=1.0,
-                              description="Forecaster's confidence in its probability estimate.")
+    confidence: float = Field(
+        ..., ge=0.0, le=1.0, description="Forecaster's confidence in its probability estimate."
+    )
     top_reasons: list[DenialReason] = Field(default_factory=list, max_length=3)
     appeal_strategy: AppealStrategy | None = None
     summary: str = Field(..., description="One-sentence summary fit for a coordinator dashboard.")

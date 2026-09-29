@@ -16,6 +16,7 @@ Idempotency: pass an `Idempotency-Key` header on POST. If the key matches a
 prior submission, the existing job is returned (HTTP 200) instead of a new
 one (HTTP 202). Standard HTTP idempotency semantics — same as Stripe / AWS.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -104,7 +105,8 @@ async def run_full_async(
         """SELECT id, organization_id, payer_id, fhir_bundle, physician_note,
                   requested_treatment_name, requested_j_code
            FROM cases WHERE id = $1 AND organization_id = $2""",
-        case_id, user["organization_id"],
+        case_id,
+        user["organization_id"],
     )
     if row is None:
         raise HTTPException(status_code=404, detail=f"Case {case_id} not found")
@@ -139,7 +141,8 @@ async def run_full_async(
     # replays of an existing job DO NOT consume an additional slot, so we
     # check first whether the idempotency key already matches an existing job.
     existing = await db.fetchrow(
-        "SELECT id FROM case_jobs WHERE idempotency_key = $1", key,
+        "SELECT id FROM case_jobs WHERE idempotency_key = $1",
+        key,
     )
     if existing is None:
         try:
@@ -211,7 +214,8 @@ async def list_case_jobs(
     # Tenant scope: confirm the case belongs to the user's org first
     case = await db.fetchrow(
         "SELECT id FROM cases WHERE id = $1 AND organization_id = $2",
-        case_id, user["organization_id"],
+        case_id,
+        user["organization_id"],
     )
     if case is None:
         raise HTTPException(status_code=404, detail=f"Case {case_id} not found")

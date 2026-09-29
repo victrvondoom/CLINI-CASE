@@ -19,6 +19,7 @@ the FinOps dashboard breaks them out.
 
 Pairs with: ops/architecture/BEDROCK_CROSS_REGION_FALLBACK.md
 """
+
 from __future__ import annotations
 
 import os
@@ -32,8 +33,8 @@ log = structlog.get_logger()
 # Strict ordering: nearest geographies first to minimize latency overhead.
 _FALLBACK_CHAINS: dict[str, tuple[str, ...]] = {
     "apac.anthropic.": ("us.anthropic.", "eu.anthropic."),
-    "us.anthropic.":   ("eu.anthropic.", "apac.anthropic."),
-    "eu.anthropic.":   ("us.anthropic.", "apac.anthropic."),
+    "us.anthropic.": ("eu.anthropic.", "apac.anthropic."),
+    "eu.anthropic.": ("us.anthropic.", "apac.anthropic."),
 }
 
 
@@ -48,7 +49,7 @@ def fallback_model_ids(home_model_id: str) -> list[str]:
     """
     for home_prefix, fallbacks in _FALLBACK_CHAINS.items():
         if home_model_id.startswith(home_prefix):
-            tail = home_model_id[len(home_prefix):]
+            tail = home_model_id[len(home_prefix) :]
             return [f"{fb}{tail}" for fb in fallbacks]
     return []
 
@@ -60,7 +61,4 @@ def is_cross_region_fallback_enabled() -> bool:
 
 def fallback_chain_snapshot() -> dict[str, list[str]]:
     """Snapshot for /capabilities + /architecture descriptor."""
-    return {
-        prefix: list(chain)
-        for prefix, chain in _FALLBACK_CHAINS.items()
-    }
+    return {prefix: list(chain) for prefix, chain in _FALLBACK_CHAINS.items()}

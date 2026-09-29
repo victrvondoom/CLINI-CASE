@@ -13,6 +13,7 @@ verbose (5+ second response is acceptable) — it's not the K8s liveness probe;
 that's `/api/v1/healthz` (already exists). This is the "show me everything
 is wired" probe a reviewer or auditor runs once.
 """
+
 from __future__ import annotations
 
 import subprocess
@@ -111,7 +112,9 @@ async def capabilities() -> dict[str, Any]:
         },
         "demo_mode_indicators": {
             "trizetto_in_mock_mode": not settings.TRIZETTO_GATEWAY_URL,
-            "amazon_q_in_mock_mode": not (settings.AMAZON_Q_APPLICATION_ID and settings.USE_AMAZON_Q),
+            "amazon_q_in_mock_mode": not (
+                settings.AMAZON_Q_APPLICATION_ID and settings.USE_AMAZON_Q
+            ),
             "redis_pub_sub_disabled": not settings.REDIS_URL,
             "hitl_threshold_zero": settings.HITL_CONFIDENCE_THRESHOLD == 0.0,
         },
@@ -136,6 +139,7 @@ async def healthz_deep() -> dict[str, Any]:
 
     # ---- Layer 1: Experience (route registry) ----
     from app.main import app as fastapi_app
+
     paths = sorted({r.path for r in fastapi_app.routes if hasattr(r, "path")})
     layers["experience"] = {
         "status": "ok",
@@ -146,6 +150,7 @@ async def healthz_deep() -> dict[str, Any]:
     # ---- Layer 2: Orchestration (manifest + DB) ----
     try:
         from app.agents.manifest import AGENT_MANIFEST, total_sub_agents
+
         layers["orchestration"] = {
             "status": "ok",
             "parents": len(AGENT_MANIFEST),
@@ -157,14 +162,19 @@ async def healthz_deep() -> dict[str, Any]:
     # ---- Layer 2b: DB connectivity ----
     try:
         from app.db import db
+
         await db.fetchval("SELECT 1")
-        layers["database"] = {"status": "ok", "db_url_host": settings.DATABASE_URL.split("@")[-1].split("/")[0]}
+        layers["database"] = {
+            "status": "ok",
+            "db_url_host": settings.DATABASE_URL.split("@")[-1].split("/")[0],
+        }
     except Exception as e:  # noqa: BLE001
         layers["database"] = {"status": "error", "error": str(e)[:200]}
 
     # ---- Layer 3: Context Retrieval ----
     try:
         from app.integrations.amazon_q.client import AmazonQClient
+
         client = AmazonQClient()
         layers["context_retrieval"] = {
             "status": "ok",
@@ -178,6 +188,7 @@ async def healthz_deep() -> dict[str, Any]:
     try:
         from app.llm.factory import get_llm_client
         from app.llm.gateway import GenAIGateway
+
         client = get_llm_client()
         is_gateway = isinstance(client, GenAIGateway)
         layers["genai_gateway"] = {
@@ -191,6 +202,7 @@ async def healthz_deep() -> dict[str, Any]:
     # ---- Layer 5: Telemetry & Governance ----
     try:
         from app.compliance.cms_0057f import CLAUSES
+
         in_force = sum(1 for c in CLAUSES if c.in_force_today)
         layers["telemetry_governance"] = {
             "status": "ok",
@@ -203,6 +215,7 @@ async def healthz_deep() -> dict[str, Any]:
     # ---- External integrations ----
     try:
         from app.integrations.trizetto.gateway_client import TriZettoGatewayClient
+
         trz = TriZettoGatewayClient()
         layers["trizetto_gateway"] = {
             "status": "ok",
@@ -214,12 +227,17 @@ async def healthz_deep() -> dict[str, Any]:
 
     try:
         from app.mcp.tools import TOOL_DEFINITIONS
+
         layers["mcp_server"] = {"status": "ok", "tools_exposed": len(TOOL_DEFINITIONS)}
     except Exception as e:  # noqa: BLE001
         layers["mcp_server"] = {"status": "error", "error": str(e)[:200]}
 
     # ---- Aggregate ----
-    overall = "ok" if all(layer_status.get("status") == "ok" for layer_status in layers.values()) else "degraded"
+    overall = (
+        "ok"
+        if all(layer_status.get("status") == "ok" for layer_status in layers.values())
+        else "degraded"
+    )
     return {
         "status": overall,
         "asof_iso": datetime.now(UTC).isoformat(),

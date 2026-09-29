@@ -7,6 +7,7 @@
 These endpoints power the SRE + customer-CISO views of model invocation
 patterns. The actual enforcement happens inside `app/llm/gateway.py`.
 """
+
 from __future__ import annotations
 
 from typing import Any

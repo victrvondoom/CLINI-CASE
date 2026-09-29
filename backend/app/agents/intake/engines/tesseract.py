@@ -8,6 +8,7 @@ Optional dependency: `pytesseract` + Tesseract binary on the system. If
 either is missing, the engine reports unhealthy and the registry skips
 it. ClinCase never crashes because tesseract isn't installed.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -23,7 +24,7 @@ class TesseractEngine(OCREngine):
 
     name: ClassVar[str] = "tesseract_local"
     capabilities: ClassVar[EngineCapabilities] = EngineCapabilities(
-        handles_handwriting=False,       # Tesseract on handwriting is poor
+        handles_handwriting=False,  # Tesseract on handwriting is poor
         handles_typed_print=True,
         handles_tables=False,
         handles_pdf=False,
@@ -93,6 +94,7 @@ class TesseractEngine(OCREngine):
     async def healthcheck(self) -> bool:
         try:
             import pytesseract
+
             pytesseract.get_tesseract_version()
             return True
         except Exception:  # noqa: BLE001 — any failure means engine unusable

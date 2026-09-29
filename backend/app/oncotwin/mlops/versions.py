@@ -1,4 +1,5 @@
 """Content-addressed versions for lineage: which features, which data, which model."""
+
 from __future__ import annotations
 
 import hashlib
@@ -15,7 +16,13 @@ _ROOT = Path(__file__).resolve().parents[1]
 def feature_version() -> str:
     """SHA-256 over the feature names and the feature / baseline / series code that computes them."""
     h = hashlib.sha256(json.dumps(list(FEATURE_NAMES)).encode())
-    for rel in ("engine/features.py", "engine/baseline.py", "engine/series.py", "engine/quality.py", "engine/neutrophil.py"):
+    for rel in (
+        "engine/features.py",
+        "engine/baseline.py",
+        "engine/series.py",
+        "engine/quality.py",
+        "engine/neutrophil.py",
+    ):
         h.update((_ROOT / rel).read_bytes())
     return h.hexdigest()[:16]
 

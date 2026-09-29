@@ -3,6 +3,7 @@
 LLM-backed (Haiku). Builds the citation chain so every factual claim in the
 rationale points to either a clinical evidence resource or a policy excerpt.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -18,7 +19,10 @@ from app.agents.framework import (
 
 _PROMPT = (
     Path(__file__).resolve().parents[3]
-    / "prompts" / "decision_composer" / "sub_agents" / "citation_linker.txt"
+    / "prompts"
+    / "decision_composer"
+    / "sub_agents"
+    / "citation_linker.txt"
 ).read_text(encoding="utf-8")
 
 

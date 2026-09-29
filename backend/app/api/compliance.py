@@ -1,8 +1,9 @@
 """Live compliance scorecard endpoints (IMPACT-2).
 
-  GET /api/v1/compliance/case/{case_id}      — per-case clause-by-clause scorecard
-  GET /api/v1/compliance/org                  — org-level rollup with deadlines
+GET /api/v1/compliance/case/{case_id}      — per-case clause-by-clause scorecard
+GET /api/v1/compliance/org                  — org-level rollup with deadlines
 """
+
 from __future__ import annotations
 
 from datetime import UTC
@@ -42,16 +43,26 @@ async def get_org_scorecard(
     a zeroed scorecard rather than a 500 — clauses + deadlines still render
     because they're hard-coded regulatory data."""
     from datetime import datetime
+
     try:
         return await org_scorecard(user["organization_id"])
     except Exception:
         return {
             "organization_id": user["organization_id"],
             "asof_iso": datetime.now(UTC).isoformat(),
-            "totals": {"cases_total": 0, "cases_decided": 0, "denies": 0, "denies_with_review": 0, "audit_complete_cases": 0},
+            "totals": {
+                "cases_total": 0,
+                "cases_decided": 0,
+                "denies": 0,
+                "denies_with_review": 0,
+                "audit_complete_cases": 0,
+            },
             "headline_metrics": {
-                "tat_compliance_pct": 0, "sb1120_compliance_pct": 0,
-                "audit_completeness_pct": 0, "mean_tat_seconds": 0, "max_tat_seconds": 0,
+                "tat_compliance_pct": 0,
+                "sb1120_compliance_pct": 0,
+                "audit_completeness_pct": 0,
+                "mean_tat_seconds": 0,
+                "max_tat_seconds": 0,
             },
             "clauses": [],
             "deadlines": {},

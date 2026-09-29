@@ -17,6 +17,7 @@ Per AAOSA bounded responsibility: this router is a thin adapter — it does
 NOT perform agent reasoning, citation work, or template logic. All of that
 lives in the Appeals Drafter agent and `app.render.appeal_pdf`.
 """
+
 from __future__ import annotations
 
 import json
@@ -53,8 +54,7 @@ async def render_appeal_pdf_preview(
         media_type="application/pdf",
         headers={
             "Content-Disposition": (
-                f'inline; filename="appeal-{draft.patient_initials}-'
-                f'{draft.payer_id}.pdf"'
+                f'inline; filename="appeal-{draft.patient_initials}-' f'{draft.payer_id}.pdf"'
             ),
             "X-ClinCase-Source": "preview",
         },
@@ -114,9 +114,7 @@ async def render_case_appeal_pdf(
         appeal_body=row["appeal_body"],
         structured_arguments=[AppealArgument(**a) for a in structured_args_raw],
         attachments_referenced=[],
-        requested_action=(
-            f"Overturn the denial and authorise {row['requested_treatment_name']}."
-        ),
+        requested_action=(f"Overturn the denial and authorise {row['requested_treatment_name']}."),
     )
 
     pdf_bytes = render_appeal_pdf(draft, case_id=case_id)
@@ -124,9 +122,7 @@ async def render_case_appeal_pdf(
         content=pdf_bytes,
         media_type="application/pdf",
         headers={
-            "Content-Disposition": (
-                f'inline; filename="appeal-{case_id}.pdf"'
-            ),
+            "Content-Disposition": (f'inline; filename="appeal-{case_id}.pdf"'),
             "X-ClinCase-Case-Id": case_id,
             "X-ClinCase-Source": "live",
         },

@@ -5,6 +5,7 @@ LLM-backed (Haiku). The aggregation invariant
 post-LLM so the parent's contract is mathematically guaranteed regardless
 of LLM output.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -18,13 +19,14 @@ from app.agents.necessity_reasoner.schemas import (
 
 _PROMPT_PATH = (
     Path(__file__).resolve().parents[3]
-    / "prompts" / "necessity_reasoner" / "sub_agents" / "confidence_calibrator.txt"
+    / "prompts"
+    / "necessity_reasoner"
+    / "sub_agents"
+    / "confidence_calibrator.txt"
 )
 
 
-class ConfidenceCalibratorAgent(
-    Agent[ConfidenceCalibratorInput, ConfidenceCalibratorOutput]
-):
+class ConfidenceCalibratorAgent(Agent[ConfidenceCalibratorInput, ConfidenceCalibratorOutput]):
     name: ClassVar[str] = "confidence_calibrator"
     parent: ClassVar[str] = "necessity_reasoner"
     role: ClassVar[str] = "confidence_aggregation"

@@ -24,6 +24,7 @@ post-pilot when the policy library exceeds ~50 rules.
 
 Pairs with: ops/architecture/AUTHZ_CEDAR.md
 """
+
 from app.authz.cedar import (
     AuthzDecision,
     AuthzDeniedError,

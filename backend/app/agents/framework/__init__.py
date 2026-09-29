@@ -10,6 +10,7 @@ Modules:
   trace_sink  — TraceSink ABC + Postgres / InMemory impls
   types       — AgentResult, AgentMetadata, AgentTrace, Cost, TokenUsage
 """
+
 from app.agents.framework.agent import (
     Agent,
     AgentExhaustedError,

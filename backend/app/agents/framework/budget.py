@@ -13,6 +13,7 @@ Reservation pattern (analogous to AWS service quotas):
     4. agent calls `tracker.commit(token, actual_cost_usd)`
     5. tracker subtracts actual from remaining; releases the reservation slack
 """
+
 from __future__ import annotations
 
 import math
@@ -86,9 +87,7 @@ class BudgetTracker:
             r.estimated_input_tokens + r.estimated_output_tokens
             for r in self._reservations.values()
         )
-        return self.max_total_tokens - (
-            self.spent_input_tokens + self.spent_output_tokens
-        ) - held
+        return self.max_total_tokens - (self.spent_input_tokens + self.spent_output_tokens) - held
 
     @property
     def elapsed_ms(self) -> int:
@@ -203,9 +202,9 @@ class BudgetTracker:
 
 
 DEFAULT_BUDGET = BudgetTracker(
-    max_cost_usd=5.00,        # $5 / case ceiling — actual spend is ~$0.40-0.80
-    max_total_tokens=600_000, # 600K token budget per case
-    max_latency_ms=600_000,   # 10 minutes — accommodates parallel fan-out
+    max_cost_usd=5.00,  # $5 / case ceiling — actual spend is ~$0.40-0.80
+    max_total_tokens=600_000,  # 600K token budget per case
+    max_latency_ms=600_000,  # 10 minutes — accommodates parallel fan-out
 )
 
 

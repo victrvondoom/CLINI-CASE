@@ -10,6 +10,7 @@ seconds, hash of audit chain).
 
 This is what makes CMS-0057-F a SELLING POINT for ClinCase, not a worry.
 """
+
 from __future__ import annotations
 
 import json
@@ -179,14 +180,15 @@ async def case_scorecard(case_id: str, organization_id: str | None = None) -> Ca
         tat_seconds = delta.total_seconds()
 
     # Audit-trail completeness — count agent_runs rows for this case.
-    n_agent_runs = await db.fetchval(
-        "SELECT COUNT(*)::INT FROM agent_runs WHERE case_id = $1", case_id
-    ) or 0
+    n_agent_runs = (
+        await db.fetchval("SELECT COUNT(*)::INT FROM agent_runs WHERE case_id = $1", case_id) or 0
+    )
 
     # HITL evidence — was a reviewer_action recorded?
-    reviewer_actions = await db.fetchval(
-        "SELECT COUNT(*)::INT FROM reviewer_actions WHERE case_id = $1", case_id
-    ) or 0
+    reviewer_actions = (
+        await db.fetchval("SELECT COUNT(*)::INT FROM reviewer_actions WHERE case_id = $1", case_id)
+        or 0
+    )
     hitl_done = reviewer_actions > 0
 
     # Specific denial reason check (§ IV.B.2)
@@ -233,7 +235,8 @@ async def case_scorecard(case_id: str, organization_id: str | None = None) -> Ca
                 ev = (
                     f"Rationale length={len(rationale)} chars; citations={citations_count}. "
                     "Specific clinical reason present."
-                    if ok else "Rationale missing or too short for a 'specific reason' notice."
+                    if ok
+                    else "Rationale missing or too short for a 'specific reason' notice."
                 )
                 sev = "info" if ok else "critical"
             case "§ IV.C":
@@ -241,7 +244,9 @@ async def case_scorecard(case_id: str, organization_id: str | None = None) -> Ca
                 ok = decision is not None
                 ev = (
                     f"Case is reportable: verdict={decision['verdict']}, citations={citations_count}, "
-                    f"agent_runs={n_agent_runs}." if ok else "No decision yet; case not reportable."
+                    f"agent_runs={n_agent_runs}."
+                    if ok
+                    else "No decision yet; case not reportable."
                 )
                 sev = "info" if ok else "warning"
             case "§ IV.D":
@@ -268,7 +273,11 @@ async def case_scorecard(case_id: str, organization_id: str | None = None) -> Ca
                     ok = hitl_done
                     ev = (
                         f"Adverse determination ({decision['verdict']}); reviewer_actions rows={reviewer_actions}."
-                        + (" Human review recorded." if ok else " HITL signature MISSING — denial not yet legal in CA.")
+                        + (
+                            " Human review recorded."
+                            if ok
+                            else " HITL signature MISSING — denial not yet legal in CA."
+                        )
                     )
                     sev = "info" if ok else "critical"
             case "CO AI Act":
@@ -280,14 +289,16 @@ async def case_scorecard(case_id: str, organization_id: str | None = None) -> Ca
                 ev = "Unknown clause."
                 sev = "warning"
 
-        results.append(ClauseResult(
-            clause_id=c.id,
-            title=c.title,
-            satisfied=ok,
-            severity=sev,
-            evidence=ev,
-            in_force_today=c.in_force_today,
-        ))
+        results.append(
+            ClauseResult(
+                clause_id=c.id,
+                title=c.title,
+                satisfied=ok,
+                severity=sev,
+                evidence=ev,
+                in_force_today=c.in_force_today,
+            )
+        )
 
     n_total = len(results)
     n_in_force = sum(1 for r in results if r.in_force_today)
@@ -391,19 +402,25 @@ async def org_scorecard(organization_id: str) -> dict[str, Any]:
 
     rollup: list[dict[str, Any]] = []
     for c in CLAUSES:
-        rollup.append({
-            "clause_id": c.id,
-            "title": c.title,
-            "summary": c.summary,
-            "effective_date": c.effective_date_iso,
-            "in_force_today": c.in_force_today,
-            "days_until_effective": max(0, days_until(c.effective_date_iso)),
-        })
+        rollup.append(
+            {
+                "clause_id": c.id,
+                "title": c.title,
+                "summary": c.summary,
+                "effective_date": c.effective_date_iso,
+                "in_force_today": c.in_force_today,
+                "days_until_effective": max(0, days_until(c.effective_date_iso)),
+            }
+        )
 
     # Headline metrics for the org dashboard
-    tat_compliance_pct = 100.0 if mean_tat_s == 0 else min(
-        100.0,
-        100.0 * (1.0 if max_tat_s <= 604800 else 0.0),  # 7-day SLA hit
+    tat_compliance_pct = (
+        100.0
+        if mean_tat_s == 0
+        else min(
+            100.0,
+            100.0 * (1.0 if max_tat_s <= 604800 else 0.0),  # 7-day SLA hit
+        )
     )
     sb1120_compliance_pct = 100.0 if denies == 0 else (100.0 * denies_with_review / denies)
     audit_compliance_pct = 100.0 if n_cases == 0 else (100.0 * audit_complete / n_cases)

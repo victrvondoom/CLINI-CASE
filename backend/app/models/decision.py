@@ -10,6 +10,7 @@ labels, and ASCO/ESMO guidelines as binding evidence, not just internal
 policy bulletins. Backward compatible — existing tests with kind="clinical"
 and kind="policy" continue to validate.
 """
+
 from __future__ import annotations
 
 from typing import Literal
@@ -17,11 +18,11 @@ from typing import Literal
 from pydantic import BaseModel
 
 CitationKind = Literal[
-    "clinical",     # FHIR resource — patient evidence
-    "policy",       # payer Clinical Policy Bulletin / Coverage Determination
-    "compendium",   # NCCN, AHFS, Lexi-Drugs, Clinical Pharmacology, DrugDex
-    "fda_label",    # FDA-approved drug label (Highlights of Prescribing Information)
-    "guideline",    # ASCO, ESMO, ASH, ACS, NCCN-Guidelines (vs NCCN compendium)
+    "clinical",  # FHIR resource — patient evidence
+    "policy",  # payer Clinical Policy Bulletin / Coverage Determination
+    "compendium",  # NCCN, AHFS, Lexi-Drugs, Clinical Pharmacology, DrugDex
+    "fda_label",  # FDA-approved drug label (Highlights of Prescribing Information)
+    "guideline",  # ASCO, ESMO, ASH, ACS, NCCN-Guidelines (vs NCCN compendium)
 ]
 
 
@@ -36,6 +37,7 @@ class Citation(BaseModel):
       • guideline  → "NCCN Guidelines Breast Cancer v.4.2024 BINV-K"
                   or "ASCO Guideline 2024 Update — HER2-Positive Breast Cancer"
     """
+
     kind: CitationKind
     text: str
     pointer: str
@@ -43,7 +45,7 @@ class Citation(BaseModel):
 
 class Decision(BaseModel):
     verdict: Literal["APPROVE", "DENY", "REFER"]
-    rationale: str               # 3-5 sentences plain English
+    rationale: str  # 3-5 sentences plain English
     citations: list[Citation]
-    confidence: float            # equals NecessityAssessment.overall_confidence
-    risk_flags: list[str]        # off-label | high-cost | low-evidence | biomarker-mismatch | ...
+    confidence: float  # equals NecessityAssessment.overall_confidence
+    risk_flags: list[str]  # off-label | high-cost | low-evidence | biomarker-mismatch | ...

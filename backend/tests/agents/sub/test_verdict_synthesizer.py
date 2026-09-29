@@ -4,6 +4,7 @@ Demonstrates that a sub-agent is independently testable, no LLM calls,
 no DB needed. The same pattern applies to every other sub-agent — each
 has its own input/output schema, prompt (LLM ones), and contract tests.
 """
+
 from __future__ import annotations
 
 from app.agents.decision_composer.schemas import VerdictSynthesizerInput
@@ -48,10 +49,12 @@ def _run(input: VerdictSynthesizerInput):
 def test_deny_on_inclusion_not_met():
     out = _run(
         VerdictSynthesizerInput(
-            assessment=_assess([
-                _crit(status="MET"),
-                _crit(text="LVEF ≥ 50% within 60d", status="NOT_MET"),
-            ])
+            assessment=_assess(
+                [
+                    _crit(status="MET"),
+                    _crit(text="LVEF ≥ 50% within 60d", status="NOT_MET"),
+                ]
+            )
         )
     )
     assert out.verdict == "DENY"
@@ -62,10 +65,12 @@ def test_deny_on_inclusion_not_met():
 def test_deny_on_exclusion_met():
     out = _run(
         VerdictSynthesizerInput(
-            assessment=_assess([
-                _crit(status="MET"),
-                _crit(text="active uncontrolled infection", ctype="exclusion", status="MET"),
-            ])
+            assessment=_assess(
+                [
+                    _crit(status="MET"),
+                    _crit(text="active uncontrolled infection", ctype="exclusion", status="MET"),
+                ]
+            )
         )
     )
     assert out.verdict == "DENY"
@@ -76,10 +81,12 @@ def test_deny_on_exclusion_met():
 def test_refer_on_ambiguous():
     out = _run(
         VerdictSynthesizerInput(
-            assessment=_assess([
-                _crit(status="MET"),
-                _crit(text="appropriate candidate", status="AMBIGUOUS"),
-            ])
+            assessment=_assess(
+                [
+                    _crit(status="MET"),
+                    _crit(text="appropriate candidate", status="AMBIGUOUS"),
+                ]
+            )
         )
     )
     assert out.verdict == "REFER"
@@ -99,10 +106,13 @@ def test_refer_on_low_confidence():
 def test_approve_when_clean():
     out = _run(
         VerdictSynthesizerInput(
-            assessment=_assess([
-                _crit(text="HER2+", status="MET", confidence=0.97),
-                _crit(text="LVEF 58%", status="MET", confidence=0.95),
-            ], overall=0.95)
+            assessment=_assess(
+                [
+                    _crit(text="HER2+", status="MET", confidence=0.97),
+                    _crit(text="LVEF 58%", status="MET", confidence=0.95),
+                ],
+                overall=0.95,
+            )
         )
     )
     assert out.verdict == "APPROVE"

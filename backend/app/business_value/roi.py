@@ -15,6 +15,7 @@ Two industry baselines anchor the math:
 The math is intentionally conservative — anyone asking "where do these
 numbers come from?" can point to AMA / CAQH / KFF directly.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -115,11 +116,14 @@ async def case_roi(case_id: str, organization_id: str | None = None) -> CaseROI:
         speedup = (MANUAL_PA_MINUTES * 60.0) / decision_seconds
 
     # Annual extrapolation — count this org's last-30-days volume × 12.
-    last_30d_count = await db.fetchval(
-        """SELECT COUNT(*)::INT FROM cases
+    last_30d_count = (
+        await db.fetchval(
+            """SELECT COUNT(*)::INT FROM cases
            WHERE organization_id = $1 AND created_at >= NOW() - INTERVAL '30 days'""",
-        case["organization_id"],
-    ) or 0
+            case["organization_id"],
+        )
+        or 0
+    )
     annual = float(last_30d_count) * 12.0 * savings
 
     return CaseROI(
