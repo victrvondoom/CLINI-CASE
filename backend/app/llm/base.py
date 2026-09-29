@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
@@ -22,7 +23,7 @@ class LLMResponse(BaseModel):
     output_tokens: int
     stop_reason: str
     model_id: str
-    guardrail_action: dict | None = None
+    guardrail_action: dict[str, Any] | None = None
 
 
 class LLMClient(ABC):

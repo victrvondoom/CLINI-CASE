@@ -87,7 +87,7 @@ class AmazonQClient:
 
     def _ensure_client(self) -> Any:
         if self._client is None:
-            import boto3  # type: ignore[import-not-found]
+            import boto3
             self._client = boto3.client("qbusiness", region_name=self.region_name)
         return self._client
 

@@ -40,7 +40,7 @@ class AnthropicClient(LLMClient):
             system=system,
             messages=[{"role": "user", "content": user}],
         )
-        text_blocks = [b.text for b in message.content if getattr(b, "type", None) == "text"]
+        text_blocks = [b.text for b in message.content if b.type == "text"]
         return LLMResponse(
             text="".join(text_blocks),
             input_tokens=message.usage.input_tokens,

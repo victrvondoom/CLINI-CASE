@@ -54,7 +54,7 @@ class BedrockClient(LLMClient):
         model = model_id or self._default_model
 
         def _call() -> dict[str, Any]:
-            return self._client.converse(
+            response: dict[str, Any] = self._client.converse(
                 modelId=model,
                 system=[{"text": system}],
                 messages=[{"role": "user", "content": [{"text": user}]}],
@@ -64,6 +64,7 @@ class BedrockClient(LLMClient):
                 },
                 **self._guardrail_kwargs(),
             )
+            return response
 
         response = await asyncio.to_thread(_call)
         text = response["output"]["message"]["content"][0]["text"]
@@ -107,7 +108,7 @@ class BedrockClient(LLMClient):
             )
 
         def _call() -> dict[str, Any]:
-            return self._client.converse(
+            response: dict[str, Any] = self._client.converse(
                 modelId=model,
                 system=[{"text": system}],
                 messages=[
@@ -130,6 +131,7 @@ class BedrockClient(LLMClient):
                 },
                 **self._guardrail_kwargs(),
             )
+            return response
 
         response = await asyncio.to_thread(_call)
         text = response["output"]["message"]["content"][0]["text"]

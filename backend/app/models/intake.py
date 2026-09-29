@@ -15,7 +15,7 @@ auditable as a clean-FHIR verdict.
 """
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -106,7 +106,7 @@ class OCRResult(BaseModel):
     overall_confidence: float = Field(..., ge=0.0, le=1.0)
     phi_redactions_applied: int = Field(default=0, ge=0)
     pages: int = Field(default=1, ge=1)
-    clinical_snapshot_partial: dict = Field(
+    clinical_snapshot_partial: dict[str, Any] = Field(
         default_factory=dict,
         description=(
             "Partial ClinicalSnapshot extracted by vision-LLM engines in the "
@@ -129,7 +129,7 @@ class IntakeResult(BaseModel):
 
     classification: DocumentClassification
     ocr: OCRResult
-    clinical_snapshot_partial: dict
+    clinical_snapshot_partial: dict[str, Any]
     risk_flags: list[str] = Field(
         default_factory=list,
         description=(
@@ -145,7 +145,7 @@ class IntakeResult(BaseModel):
             "router uses this to short-circuit straight to the Reviewer queue."
         ),
     )
-    audit: dict = Field(
+    audit: dict[str, Any] = Field(
         default_factory=dict,
         description=(
             "{document_sha256, engines_used, latency_ms, cost_usd}. Persisted "

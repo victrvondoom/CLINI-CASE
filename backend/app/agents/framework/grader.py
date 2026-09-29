@@ -106,7 +106,6 @@ class LLMGrader:
         usage = {
             "input_tokens": response.input_tokens,
             "output_tokens": response.output_tokens,
-            "model_id": response.model_id,
         }
         return score, usage
 

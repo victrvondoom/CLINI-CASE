@@ -79,7 +79,7 @@ _gateway_call_context: contextvars.ContextVar[GatewayCallContext | None] = (
 )
 
 
-def set_call_context(ctx: GatewayCallContext) -> contextvars.Token:
+def set_call_context(ctx: GatewayCallContext) -> contextvars.Token[GatewayCallContext | None]:
     """Set the call context for the current async task.
 
     Returns the token so the caller can `reset()` it afterward — the
@@ -88,7 +88,7 @@ def set_call_context(ctx: GatewayCallContext) -> contextvars.Token:
     return _gateway_call_context.set(ctx)
 
 
-def reset_call_context(token: contextvars.Token) -> None:
+def reset_call_context(token: contextvars.Token[GatewayCallContext | None]) -> None:
     _gateway_call_context.reset(token)
 
 

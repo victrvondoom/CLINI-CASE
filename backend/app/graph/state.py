@@ -38,9 +38,9 @@ class ClinCaseState(BaseModel):
     # --- Input (immutable) ----------------------------------------------
     case_id: str
     organization_id: str = "org_demo"
-    fhir_bundle: dict
+    fhir_bundle: dict[str, Any]
     physician_note: str | None = None
-    requested_treatment: dict  # {name, hcpcs_code, j_code, dose, frequency}
+    requested_treatment: dict[str, Any]  # {name, hcpcs_code, j_code, dose, frequency}
     payer_id: str
 
     # --- Per-case AgentContext (shared budget + trace_sink) -------------
@@ -72,7 +72,7 @@ class ClinCaseState(BaseModel):
 
     # --- Routing / trace -----------------------------------------------
     next_route: Literal["approve_done", "refer_done", "denial_path"] | None = None
-    trace_events: list[dict] = Field(default_factory=list)
+    trace_events: list[dict[str, Any]] = Field(default_factory=list)
 
 
 def get_or_init_agent_context(state: ClinCaseState) -> AgentContext:
@@ -90,4 +90,5 @@ def get_or_init_agent_context(state: ClinCaseState) -> AgentContext:
             case_id=state.case_id,
             organization_id=state.organization_id,
         )
-    return state._agent_context
+    ctx: AgentContext = state._agent_context
+    return ctx

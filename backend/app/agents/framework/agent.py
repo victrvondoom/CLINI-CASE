@@ -29,7 +29,7 @@ import time
 import uuid
 from abc import ABC
 from datetime import UTC, datetime
-from typing import Any, ClassVar, Generic, TypeVar
+from typing import Any, ClassVar, Generic, TypeVar, cast
 
 from pydantic import BaseModel
 
@@ -219,10 +219,15 @@ class Agent(ABC, Generic[I, O]):
         started_at = datetime.now(UTC)
         started_ts = time.time()
 
-        # Validate input
-        if not isinstance(input, self.input_schema):
-            input = self.input_schema.model_validate(  # type: ignore[assignment]
-                input if isinstance(input, dict) else input.model_dump()
+        # Validate input (the check is bound to a name so the isinstance does
+        # not narrow `input` away from `I` for the rest of the method)
+        input_is_valid = isinstance(input, self.input_schema)
+        if not input_is_valid:
+            input = cast(
+                I,
+                self.input_schema.model_validate(
+                    input if isinstance(input, dict) else input.model_dump()
+                ),
             )
 
         # Open the agent's span
@@ -303,7 +308,7 @@ class Agent(ABC, Generic[I, O]):
                     span.add_event("cache_lookup_failed", error=str(cache_err)[:200])
                     cache_key = None
                     hit = None
-                if hit is not None:
+                if hit is not None and cache_key is not None:
                     output = self.output_schema.model_validate(hit.output_json)  # type: ignore[assignment]
                     tokens = TokenUsage(
                         input_tokens=hit.input_tokens,
@@ -332,7 +337,7 @@ class Agent(ABC, Generic[I, O]):
                     if gr_result.decision == GuardrailDecision.BLOCK:
                         raise InputBlockedError(gr.name, gr_result.reason)
                     if gr_result.decision == GuardrailDecision.MASK and gr_result.masked_payload is not None:
-                        input = gr_result.masked_payload  # type: ignore[assignment]
+                        input = cast(I, gr_result.masked_payload)
 
             # ----- 2/3. Plan + Act (with retry-on-failure loop) -----
             # Skipped entirely on cache hit — output is already populated.

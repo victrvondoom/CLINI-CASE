@@ -57,6 +57,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import structlog
+from pydantic import BaseModel
 
 from app.db import db
 
@@ -269,7 +270,7 @@ async def cache_stats() -> dict[str, Any]:
 # =============================================================================
 
 
-def schema_version_for(output_schema: type) -> str:
+def schema_version_for(output_schema: type[BaseModel]) -> str:
     """Stable hash of an agent's output schema. Drift invalidates cache.
 
     Pydantic's model_json_schema is deterministic for a given Python object

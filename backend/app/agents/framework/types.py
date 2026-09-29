@@ -56,7 +56,7 @@ class Cost(BaseModel):
             merged[k] = merged.get(k, 0.0) + v
         return Cost(usd=self.usd + other.usd, breakdown=merged)
 
-    def __ge__(self, other: float) -> bool:  # type: ignore[override]
+    def __ge__(self, other: float) -> bool:
         return self.usd >= other
 
 
