@@ -29,13 +29,13 @@ interface TickerItem {
 }
 
 const ITEMS: TickerItem[] = [
-  { tone: "emerald", Icon: CheckCircle, text: "3 cases just decided in the last 5 min" },
-  { tone: "brand",   Icon: Activity,    text: "Anthem MCG-2026.04 policy synced · 12 references re-indexed" },
-  { tone: "amber",   Icon: AlertCircle, text: "AUTH-2914 escalated to nurse reviewer · LVEF missing" },
-  { tone: "emerald", Icon: Heart,       text: "Patient M.C. — Trastuzumab approved in 4m 12s" },
-  { tone: "cyan",    Icon: Zap,         text: "Average decision time today — 6.4 min (-71% vs payer median)" },
-  { tone: "brand",   Icon: Sparkles,    text: "ClinCase signed BAA #4 · Sutter Health onboarded" },
-  { tone: "emerald", Icon: ShieldCheck, text: "All systems operational · 99.98% uptime (30d)" },
+  { tone: "emerald", Icon: CheckCircle, text: "Deterministic demo fixtures available" },
+  { tone: "brand",   Icon: Activity,    text: "Policy provenance is shown with each retrieved excerpt" },
+  { tone: "amber",   Icon: AlertCircle, text: "Incomplete evidence routes to human review" },
+  { tone: "emerald", Icon: Heart,       text: "Synthetic OncoTwin journey verified locally" },
+  { tone: "cyan",    Icon: Zap,         text: "Production latency metrics require connected observability" },
+  { tone: "brand",   Icon: Sparkles,    text: "Cloud document processing is disabled by default" },
+  { tone: "emerald", Icon: ShieldCheck, text: "Live API status is shown in the landing health panel" },
 ];
 
 const TONE_TEXT: Record<Tone, string> = {
@@ -57,7 +57,7 @@ export function ActivityTicker() {
           <span className="absolute inline-flex h-full w-full rounded-full bg-accent-green opacity-70 animate-ping" />
           <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-accent-green" />
         </span>
-        <span className="text-[9px] text-compact text-ink-muted">Live</span>
+        <span className="text-[9px] text-compact text-ink-muted">Status</span>
         {/* Soft fade from solid badge backdrop into the scrolling track */}
         <span className="absolute inset-y-0 -right-6 w-6 bg-gradient-to-r from-surface-raised to-transparent pointer-events-none" />
       </div>

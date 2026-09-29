@@ -1,23 +1,10 @@
-"""Tenant-context middleware — pairs the RLS migration (round 12).
+"""Bind the verified JWT organization claim to request-local context.
 
-Sets `SET LOCAL clincase.organization_id = '<org>'` once per request, so the
-RLS policies on multi-tenant tables fire automatically. Every SELECT/UPDATE
-against a tenant-scoped table from this point onward is filtered by Postgres.
-
-Without this middleware, the RLS policies still exist but `current_setting()`
-returns NULL and every query returns 0 rows — so misconfiguration fails
-SAFELY (closed by default).
-
-How it interacts with asyncpg:
-  • asyncpg connections are checked out per-call from the pool.
-  • `SET LOCAL` only persists to the end of the txn — perfect for a per-call
-    setting since each statement is implicitly txn'd.
-  • For multi-statement work, the caller wraps in `async with conn.transaction()`
-    and re-issues SET LOCAL inside the txn.
-
-Today's implementation: wraps `db.execute / fetchrow / fetch / fetchval` so
-every call SETs the org_id BEFORE the user query, then runs the user query.
-Implementation lives in `app/db_tenant.py` (lighter than monkey-patching).
+The current database layer does not consume this context and PostgreSQL RLS
+policies are not installed. Tenant isolation is therefore enforced by the
+explicit ``organization_id`` predicates in API queries. The context variable
+is reserved for tracing and a future, separately tested RLS implementation;
+it must not be treated as a database security boundary today.
 """
 from __future__ import annotations
 
@@ -26,7 +13,7 @@ from typing import Any
 
 from starlette.types import ASGIApp, Receive, Scope, Send
 
-# Bound for the lifetime of a request; consumed by app.db_tenant helpers.
+# Bound for the lifetime of a request for tracing/future RLS work.
 current_organization_id: contextvars.ContextVar[str | None] = contextvars.ContextVar(
     "clincase.organization_id", default=None
 )

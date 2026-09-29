@@ -78,7 +78,7 @@ invoke(input: I, ctx: AgentContext) → AgentResult[O]
   └─────────────────────────────────────────────────────────────────┘
   ┌─ 2. run input_guardrails ───────────────────────────────────────┐
   │     PASS    → continue                                          │
-  │     MASK    → continue with mutated payload (e.g. PHI redacted) │
+  │     MASK    → continue with mutated payload (e.g. identifiers screened) │
   │     BLOCK   → InputBlocked raised; trace recorded; abort        │
   └─────────────────────────────────────────────────────────────────┘
   ┌─ 3. reserve budget ─────────────────────────────────────────────┐

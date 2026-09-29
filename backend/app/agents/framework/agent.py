@@ -202,22 +202,12 @@ class Agent(ABC, Generic[I, O]):
                 f"event loop; await `_execute_deterministic(input, ctx)` instead."
             )
 
-        # Save & restore the policy's current loop so we don't leave the test
-        # suite without one.
-        try:
-            prior_loop = asyncio.get_event_loop_policy().get_event_loop()
-        except RuntimeError:
-            prior_loop = None
-
-        new_loop = asyncio.new_event_loop()
-        try:
-            return new_loop.run_until_complete(
+        # Runner owns and closes its loop without asking the deprecated
+        # policy-level get_event_loop() to create an implicit loop.
+        with asyncio.Runner() as runner:
+            return runner.run(
                 self._execute_deterministic(input, None)  # type: ignore[arg-type]
             )
-        finally:
-            new_loop.close()
-            if prior_loop is not None and not prior_loop.is_closed():
-                asyncio.set_event_loop(prior_loop)
 
     # ------------------------------------------------------------------
     # The lifecycle — invoke()

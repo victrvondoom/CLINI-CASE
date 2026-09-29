@@ -118,18 +118,18 @@ export function TopBar({ onOpenSearch }: Props) {
   );
 }
 
-// ---------- Status pill ("All systems operational") ----------
+// ---------- Link to measured deployment status ----------
 function StatusPill() {
   return (
     <Link
       to="/compliance"
       className="hidden lg:inline-flex items-center gap-2 h-8 px-2.5 rounded-md border border-accent-green/30 bg-accent-green/[0.06] text-[11px] text-mono-tech text-accent-green hover:bg-accent-green/10 transition-colors"
-      title="99.98% uptime, 30d"
+      title="Open deployment status and compliance evidence"
     >
       <span className="relative flex h-1.5 w-1.5">
         <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-accent-green status-dot-live" />
       </span>
-      <span className="tracking-tight">All systems operational</span>
+      <span className="tracking-tight">Check live system status</span>
     </Link>
   );
 }
@@ -145,10 +145,10 @@ interface Notif {
 }
 
 const NOTIFS: Notif[] = [
-  { tone: "emerald", Icon: CheckCircle, title: "AUTH-2918 approved",        body: "Trastuzumab · Anthem MCG-2026.04 · 4m 12s",                 time: "just now" },
-  { tone: "amber",   Icon: AlertCircle, title: "AUTH-2914 needs review",    body: "LVEF missing — escalated to nurse reviewer",                time: "6m" },
-  { tone: "brand",   Icon: BookOpen,    title: "Policy update synced",      body: "UnitedHealth UHCO-2026-04 · 12 references re-indexed",      time: "24m" },
-  { tone: "cyan",    Icon: Activity,    title: "Daily digest ready",        body: "34 cases decided · 92.4% within SLA",                       time: "2h" },
+  { tone: "emerald", Icon: CheckCircle, title: "Demo: approval event",      body: "Synthetic case · illustrative notification",                time: "sample" },
+  { tone: "amber",   Icon: AlertCircle, title: "Demo: review required",      body: "Missing evidence routes to a reviewer",                      time: "sample" },
+  { tone: "brand",   Icon: BookOpen,    title: "Demo: policy provenance",    body: "Configured policy references would appear here",             time: "sample" },
+  { tone: "cyan",    Icon: Activity,    title: "Metrics require telemetry",  body: "No production SLA result is claimed by this sample",          time: "sample" },
 ];
 
 function NotificationsBell() {

@@ -423,13 +423,10 @@ async def run_full(
                     trace_id=get_current_trace_id(),
                 )
 
-        # Persist the appeal if drafted (separate txn — non-critical for case status)
-        if final.appeal_draft is not None:
-            from app.events.outbox import emit_appeal_drafted
-            from app.observability.otel import get_current_trace_id
-
-            async with db.pool.acquire() as conn, conn.transaction():
-                appeal_id = await conn.fetchval(
+                # The appealed status, appeal body, and both outbox events are
+                # one clinical state transition. Any failure rolls all of it back.
+                if final.appeal_draft is not None:
+                    appeal_id = await conn.fetchval(
                     """INSERT INTO appeals (case_id, appeal_body,
                                                 structured_arguments_json)
                            VALUES ($1, $2, $3)
@@ -440,14 +437,14 @@ async def run_full(
                         [a.model_dump() for a in final.appeal_draft.structured_arguments]
                     ),
                 )
-                await emit_appeal_drafted(
-                    organization_id=user["organization_id"],
-                    case_id=case_id,
-                    appeal_id=appeal_id,
-                    structured_arguments_count=len(final.appeal_draft.structured_arguments),
-                    conn=conn,
-                    trace_id=get_current_trace_id(),
-                )
+                    await emit_appeal_drafted(
+                        organization_id=user["organization_id"],
+                        case_id=case_id,
+                        appeal_id=appeal_id,
+                        structured_arguments_count=len(final.appeal_draft.structured_arguments),
+                        conn=conn,
+                        trace_id=get_current_trace_id(),
+                    )
     except Exception as exc:
         log.exception("case.run.failed", case_id=case_id)
         raise HTTPException(
@@ -505,22 +502,6 @@ async def resume_after_review(
     reviewer_actions row. Per CMS-0057-F § IV.C, adverse determinations
     require this human clinician sign-off.
     """
-    row = await db.fetchrow(
-        "SELECT id, status FROM cases WHERE id = $1 AND organization_id = $2",
-        case_id,
-        user["organization_id"],
-    )
-    if row is None:
-        raise HTTPException(status_code=404, detail=f"Case {case_id} not found")
-    if row["status"] != "awaiting_review":
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"Case {case_id} is in state {row['status']!r}; only 'awaiting_review' "
-                f"cases can be resumed via this endpoint."
-            ),
-        )
-
     rationale = (
         f"HUMAN REVIEWER OVERRIDE — clinician {user['email']} (role={user['role']}) "
         f"reviewed this case after ClinCase paused at the review_gate due to "
@@ -537,32 +518,54 @@ async def resume_after_review(
         }
     ]
 
-    # Persist as a regular decision so downstream UI / MCP / FHIR all see it
-    await db.execute(
-        """INSERT INTO decisions (case_id, verdict, rationale,
-                                  citations_json, confidence)
-           VALUES ($1, $2, $3, $4, $5)""",
-        case_id,
-        req.verdict,
-        rationale,
-        json.dumps(citations),
-        1.0,  # Human override is always full-confidence
-    )
-
-    # Update case status
     status_map = {"APPROVE": "approved", "DENY": "denied", "REFER": "referred"}
     new_status = status_map.get(req.verdict, "referred")
-    await db.execute("UPDATE cases SET status = $1 WHERE id = $2", new_status, case_id)
+    try:
+        async with db.pool.acquire() as conn, conn.transaction():
+            row = await conn.fetchrow(
+                """SELECT id, status FROM cases
+                   WHERE id = $1 AND organization_id = $2
+                   FOR UPDATE""",
+                case_id,
+                user["organization_id"],
+            )
+            if row is None:
+                raise HTTPException(status_code=404, detail=f"Case {case_id} not found")
+            if row["status"] != "awaiting_review":
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f"Case {case_id} is in state {row['status']!r}; only "
+                        "'awaiting_review' cases can be resumed via this endpoint."
+                    ),
+                )
 
-    # Reviewer audit trail row
-    await db.execute(
-        """INSERT INTO reviewer_actions (case_id, reviewer_id, action, note)
-           VALUES ($1, $2, $3, $4)""",
-        case_id,
-        user["id"],
-        f"resume_with_{req.verdict.lower()}",
-        req.reviewer_note,
-    )
+            # Decision, state transition and audit identity commit together.
+            await conn.execute(
+                """INSERT INTO decisions (case_id, verdict, rationale,
+                                          citations_json, confidence)
+                   VALUES ($1, $2, $3, $4, $5)""",
+                case_id,
+                req.verdict,
+                rationale,
+                json.dumps(citations),
+                1.0,
+            )
+            await conn.execute(
+                "UPDATE cases SET status = $1 WHERE id = $2", new_status, case_id
+            )
+            await conn.execute(
+                """INSERT INTO reviewer_actions (case_id, reviewer_id, action, note)
+                   VALUES ($1, $2, $3, $4)""",
+                case_id,
+                user["id"],
+                f"resume_with_{req.verdict.lower()}",
+                req.reviewer_note,
+            )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Review service unavailable") from exc
 
     await publish(case_id, {
         "type": "hitl_resume",
@@ -583,7 +586,10 @@ async def resume_after_review(
 class ReviewActionRequest(BaseModel):
     action: str = Field(..., examples=["override_to_approve", "override_to_deny", "escalate", "add_note"])
     note: str | None = None
-    reviewer_id: str = "demo-reviewer"
+    reviewer_id: str | None = Field(
+        default=None,
+        description="Deprecated compatibility field; authenticated identity is always used.",
+    )
 
 
 @router.post("/{case_id}/review")
@@ -601,39 +607,53 @@ async def submit_review(
       - escalate           → case.status unchanged; logs escalation
       - add_note           → case.status unchanged; logs note
     """
-    row = await db.fetchrow(
-        "SELECT id, status FROM cases WHERE id = $1 AND organization_id = $2",
-        case_id, user["organization_id"],
-    )
-    if row is None:
-        raise HTTPException(status_code=404, detail=f"Case {case_id} not found")
-
     valid_actions = {"approve", "override_to_approve", "override_to_deny", "escalate", "add_note"}
     if req.action not in valid_actions:
         raise HTTPException(status_code=400, detail=f"Invalid action. Must be one of {valid_actions}")
 
-    await db.execute(
-        """INSERT INTO reviewer_actions (case_id, reviewer_id, action, note)
-           VALUES ($1, $2, $3, $4)""",
-        case_id, req.reviewer_id, req.action, req.note,
-    )
+    try:
+        async with db.pool.acquire() as conn, conn.transaction():
+            row = await conn.fetchrow(
+                """SELECT id, status FROM cases
+                   WHERE id = $1 AND organization_id = $2
+                   FOR UPDATE""",
+                case_id,
+                user["organization_id"],
+            )
+            if row is None:
+                raise HTTPException(status_code=404, detail=f"Case {case_id} not found")
 
-    new_status = row["status"]
-    if req.action in ("approve", "override_to_approve"):
-        new_status = "approved"
-    elif req.action == "override_to_deny":
-        new_status = "denied"
+            old_status = row["status"]
+            new_status = old_status
+            if req.action in ("approve", "override_to_approve"):
+                new_status = "approved"
+            elif req.action == "override_to_deny":
+                new_status = "denied"
 
-    if new_status != row["status"]:
-        await db.execute(
-            "UPDATE cases SET status = $1 WHERE id = $2", new_status, case_id,
-        )
+            # Ignore client-supplied reviewer_id: audit identity comes from JWT/DB auth.
+            await conn.execute(
+                """INSERT INTO reviewer_actions (case_id, reviewer_id, action, note)
+                   VALUES ($1, $2, $3, $4)""",
+                case_id,
+                user["id"],
+                req.action,
+                req.note,
+            )
+            if new_status != old_status:
+                await conn.execute(
+                    "UPDATE cases SET status = $1 WHERE id = $2", new_status, case_id
+                )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Review service unavailable") from exc
 
     return {
         "case_id": case_id,
         "action": req.action,
-        "old_status": row["status"],
+        "old_status": old_status,
         "new_status": new_status,
+        "reviewer_id": user["id"],
     }
 
 

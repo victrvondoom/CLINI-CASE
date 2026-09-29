@@ -258,8 +258,8 @@ async def claim_submit(
                     "outcome": "queued",
                     "disposition": (
                         "ClinCase seven-agent workflow queued. Standard CMS-0057-F § IV.B.1 "
-                        "turnaround: 7 calendar days. Median ClinCase turnaround on "
-                        "this case class: 14 minutes."
+                        "turnaround: 7 calendar days. No measured production turnaround "
+                        "is claimed by this response."
                     ),
                     "preAuthRef": case_id,
                     "preAuthPeriod": {

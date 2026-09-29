@@ -139,7 +139,7 @@ function readDemoCase(caseId: string): DemoCaseRecord | null {
 // Backend deployed without RDS returns a fail-soft synthetic verdict whose
 // shape predates the strict TypeScript contract. Normalize to canonical RunResult.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function normalizeRunResult(raw: any): RunResult {
+export function normalizeRunResult(raw: any): RunResult {
   const looseSnap = raw?.clinical_snapshot;
   const looseDecision = raw?.decision;
   const looseExcerpts = raw?.policy_excerpts ?? [];
@@ -147,7 +147,12 @@ function normalizeRunResult(raw: any): RunResult {
 
   // Demo route: read case text stored at create time and override the
   // hardcoded APPROVE with the realistic APPROVE / DENY / REFER path.
-  const demoRecord = readDemoCase(raw?.case_id);
+  // Synthetic overrides are isolated behind two independent assertions. A
+  // normal API response can never be replaced by browser-local heuristics.
+  const allowSyntheticOverride =
+    import.meta.env.VITE_ENABLE_SYNTHETIC_RESULT_OVERRIDES === "true" &&
+    raw?.synthetic_demo === true;
+  const demoRecord = allowSyntheticOverride ? readDemoCase(raw?.case_id) : null;
   const demoText = demoRecord?.text ?? "";
   const treatment = demoRecord?.treatment;
   const diagnosis = demoRecord?.diagnosis;

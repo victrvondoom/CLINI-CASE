@@ -170,6 +170,11 @@ def _markdown(r: dict[str, Any]) -> str:
 
 
 def main() -> None:
+    # Windows shells commonly default to cp1252, while the journey includes
+    # clinical arrows and dashes. Configure the CLI boundary explicitly so the
+    # reproducible demo does not fail after the simulation has already run.
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--out", type=Path, default=DEFAULT_OUT)
     ap.add_argument("--no-handoff", action="store_true")

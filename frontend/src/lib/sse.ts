@@ -62,14 +62,12 @@ export function openTraceStream(
 ): StreamHandle {
   const { onReconnect, onGiveUp, onDone, maxRetries = 6 } = options;
 
-  // The stream is authenticated and org-scoped. EventSource cannot set an
-  // Authorization header, so the token rides as a query param -- the backend
-  // get_current_user dependency accepts ?token= for exactly this reason.
+  // Use fetch streaming so the access token stays in an Authorization header.
+  // Native EventSource cannot set headers and would leak query tokens into
+  // proxy logs and copied URLs.
   const token = getToken();
-  const url = token
-    ? `/api/v1/cases/${caseId}/stream?token=${encodeURIComponent(token)}`
-    : `/api/v1/cases/${caseId}/stream`;
-  let es: EventSource | null = null;
+  const url = `/api/v1/cases/${caseId}/stream`;
+  let controller: AbortController | null = null;
   let retries = 0;
   let closedByCaller = false;
   let finished = false;
@@ -80,73 +78,88 @@ export function openTraceStream(
       clearTimeout(retryTimer);
       retryTimer = null;
     }
-    if (es) {
-      es.close();
-      es = null;
+    if (controller) {
+      controller.abort();
+      controller = null;
     }
   };
 
-  const connect = () => {
+  const scheduleRetry = (error: unknown) => {
     if (closedByCaller || finished) return;
+    if (onError) onError(new ErrorEvent("error", { error }));
+    if (retries >= maxRetries) {
+      if (onGiveUp) onGiveUp();
+      return;
+    }
+    const attempt = retries + 1;
+    retries = attempt;
+    if (onReconnect) onReconnect(attempt);
+    retryTimer = setTimeout(connect, backoffDelay(attempt - 1));
+  };
 
-    es = new EventSource(url);
+  const dispatchFrame = (frame: string) => {
+    let eventType = "message";
+    const dataLines: string[] = [];
+    for (const line of frame.split(/\r?\n/)) {
+      if (line.startsWith("event:")) eventType = line.slice(6).trim();
+      if (line.startsWith("data:")) dataLines.push(line.slice(5).trimStart());
+    }
+    if (!dataLines.length || !EVENT_TYPES.includes(eventType as typeof EVENT_TYPES[number])) return;
+    let data: Record<string, unknown>;
+    try {
+      data = JSON.parse(dataLines.join("\n"));
+    } catch (error) {
+      console.warn("Failed to parse SSE event", eventType, error);
+      return;
+    }
+    onEvent({ ...data, type: eventType } as TraceEvent);
+    if (eventType === "done") {
+      finished = true;
+      if (onDone) onDone();
+      teardown();
+    }
+  };
 
-    es.addEventListener("open", () => {
+  const connect = async () => {
+    if (closedByCaller || finished) return;
+    controller = new AbortController();
+    try {
+      const response = await fetch(url, {
+        headers: {
+          Accept: "text/event-stream",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        signal: controller.signal,
+      });
+      if (!response.ok || !response.body) {
+        throw new Error(`Trace stream failed: ${response.status}`);
+      }
       // A successful connection resets the retry budget, so a long run that
       // drops a few times over several minutes is not penalised cumulatively.
       retries = 0;
       if (onOpen) onOpen();
-    });
-
-    for (const eventType of EVENT_TYPES) {
-      es.addEventListener(eventType, (ev) => {
-        let data: Record<string, unknown>;
-        try {
-          data = JSON.parse((ev as MessageEvent).data);
-        } catch (e) {
-          // A truncated frame is not fatal; skip it and keep the stream open.
-          console.warn("Failed to parse SSE event", eventType, e);
-          return;
-        }
-
-        if (eventType === "done") {
-          // Terminal. Mark finished *before* tearing down so the error handler
-          // that fires on the server-side close does not trigger a reconnect.
-          finished = true;
-          onEvent({ ...data, type: eventType } as TraceEvent);
-          if (onDone) onDone();
-          teardown();
-          return;
-        }
-
-        onEvent({ ...data, type: eventType } as TraceEvent);
-      });
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      while (!closedByCaller && !finished) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const frames = buffer.split(/\r?\n\r?\n/);
+        buffer = frames.pop() ?? "";
+        frames.forEach(dispatchFrame);
+      }
+      if (!closedByCaller && !finished) {
+        throw new Error("Trace stream closed before done");
+      }
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === "AbortError")) {
+        scheduleRetry(error);
+      }
     }
-
-    es.addEventListener("error", (ev) => {
-      if (closedByCaller || finished) return;
-      if (onError) onError(ev);
-
-      // Drop the broken socket before scheduling our own retry, otherwise the
-      // native reconnect races with it and we end up with two live streams.
-      if (es) {
-        es.close();
-        es = null;
-      }
-
-      if (retries >= maxRetries) {
-        if (onGiveUp) onGiveUp();
-        return;
-      }
-
-      const attempt = retries + 1;
-      retries = attempt;
-      if (onReconnect) onReconnect(attempt);
-      retryTimer = setTimeout(connect, backoffDelay(attempt - 1));
-    });
   };
 
-  connect();
+  void connect();
 
   return {
     close: () => {

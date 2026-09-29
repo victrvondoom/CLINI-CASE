@@ -10,4 +10,6 @@ Clinical extraction prompts now minimize structured FHIR identity fields and rep
 
 Intake cache keys include organization and processing-policy mode. Unscoped library calls deliberately do not cache patient material. Cached values are copied to prevent mutations leaking between requests. The existing cache regression now supplies an explicit organization.
 
+Browser SSE uses a fetch-based stream so the JWT remains in an Authorization header. Query-parameter authentication is rejected. The endpoint is tenant-scoped, `no-store`, and `no-referrer`.
+
 Offline regression command: `python -m pytest backend/tests/test_security_privacy.py backend/tests/test_intake_runner.py -q`.

@@ -72,41 +72,61 @@ const INITIAL: HealthState = {
   checkedAt: null,
 };
 
+let sharedState: HealthState = INITIAL;
+let inFlight: Promise<void> | null = null;
+const listeners = new Set<(state: HealthState) => void>();
+
+function publish(next: HealthState) {
+  sharedState = next;
+  listeners.forEach((listener) => listener(next));
+}
+
+function runProbe(): Promise<void> {
+  if (inFlight) return inFlight;
+
+  publish({ ...sharedState, loading: true, error: null });
+  inFlight = probe()
+    .then(({ health, capabilities, latencyMs }) => {
+      publish({
+        health,
+        capabilities,
+        latencyMs,
+        loading: false,
+        error: null,
+        checkedAt: Date.now(),
+      });
+    })
+    .catch((err: Error) => {
+      publish({
+        health: null,
+        capabilities: null,
+        latencyMs: null,
+        loading: false,
+        error: err.message,
+        checkedAt: Date.now(),
+      });
+    })
+    .finally(() => {
+      inFlight = null;
+    });
+  return inFlight;
+}
+
 export function useSystemHealth(): HealthState & { refresh: () => void } {
-  const [state, setState] = useState<HealthState>(INITIAL);
+  const [state, setState] = useState<HealthState>(sharedState);
 
   const run = useCallback(() => {
-    let cancelled = false;
-    setState((s) => ({ ...s, loading: true, error: null }));
-    probe()
-      .then(({ health, capabilities, latencyMs }) => {
-        if (cancelled) return;
-        setState({
-          health,
-          capabilities,
-          latencyMs,
-          loading: false,
-          error: null,
-          checkedAt: Date.now(),
-        });
-      })
-      .catch((err: Error) => {
-        if (cancelled) return;
-        setState({
-          health: null,
-          capabilities: null,
-          latencyMs: null,
-          loading: false,
-          error: err.message,
-          checkedAt: Date.now(),
-        });
-      });
-    return () => {
-      cancelled = true;
-    };
+    void runProbe();
   }, []);
 
-  useEffect(() => run(), [run]);
+  useEffect(() => {
+    listeners.add(setState);
+    setState(sharedState);
+    if (sharedState.checkedAt === null) void runProbe();
+    return () => {
+      listeners.delete(setState);
+    };
+  }, []);
 
   return { ...state, refresh: run };
 }

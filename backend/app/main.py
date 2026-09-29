@@ -258,8 +258,8 @@ from app.api.rate_limit_middleware import RateLimitMiddleware  # noqa: E402
 
 app.add_middleware(RateLimitMiddleware)
 
-# Bind organization_id to a contextvar so the DB layer can SET LOCAL it
-# for Postgres Row Level Security (round 12).
+# Bind organization_id for request tracing. Database RLS is proposed but not
+# implemented; endpoints must continue to apply explicit tenant predicates.
 from app.api.tenant_context_middleware import TenantContextMiddleware  # noqa: E402
 
 app.add_middleware(TenantContextMiddleware)

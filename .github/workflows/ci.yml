@@ -59,6 +59,10 @@ jobs:
         working-directory: frontend
         run: npx tsc --noEmit
 
+      - name: Frontend regression tests
+        working-directory: frontend
+        run: npm test -- --run
+
       - name: Vite production build
         working-directory: frontend
         env:

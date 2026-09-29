@@ -69,3 +69,4 @@ ops/aws/function.zip
 
 # OncoTwin research cache (synthetic cohort datasets; regenerated deterministically)
 .cache/
+.playwright-cli/

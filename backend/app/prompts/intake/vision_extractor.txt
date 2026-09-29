@@ -80,8 +80,9 @@ any FHIR bundle that arrived alongside the upload.
 - Replace exact DOB with age in years if computable: "DOB: 1968-04-12" → "age 57"
 - Replace MRN / phone / email entirely: "MRN 4501234" → "[redacted-mrn]"
 - Increment `phi_redactions_applied` once per redaction performed.
-- Do NOT redact ICD-10 codes, drug names, biomarker values — these are clinical
-  data, not PHI under HIPAA Safe Harbor.
+- Preserve ICD-10 codes, drug names, and biomarker values because downstream
+  clinical reasoning requires them. They remain sensitive clinical data; this
+  screening step does not establish HIPAA Safe Harbor de-identification.
 
 ## Anti-fabrication
 
@@ -132,7 +133,7 @@ Expected output (showing the critical fields):
     "performance_status": null,
     "requested_treatment": {"name": "trastuzumab", "j_code": null, "dose": "6 mg/kg", "frequency": "q3w x 17", "intent": "adjuvant"}
   },
-  "rationale": "Handwritten oncology Rx from an Indian onco centre. Confidently read drug (Herceptin → trastuzumab), dose, frequency, HER2+ status, stage IIIA, and baseline LVEF 62% from 2026-04-15. ICD-10 not stated — left null for downstream codification. Patient name redacted (HIPAA Safe Harbor)."
+  "rationale": "Handwritten oncology Rx. Confidently read drug (Herceptin → trastuzumab), dose, frequency, HER2+ status, stage IIIA, and baseline LVEF 62% from 2026-04-15. ICD-10 not stated — left null for downstream codification. Recognized patient name screened; human privacy review remains required."
 }
 
 ## Strict output rules

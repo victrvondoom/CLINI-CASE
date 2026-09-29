@@ -7,8 +7,9 @@ configured correctly:
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
+from app.auth.dependencies import require_role
 from app.config import settings
 from app.llm import get_llm_client
 
@@ -16,7 +17,9 @@ router = APIRouter(prefix="/llm", tags=["llm"])
 
 
 @router.get("/ping")
-async def llm_ping() -> dict[str, object]:
+async def llm_ping(
+    _user: dict[str, object] = Depends(require_role("admin")),
+) -> dict[str, object]:
     """Send a minimal completion to verify LLM connectivity end-to-end."""
     try:
         client = get_llm_client()
@@ -26,8 +29,8 @@ async def llm_ping() -> dict[str, object]:
             max_tokens=32,
             temperature=0.0,
         )
-    except Exception as e:  # noqa: BLE001
-        raise HTTPException(status_code=503, detail=f"LLM error: {e}") from e
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=503, detail="LLM connectivity check failed") from exc
 
     return {
         "provider": settings.LLM_PROVIDER,

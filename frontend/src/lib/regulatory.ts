@@ -33,7 +33,7 @@ export const CMS_0057_F_CLAUSES: RegulatoryClause[] = [
     effective_iso: "2026-01-01",
     fr_ref: "89 FR 8758 § IV.B.1",
     clincase_posture:
-      "Per-case SLA badge counts down from 7 days. ClinCase median decision time is 14 minutes; 99th percentile is 23 minutes.",
+      "Per-case SLA badge counts down from 7 days. Production median and percentile latency require connected workload telemetry.",
   },
   {
     id: "§ IV.B.2",
@@ -53,7 +53,7 @@ export const CMS_0057_F_CLAUSES: RegulatoryClause[] = [
     effective_iso: "2027-01-01",
     fr_ref: "89 FR 8758 § IV.A",
     clincase_posture:
-      "ClinCase exposes a stub POST /fhir/Claim/$submit endpoint that accepts Da Vinci PAS-shaped Bundles and returns ClaimResponse + structured PA decision.",
+      "ClinCase exposes a partial POST /fhir/Claim/$submit contract that accepts PAS-shaped Bundles and returns a queued ClaimResponse. Full IG validation is not implemented.",
   },
   {
     id: "§ III.D",

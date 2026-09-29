@@ -16,10 +16,13 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import AsyncIterator
+from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException
 from sse_starlette.sse import EventSourceResponse
 
+from app.auth.dependencies import get_current_user
+from app.db import db
 from app.streaming import subscribe, unsubscribe
 
 router = APIRouter(prefix="/cases", tags=["stream"])
@@ -29,8 +32,23 @@ _IDLE_TIMEOUT_SEC = 600.0  # close stream after 10 minutes of no events
 
 
 @router.get("/{case_id}/stream")
-async def stream_case_events(case_id: str) -> EventSourceResponse:
-    """Server-Sent Events stream of trace events for a case."""
+async def stream_case_events(
+    case_id: str,
+    user: dict[str, Any] = Depends(get_current_user),
+) -> EventSourceResponse:
+    """Authenticated, organization-scoped trace stream for one case."""
+    try:
+        owns_case = await db.fetchval(
+            "SELECT 1 FROM cases WHERE id = $1 AND organization_id = $2",
+            case_id,
+            user["organization_id"],
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Case stream unavailable") from exc
+    if not owns_case:
+        # Do not reveal whether another organization owns the identifier.
+        raise HTTPException(status_code=404, detail=f"Case {case_id} not found")
+
     queue = subscribe(case_id)
 
     async def event_gen() -> AsyncIterator[dict]:
@@ -57,4 +75,7 @@ async def stream_case_events(case_id: str) -> EventSourceResponse:
         finally:
             unsubscribe(case_id, queue)
 
-    return EventSourceResponse(event_gen())
+    return EventSourceResponse(
+        event_gen(),
+        headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"},
+    )

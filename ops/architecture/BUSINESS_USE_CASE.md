@@ -3,6 +3,8 @@
 **One sentence:**
 ClinCase is a TriZetto AI Gateway-native specialty agent bundle that **turns AI investment into measurable value in oncology prior-authorization knowledge work** — for payers running Facets and QNXT, eight months ahead of the FHIR PARDA mandate.
 
+> **Evidence boundary:** monetary savings, throughput, availability, customer, and latency figures in this document are planning scenarios unless linked to a measured artifact. They are not production results, customer commitments, compliance certification, or clinical validation.
+
 ---
 
 ## Why this anchoring (not a different one)
@@ -13,7 +15,7 @@ ClinCase is an oncology prior-authorization copilot: FHIR-native, agent-driven, 
 - *"Payers running Facets and QNXT"* — ~80M Facets lives + ~20M QNXT lives.
 - *"Eight months ahead of the FHIR PARDA mandate"* — CMS-0057-F § IV.A effective Jan 1, 2027.
 
-Every claim is groundable to a public source.
+Public-source references and local synthetic demonstrations support product exploration; deployment-specific outcomes require independent measurement.
 
 ---
 
@@ -104,7 +106,7 @@ Anyone asking *"why does this component exist?"* gets one quantitative outcome p
 | `Agent[I, O]` framework | **Net-new agent in 1 day** instead of 1 sprint — same lifecycle, shared guardrails, shared tracing. **Closes the velocity gap by killing per-agent boilerplate.** |
 | LangGraph 7-agent DAG | **Per-agent fault isolation** — a parser regression in `appeals_drafter` doesn't take down `clinical_extractor`. **+3 9s** versus a monolith. |
 | `BudgetTracker` | **Cost runaway impossible** — `BudgetExceeded` raised before any LLM token is spent. Saves **~$120K/year** in worst-case-loop scenarios at 10K cases/day. |
-| Guardrail surface (Schema · PHI · Citation · Token-budget) | **Hallucination block rate ~100%** at the citation-completeness gate. Reduces compliance-incident risk to near-zero. |
+| Guardrail surface (Schema · identifier screening · Citation · Token-budget) | Deterministic citation and schema gates reject known incomplete outputs; no production hallucination or compliance-incident rate is claimed. |
 | `case_jobs` queue (SKIP-LOCKED) | **Race-free at any scale** — verified concurrent-claim test in `tests/`. Drops queue management vendor cost (Redis/SQS) by **$8K/year** at production scale. |
 | `review_gate` HITL | **CA SB 1120 fine avoidance** — California regulators can fine a payer per non-compliant denial; ClinCase's HITL gate makes that fine unreachable. |
 | Per-org quotas | **Per-tenant cost containment** — a misconfigured customer cannot drain a payer contract by 100K-case/day burst. **+$45K/day** saved at runaway scale. |
@@ -116,7 +118,7 @@ Anyone asking *"why does this component exist?"* gets one quantitative outcome p
 |---|---|
 | Bedrock KB / Q Business pluggability | **−1 month of customer onboarding** — flip `USE_AMAZON_Q=true` and route retrieval through the customer's existing M365 Q Business connector. **No new vector index buy.** |
 | `citation_resolver` | **CMS-0057-F § IV.B.2 specific-reason notice satisfied** by construction — every Decision row has at least one fully-pointered `PolicyExcerpt`. |
-| `phi_sanitizer` | **HIPAA Privacy Rule §164.514(b) safe-harbor coverage** for any non-Bedrock LLM path. Reduces compliance-event probability to ~zero. |
+| `phi_sanitizer` | Best-effort identifier screening and structured-field minimization for model prompts. This is not HIPAA Safe Harbor de-identification and requires deployment and human review. |
 | `biomarker_specialist` | **+15% Necessity Reasoner accuracy** vs free-form note parsing on HER2/EGFR/PD-L1/BRAF/MSI cases (the 5 biomarkers driving 80% of oncology PA volume). |
 
 ### GenAI Gateway
@@ -151,7 +153,7 @@ Anyone asking *"why does this component exist?"* gets one quantitative outcome p
 
 1. **Coordinator submits** the case via `POST /api/v1/cases` with the FHIR R4 bundle. The Experience Layer receives the request; the Orchestration Layer enqueues a `case_jobs` row with an Idempotency-Key.
 2. **Worker claims** via `SELECT FOR UPDATE SKIP LOCKED`; LangGraph DAG begins. The SSE stream pushes `agent_started` events to the Case Detail page in real time.
-3. **Clinical Extractor** (parent #1) reads the FHIR bundle. Sub-agent `phi_sanitizer` redacts PHI before any prompt; `fhir_resource_validator` confirms shape; `biomarker_specialist` extracts HER2 IHC 3+ from a Pathology Observation. Output: `ClinicalSnapshot` Pydantic.
+3. **Clinical Extractor** (parent #1) reads the FHIR bundle. Sub-agent `phi_sanitizer` screens recognized identifiers and minimizes structured fields before prompts; `fhir_resource_validator` confirms shape; `biomarker_specialist` extracts HER2 IHC 3+ from a Pathology Observation. Screening is not certified de-identification. Output: `ClinicalSnapshot` Pydantic.
 4. **Policy Retriever** (parent #2) queries Bedrock KB OR Amazon Q Business (per `USE_AMAZON_Q`). Returns 5 citation-resolved `PolicyExcerpt`s pointing to Aetna oncology policy § 4.2.
 5. **Necessity Reasoner** (parent #3) splits criteria (atomic units), per-criterion evidence-matches with reflection-enabled grading, calibrates `overall_confidence = 0.92`.
 6. **Decision Composer** (parent #4) emits APPROVE with rationale + 5 citations. SHA-256 tamper hash computed.

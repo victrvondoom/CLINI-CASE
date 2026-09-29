@@ -37,11 +37,12 @@ function TrustChip({
   dot,
   children,
 }: {
-  dot: "cyan" | "brand" | "green";
+  dot: "amber" | "cyan" | "brand" | "green";
   children: React.ReactNode;
 }) {
   const dotColor =
-    dot === "cyan" ? "bg-accent-cyan"
+    dot === "amber" ? "bg-accent-amber"
+    : dot === "cyan" ? "bg-accent-cyan"
     : dot === "brand" ? "bg-accent-brand-glow"
     : "bg-accent-green";
   return (

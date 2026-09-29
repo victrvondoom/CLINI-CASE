@@ -3,6 +3,8 @@
 **Audience:** Health-sciences solution architect · TriZetto product engineering · AWS account team
 **Purpose:** Show — in the language a senior enterprise architect uses — that ClinCase is engineered for industrialization, not for demo polish.
 
+> **Status:** This document mixes current repository capabilities with target-state infrastructure. Quantitative business, latency, availability, compliance, and customer statements are scenarios unless backed by a linked measurement. See `docs/ENGINEERING_REMEDIATION.md` and `docs/SECURITY_PROCESSING.md` for verified boundaries.
+
 ---
 
 ## The 5 layers
@@ -103,7 +105,7 @@ Each layer is **independently testable, independently deployable, and independen
 | `q_business_retriever` sub-agent | Amazon Q Business semantic search over M365/SharePoint/Confluence | `backend/app/agents/policy_retriever/sub_agents/q_business_retriever.py` | **No new vector index required at customer site** — plug into their existing Q Business connector. |
 | `llm_reranker` sub-agent | LLM-rerank when > 5 candidates | `backend/app/agents/policy_retriever/sub_agents/llm_reranker.py` | Recall + precision; tuned to ≤ 5 final excerpts to keep context window cheap. |
 | `citation_resolver` sub-agent | Resolves to fully-pointered `PolicyExcerpt` (page + section + URL) | `backend/app/agents/policy_retriever/sub_agents/citation_resolver.py` | **Every citation in every Decision is auditable to a specific policy section.** |
-| `phi_sanitizer` sub-agent | Redacts PHI before any non-Bedrock LLM call | `backend/app/agents/clinical_extractor/sub_agents/phi_sanitizer.py` | HIPAA Privacy Rule guardrail; safe RAG over PHI-bearing FHIR. |
+| `phi_sanitizer` sub-agent | Screens recognized identifiers and minimizes structured fields before model calls | `backend/app/agents/clinical_extractor/sub_agents/phi_sanitizer.py` | Best-effort privacy boundary; not HIPAA Safe Harbor de-identification and not a substitute for deployment review. |
 | `fhir_resource_validator` | FHIR R4 schema validation pre-extraction | `backend/app/agents/clinical_extractor/sub_agents/fhir_resource_validator.py` | Anchors decisions on validated clinical context, not parsed strings. |
 | `biomarker_specialist` | LOINC-bound HER2/EGFR/PD-L1/BRAF/MSI extraction | `backend/app/agents/clinical_extractor/sub_agents/biomarker_specialist.py` | Domain-specific extraction; oncology demands this precision. |
 

@@ -206,7 +206,20 @@ async def _process_job(job: jq.Job, worker_id: str) -> None:
     hb_task = asyncio.create_task(_heartbeat_loop(job, worker_id, stop_heartbeat))
     try:
         started = time.time()
-        final, result = await handler(job)
+        handler_task = asyncio.create_task(handler(job))
+        lease_signal = asyncio.create_task(stop_heartbeat.wait())
+        done, _pending = await asyncio.wait(
+            {handler_task, lease_signal}, return_when=asyncio.FIRST_COMPLETED
+        )
+        if lease_signal in done and not handler_task.done():
+            handler_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await handler_task
+            raise RuntimeError("Worker lease expired during model execution")
+        lease_signal.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await lease_signal
+        final, result = await handler_task
         elapsed = time.time() - started
         if not await _commit_run(job, worker_id, final, result):
             raise RuntimeError("Worker lease expired before result commit")

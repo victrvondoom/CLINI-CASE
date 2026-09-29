@@ -85,7 +85,7 @@ ClinCase takes a clinical packet (a chart note, a pathology report or a payer PD
 
 ```text
   Chart note, pathology report or payer packet arrives
-    → PHI redacted, with a receipt, before any model call
+    → identifiers screened and minimized, with a receipt, before model calls
     → ClinicalSnapshot (typed Pydantic, FHIR R4)
     → 7-agent LangGraph DAG, streamed live over SSE
     → APPROVE / DENY / REFER + full citation chain
@@ -94,7 +94,7 @@ ClinCase takes a clinical packet (a chart note, a pathology report or a payer PD
     → Every agent step persisted; SHA-256 evidence pack per case
 ```
 
-The goal is a decision during the patient's visit: **seconds to a verdict, against an 18-minute manual median reported by the AMA**. ClinCase does not submit anything on its own. Low-confidence cases wait in a reviewer queue, and a coordinator sees every step.
+The goal is to shorten the work between intake and a reviewable verdict. Production latency depends on the configured models, evidence sources, and workload and must be measured in each deployment. ClinCase does not submit anything on its own. Low-confidence cases wait in a reviewer queue, and a coordinator sees every step.
 
 ---
 
@@ -392,7 +392,7 @@ Add a new payer policy to the corpus and the Policy Retriever uses it on the nex
 
 | Regulation / standard | What it requires | How ClinCase addresses it today |
 |---|---|---|
-| **CMS-0057-F** (89 FR 8758) | FHIR PA APIs, 72h expedited / 7d standard, Jan 1 2027 | `POST /fhir/Claim/$submit` is a working Da Vinci PAS **stub**. It accepts PAS-shaped Bundles, runs the agent DAG and returns a conformant `ClaimResponse`. Full IG profile validation and X12 278 conversion are on the [roadmap](#%EF%B8%8F-roadmap) and not built yet. |
+| **CMS-0057-F** (89 FR 8758) | FHIR PA APIs, 72h expedited / 7d standard, Jan 1 2027 | `POST /fhir/Claim/$submit` is a partial Da Vinci PAS contract. It accepts PAS-shaped Bundles and transactionally queues the agent DAG. Full IG validation, synchronous verdict response, and X12 278 conversion are not built yet. |
 | **HIPAA** | PHI safeguards, audit, access control | Org-scoped JWT auth on every case route, including the SSE stream. Optional Bedrock Guardrails PHI redaction when configured |
 | **Human-in-the-loop review** | A clinician can intervene on a low-confidence or adverse determination | HITL gate in the LangGraph DAG: `POST /cases/{id}/resume`, `POST /cases/{id}/review`, and a `/reviewer` queue in the frontend |
 | **HL7 Da Vinci CRD / DTR** | Coverage discovery and auto-filled PA forms | Endpoint stubs exist (`/davinci/crd`, `/davinci/dtr/questionnaire`), with the same caveat as PAS above |
@@ -402,7 +402,7 @@ Add a new payer policy to the corpus and the Policy Retriever uses it on the nex
 
 ## 🧾 FHIR / Da Vinci PAS conformance
 
-- **PAS 2.0.1**: `POST /fhir/Claim/$submit` accepts a Da Vinci PAS-shaped `Bundle`. It extracts the treatment, diagnosis and payer, runs the agent DAG, and returns a `ClaimResponse` with the verdict in `outcome`, `disposition` and `preAuthRef`, plus a `Provenance` resource carrying the agent trace. It does not yet do full IG profile validation, identifier signing or X12 278 wire-format conversion.
+- **PAS-shaped queue contract**: `POST /fhir/Claim/$submit` accepts a Da Vinci PAS-shaped `Bundle`, extracts treatment, diagnosis and payer, transactionally creates a case and worker job, and returns a queued `ClaimResponse`. It does not synchronously return a verdict and does not yet implement full IG validation, identifier signing, subscriptions, or X12 278 conversion.
 - **CRD / DTR**: endpoint stubs, with the same caveat.
 - **X12 278**: not implemented yet. It is on the roadmap.
 
@@ -426,7 +426,7 @@ The figures below start from **cited external sources** and apply them to a mode
 
 | Lever | Manual baseline (cited) | ClinCase target | Modeled annual gain |
 |---|---|---|---|
-| Time to decision | 18 min (AMA-reported median) | Seconds, streamed live | ~140,000 coordinator-hours a year at this practice size |
+| Time to decision | Establish from the deployment's current workflow | Measure through agent traces and queue telemetry | Calculate only from observed workload data |
 | Appeals | 80.7% of appealed denials are overturned (CMS), but only 11.7% of denials are appealed | An NCCN-grounded appeal letter is drafted for every DENY, so appealing takes little extra effort | Recovers revenue now lost to denials nobody had time to appeal |
 | Compute cost per case | n/a | Sonnet 4.6 and Haiku 4.5 on Bedrock at published per-token prices | A few dollars per case at list price, before prompt caching |
 

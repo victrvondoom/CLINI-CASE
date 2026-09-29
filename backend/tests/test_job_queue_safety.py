@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import pytest
 
 from app.jobs import queue
+from app.workers import case_runner
 
 
 def _row(job_id, key: str) -> dict:
@@ -65,3 +68,36 @@ async def test_completion_is_fenced_by_worker_and_attempt(monkeypatch) -> None:
     query, args = captured
     assert "claimed_by=$3" in query and "attempts=$4" in query
     assert args[2:] == ("worker-new", 2)
+
+
+@pytest.mark.asyncio
+async def test_lease_loss_cancels_expensive_handler(monkeypatch) -> None:
+    cancelled = asyncio.Event()
+
+    async def slow_handler(_job):
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            cancelled.set()
+            raise
+
+    async def lose_lease(_job, _worker_id, stop):
+        stop.set()
+
+    job = queue.Job(
+        id=uuid4(), case_id="case-1", organization_id="org-1",
+        job_type="run_full", status="running", payload={}, result=None,
+        error=None, attempts=1, max_attempts=3, created_at=datetime.now(UTC),
+        claimed_at=datetime.now(UTC), finished_at=None,
+    )
+    monkeypatch.setitem(case_runner.JOB_HANDLERS, "run_full", slow_handler)
+    monkeypatch.setattr(case_runner, "_heartbeat_loop", lose_lease)
+    monkeypatch.setattr(case_runner, "_commit_run", AsyncMock())
+    mark_error = AsyncMock(return_value=True)
+    monkeypatch.setattr(case_runner.jq, "mark_error", mark_error)
+
+    await case_runner._process_job(job, "worker-old")
+
+    assert cancelled.is_set()
+    case_runner._commit_run.assert_not_awaited()
+    mark_error.assert_awaited_once()

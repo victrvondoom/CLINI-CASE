@@ -21,8 +21,7 @@ async def get_current_user(
 
     401 on missing/invalid token. 401 on user no longer existing.
     """
-    # Fallback: allow ?token= for SSE (EventSource can't send headers)
-    token: str | None = creds.credentials if creds is not None else request.query_params.get("token")
+    token: str | None = creds.credentials if creds is not None else None
 
     if not token:
         raise HTTPException(
@@ -74,7 +73,7 @@ async def get_optional_user(
     creds: HTTPAuthorizationCredentials | None = Depends(_bearer),
 ) -> dict[str, Any] | None:
     """Like `get_current_user` but returns None instead of 401."""
-    if creds is None and "token" not in request.query_params:
+    if creds is None:
         return None
     try:
         return await get_current_user(request, creds)

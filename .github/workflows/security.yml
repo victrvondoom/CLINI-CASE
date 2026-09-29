@@ -1,7 +1,7 @@
 name: security
 
-# CI security gates — runs on every PR + push to main.
-# Failure of any gate FAILS the PR check; merge is blocked.
+# On-demand security gates. Enable PR/push triggers only after these jobs are
+# required by branch protection; findings are blocking whenever invoked.
 #
 # Gates:
 #   1. git-secrets / gitleaks    — never commit AWS keys, JWTs, db pwds
@@ -60,8 +60,7 @@ jobs:
           --config p/security-audit \
           --severity ERROR \
           --severity WARNING \
-          --sarif --output semgrep.sarif \
-          || true
+          --sarif --output semgrep.sarif
     - uses: github/codeql-action/upload-sarif@v3
       if: always()
       with: { sarif_file: semgrep.sarif, category: semgrep }

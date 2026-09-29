@@ -126,7 +126,7 @@ def _since(window: str) -> datetime:
 @router.get("/me")
 async def my_rollup(
     user: dict[str, Any] = Depends(get_current_user),
-    window: str = Query(default="30d", regex="^(today|7d|30d|mtd|ytd)$"),
+    window: str = Query(default="30d", pattern="^(today|7d|30d|mtd|ytd)$"),
 ) -> dict[str, Any]:
     since = _since(window)
     r = await _tenant_rollup(organization_id=user["organization_id"], since=since)
