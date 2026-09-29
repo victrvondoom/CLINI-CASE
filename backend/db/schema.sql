@@ -143,6 +143,37 @@ CREATE TABLE IF NOT EXISTS reviewer_actions (
 CREATE INDEX IF NOT EXISTS idx_reviewer_actions_case ON reviewer_actions(case_id);
 
 -- =============================================================================
+-- case_jobs  — Postgres-backed async job queue for case-DAG runs.
+-- Mirrors app/jobs/queue.py's `_SCHEMA` (also applied idempotently on FastAPI
+-- startup + worker boot via `ensure_schema()`); kept here too so a schema-only
+-- init (CI, `make db.init`, container bootstrap) has the table before the app
+-- ever runs.
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS case_jobs (
+    id              UUID PRIMARY KEY,
+    case_id         TEXT NOT NULL,
+    organization_id TEXT NOT NULL,
+    idempotency_key TEXT UNIQUE,
+    job_type        TEXT NOT NULL,
+    status          TEXT NOT NULL CHECK (status IN ('queued','running','done','error','dead')),
+    payload_json    JSONB NOT NULL,
+    result_json     JSONB,
+    error_text      TEXT,
+    attempts        INTEGER NOT NULL DEFAULT 0,
+    max_attempts    INTEGER NOT NULL DEFAULT 3,
+    claimed_at      TIMESTAMPTZ,
+    claimed_by      TEXT,
+    heartbeat_at    TIMESTAMPTZ,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    finished_at     TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_case_jobs_status_created
+    ON case_jobs (status, created_at)
+    WHERE status IN ('queued', 'running');
+CREATE INDEX IF NOT EXISTS idx_case_jobs_case_id ON case_jobs (case_id);
+
+-- =============================================================================
 -- policy_chunks  — RAG corpus (pgvector path; Bedrock KB path bypasses this)
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS policy_chunks (
