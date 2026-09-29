@@ -10,7 +10,7 @@ which are stable, app-wide contracts.
 """
 from __future__ import annotations
 
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
 
@@ -48,7 +48,7 @@ class NecessityReasonerOutput(BaseModel):
 
 class AtomicCriterion(BaseModel):
     """One indivisible inclusion/exclusion criterion."""
-    text: str
+    text: str = Field(..., min_length=1)
     criterion_type: Literal["inclusion", "exclusion"] = "inclusion"
     policy_excerpt_index: int = Field(..., ge=0)
     section_pointer: str = ""
@@ -112,7 +112,7 @@ class ConfidenceCalibratorOutput(BaseModel):
     not echoing back all the match content).
     """
 
-    confidences: list[float] = Field(..., min_length=1, description="One confidence ∈ [0,1] per input match, in input order.")
+    confidences: list[Annotated[float, Field(ge=0.0, le=1.0, allow_inf_nan=False)]] = Field(..., min_length=1, description="One confidence ∈ [0,1] per input match, in input order.")
     overall_confidence: float = Field(..., ge=0.0, le=1.0)
     summary: str
 
@@ -120,17 +120,19 @@ class ConfidenceCalibratorOutput(BaseModel):
         """Zip calibrated confidences with the input matches to form the
         canonical NecessityAssessment. The orchestrator owns the matches
         because it sent them — the calibrator only returns numbers."""
-        n = min(len(self.confidences), len(matches))
+        if len(self.confidences) != len(matches):
+            raise ValueError("Calibration must return exactly one confidence per evidence match")
+        if any(match.criterion is None for match in matches):
+            raise ValueError("Every evidence match must retain its source criterion")
         criteria: list[CriterionAssessment] = []
-        for i in range(n):
-            m = matches[i]
-            conf = self.confidences[i]
+        for m, conf in zip(matches, self.confidences, strict=True):
             crit = m.criterion
+            assert crit is not None  # established above before any assembly
             criteria.append(
                 CriterionAssessment(
-                    criterion_text=crit.text if crit else "(criterion missing)",
-                    criterion_type=crit.criterion_type if crit else "inclusion",
-                    policy_excerpt_index=crit.policy_excerpt_index if crit else 0,
+                    criterion_text=crit.text,
+                    criterion_type=crit.criterion_type,
+                    policy_excerpt_index=crit.policy_excerpt_index,
                     status=m.status,
                     supporting_evidence=m.supporting_evidence,
                     missing_evidence=m.missing_evidence,

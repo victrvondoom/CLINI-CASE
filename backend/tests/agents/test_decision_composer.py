@@ -99,6 +99,7 @@ def test_verdict_approve_when_exclusion_not_applies():
 
 
 @pytest.mark.asyncio
+@pytest.mark.live
 async def test_composer_produces_citation_chain_for_approve():
     snapshot = ClinicalSnapshot(
         patient_age=53,

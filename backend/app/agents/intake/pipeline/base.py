@@ -35,6 +35,8 @@ class IntakeContext:
     sha256: str
     source: str
 
+    tenant_id: str | None = None
+
     # Stage outputs accumulate here
     payload: dict[str, Any] = field(default_factory=dict)
 

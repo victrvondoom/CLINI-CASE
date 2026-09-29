@@ -1,4 +1,6 @@
-.PHONY: help backend.install backend.dev backend.test backend.lint \
+.PHONY: help backend.install backend.dev backend.test backend.test.core \
+        backend.test.integration backend.test.live backend.test.all \
+        backend.lint backend.format.check \
         frontend.install frontend.dev frontend.build frontend.typecheck \
         db.init db.reset db.psql \
         ingest.policies seed.demo \
@@ -11,8 +13,12 @@ help:
 	@echo "ClinCase Makefile targets"
 	@echo "  backend.install   - install Python dependencies"
 	@echo "  backend.dev       - run uvicorn with reload"
-	@echo "  backend.test      - run pytest"
+	@echo "  backend.test      - run deterministic offline tests (default)"
+	@echo "  backend.test.integration - run PostgreSQL-backed tests"
+	@echo "  backend.test.live - run metered live-model contract tests"
+	@echo "  backend.test.all  - run every test (services and credentials required)"
 	@echo "  backend.lint      - ruff + mypy"
+	@echo "  backend.format.check - report files that need Ruff formatting"
 	@echo "  frontend.install  - install node modules"
 	@echo "  frontend.dev      - run vite dev server"
 	@echo "  frontend.build    - build production bundle"
@@ -37,12 +43,26 @@ backend.install:
 backend.dev:
 	cd backend && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
-backend.test:
-	cd backend && pytest -q
+backend.test: backend.test.core
+
+backend.test.core:
+	cd backend && pytest
+
+backend.test.integration:
+	cd backend && pytest -o addopts="-q --strict-markers" -m "integration and not live"
+
+backend.test.live:
+	cd backend && pytest -o addopts="-q --strict-markers" -m "live and not integration"
+
+backend.test.all:
+	cd backend && pytest -o addopts="-q --strict-markers"
 
 backend.lint:
-	cd backend && ruff check app tests && ruff format --check app tests
+	cd backend && ruff check app tests
 	cd backend && mypy app/models app/graph
+
+backend.format.check:
+	cd backend && ruff format --check app tests
 
 # --- frontend --------------------------------------------------------------
 frontend.install:

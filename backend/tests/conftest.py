@@ -10,7 +10,6 @@ import asyncio
 import json
 import uuid
 from pathlib import Path
-from typing import Iterator
 
 import pytest
 
@@ -18,10 +17,9 @@ FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 
 @pytest.fixture(scope="session")
-def event_loop() -> Iterator[asyncio.AbstractEventLoop]:
-    loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
+def event_loop_policy() -> asyncio.AbstractEventLoopPolicy:
+    """Use the standard policy while pytest-asyncio owns loop lifecycles."""
+    return asyncio.DefaultEventLoopPolicy()
 
 
 @pytest.fixture

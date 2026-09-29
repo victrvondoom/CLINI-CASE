@@ -17,7 +17,7 @@ ClinCase's architecture maps **isomorphically** onto AWS / Anthropic / CNCF refe
 
 | AWS criterion | Reference recommendation | ClinCase implementation |
 |---|---|---|
-| **Tenant isolation** | "Multiple layers of isolation, defense in depth" | Cells (round 11) + Postgres RLS (round 12) + per-tenant residency (round 9) + per-tenant Bedrock IAM role + per-tenant audit-export (round 11) |
+| **Tenant isolation** | "Application-enforced isolation with additional controls planned" | Organization-scoped queries + signed tenant context + per-tenant cache keys. Postgres RLS is proposed and explicitly not yet implemented. |
 | **Onboarding flow** | "Self-service or admin-driven; consistent across tiers" | `POST /api/v1/admin/tenants` (round 13) — idempotent, EULA+BAA-gated, returns one-shot password |
 | **Tier-based capabilities** | "Bronze/Silver/Gold; routing differs" | Per-tier rate limits (round 11), per-tier RPO/RTO (round 9), per-tier per-second buckets, per-tier cross-region fallback policy |
 | **Per-tenant cost attribution** | "Track resource usage per tenant" | `llm_invocations.cost_usd` per call, FinOps dashboard (round 12) at `/finops/me` + `/finops/cells` + `/finops/leaderboard` |
@@ -106,7 +106,7 @@ ClinCase's architecture maps **isomorphically** onto AWS / Anthropic / CNCF refe
 | **NIST AI RMF 1.0** | 8 controls in-place (`/api/v1/compliance/control-library/NIST_AI_RMF`) |
 | **ISO/IEC 42001:2023 (AI Management)** | 6 controls in-place (`/api/v1/compliance/control-library/ISO_42001`) |
 | **SOC 2 Type II — Trust Services Criteria** | 9 controls in-place (`/api/v1/compliance/control-library/SOC2_TYPE2`) |
-| **HIPAA Security Rule § 164.308–312** | Secrets rotation + RLS + breach detection + audit logs (rounds 11, 12) |
+| **HIPAA Security Rule § 164.308–312** | Security-oriented controls exist, but no compliance certification is claimed; Postgres RLS remains proposed. |
 | **HIPAA Breach Notification Rule § 164.408** | Automated detection in `app/security/breach_detector.py` (round 12) |
 | **CMS-0057-F (Jan 1 2026 deadline)** | 8 clauses tracked in `app/compliance/cms_0057f.py` |
 | **CA SB-1120 (Physicians Make Decisions Act)** | Cedar policy `deny-double-signoff-CA-SB1120` enforces (round 11) |

@@ -1,6 +1,8 @@
+import { Moon, Sun } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { useAuth } from "../components/AuthContext";
+import { useTheme } from "../lib/theme";
 
 const ctaBase = {
   fontFamily: "var(--font-mono)",
@@ -14,6 +16,7 @@ const ctaBase = {
 
 export default function Nav() {
   const { user } = useAuth();
+  const { theme, toggle } = useTheme();
 
   return (
     <header
@@ -50,6 +53,27 @@ export default function Nav() {
         <a href="#how-it-works" className="aperture-nav-link">How it works</a>
         <a href="#live-status" className="aperture-nav-link">Live status</a>
         <a href="#metrics" className="aperture-nav-link">Metrics</a>
+
+        <button
+          type="button"
+          onClick={toggle}
+          aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+          title={theme === "dark" ? "Switch to light" : "Switch to dark"}
+          style={{
+            display: "inline-grid",
+            placeItems: "center",
+            width: "2rem",
+            height: "2rem",
+            borderRadius: "6px",
+            border: "1px solid var(--overlay-border-faint)",
+            background: "transparent",
+            color: "var(--bone)",
+            opacity: 0.75,
+            cursor: "pointer",
+          }}
+        >
+          {theme === "dark" ? <Sun size={14} /> : <Moon size={14} />}
+        </button>
 
         {user ? (
           <Link to="/dashboard" style={ctaBase}>

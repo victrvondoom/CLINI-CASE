@@ -85,6 +85,10 @@ class AWSTextractEngine(OCREngine):
         image_format: str,
         classification: DocumentClassification,
     ) -> OCRResult:
+        if not settings.CLOUD_DOCUMENT_PROCESSING_ENABLED:
+            raise EngineUnavailableError(
+                "Cloud document processing disabled; using local OCR or human review"
+            )
         client = self._ensure_client()
 
         def _call() -> dict[str, Any]:

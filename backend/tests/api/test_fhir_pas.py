@@ -25,6 +25,7 @@ from app.db import db
 from app.main import app
 
 FIXTURES = Path(__file__).parent.parent / "fixtures"
+pytestmark = [pytest.mark.integration, pytest.mark.postgres]
 
 
 def _fake_user() -> dict[str, Any]:
@@ -43,6 +44,17 @@ async def client() -> AsyncIterator[AsyncClient]:
     """ASGI client with auth bypass + minimal DB."""
     app.dependency_overrides[get_current_user] = _fake_user
     await db.connect()
+    await db.execute(
+        """INSERT INTO organizations (id, name, slug)
+           VALUES ('org_demo', 'ClinCase Test Health', 'clincase-test')
+           ON CONFLICT (id) DO NOTHING"""
+    )
+    await db.execute(
+        """INSERT INTO users (id, email, password_hash, full_name, organization_id, role)
+           VALUES ('user_demoadmin', 'admin@clincase.health', 'test-only',
+                   'Test Administrator', 'org_demo', 'admin')
+           ON CONFLICT (id) DO NOTHING"""
+    )
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://testserver"
     ) as c:

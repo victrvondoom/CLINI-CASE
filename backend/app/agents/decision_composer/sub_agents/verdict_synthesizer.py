@@ -23,6 +23,57 @@ from app.agents.decision_composer.schemas import (
 from app.agents.framework import Agent, AgentContext
 
 
+def evaluate_verdict(input: VerdictSynthesizerInput) -> VerdictSynthesizerOutput:
+    """Shared synchronous rule used by the agent and compatibility callers."""
+    a = input.assessment
+    if a.overall_confidence < input.approve_threshold:
+        return VerdictSynthesizerOutput(
+            verdict="REFER",
+            trace=VerdictDecisionTrace(
+                triggered_rule="low_overall_confidence",
+                triggering_criterion_index=None,
+                overall_confidence=a.overall_confidence,
+            ),
+        )
+    for i, c in enumerate(a.criteria):
+        if c.criterion_type == "inclusion" and c.status == "NOT_MET":
+            return VerdictSynthesizerOutput(
+                verdict="DENY",
+                trace=VerdictDecisionTrace(
+                    triggered_rule="inclusion_NOT_MET",
+                    triggering_criterion_index=i,
+                    overall_confidence=a.overall_confidence,
+                ),
+            )
+        if c.criterion_type == "exclusion" and c.status == "MET":
+            return VerdictSynthesizerOutput(
+                verdict="DENY",
+                trace=VerdictDecisionTrace(
+                    triggered_rule="exclusion_MET",
+                    triggering_criterion_index=i,
+                    overall_confidence=a.overall_confidence,
+                ),
+            )
+    for i, c in enumerate(a.criteria):
+        if c.status == "AMBIGUOUS":
+            return VerdictSynthesizerOutput(
+                verdict="REFER",
+                trace=VerdictDecisionTrace(
+                    triggered_rule="any_AMBIGUOUS",
+                    triggering_criterion_index=i,
+                    overall_confidence=a.overall_confidence,
+                ),
+            )
+
+    return VerdictSynthesizerOutput(
+        verdict="APPROVE",
+        trace=VerdictDecisionTrace(
+            triggered_rule="all_clear_approve",
+            triggering_criterion_index=None,
+            overall_confidence=a.overall_confidence,
+        ),
+    )
+
 class VerdictSynthesizerAgent(
     Agent[VerdictSynthesizerInput, VerdictSynthesizerOutput]
 ):
@@ -47,53 +98,7 @@ class VerdictSynthesizerAgent(
         input: VerdictSynthesizerInput,
         ctx: AgentContext,
     ) -> VerdictSynthesizerOutput:
-        a = input.assessment
-        for i, c in enumerate(a.criteria):
-            if c.criterion_type == "inclusion" and c.status == "NOT_MET":
-                return VerdictSynthesizerOutput(
-                    verdict="DENY",
-                    trace=VerdictDecisionTrace(
-                        triggered_rule="inclusion_NOT_MET",
-                        triggering_criterion_index=i,
-                        overall_confidence=a.overall_confidence,
-                    ),
-                )
-            if c.criterion_type == "exclusion" and c.status == "MET":
-                return VerdictSynthesizerOutput(
-                    verdict="DENY",
-                    trace=VerdictDecisionTrace(
-                        triggered_rule="exclusion_MET",
-                        triggering_criterion_index=i,
-                        overall_confidence=a.overall_confidence,
-                    ),
-                )
-        for i, c in enumerate(a.criteria):
-            if c.status == "AMBIGUOUS":
-                return VerdictSynthesizerOutput(
-                    verdict="REFER",
-                    trace=VerdictDecisionTrace(
-                        triggered_rule="any_AMBIGUOUS",
-                        triggering_criterion_index=i,
-                        overall_confidence=a.overall_confidence,
-                    ),
-                )
-        if a.overall_confidence < input.approve_threshold:
-            return VerdictSynthesizerOutput(
-                verdict="REFER",
-                trace=VerdictDecisionTrace(
-                    triggered_rule="low_overall_confidence",
-                    triggering_criterion_index=None,
-                    overall_confidence=a.overall_confidence,
-                ),
-            )
-        return VerdictSynthesizerOutput(
-            verdict="APPROVE",
-            trace=VerdictDecisionTrace(
-                triggered_rule="all_clear_approve",
-                triggering_criterion_index=None,
-                overall_confidence=a.overall_confidence,
-            ),
-        )
+        return evaluate_verdict(input)
 
 
 verdict_synthesizer = VerdictSynthesizerAgent()

@@ -101,6 +101,13 @@ class Settings(BaseSettings):
     # staging/production. The model_validator below enforces this.
     DEMO_USER_PASSWORD: str = "clincase2026"
 
+    # Explicitly opt in only for a local demonstration without a database.
+    AUTH_DBLESS_DEMO_ENABLED: bool = False
+
+    # Raw image/PDF OCR sends visible identifiers to a remote processor.
+    # Enable only after the deployment has approved provider data handling.
+    CLOUD_DOCUMENT_PROCESSING_ENABLED: bool = False
+
     # --- Flags -----------------------------------------------------------
     USE_BEDROCK_KB: bool = False
     SEED_ON_BOOT: bool = False
@@ -156,6 +163,10 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def _enforce_production_secrets(self) -> Settings:
         if self.ENVIRONMENT in ("staging", "production"):
+            if self.AUTH_DBLESS_DEMO_ENABLED:
+                raise RuntimeError("DB-less demo authentication is restricted to ENVIRONMENT=dev")
+            if not self.MCP_AUTH_TOKEN or len(self.MCP_AUTH_TOKEN) < 32:
+                raise RuntimeError("Set a random MCP_AUTH_TOKEN of at least 32 characters outside dev")
             if self.JWT_SECRET == _DEV_JWT_SECRET_SENTINEL:
                 raise RuntimeError(
                     f"FATAL: ENVIRONMENT={self.ENVIRONMENT} but JWT_SECRET is the "

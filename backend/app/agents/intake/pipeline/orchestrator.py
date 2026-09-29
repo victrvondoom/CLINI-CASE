@@ -36,7 +36,7 @@ _STAGES: list[IntakeStage] = [
 ]
 
 
-async def run_intake_pipeline(doc: IntakeDocument) -> IntakeResult:
+async def run_intake_pipeline(doc: IntakeDocument, *, tenant_id: str | None = None) -> IntakeResult:
     """Run all pipeline stages and return the IntakeResult.
 
     Never raises. Any unexpected exception in a stage is caught, logged,
@@ -52,6 +52,7 @@ async def run_intake_pipeline(doc: IntakeDocument) -> IntakeResult:
         mime_type=doc.mime_type,
         sha256=doc.sha256,
         source=doc.source,
+        tenant_id=tenant_id,
     )
 
     for stage in _STAGES:

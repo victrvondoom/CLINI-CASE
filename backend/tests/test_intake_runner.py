@@ -30,7 +30,6 @@ from app.agents.intake.errors import (
 from app.agents.intake.pipeline.deduplicate import clear_cache_for_tests
 from app.agents.intake.runner import parse_document
 from app.models.intake import (
-    DocumentClassification,
     ExtractedField,
     IntakeDocument,
     IntakeResult,
@@ -159,7 +158,7 @@ class _AlwaysFailEngine(OCREngine):
 # ---------------------------------------------------------------------------
 def test_pipeline_assembles_intake_result_with_stub_vision(fixture_doc):
     _reset_registry([_StubVisionEngine(overall_confidence=0.86)])
-    result: IntakeResult = asyncio.run(parse_document(fixture_doc))
+    result: IntakeResult = asyncio.run(parse_document(fixture_doc, tenant_id="test-org"))
 
     assert isinstance(result, IntakeResult)
     assert result.classification.document_type in ("mixed", "handwritten")
@@ -180,21 +179,21 @@ def test_pipeline_assembles_intake_result_with_stub_vision(fixture_doc):
 
 def test_pipeline_routes_to_hitl_on_low_confidence(fixture_doc):
     _reset_registry([_StubVisionEngine(overall_confidence=0.55)])
-    result = asyncio.run(parse_document(fixture_doc))
+    result = asyncio.run(parse_document(fixture_doc, tenant_id="test-org"))
     assert result.requires_human_review is True
     assert "low-evidence-from-intake" in result.risk_flags
 
 
 def test_pipeline_routes_to_hitl_on_missing_binding_field(fixture_doc):
     _reset_registry([_StubVisionEngine(overall_confidence=0.95, with_binding_fields=False)])
-    result = asyncio.run(parse_document(fixture_doc))
+    result = asyncio.run(parse_document(fixture_doc, tenant_id="test-org"))
     assert result.requires_human_review is True
     assert "missing-required-field" in result.risk_flags
 
 
 def test_pipeline_falls_back_when_all_engines_fail(fixture_doc):
     _reset_registry([_AlwaysFailEngine()])
-    result = asyncio.run(parse_document(fixture_doc))
+    result = asyncio.run(parse_document(fixture_doc, tenant_id="test-org"))
     assert result.requires_human_review is True
     assert "intake-failed" in result.risk_flags
     # Audit retains the failed attempt for forensics
@@ -206,7 +205,7 @@ def test_pipeline_falls_back_when_all_engines_fail(fixture_doc):
 def test_pipeline_uses_fallback_chain_on_first_engine_failure(fixture_doc):
     """Vision fails → next engine in chain succeeds → engine-fallback flag set."""
     _reset_registry([_AlwaysFailEngine(), _StubVisionEngine(overall_confidence=0.86)])
-    result = asyncio.run(parse_document(fixture_doc))
+    result = asyncio.run(parse_document(fixture_doc, tenant_id="test-org"))
     assert "engine-fallback-used" in result.risk_flags
     assert result.requires_human_review is False
     # Both attempts captured
@@ -222,13 +221,13 @@ def test_pipeline_uses_fallback_chain_on_first_engine_failure(fixture_doc):
 def test_pipeline_caches_on_sha256_for_idempotency(fixture_doc):
     """Two back-to-back calls with the same document hash → second skips extract."""
     _reset_registry([_StubVisionEngine(overall_confidence=0.86)])
-    first = asyncio.run(parse_document(fixture_doc))
+    first = asyncio.run(parse_document(fixture_doc, tenant_id="test-org"))
     assert first.requires_human_review is False
 
     # Replace the engine with one that would FAIL — the cache should serve
     # the first result without re-invoking.
     _reset_registry([_AlwaysFailEngine()])
-    second = asyncio.run(parse_document(fixture_doc))
+    second = asyncio.run(parse_document(fixture_doc, tenant_id="test-org"))
     assert second.requires_human_review is False, (
         "Expected cache hit to bypass the failing engine"
     )
@@ -242,7 +241,7 @@ def test_pipeline_caches_on_sha256_for_idempotency(fixture_doc):
 def test_pipeline_dedupe_isolates_different_documents(fixture_doc):
     """Different SHA-256 → cache miss → fresh extract."""
     _reset_registry([_StubVisionEngine(overall_confidence=0.86)])
-    first = asyncio.run(parse_document(fixture_doc))
+    first = asyncio.run(parse_document(fixture_doc, tenant_id="test-org"))
     assert first.requires_human_review is False
 
     # Mutate the SHA-256 so cache MISSES — engine runs again
@@ -253,7 +252,7 @@ def test_pipeline_dedupe_isolates_different_documents(fixture_doc):
         sha256="a" * 64,
         source=fixture_doc.source,
     )
-    second = asyncio.run(parse_document(other))
+    second = asyncio.run(parse_document(other, tenant_id="test-org"))
     assert second.audit["document_sha256"] == "a" * 64
     assert second.requires_human_review is False
 
@@ -280,7 +279,7 @@ def test_preprocess_rejects_non_image_bytes():
 
 def test_preprocess_records_detected_mime_in_audit(fixture_doc):
     _reset_registry([_StubVisionEngine(overall_confidence=0.86)])
-    result = asyncio.run(parse_document(fixture_doc))
+    result = asyncio.run(parse_document(fixture_doc, tenant_id="test-org"))
     timings = result.audit["stage_timings_ms"]
     # Every stage should have recorded a timing (even cache-hit short-circuits
     # still record the assemble stage)

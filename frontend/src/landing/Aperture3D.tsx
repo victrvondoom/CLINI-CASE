@@ -22,7 +22,8 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { Edges, MeshTransmissionMaterial } from "@react-three/drei";
 import * as THREE from "three";
 
-import { apertureColors } from "./tokens";
+import { getApertureColors } from "./tokens";
+import type { ApertureTheme } from "./tokens";
 import type { Signal } from "./useScrollProgress";
 
 const PARTICLE_FRAGMENT = `
@@ -88,7 +89,7 @@ function useDisposedMaterial<T extends THREE.Material>(factory: () => T): T {
   return material;
 }
 
-function ChaosField({ count = 220 }: { count?: number }) {
+function ChaosField({ count = 220, color }: { count?: number; color: string }) {
   const build = useMemo(
     () => (i: number, arr: Float32Array) => {
       arr[i * 3] = -Math.random() * 4.2 - 1.8;
@@ -101,7 +102,7 @@ function ChaosField({ count = 220 }: { count?: number }) {
   const material = useDisposedMaterial(
     () =>
       new THREE.ShaderMaterial({
-        uniforms: { uTime: { value: 0 }, uColor: { value: new THREE.Color(apertureColors.ember) } },
+        uniforms: { uTime: { value: 0 }, uColor: { value: new THREE.Color(color) } },
         vertexShader: CHAOS_VERTEX,
         fragmentShader: PARTICLE_FRAGMENT,
         transparent: true,
@@ -122,7 +123,7 @@ function ChaosField({ count = 220 }: { count?: number }) {
   );
 }
 
-function OrderField({ count = 160 }: { count?: number }) {
+function OrderField({ count = 160, color }: { count?: number; color: string }) {
   const lanes = 4;
   const build = useMemo(
     () => (i: number, arr: Float32Array) => {
@@ -137,7 +138,7 @@ function OrderField({ count = 160 }: { count?: number }) {
   const material = useDisposedMaterial(
     () =>
       new THREE.ShaderMaterial({
-        uniforms: { uTime: { value: 0 }, uColor: { value: new THREE.Color(apertureColors.cyan) } },
+        uniforms: { uTime: { value: 0 }, uColor: { value: new THREE.Color(color) } },
         vertexShader: ORDER_VERTEX,
         fragmentShader: PARTICLE_FRAGMENT,
         transparent: true,
@@ -312,7 +313,7 @@ function Helix({
  * depths are what give the background parallax and density instead of one
  * flat decorative object.
  */
-function HelixSystem({ scrollYProgress }: { scrollYProgress: Signal }) {
+function HelixSystem({ scrollYProgress, color }: { scrollYProgress: Signal; color: string }) {
   return (
     <>
       <Helix
@@ -323,7 +324,7 @@ function HelixSystem({ scrollYProgress }: { scrollYProgress: Signal }) {
         turns={7}
         nodeSize={0.045}
         rungRadius={0.008}
-        color={apertureColors.violet}
+        color={color}
         opacity={0.5}
         spin={0.07}
         scrollTwist={2.2}
@@ -338,7 +339,7 @@ function HelixSystem({ scrollYProgress }: { scrollYProgress: Signal }) {
         turns={5}
         nodeSize={0.075}
         rungRadius={0.012}
-        color={apertureColors.violet}
+        color={color}
         opacity={0.2}
         spin={-0.035}
         scrollTwist={-1.4}
@@ -356,23 +357,23 @@ const DESTINATIONS = [
   { label: "audit-log", pos: [6.8, -0.1, 0.6] as [number, number, number] },
 ];
 
-function DestinationNodes() {
+function DestinationNodes({ color }: { color: string }) {
   return (
     <>
       {DESTINATIONS.map((d) => (
         <group key={d.label} position={d.pos}>
           <mesh>
             <sphereGeometry args={[0.05, 12, 12]} />
-            <meshBasicMaterial color={apertureColors.cyan} />
+            <meshBasicMaterial color={color} />
           </mesh>
-          <pointLight color={apertureColors.cyan} intensity={0.7} distance={1.1} />
+          <pointLight color={color} intensity={0.7} distance={1.1} />
         </group>
       ))}
     </>
   );
 }
 
-function ApertureCrystal({ pulse }: { pulse: Signal }) {
+function ApertureCrystal({ pulse, colors }: { pulse: Signal; colors: { bone: string; violet: string } }) {
   const meshRef = useRef<THREE.Mesh>(null);
   // Hoisted out of the frame loop -- this used to allocate a Vector3 per frame.
   const targetScale = useMemo(() => new THREE.Vector3(), []);
@@ -400,10 +401,10 @@ function ApertureCrystal({ pulse }: { pulse: Signal }) {
         distortion={0.15}
         distortionScale={0.3}
         temporalDistortion={0.08}
-        color={apertureColors.bone}
+        color={colors.bone}
         flatShading
       />
-      <Edges color={apertureColors.violet} threshold={1} />
+      <Edges color={colors.violet} threshold={1} />
     </mesh>
   );
 }
@@ -464,18 +465,26 @@ function CameraRig({ scrollYProgress }: { scrollYProgress: Signal }) {
   return null;
 }
 
-function Scene({ scrollYProgress, pulse }: { scrollYProgress: Signal; pulse: Signal }) {
+function Scene({
+  scrollYProgress,
+  pulse,
+  apertureColors,
+}: {
+  scrollYProgress: Signal;
+  pulse: Signal;
+  apertureColors: ReturnType<typeof getApertureColors>;
+}) {
   return (
     <>
       <ambientLight intensity={0.32} />
       <pointLight position={[-4, 1, 3]} color={apertureColors.ember} intensity={3.2} />
       <pointLight position={[4, 1, 3]} color={apertureColors.cyan} intensity={2.6} />
       <pointLight position={[0, 3, 4]} color={apertureColors.violet} intensity={1.8} />
-      <HelixSystem scrollYProgress={scrollYProgress} />
-      <ApertureCrystal pulse={pulse} />
-      <ChaosField />
-      <OrderField />
-      <DestinationNodes />
+      <HelixSystem scrollYProgress={scrollYProgress} color={apertureColors.violet} />
+      <ApertureCrystal pulse={pulse} colors={{ bone: apertureColors.bone, violet: apertureColors.violet }} />
+      <ChaosField color={apertureColors.ember} />
+      <OrderField color={apertureColors.cyan} />
+      <DestinationNodes color={apertureColors.cyan} />
       <CameraRig scrollYProgress={scrollYProgress} />
     </>
   );
@@ -484,10 +493,13 @@ function Scene({ scrollYProgress, pulse }: { scrollYProgress: Signal; pulse: Sig
 export default function Aperture3D({
   scrollYProgress,
   pulse,
+  theme = "dark",
 }: {
   scrollYProgress: Signal;
   pulse: Signal;
+  theme?: ApertureTheme;
 }) {
+  const apertureColors = getApertureColors(theme);
   return (
     <Canvas
       dpr={[1, 1.5]}
@@ -497,7 +509,7 @@ export default function Aperture3D({
     >
       <color attach="background" args={[apertureColors.void]} />
       <fog attach="fog" args={[apertureColors.void, 11, 30]} />
-      <Scene scrollYProgress={scrollYProgress} pulse={pulse} />
+      <Scene scrollYProgress={scrollYProgress} pulse={pulse} apertureColors={apertureColors} />
     </Canvas>
   );
 }

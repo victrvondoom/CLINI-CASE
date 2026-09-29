@@ -56,6 +56,20 @@ export function authHeader(): Record<string, string> {
 }
 
 const BASE = "/api/v1";
+const SESSION_VERIFICATION_TIMEOUT_MS = 15_000;
+
+function isAuthUser(value: unknown): value is AuthUser {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Partial<AuthUser>;
+  return (
+    typeof candidate.id === "string" &&
+    typeof candidate.email === "string" &&
+    (candidate.full_name === null || typeof candidate.full_name === "string") &&
+    typeof candidate.organization_id === "string" &&
+    typeof candidate.organization_name === "string" &&
+    (candidate.role === "coordinator" || candidate.role === "reviewer" || candidate.role === "admin")
+  );
+}
 
 export async function login(
   email: string,
@@ -108,14 +122,26 @@ export async function signup(req: {
 export async function fetchMe(): Promise<AuthUser | null> {
   const t = getToken();
   if (!t) return null;
-  const res = await fetch(`${BASE}/auth/me`, {
-    headers: { Authorization: `Bearer ${t}` },
-  });
-  if (!res.ok) {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), SESSION_VERIFICATION_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}/auth/me`, {
+      headers: { Authorization: `Bearer ${t}` },
+      signal: controller.signal,
+    });
+  } finally {
+    window.clearTimeout(timeout);
+  }
+  if (res.status === 401 || res.status === 403) {
     clearAuth();
     return null;
   }
-  const user = await res.json();
+  if (!res.ok) throw new Error("Session verification is temporarily unavailable. Please retry.");
+  const user: unknown = await res.json();
+  if (!isAuthUser(user)) {
+    throw new Error("Session verification returned an invalid response. Please retry.");
+  }
   setStoredUser(user);
   return user;
 }

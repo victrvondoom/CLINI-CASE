@@ -20,6 +20,7 @@ from app.agents.framework import (
     SchemaGuardrail,
     TokenBudgetGuardrail,
 )
+from app.privacy.boundary import prepare_fhir, screen_text
 
 _PROMPT = (
     Path(__file__).resolve().parents[3]
@@ -53,12 +54,12 @@ class BiomarkerSpecialistAgent(
     def _build_user_message(self, input: BiomarkerSpecialistInput) -> str:
         parts = [
             "FHIR_BUNDLE:",
-            json.dumps(input.fhir_bundle, indent=2),
+            json.dumps(prepare_fhir(input.fhir_bundle)[0], indent=2),
             "",
-            f"REQUESTED_TREATMENT: {input.requested_treatment_name}",
+            f"REQUESTED_TREATMENT: {screen_text(input.requested_treatment_name)}",
         ]
         if input.physician_note_redacted:
-            parts += ["", "PHYSICIAN_NOTE_REDACTED:", input.physician_note_redacted]
+            parts += ["", "PHYSICIAN_NOTE_REDACTED:", screen_text(input.physician_note_redacted)]
         return "\n".join(parts)
 
 

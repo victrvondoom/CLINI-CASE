@@ -36,3 +36,12 @@ EXPECTED citation chain (5 citations covering 3 factual claims):
 every_claim_has_pointer = true (each factual claim has at least one citation).
 
 Output strict JSON matching CitationLinkerOutput. No prose outside the JSON.
+
+SOURCE POINTER CONTRACT (validated by code after generation):
+- For clinical evidence, use an exact source_resource_id present in the snapshot,
+  or an existing snapshot field path such as performance_status or biomarkers[0].value.
+- For policy, compendium, guideline, and FDA-label evidence, use the exact pointer
+  policy_excerpts[N] where N is the zero-based index of the supplied excerpt.
+- Do not cite external authorities not present in the supplied excerpts. If any
+  claim lacks supplied evidence, set every_claim_has_pointer=false.
+- Pointer resolution proves provenance only; it does not prove clinical truth.

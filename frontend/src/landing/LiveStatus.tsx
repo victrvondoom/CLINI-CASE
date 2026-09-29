@@ -70,7 +70,7 @@ export default function LiveStatus() {
                 alignItems: "center",
                 gap: "0.4rem",
                 background: "none",
-                border: "1px solid rgba(236, 236, 236,0.15)",
+                border: "1px solid var(--overlay-border-faint)",
                 borderRadius: "4px",
                 padding: "0.3rem 0.6rem",
                 color: "var(--bone)",

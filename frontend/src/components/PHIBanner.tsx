@@ -1,5 +1,5 @@
 ﻿/**
- * PHI Redaction Banner — simulates AWS Bedrock Guardrails firing on a case
+ * PHI Redaction Banner — visibly simulates AWS Bedrock Guardrails firing on a case
  * with sensitive PHI in the physician note. Slide-in from top with a red-tinted
  * backdrop pulse, auto-dismisses after 8s.
  *
@@ -82,10 +82,10 @@ export function PHIBanner({
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-[10px] text-compact text-accent-red font-bold">
-                Bedrock Guardrail Fired
+                Simulated Guardrail Check
               </div>
               <div className="font-semibold text-ink-primary text-sm">
-                {entities.length} PHI entit{entities.length === 1 ? "y" : "ies"} redacted before LLM call
+                {entities.length} example identifier{entities.length === 1 ? "" : "s"} screened
               </div>
             </div>
             <button
@@ -128,7 +128,7 @@ export function PHIBanner({
 
           {/* Footer */}
           <div className="px-4 py-2 border-t border-surface-border bg-surface-panel/40 flex items-center justify-between text-[11px] text-ink-muted text-mono-tech">
-            <span>via AWS Bedrock Guardrails · clincase-phi-guard</span>
+            <span>demonstration only · no processing claim</span>
             <span>auto-dismiss in {Math.ceil(autoDismissMs / 1000)}s</span>
           </div>
         </div>

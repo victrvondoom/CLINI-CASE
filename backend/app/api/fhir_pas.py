@@ -175,25 +175,45 @@ async def claim_submit(
     submitted_at = submitted_dt.isoformat()
 
     import json as _json
-    await db.execute(
-        """INSERT INTO cases (id, organization_id, created_by_user_id, created_at,
+    job_id = uuid4()
+    job_payload = {
+        "fhir_bundle": payload,
+        "physician_note": f"Submitted via Da Vinci PAS. ICD-10: {icd10 or 'unspecified'}.",
+        "requested_treatment": {"name": treatment_name or "(unspecified)", "j_code": j_code},
+        "payer_id": payer_id or "aetna",
+    }
+    # Case creation and queue acceptance are one transaction: a PAS response
+    # never claims `queued` unless a durable worker job exists.
+    async with db.pool.acquire() as conn, conn.transaction():
+        await conn.execute(
+            """INSERT INTO cases (id, organization_id, created_by_user_id, created_at,
                               payer_id, patient_initials,
                               requested_treatment_name, requested_j_code,
                               fhir_bundle, physician_note, status)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
            ON CONFLICT (id) DO NOTHING""",
-        case_id,
-        user["organization_id"],
-        user["id"],
-        submitted_dt,
-        payer_id or "aetna",
-        "—",  # patient initials per CMS-0057-F § IV.C — payer sees only minimum-necessary
-        treatment_name or "(unspecified)",
-        j_code,
-        _json.dumps(payload),
-        f"Submitted via Da Vinci PAS Claim/$submit. ICD-10: {icd10 or 'unspecified'}.",
-        "running",
-    )
+            case_id,
+            user["organization_id"],
+            user["id"],
+            submitted_dt,
+            payer_id or "aetna",
+            "—",
+            treatment_name or "(unspecified)",
+            j_code,
+            _json.dumps(payload),
+            job_payload["physician_note"],
+            "running",
+        )
+        await conn.execute(
+            """INSERT INTO case_jobs
+               (id,case_id,organization_id,idempotency_key,job_type,status,payload_json,max_attempts)
+               VALUES ($1,$2,$3,$4,'run_full','queued',$5,3)""",
+            job_id,
+            case_id,
+            user["organization_id"],
+            f"pas:{user['organization_id']}:{case_id}",
+            _json.dumps(job_payload),
+        )
 
     response_bundle = {
         "resourceType": "Bundle",
@@ -237,7 +257,7 @@ async def claim_submit(
                     # or subscribes to a Subscription for the final outcome.
                     "outcome": "queued",
                     "disposition": (
-                        "ClinCase 5-agent DAG queued. Standard CMS-0057-F § IV.B.1 "
+                        "ClinCase seven-agent workflow queued. Standard CMS-0057-F § IV.B.1 "
                         "turnaround: 7 calendar days. Median ClinCase turnaround on "
                         "this case class: 14 minutes."
                     ),
@@ -285,8 +305,7 @@ async def claim_submit(
                             "who": {
                                 "display": (
                                     "ClinCase prior-authorisation copilot · "
-                                    "5-agent LangGraph DAG · AWS Bedrock · "
-                                    "Claude Sonnet 4.6"
+                                    "seven-agent governed workflow"
                                 ),
                             },
                         }
@@ -323,8 +342,8 @@ async def capability_statement() -> dict[str, Any]:
         "kind": "instance",
         "implementation": {
             "description": (
-                "ClinCase provider-side prior-authorisation copilot. "
-                "Da Vinci PAS-compatible. CMS-0057-F § IV.A reference."
+                "ClinCase provider-side prior-authorisation copilot. Partial Da Vinci PAS "
+                "reference implementation; full IG validation and X12 278 conversion are not included."
             )
         },
         "fhirVersion": "4.0.1",

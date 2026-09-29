@@ -74,10 +74,18 @@ _REGION_MODEL_PREFIX = {
 
 
 def region_of_model_id(model_id: str) -> str | None:
-    """Infer region from the prefix of a Bedrock cross-region inference profile id."""
-    for region, prefix in _REGION_MODEL_PREFIX.items():
+    """Infer profile geography, never a false exact AWS region.
+
+    Bedrock cross-region prefixes (``apac``, ``us``, ``eu``) can route among
+    several regions. They cannot prove exact-region residency.
+    """
+    for geography, prefix in {
+        "apac": "apac.anthropic.",
+        "us": "us.anthropic.",
+        "eu": "eu.anthropic.",
+    }.items():
         if model_id.startswith(prefix):
-            return region
+            return geography
     return None
 
 
@@ -88,7 +96,10 @@ def region_appropriate_model_id(*, base_model_id: str, target_region: str) -> st
         base='apac.anthropic.claude-sonnet-4-6-20251022-v1:0', target='eu-west-1'
         → 'eu.anthropic.claude-sonnet-4-6-20251022-v1:0'
     """
-    target_prefix = _REGION_MODEL_PREFIX.get(target_region, "apac.anthropic.")
+    try:
+        target_prefix = _REGION_MODEL_PREFIX[target_region]
+    except KeyError as exc:
+        raise ValueError(f"Unsupported Bedrock target region: {target_region}") from exc
     # strip any current region prefix
     for prefix in set(_REGION_MODEL_PREFIX.values()):
         if base_model_id.startswith(prefix):

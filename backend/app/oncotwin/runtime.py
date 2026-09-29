@@ -20,6 +20,8 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
+from fastapi import HTTPException
+
 from app.oncotwin.agents.graph import run_twin_graph
 from app.oncotwin.engine.timeline import build_timeline
 from app.oncotwin.engine.warning import RANK
@@ -531,25 +533,42 @@ async def handoff(store: OrgTwinStore, alert_id: str, user: dict[str, Any],
         return {"handoff": alert["handoff"], "already_handed_off": True}
     st = store.patient(alert["patient_id"])
     pkg = await build_package(st.record(), alert, store.organization_id, requested_override)
-    resp = await create_case(CreateCaseRequest(**pkg["create_case_request"]), user)
+    persisted = True
+    try:
+        resp = await create_case(CreateCaseRequest(**pkg["create_case_request"]), user)
+        case_id = resp.case_id
+    except HTTPException as exc:
+        if exc.status_code != 503:
+            raise
+        # OncoTwin's deterministic synthetic demo intentionally runs without a
+        # database. Preserve the reviewed handoff as an auditable draft, while
+        # stating plainly that no ClinCase row was persisted.
+        persisted = False
+        case_id = "case_draft_" + uuid.uuid4().hex[:8]
     rec = {
-        "case_id": resp.case_id, "created_at": _now(), "created_by": user.get("email"),
+        "case_id": case_id, "persisted": persisted,
+        "created_at": _now(), "created_by": user.get("email"),
         "requested_treatment": pkg["create_case_request"]["requested_treatment"],
         "requested_treatment_rationale": pkg["requested_treatment_rationale"],
         "policy_preview": pkg["policy_preview"], "policy_preview_note": pkg["policy_preview_note"],
         "package_sha256": pkg["package_sha256"], "bundle_resource_count": pkg["bundle_resource_count"],
         "physician_note_draft": pkg["create_case_request"]["physician_note"],
-        "next_step": f"Open /cases/{resp.case_id} and run the ClinCase 7-agent pipeline (its HITL gate applies).",
+        "next_step": (
+            f"Open /cases/{case_id} and run the ClinCase 7-agent pipeline (its HITL gate applies)."
+            if persisted else "Start PostgreSQL and repeat the handoff to persist and run this draft."
+        ),
     }
     with store.lock:
         entry = store.ledger.append("handoff", patient_id=alert["patient_id"], actor=_actor(user), payload={
-            "alert_id": alert_id, "case_id": resp.case_id, "requested_treatment": rec["requested_treatment"]["name"],
+            "alert_id": alert_id, "case_id": case_id, "persisted": persisted,
+            "requested_treatment": rec["requested_treatment"]["name"],
             "package_sha256": rec["package_sha256"], "policy_sections_matched": len(rec["policy_preview"])})
         rec["ledger_entry_id"] = entry["id"]
         alert["handoff"] = rec
         store.handoffs.append({"alert_id": alert_id, **rec})
         store.bus.publish("HandoffCreated", patient_id=alert["patient_id"], twin_day=alert["as_of_day"], payload={
-            "alert_id": alert_id, "case_id": resp.case_id, "requested_treatment": rec["requested_treatment"]["name"],
+            "alert_id": alert_id, "case_id": case_id, "persisted": persisted,
+            "requested_treatment": rec["requested_treatment"]["name"],
             "package_sha256": rec["package_sha256"]})
     return {"handoff": rec, "entry": entry, "already_handed_off": False}
 

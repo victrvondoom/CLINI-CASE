@@ -12,6 +12,7 @@ ENV/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
+.hypothesis/
 htmlcov/
 .coverage
 .coverage.*

@@ -448,7 +448,10 @@ class Agent(ABC, Generic[I, O]):
                     if reservation is not None:
                         ctx.budget.cancel(reservation)
                     raise
-                except Exception:
+                except BaseException:
+                    # asyncio.CancelledError is a BaseException on supported
+                    # Python versions. Always release held budget on timeout or
+                    # task cancellation before propagating cancellation.
                     if reservation is not None:
                         ctx.budget.cancel(reservation)
                     raise

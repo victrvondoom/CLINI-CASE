@@ -19,6 +19,7 @@ from app.agents.intake.errors import (
     EngineTimeoutError,
     EngineUnavailableError,
 )
+from app.config import settings
 from app.llm.factory import get_llm_client
 from app.models.intake import (
     DocumentClassification,
@@ -73,6 +74,10 @@ class ClaudeVisionEngine(OCREngine):
         image_format: str,
         classification: DocumentClassification,
     ) -> OCRResult:
+        if not settings.CLOUD_DOCUMENT_PROCESSING_ENABLED:
+            raise EngineUnavailableError(
+                "Cloud document processing disabled; using local OCR or human review"
+            )
         client = get_llm_client()
         try:
             response = await client.complete_with_image(

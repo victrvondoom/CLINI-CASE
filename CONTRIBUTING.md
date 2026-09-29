@@ -34,7 +34,7 @@ If either fails on a clean checkout, **don't start your work** — open an issue
    - `quality_threshold` (if reflection-enabled)
 4. Drop the prompt in `backend/app/prompts/<your_agent>/<your_agent>.txt`. **Never inline a multi-line prompt in code.**
 5. Write a contract test in `backend/tests/agents/test_<your_agent>.py` against at least one fixture in `backend/tests/fixtures/`.
-6. Run `make smoke && make backend.test` — should pass on your branch.
+6. Run `make smoke && make backend.test` — the deterministic offline suite must pass on your branch. If the change crosses a database or model-provider boundary, also run the matching target documented in `docs/TESTING.md`.
 7. Run `make kiro.export` to refresh `.kiro/specs/`.
 
 ## How to add a new backend retrieval source

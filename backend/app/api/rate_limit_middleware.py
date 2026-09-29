@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import re
 from collections.abc import Iterable
+from typing import Any
 
 import structlog
 from starlette.types import ASGIApp, Receive, Scope, Send
@@ -53,23 +54,10 @@ def _bearer_token(headers: Iterable[tuple[bytes, bytes]]) -> str | None:
     return None
 
 
-def _decode_jwt_unsafe(token: str) -> dict | None:
-    """Pull (org_id, tier) from the JWT without re-validating the signature.
-
-    Validation already happened in the auth dependency further down. We just
-    want the org_id for bucketing — a forged JWT here only gets you bucketed
-    against a fake org_id, which auth_dependency will reject anyway.
-    """
-    try:
-        import base64
-        parts = token.split(".")
-        if len(parts) != 3:
-            return None
-        payload_b64 = parts[1] + "=" * (-len(parts[1]) % 4)
-        payload = json.loads(base64.urlsafe_b64decode(payload_b64))
-        return payload if isinstance(payload, dict) else None
-    except Exception:  # noqa: BLE001
-        return None
+def _decode_jwt_unsafe(token: str) -> dict[str, Any] | None:
+    """Compatibility helper; verifies signatures and expiry before using claims."""
+    from app.auth.jwt_helpers import decode_access_token
+    return decode_access_token(token)
 
 
 class RateLimitMiddleware:

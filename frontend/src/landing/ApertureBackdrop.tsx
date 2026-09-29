@@ -1,4 +1,5 @@
-import { apertureColors } from "./tokens";
+import { getApertureColors } from "./tokens";
+import type { ApertureTheme } from "./tokens";
 
 /**
  * Fixed background for the landing page.
@@ -48,7 +49,8 @@ const RUNGS = Array.from({ length: 49 }, (_, i) => {
   };
 });
 
-export default function ApertureBackdrop() {
+export default function ApertureBackdrop({ theme = "dark" }: { theme?: ApertureTheme }) {
+  const apertureColors = getApertureColors(theme);
   return (
     <div
       aria-hidden="true"

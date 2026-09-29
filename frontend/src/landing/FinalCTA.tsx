@@ -11,7 +11,7 @@ const primaryCta = {
   background: "var(--cyan)",
   color: "var(--void)",
   fontWeight: 600,
-  boxShadow: "0 0 28px rgba(255, 255, 255,0.28)",
+  boxShadow: "0 0 28px var(--overlay-glow)",
 } as const;
 
 const secondaryCta = {
@@ -19,7 +19,7 @@ const secondaryCta = {
   fontSize: "0.85rem",
   padding: "0.85rem 1.5rem",
   borderRadius: "6px",
-  border: "1px solid rgba(236, 236, 236,0.2)",
+  border: "1px solid var(--overlay-border)",
   color: "var(--bone)",
 } as const;
 

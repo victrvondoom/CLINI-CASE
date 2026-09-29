@@ -5,14 +5,13 @@
  * On login/signup: components call login()/signup() helpers; provider re-syncs.
  * Logout: clears storage and reloads to /login.
  */
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 import {
   type AuthUser,
   clearAuth,
   fetchMe,
-  getStoredUser,
   getToken,
   login as loginApi,
   signup as signupApi,
@@ -21,6 +20,7 @@ import {
 interface AuthContextValue {
   user: AuthUser | null;
   loading: boolean;
+  verificationError: string | null;
   login: (email: string, password: string) => Promise<void>;
   signup: (req: {
     email: string;
@@ -35,36 +35,42 @@ interface AuthContextValue {
 const Ctx = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  // Hydrate immediately from localStorage so the first render isn't blank
-  const [user, setUser] = useState<AuthUser | null>(() => getStoredUser());
+  // Cached profile data is never proof of a valid session.
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState<boolean>(() => Boolean(getToken()));
+  const [verificationError, setVerificationError] = useState<string | null>(null);
+  const verificationAttempt = useRef(0);
 
   useEffect(() => {
-    let cancelled = false;
+    const attempt = ++verificationAttempt.current;
     if (!getToken()) {
       setLoading(false);
       return;
     }
     fetchMe()
       .then((u) => {
-        if (cancelled) return;
+        if (attempt !== verificationAttempt.current) return;
         setUser(u);
       })
       .catch(() => {
-        // Network error, etc. fetchMe() already clears bad tokens itself;
-        // just avoid an unhandled rejection here.
+        if (attempt !== verificationAttempt.current) return;
+        setUser(null);
+        setVerificationError("We could not verify your session. Check your connection and retry.");
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (attempt === verificationAttempt.current) setLoading(false);
       });
     return () => {
-      cancelled = true;
+      if (attempt === verificationAttempt.current) verificationAttempt.current += 1;
     };
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
     const { user } = await loginApi(email, password);
+    verificationAttempt.current += 1;
+    setVerificationError(null);
     setUser(user);
+    setLoading(false);
   }, []);
 
   const signup = useCallback(
@@ -75,24 +81,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       organization_name: string;
     }) => {
       const { user } = await signupApi(req);
+      verificationAttempt.current += 1;
+      setVerificationError(null);
       setUser(user);
+      setLoading(false);
     },
     [],
   );
 
   const logout = useCallback(() => {
+    verificationAttempt.current += 1;
     clearAuth();
     setUser(null);
+    setLoading(false);
     window.location.href = "/login";
   }, []);
 
   const refresh = useCallback(async () => {
-    const u = await fetchMe();
-    setUser(u);
+    const attempt = ++verificationAttempt.current;
+    setLoading(true);
+    setVerificationError(null);
+    try {
+      const u = await fetchMe();
+      if (attempt !== verificationAttempt.current) return;
+      setUser(u);
+    } catch {
+      if (attempt !== verificationAttempt.current) return;
+      setUser(null);
+      setVerificationError("We could not verify your session. Check your connection and retry.");
+    } finally {
+      if (attempt === verificationAttempt.current) setLoading(false);
+    }
   }, []);
 
   return (
-    <Ctx.Provider value={{ user, loading, login, signup, logout, refresh }}>
+    <Ctx.Provider value={{ user, loading, verificationError, login, signup, logout, refresh }}>
       {children}
     </Ctx.Provider>
   );

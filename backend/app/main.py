@@ -307,6 +307,9 @@ from app.api import (  # noqa: E402
     appeals as appeals_api,
 )
 from app.api import (  # noqa: E402
+    aquahealth as aquahealth_api,
+)
+from app.api import (  # noqa: E402
     architecture as architecture_api,
 )
 from app.api import (  # noqa: E402
@@ -362,9 +365,6 @@ from app.api import (  # noqa: E402
 )
 from app.api import (  # noqa: E402
     oncotwin_intel as oncotwin_intel_api,
-)
-from app.api import (  # noqa: E402
-    aquahealth as aquahealth_api,
 )
 from app.api import (  # noqa: E402
     ops as ops_api,

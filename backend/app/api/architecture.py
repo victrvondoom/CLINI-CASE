@@ -39,6 +39,47 @@ from app.config import settings
 router = APIRouter(prefix="/architecture", tags=["architecture"])
 
 
+@router.get("/evidence-readiness")
+async def evidence_readiness() -> dict[str, Any]:
+    """Machine-readable boundary between implemented and externally validated claims."""
+    return {
+        "overall": "research_and_integration_ready",
+        "safe_for_autonomous_clinical_decisions": False,
+        "capabilities": [
+            {
+                "id": "prior_authorization_workflow",
+                "implementation": "working",
+                "evidence": "repository unit and contract tests",
+                "limitation": "requires licensed, current payer policies and human review",
+            },
+            {
+                "id": "oncotwin_risk_model",
+                "implementation": "working_research_prototype",
+                "evidence": "synthetic held-out cohort only",
+                "limitation": "no independent real-patient clinical validation",
+            },
+            {
+                "id": "davinci_pas",
+                "implementation": "partial",
+                "evidence": "PAS-shaped request and response contract",
+                "limitation": "no full IG validation, payer certification, or X12 278 conversion",
+            },
+            {
+                "id": "guideline_content",
+                "implementation": "demo_corpus",
+                "evidence": "versioned in-repository fixtures",
+                "limitation": "production use requires a licensed, current source",
+            },
+            {
+                "id": "document_privacy",
+                "implementation": "minimization_and_governed_processing",
+                "evidence": "identifier screening, FHIR minimization, outbound cloud gate",
+                "limitation": "screening is not certified de-identification",
+            },
+        ],
+    }
+
+
 def _layer_experience() -> dict[str, Any]:
     return {
         "id": "experience",
@@ -118,7 +159,7 @@ def _layer_orchestration() -> dict[str, Any]:
             {"name": "Graceful shutdown / SIGTERM in-flight drain", "path": "app/graceful_shutdown.py"},
             {"name": "Downstream circuit breakers (TriZetto/FHIR/Q)", "path": "app/downstream/breaker.py"},
             {"name": "Outbox DLQ + replay engine", "path": "app/events/dlq.py"},
-            {"name": "Postgres Row Level Security + tenant context", "path": "app/api/tenant_context_middleware.py"},
+            {"name": "Application-enforced tenant context (Postgres RLS proposed)", "path": "app/api/tenant_context_middleware.py"},
         ],
         "agents": {
             "parents":   len(AGENT_MANIFEST),

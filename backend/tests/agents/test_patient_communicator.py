@@ -29,6 +29,8 @@ from app.models import (
     RequestedTreatment,
 )
 
+pytestmark = pytest.mark.live
+
 
 def _strip_code_fence(text: str) -> str:
     """LLMs sometimes wrap JSON in ```json fences. Strip them."""

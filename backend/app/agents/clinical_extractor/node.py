@@ -14,6 +14,7 @@ from app.models import (  # noqa: F401
     NecessityAssessment,
     PolicyExcerpt,
 )
+from app.privacy.boundary import prepare_fhir, screen_text
 
 # ----------------------------------------------------------------------------
 # LangGraph node wrapper + legacy shims
@@ -64,14 +65,14 @@ def _build_user_message(state: ClinCaseState, redacted_note: str | None = None) 
     note = redacted_note if redacted_note is not None else state.physician_note
     parts = [
         "FHIR_BUNDLE:",
-        json.dumps(state.fhir_bundle, indent=2),
+        json.dumps(prepare_fhir(state.fhir_bundle)[0], indent=2),
     ]
     if note:
-        parts += ["", "PHYSICIAN_NOTE:", note]
+        parts += ["", "PHYSICIAN_NOTE:", screen_text(note)]
     parts += [
         "",
         "REQUESTED_TREATMENT:",
-        json.dumps(state.requested_treatment, indent=2),
+        screen_text(json.dumps(state.requested_treatment, indent=2)),
         "",
         "Output the ClinicalSnapshot JSON object now.",
     ]

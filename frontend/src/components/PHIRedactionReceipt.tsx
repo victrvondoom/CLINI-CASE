@@ -1,17 +1,14 @@
 ﻿/**
- * PHI redaction receipt — permanent, audit-grade record that the Bedrock
- * Guardrail fired before any LLM call on this case.
+ * Identifier-screening receipt. It distinguishes backend-supplied Guardrail
+ * evidence from the deterministic example used by the local demonstration.
  *
  * Renders on CaseDetail every time a run completes so reviewers see the
  * redaction pipeline without clicking anything. The transient PHIBanner is
  * the cinematic alternative for demo emphasis; this component is the boring
  * always-on receipt that an enterprise architect actually wants to see.
  *
- * In dev/demo mode (LLM_PROVIDER != bedrock), the entities are synthesized
- * from a deterministic ruleset that mimics what the real Bedrock Guardrail
- * with the `clincase-phi-redact` policy would emit. On May 6, switching to
- * Bedrock makes this receipt a literal pass-through of the Guardrail
- * `assessments[].sensitiveInformationPolicy.piiEntities[]` block.
+ * When no entities and Guardrail identifier are supplied, the component is
+ * visibly marked illustrative and must not be treated as compliance evidence.
  *
  * Reference: AWS Bedrock Guardrails — Sensitive information policy.
  */
@@ -67,18 +64,19 @@ export function PHIRedactionReceipt({
   guardrailVersion = "1",
 }: Props) {
   const [reveal, setReveal] = useState(false);
+  const verified = Boolean(entities?.length && guardrailId);
   const list = entities && entities.length > 0 ? entities : _deterministicEntities(caseId);
-  const guardrail = guardrailId || "clincase-phi-redact";
+  const guardrail = guardrailId || "local-screening-example";
 
   return (
     <div className="bg-surface-raised border border-surface-border rounded-2xl overflow-hidden">
-      <div className="px-5 py-2.5 border-b border-surface-border bg-accent-green/5 flex items-center gap-2 flex-wrap">
-        <ShieldCheck size={14} className="text-accent-green" />
+      <div className={`px-5 py-2.5 border-b border-surface-border flex items-center gap-2 flex-wrap ${verified ? "bg-accent-green/5" : "bg-accent-amber/5"}`}>
+        <ShieldCheck size={14} className={verified ? "text-accent-green" : "text-accent-amber"} />
         <h3 className="text-sm font-semibold text-ink-primary">
-          PHI redacted before any LLM call
+          {verified ? "Guardrail identifier screening receipt" : "Illustrative identifier screening"}
         </h3>
-        <span className="text-[10px] text-compact text-accent-green">
-          AWS Bedrock Guardrail · {guardrail} v{guardrailVersion}
+        <span className={`text-[10px] text-compact ${verified ? "text-accent-green" : "text-accent-amber"}`}>
+          {verified ? "AWS Bedrock Guardrail" : "DEMO OUTPUT"} · {guardrail} v{guardrailVersion}
         </span>
         <span className="ml-auto text-[10px] text-mono-tech text-ink-muted">
           {list.length} entit{list.length === 1 ? "y" : "ies"} masked
@@ -137,9 +135,9 @@ export function PHIRedactionReceipt({
       </div>
 
       <div className="px-5 py-2 border-t border-surface-border bg-surface-panel/40 text-[10px] text-mono-tech text-ink-muted leading-relaxed">
-        Original PHI never left the VPC. Downstream agents (Necessity Reasoner,
-        Decision Composer, Appeals Drafter) reasoned only on the masked tokens
-        above. HIPAA-aligned · CMS-0057-F § IV.C decision-rationale traceability.
+        {verified
+          ? "Backend-supplied screening evidence. Identifier screening reduces exposure but is not certified de-identification; deployment controls and human review remain required."
+          : "Illustrative entities generated from the case identifier. This is not evidence that the source document was de-identified or that a cloud Guardrail ran."}
       </div>
     </div>
   );

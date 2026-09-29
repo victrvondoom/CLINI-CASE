@@ -489,13 +489,21 @@ make twin.benchmark   # Research Lab benchmark
 ### Tests and checks
 
 ```bash
-cd backend && pytest          # 28 test files: agents, API contracts, framework, OncoTwin
-cd backend && ruff check .    # lint
-cd backend && mypy app        # strict type check
-cd frontend && npm run build  # tsc + production build
+make backend.test              # deterministic offline core suite (default)
+make backend.test.integration  # PostgreSQL-backed API contracts
+make backend.test.live         # metered model-provider contracts; requires credentials
+make backend.test.all          # every test; requires PostgreSQL and model credentials
+make backend.lint              # blocking Ruff + scoped strict mypy
+make frontend.build            # TypeScript + production build
 ```
 
-The frontend has no automated test suite yet. It is checked with `tsc`, a production build, and manual browser testing.
+Plain `pytest` uses the same deterministic offline selection as
+`make backend.test`: tests marked `integration` or `live` are excluded. CI runs
+that core suite on every change and runs the PostgreSQL integration group in a
+separate job with an initialized pgvector database. Live tests remain explicit
+because they make metered external model calls. See
+[`docs/TESTING.md`](docs/TESTING.md) for marker rules, prerequisites, and exact
+commands.
 
 ---
 

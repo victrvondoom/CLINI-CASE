@@ -35,6 +35,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
 from app.agents.intake import parse_document
 from app.auth import get_current_user
+from app.config import settings
 from app.models.intake import (
     DocumentClassification,
     ExtractedField,
@@ -181,7 +182,7 @@ async def parse_document_endpoint(
                 ),
             )
 
-    raw = await file.read()
+    raw = await file.read(_MAX_BYTES + 1)
     if len(raw) > _MAX_BYTES:
         raise HTTPException(
             status_code=413,
@@ -202,11 +203,11 @@ async def parse_document_endpoint(
     log.info("intake: %s detected as %s (%d bytes, mime=%s)", filename, detected_kind, len(raw), content_type)
 
     if detected_kind == "pdf":
-        return await _extract_pdf_directly(raw=raw, filename=filename, sha256=sha256)
+        return _with_privacy_receipt(await _extract_pdf_directly(raw=raw, filename=filename, sha256=sha256))
     if detected_kind == "docx":
-        return await _extract_docx_directly(raw=raw, filename=filename, sha256=sha256)
+        return _with_privacy_receipt(await _extract_docx_directly(raw=raw, filename=filename, sha256=sha256))
     if detected_kind == "txt":
-        return _extract_txt_directly(raw=raw, filename=filename, sha256=sha256)
+        return _with_privacy_receipt(_extract_txt_directly(raw=raw, filename=filename, sha256=sha256))
 
     # ------------------------------------------------------------------
     # Image path — go through the full pipeline (Vision/Textract/Tesseract)
@@ -223,7 +224,7 @@ async def parse_document_endpoint(
     # gate to the result so a non-clinical image (e.g. a generic UI screenshot)
     # gets its confidence downgraded + flagged with `non-clinical-content` —
     # same gate the PDF/DOCX/TXT fast paths apply.
-    result = await parse_document(doc)
+    result = await parse_document(doc, tenant_id=user["organization_id"])
     new_ocr, new_flags = _apply_clinical_gate(result.ocr, result.risk_flags)
     requires_review = (
         new_ocr.overall_confidence < _MIN_CONFIDENCE
@@ -235,6 +236,16 @@ async def parse_document_endpoint(
         "risk_flags": new_flags,
         "requires_human_review": result.requires_human_review or requires_review,
     })
+
+
+def _with_privacy_receipt(result: IntakeResult) -> IntakeResult:
+    audit = dict(result.audit)
+    audit.update({
+        "cloud_document_processing_enabled": settings.CLOUD_DOCUMENT_PROCESSING_ENABLED,
+        "pixel_redaction_verified": False,
+        "privacy_notice": "OCR is not de-identification. Review identifiers before sharing extracted content.",
+    })
+    return result.model_copy(update={"audit": audit})
 
 
 def _ext(filename: str) -> str:
@@ -608,6 +619,9 @@ def _textract_extract(raw: bytes) -> OCRResult:
         raise _PDFExtractFailureError(f"boto3 not installed: {e}") from e
 
     from app.config import settings
+
+    if not settings.CLOUD_DOCUMENT_PROCESSING_ENABLED:
+        raise _PDFExtractFailureError("Cloud document processing disabled; using local OCR or human review")
 
     try:
         client = boto3.client(

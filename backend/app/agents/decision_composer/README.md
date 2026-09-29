@@ -47,3 +47,22 @@ from app.agents.decision_composer import (
 Running this parent produces one `agent_runs` row for the orchestrator
 (`decision_composer`) plus one row per sub-agent invocation (`decision_composer.<sub_name>`).
 Hierarchy is reflected in the `AgentTrace.parent_span_id` chain.
+
+### Decision integrity boundary
+
+The composer validates assessment policy indices before invoking any model.
+Canonical assessments require nonempty criteria and finite scores in [0, 1];
+aggregate confidence cannot exceed the weakest criterion. Both the production
+sub-agent and synchronous compatibility entry point use the same verdict rule.
+Low-confidence adverse recommendations return REFER as well as approvals.
+
+Citation generation now has a deterministic provenance check before a Decision
+is constructed. Clinical pointers must resolve to supplied snapshot fields or
+resource IDs. Authority pointers should use `policy_excerpts[N]`, referring to
+the supplied excerpt; legacy readable pointers must identify its payer, policy,
+and section. Incomplete coverage or unresolvable pointers fail explicitly.
+These checks establish source presence, not clinical truth or exhaustive claim
+coverage. A clinician must still review the evidence and recommendation.
+
+Run the credential-free regression suite with:
+`python -m pytest tests/agents/test_decision_integrity.py tests/agents/sub/test_verdict_synthesizer.py`

@@ -15,6 +15,7 @@ Reservation pattern (analogous to AWS service quotas):
 """
 from __future__ import annotations
 
+import math
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -68,6 +69,12 @@ class BudgetTracker:
     # Open reservations (committed/cancelled at end of operation)
     _reservations: dict[uuid.UUID, Reservation] = field(default_factory=dict)
 
+    def __post_init__(self) -> None:
+        if not math.isfinite(self.max_cost_usd) or self.max_cost_usd < 0:
+            raise ValueError("max_cost_usd must be finite and non-negative")
+        if self.max_total_tokens < 0 or self.max_latency_ms <= 0:
+            raise ValueError("token and latency ceilings must be non-negative")
+
     @property
     def remaining_usd(self) -> float:
         held = sum(r.estimated_usd for r in self._reservations.values())
@@ -104,6 +111,13 @@ class BudgetTracker:
     ) -> Reservation:
         """Reserve budget for an upcoming LLM call. Raises BudgetExceededError if
         the reservation would exceed any ceiling."""
+        if (
+            not math.isfinite(estimated_usd)
+            or estimated_usd < 0
+            or estimated_input_tokens < 0
+            or estimated_output_tokens < 0
+        ):
+            raise ValueError("budget estimates must be finite and non-negative")
         if estimated_usd > self.remaining_usd:
             raise BudgetExceededError(
                 dimension="cost_usd",
@@ -148,6 +162,13 @@ class BudgetTracker:
         """Settle a reservation against actual usage. Releases unused slack."""
         if reservation.token not in self._reservations:
             return  # idempotent / double-commit safe
+        if (
+            not math.isfinite(actual_usd)
+            or actual_usd < 0
+            or actual_input_tokens < 0
+            or actual_output_tokens < 0
+        ):
+            raise ValueError("actual usage must be finite and non-negative")
         self._reservations.pop(reservation.token)
         self.spent_usd += actual_usd
         self.spent_input_tokens += actual_input_tokens

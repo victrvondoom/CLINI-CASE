@@ -1,6 +1,6 @@
 # ClinCase — Postgres Row Level Security (RLS)
 
-**Status:** Accepted (round-12)
+**Status:** Proposed; not implemented in this repository
 **Audience:** Customer security team · auditor verifying multi-tenant isolation depth
 
 ## Why RLS is required, not optional
@@ -22,7 +22,7 @@ returning another customer's data?"*
 
 The honest answer for round-9 was "code review." That's not enough.
 
-## Decision
+## Target design
 
 Postgres Row Level Security as the second wall:
 - Every multi-tenant table has `ENABLE ROW LEVEL SECURITY`
@@ -33,19 +33,21 @@ Postgres Row Level Security as the second wall:
 - The migration job + janitor connect as `clincase_migrator` (BYPASSRLS) for
   cross-tenant maintenance ops only
 
-## How a request's tenant is bound
+## Current implementation boundary
 
 `TenantContextMiddleware` (`app/api/tenant_context_middleware.py`) decodes
 the JWT, extracts `organization_id`, and binds it to a contextvar at the
 start of every request.
 
-The DB call layer (`app.db`) reads the contextvar and issues
-`SET LOCAL clincase.organization_id = $1` before each statement. RLS then
-fires automatically.
+The current DB call layer does not consume that context variable and the schema
+does not enable RLS. Isolation currently depends on parameterized
+`organization_id` predicates and endpoint authorization. Do not represent this
+document as a deployed control until a migration, restricted application role,
+transaction-scoped `SET LOCAL`, and cross-tenant tests are committed together.
 
 ## Migration
 
-`backend/alembic/versions/0002_row_level_security.py` enables RLS on:
+The proposed migration should enable RLS on:
 - cases
 - case_jobs
 - case_runs
@@ -58,7 +60,7 @@ fires automatically.
 - reviewer_actions
 - event_outbox
 
-Apply: `make migrate`
+No RLS migration or `make migrate` target currently exists.
 
 ## Defensive invariant: closed by default
 
@@ -69,7 +71,7 @@ and the policy `WHERE organization_id = NULL` returns 0 rows.
 That means: *misconfiguration fails empty, not leaky.* Both cases produce
 empty results, which the application surfaces as 404. No row leaks.
 
-## What we tested
+## Required acceptance tests
 
 ```sql
 -- Tenant A

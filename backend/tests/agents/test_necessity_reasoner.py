@@ -19,6 +19,8 @@ from app.models import (
     RequestedTreatment,
 )
 
+pytestmark = pytest.mark.live
+
 
 @pytest.mark.asyncio
 async def test_assesses_her2_trastuzumab_criteria():

@@ -14,6 +14,21 @@
   --violet: #8a8a8a;
   --ember: #6f6f6f;
 
+  /* Overlay tints derived from the palette above — used for glass panels,
+     borders, and the selection highlight. Flipped alongside the six base
+     colors under [data-theme="light"] so every surface inverts together. */
+  --overlay-strong: rgba(255, 255, 255, 0.25);
+  --overlay-glass-bg: rgba(16, 16, 16, 0.55);
+  --overlay-glass-border: rgba(236, 236, 236, 0.09);
+  --overlay-border: rgba(236, 236, 236, 0.2);
+  --overlay-border-soft: rgba(236, 236, 236, 0.08);
+  --overlay-border-faint: rgba(236, 236, 236, 0.15);
+  --overlay-glow: rgba(255, 255, 255, 0.28);
+  --scrim-strong: rgba(5, 5, 5, 0.86);
+  --scrim-mid: rgba(5, 5, 5, 0.6);
+  --scrim-soft: rgba(5, 5, 5, 0.26);
+  --scrim-edge: rgba(5, 5, 5, 0.72);
+
   --font-mono: "JetBrains Mono", "Geist Mono", ui-monospace, Menlo, monospace;
   --font-display: "Source Serif 4", Georgia, serif;
 
@@ -28,14 +43,39 @@
   overflow-x: clip;
 }
 
+/* Light mode — same structure, inverted palette. Applied via a data
+   attribute (not prefers-color-scheme) because the choice is the user's
+   explicit toggle, persisted in localStorage via lib/theme.ts, not the OS
+   setting. */
+.aperture-root[data-theme="light"] {
+  --void: #ffffff;
+  --ink: #f4f4f4;
+  --bone: #101010;
+  --cyan: #1a1a1a;
+  --violet: #5a5a5a;
+  --ember: #787878;
+
+  --overlay-strong: rgba(16, 16, 16, 0.14);
+  --overlay-glass-bg: rgba(255, 255, 255, 0.6);
+  --overlay-glass-border: rgba(16, 16, 16, 0.1);
+  --overlay-border: rgba(16, 16, 16, 0.16);
+  --overlay-border-soft: rgba(16, 16, 16, 0.1);
+  --overlay-border-faint: rgba(16, 16, 16, 0.14);
+  --overlay-glow: rgba(16, 16, 16, 0.12);
+  --scrim-strong: rgba(255, 255, 255, 0.86);
+  --scrim-mid: rgba(255, 255, 255, 0.6);
+  --scrim-soft: rgba(255, 255, 255, 0.26);
+  --scrim-edge: rgba(255, 255, 255, 0.72);
+}
+
 .aperture-root ::selection {
-  background: rgba(255, 255, 255, 0.25);
+  background: var(--overlay-strong);
 }
 
 /* Frosted panel used by the nav, metric cards, and code blocks. */
 .aperture-glass {
-  background: rgba(16, 16, 16, 0.55);
-  border: 1px solid rgba(236, 236, 236, 0.09);
+  background: var(--overlay-glass-bg);
+  border: 1px solid var(--overlay-glass-border);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
 }
@@ -180,16 +220,16 @@ html:has(.aperture-root) {
   background:
     radial-gradient(
       1250px 760px at 50% 46%,
-      rgba(5, 5, 5, 0.86) 0%,
-      rgba(5, 5, 5, 0.6) 38%,
-      rgba(5, 5, 5, 0.26) 62%,
-      rgba(5, 5, 5, 0) 82%
+      var(--scrim-strong) 0%,
+      var(--scrim-mid) 38%,
+      var(--scrim-soft) 62%,
+      transparent 82%
     ),
     linear-gradient(
       to bottom,
-      rgba(5, 5, 5, 0.72) 0%,
-      rgba(5, 5, 5, 0) 16%,
-      rgba(5, 5, 5, 0) 84%,
-      rgba(5, 5, 5, 0.8) 100%
+      var(--scrim-edge) 0%,
+      transparent 16%,
+      transparent 84%,
+      var(--scrim-strong) 100%
     );
 }

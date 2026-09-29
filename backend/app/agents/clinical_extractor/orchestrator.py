@@ -36,6 +36,7 @@ from app.agents.framework import (
 )
 from app.llm import get_llm_client
 from app.models import ClinicalSnapshot
+from app.privacy.boundary import prepare_fhir, restore_source_ids, screen_text
 
 SUB_AGENTS = [fhir_resource_validator, phi_sanitizer, biomarker_specialist]
 
@@ -145,6 +146,9 @@ class ClinicalExtractorAgent(Agent[ClinicalExtractorInput, ClinicalExtractorOutp
                 update={"biomarkers": bio_result.output.biomarkers}
             )
 
+        # Provider-visible aliases preserve evidence linking without exposing raw IDs.
+        _, alias_map = prepare_fhir(input.fhir_bundle)
+        snapshot = ClinicalSnapshot.model_validate(restore_source_ids(snapshot.model_dump(), alias_map))
         return ClinicalExtractorOutput(
             snapshot=snapshot,
             n_resources_validated=sum(validation.output.resource_counts.values()),
@@ -158,14 +162,14 @@ class ClinicalExtractorAgent(Agent[ClinicalExtractorInput, ClinicalExtractorOutp
     ) -> str:
         parts = [
             "FHIR_BUNDLE:",
-            json.dumps(input.fhir_bundle, indent=2),
+            json.dumps(prepare_fhir(input.fhir_bundle)[0], indent=2),
         ]
         if redacted_note:
             parts += ["", "PHYSICIAN_NOTE_REDACTED:", redacted_note]
         parts += [
             "",
             "REQUESTED_TREATMENT:",
-            json.dumps(input.requested_treatment, indent=2),
+            screen_text(json.dumps(input.requested_treatment, indent=2)),
             "",
             "Output the ClinicalSnapshot JSON object now.",
         ]

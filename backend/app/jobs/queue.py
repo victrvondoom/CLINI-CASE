@@ -148,18 +148,12 @@ async def enqueue(
     of the same case body return the same job_id.
     """
     job_id = uuid.uuid4()
-    if idempotency_key:
-        existing = await db.fetchrow(
-            "SELECT * FROM case_jobs WHERE idempotency_key = $1",
-            idempotency_key,
-        )
-        if existing:
-            return _row_to_job(dict(existing))
     row = await db.fetchrow(
         """INSERT INTO case_jobs
               (id, case_id, organization_id, idempotency_key, job_type,
                status, payload_json, max_attempts)
            VALUES ($1, $2, $3, $4, $5, 'queued', $6, $7)
+           ON CONFLICT (idempotency_key) DO NOTHING
            RETURNING *""",
         job_id,
         case_id,
@@ -169,6 +163,13 @@ async def enqueue(
         json.dumps(payload or {}),
         max_attempts,
     )
+    if row is None and idempotency_key:
+        row = await db.fetchrow(
+            "SELECT * FROM case_jobs WHERE idempotency_key = $1",
+            idempotency_key,
+        )
+    if row is None:
+        raise RuntimeError("Unable to create or locate idempotent case job")
     return _row_to_job(dict(row))
 
 
@@ -222,36 +223,54 @@ async def claim_next(*, worker_id: str) -> Job | None:
         return _row_to_job(dict(updated))
 
 
-async def heartbeat(job_id: uuid.UUID) -> None:
+async def heartbeat(job_id: uuid.UUID, *, worker_id: str, attempt: int) -> bool:
     """Worker pings every N seconds while running. Janitor reaps if stale."""
-    await db.execute(
-        "UPDATE case_jobs SET heartbeat_at = now() WHERE id = $1 AND status = 'running'",
-        job_id,
+    result = await db.execute(
+        """UPDATE case_jobs SET heartbeat_at = now()
+           WHERE id = $1 AND status = 'running' AND claimed_by = $2 AND attempts = $3""",
+        job_id, worker_id, attempt,
     )
+    return result == "UPDATE 1"
 
 
-async def mark_done(job_id: uuid.UUID, result: dict[str, Any]) -> None:
-    await db.execute(
+async def mark_done(
+    job_id: uuid.UUID,
+    result: dict[str, Any],
+    *,
+    worker_id: str,
+    attempt: int,
+) -> bool:
+    updated = await db.execute(
         """UPDATE case_jobs
            SET status='done', result_json=$2, finished_at=now(), heartbeat_at=now()
-           WHERE id = $1""",
+           WHERE id = $1 AND status='running' AND claimed_by=$3 AND attempts=$4""",
         job_id,
         json.dumps(result),
+        worker_id,
+        attempt,
     )
+    return updated == "UPDATE 1"
 
 
-async def mark_error(job_id: uuid.UUID, error: str, *, dead: bool = False) -> None:
+async def mark_error(
+    job_id: uuid.UUID,
+    error: str,
+    *,
+    worker_id: str,
+    attempt: int,
+    dead: bool = False,
+) -> bool:
     """Mark error. If `dead=True`, jump straight to terminal 'dead' status (no retry)."""
     if dead:
-        await db.execute(
+        updated = await db.execute(
             """UPDATE case_jobs
                SET status='dead', error_text=$2, finished_at=now()
-               WHERE id = $1""",
-            job_id, error,
+               WHERE id = $1 AND status='running' AND claimed_by=$3 AND attempts=$4""",
+            job_id, error, worker_id, attempt,
         )
-        return
+        return updated == "UPDATE 1"
     # Retryable error: bounce back to queued unless we've exhausted attempts
-    await db.execute(
+    updated = await db.execute(
         """UPDATE case_jobs
            SET status = CASE
                 WHEN attempts >= max_attempts THEN 'dead'
@@ -265,9 +284,10 @@ async def mark_error(job_id: uuid.UUID, error: str, *, dead: bool = False) -> No
                claimed_at = NULL,
                claimed_by = NULL,
                heartbeat_at = NULL
-           WHERE id = $1""",
-        job_id, error,
+           WHERE id = $1 AND status='running' AND claimed_by=$3 AND attempts=$4""",
+        job_id, error, worker_id, attempt,
     )
+    return updated == "UPDATE 1"
 
 
 async def reap_stale(*, stale_after_seconds: int = 120) -> int:

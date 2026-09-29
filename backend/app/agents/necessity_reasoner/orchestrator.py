@@ -75,6 +75,14 @@ class NecessityReasonerAgent(Agent[NecessityReasonerInput, NecessityReasonerOutp
             ctx=ctx,
         )
         atomic = split_result.output.atomic_criteria
+        seen: set[tuple[int, str]] = set()
+        for criterion in atomic:
+            if criterion.policy_excerpt_index >= len(input.excerpts):
+                raise ValueError("Atomic criterion references an unavailable policy excerpt")
+            key = (criterion.policy_excerpt_index, " ".join(criterion.text.casefold().split()))
+            if not key[1] or key in seen:
+                raise ValueError("Atomic criteria must be non-blank and unique within a policy excerpt")
+            seen.add(key)
 
         # Phase 2 — evidence matching, parallel fan-out (REFLECTION enabled)
         match_results = await asyncio.gather(*[
@@ -88,7 +96,7 @@ class NecessityReasonerAgent(Agent[NecessityReasonerInput, NecessityReasonerOutp
         # echo it back; the parent owns the (criterion, match) pairing.
         matches = [
             r.output.model_copy(update={"criterion": c})
-            for r, c in zip(match_results, atomic, strict=False)
+            for r, c in zip(match_results, atomic, strict=True)
         ]
 
         # Phase 3 — confidence calibration + min-aggregation (Haiku)

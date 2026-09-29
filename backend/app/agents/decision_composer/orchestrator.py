@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from typing import ClassVar
 
+from app.agents.decision_composer.integrity import validate_citation_provenance
 from app.agents.decision_composer.schemas import (
     CitationLinkerInput,
     DecisionComposerInput,
@@ -73,15 +74,17 @@ class DecisionComposerAgent(Agent[DecisionComposerInput, DecisionComposerOutput]
         )
 
         # 3) LLM citation chain
+        citation_input = CitationLinkerInput(
+            rationale=rat_result.output.rationale,
+            assessment=input.assessment,
+            excerpts=input.excerpts,
+            snapshot=input.snapshot,
+        )
         cit_result = await citation_linker.invoke(
-            CitationLinkerInput(
-                rationale=rat_result.output.rationale,
-                assessment=input.assessment,
-                excerpts=input.excerpts,
-                snapshot=input.snapshot,
-            ),
+            citation_input,
             ctx=ctx,
         )
+        validate_citation_provenance(citation_input, cit_result.output)
 
         decision = Decision(
             verdict=verdict_out.verdict,

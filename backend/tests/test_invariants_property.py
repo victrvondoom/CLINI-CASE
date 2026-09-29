@@ -21,11 +21,11 @@ import pytest
 # Hypothesis is an optional dev dep. If not installed, skip the entire module
 # so it does not break `pytest` collection for the rest of the test suite.
 hypothesis = pytest.importorskip("hypothesis")
-from hypothesis import HealthCheck, given, settings, strategies as st  # noqa: E402
+from hypothesis import HealthCheck, given, settings, strategies as st  # noqa: E402, I001
 
+from app.authz import Principal, Resource, is_authorized  # noqa: E402
 from app.cells import cell_for_organization  # noqa: E402
-from app.authz import Principal, Resource, is_authorized
-from app.residency import region_appropriate_model_id, region_of_model_id
+from app.residency import region_appropriate_model_id  # noqa: E402
 
 
 _REGIONS = [
@@ -121,11 +121,19 @@ def test_residency_rewriter_idempotent(region_a: str, region_b: str) -> None:
 
 
 @given(region=st.sampled_from(_REGIONS))
-def test_residency_rewriter_round_trip(region: str) -> None:
-    """Rewriting to a region then reading the region back returns the same."""
+def test_residency_rewriter_uses_expected_geography_profile(region: str) -> None:
+    """A regional target maps to its Bedrock geography profile.
+
+    Cross-region inference profile IDs encode a geography (``apac``, ``us``,
+    or ``eu``), not the exact AWS region. Exact-region residency must therefore
+    be enforced from request/config context rather than inferred from this ID.
+    """
     base = "apac.anthropic.claude-sonnet-4-6-20251022-v1:0"
     rewritten = region_appropriate_model_id(base_model_id=base, target_region=region)
-    assert region_of_model_id(rewritten) == region
+    expected_geography = (
+        "apac" if region.startswith("ap-") else "us" if region.startswith("us-") else "eu"
+    )
+    assert rewritten.startswith(f"{expected_geography}.anthropic.")
 
 
 # =============================================================================
@@ -142,7 +150,7 @@ def test_rate_limiter_per_second_cap_holds() -> None:
 
     async def _burst():
         allowed = 0
-        for i in range(50):
+        for _ in range(50):
             d = await check_rate_limit(
                 organization_id="test_org_burst",
                 tier="bronze",

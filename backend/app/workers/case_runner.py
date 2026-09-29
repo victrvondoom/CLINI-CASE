@@ -30,11 +30,11 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import json
 import os
 import signal
 import socket
 import time
-import uuid
 from typing import Any
 
 import structlog
@@ -61,18 +61,22 @@ _FULL_GRAPH = build_full_graph()
 # =============================================================================
 
 
-async def _heartbeat_loop(job_id: uuid.UUID, stop: asyncio.Event) -> None:
+async def _heartbeat_loop(job: jq.Job, worker_id: str, stop: asyncio.Event) -> None:
     """Background task: ping heartbeat_at every N seconds until `stop` is set."""
     while not stop.is_set():
         try:
-            await jq.heartbeat(job_id)
+            owned = await jq.heartbeat(job.id, worker_id=worker_id, attempt=job.attempts)
+            if not owned:
+                log.warning("worker.lease.lost", job_id=str(job.id), attempt=job.attempts)
+                stop.set()
+                return
         except Exception as e:  # noqa: BLE001
-            log.warning("worker.heartbeat.failed", job_id=str(job_id), error=str(e))
+            log.warning("worker.heartbeat.failed", job_id=str(job.id), error=str(e))
         with contextlib.suppress(TimeoutError):
             await asyncio.wait_for(stop.wait(), timeout=_HEARTBEAT_INTERVAL_SECONDS)
 
 
-async def _execute_run_full(job: jq.Job) -> dict[str, Any]:
+async def _execute_run_full(job: jq.Job) -> tuple[ClinCaseState, dict[str, Any]]:
     """Run the full 7-agent DAG against the job's payload."""
     payload = job.payload
     initial = ClinCaseState(
@@ -83,13 +87,15 @@ async def _execute_run_full(job: jq.Job) -> dict[str, Any]:
         requested_treatment=payload["requested_treatment"],
         payer_id=payload["payer_id"],
     )
-    final_raw = await _FULL_GRAPH.ainvoke(initial)
+    # The shared agent budget is ten minutes; enforce it at the outer boundary
+    # too so a hung provider cannot heartbeat forever.
+    final_raw = await asyncio.wait_for(_FULL_GRAPH.ainvoke(initial), timeout=600)
     final = (
         final_raw if isinstance(final_raw, ClinCaseState)
         else ClinCaseState.model_validate(final_raw)
     )
     # Compose result for the result_json column
-    return {
+    result = {
         "case_id": job.case_id,
         "verdict": final.decision.verdict if final.decision else None,
         "paused_for_review": final.paused_for_review,
@@ -101,6 +107,81 @@ async def _execute_run_full(job: jq.Job) -> dict[str, Any]:
             if final.patient_communication else None
         ),
     }
+    return final, result
+
+
+async def _commit_run(
+    job: jq.Job,
+    worker_id: str,
+    final: ClinCaseState,
+    result: dict[str, Any],
+) -> bool:
+    """Atomically persist the clinical outcome and fenced job completion."""
+    from app.events.outbox import emit_appeal_drafted, emit_case_decided
+
+    async with db.pool.acquire() as conn, conn.transaction():
+        owns_lease = await conn.fetchval(
+            """SELECT 1 FROM case_jobs WHERE id=$1 AND status='running'
+               AND claimed_by=$2 AND attempts=$3 FOR UPDATE""",
+            job.id, worker_id, job.attempts,
+        )
+        if not owns_lease:
+            return False
+
+        if final.paused_for_review:
+            await conn.execute(
+                "UPDATE cases SET status='awaiting_review' WHERE id=$1 AND organization_id=$2",
+                job.case_id, job.organization_id,
+            )
+        elif final.decision is not None:
+            await conn.execute(
+                """INSERT INTO decisions (case_id, verdict, rationale, citations_json, confidence)
+                   VALUES ($1,$2,$3,$4,$5)""",
+                job.case_id,
+                final.decision.verdict,
+                final.decision.rationale,
+                json.dumps([c.model_dump() for c in final.decision.citations]),
+                final.decision.confidence,
+            )
+            status_map = {"APPROVE": "approved", "DENY": "denied", "REFER": "referred"}
+            case_status = "appealed" if final.appeal_draft else status_map[final.decision.verdict]
+            await conn.execute(
+                "UPDATE cases SET status=$1 WHERE id=$2 AND organization_id=$3",
+                case_status, job.case_id, job.organization_id,
+            )
+            await emit_case_decided(
+                organization_id=job.organization_id,
+                case_id=job.case_id,
+                verdict=final.decision.verdict,
+                confidence=float(final.decision.confidence),
+                triggered_hitl=False,
+                decision_run_id=str(job.id),
+                primary_model_id="recorded-per-agent",
+                cost_usd=float(final._agent_context.budget.spent_usd) if final._agent_context else 0.0,
+                duration_seconds=(float(final._agent_context.budget.elapsed_ms) / 1000) if final._agent_context else 0.0,
+                conn=conn,
+            )
+        if final.appeal_draft is not None:
+            appeal_id = await conn.fetchval(
+                """INSERT INTO appeals (case_id, appeal_body, structured_arguments_json)
+                   VALUES ($1,$2,$3) RETURNING id""",
+                job.case_id,
+                final.appeal_draft.appeal_body,
+                json.dumps([a.model_dump() for a in final.appeal_draft.structured_arguments]),
+            )
+            await emit_appeal_drafted(
+                organization_id=job.organization_id,
+                case_id=job.case_id,
+                appeal_id=appeal_id,
+                structured_arguments_count=len(final.appeal_draft.structured_arguments),
+                conn=conn,
+            )
+        completed = await conn.fetchval(
+            """UPDATE case_jobs SET status='done',result_json=$2,finished_at=now(),heartbeat_at=now()
+               WHERE id=$1 AND status='running' AND claimed_by=$3 AND attempts=$4 RETURNING id""",
+            job.id, json.dumps(result), worker_id, job.attempts,
+        )
+        return completed is not None
 
 
 JOB_HANDLERS = {
@@ -115,16 +196,20 @@ async def _process_job(job: jq.Job, worker_id: str) -> None:
 
     handler = JOB_HANDLERS.get(job.job_type)
     if handler is None:
-        await jq.mark_error(job.id, f"Unknown job_type: {job.job_type}", dead=True)
+        await jq.mark_error(
+            job.id, f"Unknown job_type: {job.job_type}",
+            worker_id=worker_id, attempt=job.attempts, dead=True,
+        )
         return
 
     stop_heartbeat = asyncio.Event()
-    hb_task = asyncio.create_task(_heartbeat_loop(job.id, stop_heartbeat))
+    hb_task = asyncio.create_task(_heartbeat_loop(job, worker_id, stop_heartbeat))
     try:
         started = time.time()
-        result = await handler(job)
+        final, result = await handler(job)
         elapsed = time.time() - started
-        await jq.mark_done(job.id, result)
+        if not await _commit_run(job, worker_id, final, result):
+            raise RuntimeError("Worker lease expired before result commit")
         log.info(
             "worker.job.done",
             job_id=str(job.id),
@@ -140,7 +225,9 @@ async def _process_job(job: jq.Job, worker_id: str) -> None:
             error=str(e),
             attempt=job.attempts,
         )
-        await jq.mark_error(job.id, str(e), dead=False)
+        await jq.mark_error(
+            job.id, str(e), worker_id=worker_id, attempt=job.attempts, dead=False,
+        )
     finally:
         stop_heartbeat.set()
         with contextlib.suppress(Exception):  # noqa: BLE001

@@ -65,7 +65,7 @@ def _route_after_reasoner(
     """
     threshold = getattr(settings, "HITL_CONFIDENCE_THRESHOLD", DEFAULT_HITL_THRESHOLD)
     if state.necessity_assessment is None:
-        return "decision_composer"  # let downstream complain if it's None
+        return "review_gate"
     if state.necessity_assessment.overall_confidence < threshold:
         return "review_gate"
     return "decision_composer"

@@ -22,7 +22,7 @@ Implementation lives in `app/db_tenant.py` (lighter than monkey-patching).
 from __future__ import annotations
 
 import contextvars
-import json
+from typing import Any
 
 from starlette.types import ASGIApp, Receive, Scope, Send
 
@@ -32,17 +32,10 @@ current_organization_id: contextvars.ContextVar[str | None] = contextvars.Contex
 )
 
 
-def _decode_jwt_unsafe(token: str) -> dict | None:
-    try:
-        import base64
-        parts = token.split(".")
-        if len(parts) != 3:
-            return None
-        payload_b64 = parts[1] + "=" * (-len(parts[1]) % 4)
-        payload = json.loads(base64.urlsafe_b64decode(payload_b64))
-        return payload if isinstance(payload, dict) else None
-    except Exception:  # noqa: BLE001
-        return None
+def _decode_jwt_unsafe(token: str) -> dict[str, Any] | None:
+    """Compatibility helper; verifies signatures and expiry before using claims."""
+    from app.auth.jwt_helpers import decode_access_token
+    return decode_access_token(token)
 
 
 def _bearer(headers) -> str | None:

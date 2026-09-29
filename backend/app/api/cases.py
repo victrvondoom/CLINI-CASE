@@ -10,7 +10,6 @@ Day-2 minimum:
 """
 from __future__ import annotations
 
-import contextlib
 import json
 from typing import Any, Literal
 from uuid import uuid4
@@ -133,10 +132,9 @@ async def list_cases(
         total = await db.fetchval(
             f"SELECT COUNT(*) FROM cases c {where_clause}", *count_params
         )
-    except Exception:
-        # DB-less deploys (no RDS) get an empty case list rather than a 500.
-        rows = []
-        total = 0
+    except Exception as exc:
+        log.warning("cases.list.unavailable", error_type=type(exc).__name__)
+        raise HTTPException(status_code=503, detail="Case storage is unavailable. Please retry.") from exc
 
     return {
         "cases": [
@@ -163,10 +161,7 @@ async def create_case(
     user: dict[str, Any] = Depends(get_current_user),
 ) -> CreateCaseResponse:
     case_id = "case_" + uuid4().hex[:8]
-    # DB-less deploys: case_id is still returned. The case-detail page has its
-    # own fail-soft so navigating to /cases/<id> shows the demo stub with the
-    # exact case_id we generated here.
-    with contextlib.suppress(Exception):
+    try:
         await db.execute(
             """INSERT INTO cases (id, organization_id, created_by_user_id,
                                   payer_id, patient_initials,
@@ -183,6 +178,9 @@ async def create_case(
             json.dumps(req.fhir_bundle),
             req.physician_note,
         )
+    except Exception as exc:
+        log.warning("cases.create.unavailable", error_type=type(exc).__name__)
+        raise HTTPException(status_code=503, detail="Case was not saved. Please retry.") from exc
     return CreateCaseResponse(case_id=case_id)
 
 
@@ -229,20 +227,9 @@ async def get_case(
             "SELECT * FROM cases WHERE id = $1 AND organization_id = $2",
             case_id, user["organization_id"],
         )
-    except Exception:
-        # DB-less deployments (no RDS): return a stub case so the UI shell
-        # renders. The "Run ClinCase" button will surface its own error if the
-        # downstream pipeline can't run without a DB.
-        return {
-            "case_id": case_id,
-            "payer_id": "aetna",
-            "patient_initials": "—",
-            "status": "demo",
-            "physician_note": "Deployed-without-RDS demo: case detail comes from the FHIR bundle attached at runtime; in production this loads from Postgres.",
-            "requested_treatment": {"name": "(see fixture)", "j_code": None},
-            "created_at": None,
-            "db_unavailable": True,
-        }
+    except Exception as exc:
+        log.warning("cases.get.unavailable", error_type=type(exc).__name__)
+        raise HTTPException(status_code=503, detail="Case storage is unavailable. Please retry.") from exc
     if row is None:
         raise HTTPException(status_code=404, detail=f"Case {case_id} not found")
     return {
@@ -329,133 +316,12 @@ async def run_full(
             "SELECT * FROM cases WHERE id = $1 AND organization_id = $2",
             case_id, user["organization_id"],
         )
-    except Exception:
-        # DB-less deployments: return a synthetic verdict that exercises every
-        # downstream UI surface — agent cards, citations, decision panel, audit
-        # tile. In production this path is unreachable; the real graph runs.
-        await publish(case_id, {"type": "agent_started", "agent": "clinical_extractor"})
-        await publish(case_id, {"type": "agent_completed", "agent": "clinical_extractor"})
-        await publish(case_id, {"type": "agent_started", "agent": "policy_retriever"})
-        await publish(case_id, {"type": "agent_completed", "agent": "policy_retriever"})
-        await publish(case_id, {"type": "agent_started", "agent": "necessity_reasoner"})
-        await publish(case_id, {"type": "agent_completed", "agent": "necessity_reasoner"})
-        await publish(case_id, {"type": "agent_started", "agent": "decision_composer"})
-        await publish(case_id, {"type": "agent_completed", "agent": "decision_composer"})
-        return {
-            "case_id": case_id,
-            "db_unavailable": True,
-            "decision": {
-                "verdict": "APPROVE",
-                "rationale": (
-                    "Patient meets all 6 of 6 Aetna 0048 medical necessity criteria for HER2+ "
-                    "breast cancer. HER2 IHC 3+ confirmed; stage IIIA per pathology; "
-                    "LVEF 62% within payer 60-day window; ECOG 1; no prior anthracycline "
-                    "contraindication. NCCN Category 1 evidence."
-                ),
-                "citations": [
-                    {"kind": "policy", "text": "HER2-positive metastatic breast cancer eligible for HER2-directed therapy", "pointer": "Aetna 0048 §III.A p.4"},
-                    {"kind": "compendium", "text": "Trastuzumab is preferred (Category 1) for HER2+ disease", "pointer": "NCCN BINV-N p.12"},
-                    {"kind": "fda_label", "text": "Indicated for treatment of HER2-overexpressing breast cancer", "pointer": "Herceptin Highlights of Prescribing Information §1.1"},
-                    {"kind": "guideline", "text": "Trastuzumab plus chemotherapy for adjuvant HER2+ disease", "pointer": "ASCO 2022 Adjuvant HER2 Guideline §2"},
-                ],
-                "confidence": 0.92,
-                "risk_flags": [],
-            },
-            "clinical_snapshot": {
-                "patient_age": 46,
-                "patient_sex": "F",
-                "primary_diagnosis": {
-                    "icd10_code": "C50.911",
-                    "description": "Malignant neoplasm of unspecified site of right female breast",
-                    "stage": "IIIA",
-                    "onset_date": "2026-04-12",
-                    "source_resource_id": "Condition/dx-1",
-                },
-                "additional_diagnoses": [],
-                "prior_therapies": [],
-                "biomarkers": [
-                    {"name": "HER2", "value": "IHC 3+", "test_date": "2026-04-15", "source_resource_id": "Observation/her2"},
-                    {"name": "ER",   "value": "positive", "test_date": "2026-04-15", "source_resource_id": "Observation/er"},
-                    {"name": "LVEF", "value": "62%", "test_date": "2026-04-22", "source_resource_id": "Observation/lvef"},
-                ],
-                "comorbidities": [],
-                "performance_status": "ECOG 1",
-                "requested_treatment": {
-                    "name": "trastuzumab",
-                    "hcpcs_code": "J9355",
-                    "j_code": "J9355",
-                    "dose": "8 mg/kg loading, then 6 mg/kg q3w",
-                    "frequency": "every 3 weeks",
-                    "intent": "adjuvant",
-                },
-                "free_text_summary": (
-                    "46-year-old female with newly diagnosed Stage IIIA HER2-positive, ER-positive "
-                    "right breast cancer. HER2 IHC 3+ on core biopsy; LVEF 62% by echocardiogram. "
-                    "ECOG 1. Requesting trastuzumab adjuvant therapy."
-                ),
-            },
-            "policy_excerpts": [
-                {
-                    "payer_id": "aetna",
-                    "policy_id": "aetna_0048",
-                    "policy_title": "Aetna Clinical Policy Bulletin 0048: Trastuzumab",
-                    "section_heading": "§III.A — Medical Necessity Criteria",
-                    "excerpt_text": "Trastuzumab is considered medically necessary for HER2-positive (IHC 3+ or FISH-amplified) breast cancer.",
-                    "source_url": "https://www.aetna.com/cpb/medical/data/0048.html",
-                    "page_number": 4,
-                    "relevance_score": 0.94,
-                },
-                {
-                    "payer_id": "aetna",
-                    "policy_id": "nccn_binv_n",
-                    "policy_title": "NCCN Compendium · Breast Invasive (BINV-N)",
-                    "section_heading": "BINV-N — HER2-Targeted Therapy",
-                    "excerpt_text": "Trastuzumab is preferred (Category 1) for HER2-positive invasive breast cancer in the adjuvant setting.",
-                    "source_url": None,
-                    "page_number": 12,
-                    "relevance_score": 0.91,
-                },
-                {
-                    "payer_id": "aetna",
-                    "policy_id": "aetna_0048",
-                    "policy_title": "Aetna Clinical Policy Bulletin 0048: Trastuzumab",
-                    "section_heading": "§III.B — Cardiac Function Requirements",
-                    "excerpt_text": "LVEF must be assessed within 60 days of trastuzumab initiation; LVEF ≥50% required.",
-                    "source_url": "https://www.aetna.com/cpb/medical/data/0048.html",
-                    "page_number": 5,
-                    "relevance_score": 0.88,
-                },
-            ],
-            "necessity_assessment": {
-                "criteria": [
-                    {"criterion_text": "HER2-positive (IHC 3+ or FISH-amplified)", "criterion_type": "inclusion", "policy_excerpt_index": 0, "status": "MET",
-                     "supporting_evidence": ["HER2 IHC 3+ on Observation/her2 dated 2026-04-15"], "missing_evidence": None,
-                     "confidence": 0.96, "rationale": "IHC 3+ result is the highest tier of HER2 positivity per ASCO/CAP."},
-                    {"criterion_text": "Stage IIIA-IV invasive breast cancer", "criterion_type": "inclusion", "policy_excerpt_index": 1, "status": "MET",
-                     "supporting_evidence": ["Stage IIIA per Condition/dx-1 ICD-10 C50.911"], "missing_evidence": None,
-                     "confidence": 0.94, "rationale": "Stage explicitly documented in primary diagnosis."},
-                    {"criterion_text": "LVEF ≥50% within 60 days", "criterion_type": "inclusion", "policy_excerpt_index": 2, "status": "MET",
-                     "supporting_evidence": ["LVEF 62% on Observation/lvef dated 2026-04-22 (within 60d window)"], "missing_evidence": None,
-                     "confidence": 0.92, "rationale": "LVEF measured 14 days before request, well within 60-day requirement."},
-                    {"criterion_text": "ECOG performance status 0-2", "criterion_type": "inclusion", "policy_excerpt_index": 0, "status": "MET",
-                     "supporting_evidence": ["ECOG 1 documented in physician note"], "missing_evidence": None,
-                     "confidence": 0.91, "rationale": "ECOG 1 indicates ambulatory status with light activity restrictions only."},
-                    {"criterion_text": "No prior anthracycline contraindication", "criterion_type": "exclusion", "policy_excerpt_index": 0, "status": "MET",
-                     "supporting_evidence": ["No prior anthracycline therapy in PriorTherapy list"], "missing_evidence": None,
-                     "confidence": 0.86, "rationale": "Patient is treatment-naïve per chart."},
-                    {"criterion_text": "Pathologic diagnosis confirmed", "criterion_type": "inclusion", "policy_excerpt_index": 1, "status": "MET",
-                     "supporting_evidence": ["Core biopsy pathology report attached as DocumentReference/path-1"], "missing_evidence": None,
-                     "confidence": 0.93, "rationale": "Surgical pathology confirms invasive ductal carcinoma."},
-                ],
-                "overall_confidence": 0.92,
-                "summary": "All 6 of 6 medical-necessity criteria met with high confidence.",
-            },
-            "denial_forecast": None,
-            "appeal_draft": None,
-            "patient_communication": None,
-            "paused_for_review": False,
-            "pause_reason": None,
-        }
+    except Exception as exc:
+        log.warning("case.run.storage_unavailable", error_type=type(exc).__name__)
+        raise HTTPException(
+            status_code=503,
+            detail="Case storage is unavailable; no clinical decision was generated.",
+        ) from exc
     if row is None:
         raise HTTPException(status_code=404, detail=f"Case {case_id} not found")
     _require_llm()
@@ -585,7 +451,8 @@ async def run_full(
     except Exception as exc:
         log.exception("case.run.failed", case_id=case_id)
         raise HTTPException(
-            status_code=502, detail=f"Case run failed: {type(exc).__name__}: {exc}"
+            status_code=502,
+            detail="Case processing failed safely. No decision was recorded; review the audit log.",
         ) from exc
     finally:
         await publish(case_id, {"type": "done", "case_id": case_id})

@@ -8,7 +8,7 @@ export default function Footer() {
       style={{
         position: "relative",
         zIndex: 1,
-        borderTop: "1px solid rgba(236, 236, 236,0.08)",
+        borderTop: "1px solid var(--overlay-border-soft)",
         padding: "3rem 1.5rem 2rem",
         fontFamily: "var(--font-mono)",
         fontSize: "0.75rem",

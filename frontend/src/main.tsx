@@ -1,4 +1,4 @@
-import React from "react";
+import React, { lazy } from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
@@ -19,52 +19,54 @@ if (API_BASE) {
   };
 }
 
+import { RouteBoundary } from "./components/RouteBoundary";
 import { AuthProvider } from "./components/AuthContext";
 import { RequireAuth } from "./components/RequireAuth";
-import AquaCommunity from "./routes/AquaCommunity";
-import AquaDashboard from "./routes/AquaDashboard";
-import AquaMap from "./routes/AquaMap";
-import AquaObservationDetail from "./routes/AquaObservationDetail";
-import AquaObservationNew from "./routes/AquaObservationNew";
-import AquaObservations from "./routes/AquaObservations";
-import AquaOneHealth from "./routes/AquaOneHealth";
-import AquaReview from "./routes/AquaReview";
-import AquaTrends from "./routes/AquaTrends";
-import Agents from "./routes/Agents";
+const AquaCommunity = lazy(() => import("./routes/AquaCommunity"));
+const AquaDashboard = lazy(() => import("./routes/AquaDashboard"));
+const AquaMap = lazy(() => import("./routes/AquaMap"));
+const AquaObservationDetail = lazy(() => import("./routes/AquaObservationDetail"));
+const AquaObservationNew = lazy(() => import("./routes/AquaObservationNew"));
+const AquaObservations = lazy(() => import("./routes/AquaObservations"));
+const AquaOneHealth = lazy(() => import("./routes/AquaOneHealth"));
+const AquaReview = lazy(() => import("./routes/AquaReview"));
+const AquaTrends = lazy(() => import("./routes/AquaTrends"));
+const Agents = lazy(() => import("./routes/Agents"));
 import App from "./App";
-import BulkImport from "./routes/BulkImport";
-import CaseDetail from "./routes/CaseDetail";
-import Cases from "./routes/Cases";
-import Cohorts from "./routes/Cohorts";
-import Compare from "./routes/Compare";
-import Compliance from "./routes/Compliance";
-import Dashboard from "./routes/Dashboard";
-import Eval from "./routes/Eval";
-import Intake from "./routes/Intake";
-import Landing from "./routes/Landing";
-import Login from "./routes/Login";
-import OncologyStack from "./routes/OncologyStack";
-import Policies from "./routes/Policies";
-import PolicyDiff from "./routes/PolicyDiff";
-import Architecture from "./routes/Architecture";
-import Industrialize from "./routes/Industrialize";
-import Reviewer from "./routes/Reviewer";
-import ROI from "./routes/ROI";
-import Sandbox from "./routes/Sandbox";
-import Settings from "./routes/Settings";
-import Signup from "./routes/Signup";
-import TwinCommand from "./routes/TwinCommand";
-import TwinDashboard from "./routes/TwinDashboard";
-import TwinHub from "./routes/TwinHub";
-import TwinLab from "./routes/TwinLab";
-import TwinOps from "./routes/TwinOps";
-import TwinPatient from "./routes/TwinPatient";
+const BulkImport = lazy(() => import("./routes/BulkImport"));
+const CaseDetail = lazy(() => import("./routes/CaseDetail"));
+const Cases = lazy(() => import("./routes/Cases"));
+const Cohorts = lazy(() => import("./routes/Cohorts"));
+const Compare = lazy(() => import("./routes/Compare"));
+const Compliance = lazy(() => import("./routes/Compliance"));
+const Dashboard = lazy(() => import("./routes/Dashboard"));
+const Eval = lazy(() => import("./routes/Eval"));
+const Intake = lazy(() => import("./routes/Intake"));
+const Landing = lazy(() => import("./routes/Landing"));
+const Login = lazy(() => import("./routes/Login"));
+const OncologyStack = lazy(() => import("./routes/OncologyStack"));
+const Policies = lazy(() => import("./routes/Policies"));
+const PolicyDiff = lazy(() => import("./routes/PolicyDiff"));
+const Architecture = lazy(() => import("./routes/Architecture"));
+const Industrialize = lazy(() => import("./routes/Industrialize"));
+const Reviewer = lazy(() => import("./routes/Reviewer"));
+const ROI = lazy(() => import("./routes/ROI"));
+const Sandbox = lazy(() => import("./routes/Sandbox"));
+const Settings = lazy(() => import("./routes/Settings"));
+const Signup = lazy(() => import("./routes/Signup"));
+const TwinCommand = lazy(() => import("./routes/TwinCommand"));
+const TwinDashboard = lazy(() => import("./routes/TwinDashboard"));
+const TwinHub = lazy(() => import("./routes/TwinHub"));
+const TwinLab = lazy(() => import("./routes/TwinLab"));
+const TwinOps = lazy(() => import("./routes/TwinOps"));
+const TwinPatient = lazy(() => import("./routes/TwinPatient"));
 import "./styles/index.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <BrowserRouter>
       <AuthProvider>
+        <RouteBoundary>
         <Routes>
           {/* Public marketing landing — the app's front door */}
           <Route path="/" element={<Landing />} />
@@ -153,6 +155,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Route>
         </Routes>
+        </RouteBoundary>
       </AuthProvider>
     </BrowserRouter>
   </React.StrictMode>,

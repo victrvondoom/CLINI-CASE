@@ -27,6 +27,7 @@ import Nav from "../landing/Nav";
 import ProblemSection from "../landing/ProblemSection";
 import TrustSection from "../landing/TrustSection";
 import { useDeviceTier } from "../landing/useDeviceTier";
+import { useTheme } from "../lib/theme";
 import "../landing/landing.css";
 
 // three + fiber + drei are a large slice of the bundle and are useless to
@@ -42,7 +43,10 @@ const Aperture3D = lazy(() => import("../landing/Aperture3D"));
  * document — the background is decoration, and decoration must never be able
  * to break the page.
  */
-class ApertureBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+class ApertureBoundary extends Component<
+  { children: ReactNode; theme: "dark" | "light" },
+  { failed: boolean }
+> {
   state = { failed: false };
 
   static getDerivedStateFromError() {
@@ -54,7 +58,7 @@ class ApertureBoundary extends Component<{ children: ReactNode }, { failed: bool
   }
 
   render() {
-    if (this.state.failed) return <ApertureBackdrop />;
+    if (this.state.failed) return <ApertureBackdrop theme={this.props.theme} />;
     return this.props.children;
   }
 }
@@ -65,37 +69,41 @@ class ApertureBoundary extends Component<{ children: ReactNode }, { failed: bool
  * ApertureBackdrop doubles as the Suspense fallback, so the page is never
  * blank while the 3D chunk downloads.
  */
-function ApertureStage() {
+function ApertureStage({ theme }: { theme: "dark" | "light" }) {
   const tier = useDeviceTier();
   const { scrollYProgress, pulse } = useAperture();
 
-  if (tier !== "high") return <ApertureBackdrop />;
+  if (tier !== "high") return <ApertureBackdrop theme={theme} />;
 
   return (
-    <ApertureBoundary>
-      <Suspense fallback={<ApertureBackdrop />}>
-        <Aperture3D scrollYProgress={scrollYProgress} pulse={pulse} />
+    <ApertureBoundary theme={theme}>
+      <Suspense fallback={<ApertureBackdrop theme={theme} />}>
+        <Aperture3D scrollYProgress={scrollYProgress} pulse={pulse} theme={theme} />
       </Suspense>
     </ApertureBoundary>
   );
 }
 
 export default function Landing() {
-  // The app shell is light by default; this page is always dark. Paint the
-  // document background to match so overscroll doesn't flash white, and undo
-  // it on the way out so app routes are unaffected.
+  // The landing page follows the same light/dark choice as the rest of the
+  // app (lib/theme.ts) instead of always running dark, so a visitor who
+  // switches to light doesn't get flipped back to dark when they land here.
+  const { theme } = useTheme();
+
+  // Paint the document background to match so overscroll doesn't flash the
+  // opposite color, and undo it on the way out so app routes are unaffected.
   useEffect(() => {
     const previous = document.body.style.backgroundColor;
-    document.body.style.backgroundColor = "#050505";
+    document.body.style.backgroundColor = theme === "light" ? "#ffffff" : "#050505";
     return () => {
       document.body.style.backgroundColor = previous;
     };
-  }, []);
+  }, [theme]);
 
   return (
     <ApertureProvider>
-      <div className="aperture-root">
-        <ApertureStage />
+      <div className="aperture-root" data-theme={theme}>
+        <ApertureStage theme={theme} />
         {/* Legibility scrim. The scene is allowed to be busy at the edges;
             this keeps the middle, where the copy lives, dark enough to read
             against. Sits between the canvas and the sections. */}

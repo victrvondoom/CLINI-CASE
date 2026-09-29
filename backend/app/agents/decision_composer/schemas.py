@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app.models import (
     Citation,
@@ -19,8 +19,14 @@ from app.models import (
 
 class DecisionComposerInput(BaseModel):
     snapshot: ClinicalSnapshot
-    excerpts: list[PolicyExcerpt]
+    excerpts: list[PolicyExcerpt] = Field(..., min_length=1)
     assessment: NecessityAssessment
+
+    @model_validator(mode="after")
+    def validate_policy_references(self) -> DecisionComposerInput:
+        if any(c.policy_excerpt_index >= len(self.excerpts) for c in self.assessment.criteria):
+            raise ValueError("Assessment references an unavailable policy excerpt")
+        return self
 
 
 class DecisionComposerOutput(BaseModel):
@@ -90,6 +96,6 @@ class CitationLinkerInput(BaseModel):
 class CitationLinkerOutput(BaseModel):
     citations: list[Citation] = Field(..., min_length=1, max_length=10)
     every_claim_has_pointer: bool = Field(
-        default=True,
+        ...,
         description="Asserted by the LLM and re-verified by the parent post-call.",
     )

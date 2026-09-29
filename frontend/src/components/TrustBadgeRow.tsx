@@ -3,9 +3,9 @@
  * Adapted from Claude Design Wave 1 output (USCDI v3 added unprompted; we keep it).
  */
 const BADGES = [
-  { label: "HIPAA",         dot: "bg-accent-green" },
-  { label: "PHI redaction", dot: "bg-accent-green" },
-  { label: "FHIR R4",       dot: "bg-accent-cyan" },
+  { label: "Privacy review required", dot: "bg-accent-amber" },
+  { label: "Identifier screening",    dot: "bg-accent-amber" },
+  { label: "FHIR R4-shaped",           dot: "bg-accent-cyan" },
   { label: "USCDI v3",      dot: "bg-accent-cyan" },
   { label: "Bedrock-ready", dot: "bg-accent-brand" },
 ];

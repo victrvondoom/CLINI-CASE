@@ -13,6 +13,7 @@ from typing import Any, ClassVar
 
 from app.agents.intake.pipeline.base import IntakeContext, IntakeStage
 from app.agents.intake.pipeline.deduplicate import _store_in_cache
+from app.config import settings
 from app.models.intake import (
     DocumentClassification,
     IntakeResult,
@@ -87,6 +88,9 @@ class AssembleStage(IntakeStage):
                 "extract_attempts": ctx.payload.get("extract.attempts", []),
                 "short_circuit_reason": ctx.short_circuit_reason,
                 "schema_version": "v1",
+                "cloud_document_processing_enabled": settings.CLOUD_DOCUMENT_PROCESSING_ENABLED,
+                "pixel_redaction_verified": False,
+                "privacy_notice": "OCR is not de-identification. Review identifiers before sharing extracted content.",
             },
         )
 
@@ -96,7 +100,7 @@ class AssembleStage(IntakeStage):
         # the same SHA-256 returns immediately. Skip caching of failures so
         # transient errors aren't sticky.
         if ocr.extracted_fields and not ctx.payload.get("deduplicate.cache_hit"):
-            _store_in_cache(ctx.sha256, result.model_dump())
+            _store_in_cache(ctx.sha256, result.model_dump(), ctx.tenant_id)
 
 
 def _engines_from_attempts(payload: dict) -> list[str]:

@@ -5,7 +5,7 @@
  */
 import clsx from "clsx";
 import { ArrowRight, Search, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { api } from "../lib/api";
@@ -47,21 +47,67 @@ export function SearchPalette({ open, onClose }: Props) {
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [fixtures, setFixtures] = useState<DemoFixture[]>([]);
+  const [fixturesLoading, setFixturesLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const creatingRef = useRef(false);
+  const operationRef = useRef(0);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
-    api.listFixtures().then(setFixtures).catch(() => setFixtures([]));
+    let active = true;
+    operationRef.current += 1;
+    creatingRef.current = false;
+    setCreating(false);
+    setFixturesLoading(true);
+    setError(null);
+    api.listFixtures()
+      .then((items) => { if (active) setFixtures(items); })
+      .catch(() => {
+        if (active) { setFixtures([]); setError("Demo cases could not be loaded. Close and reopen search to retry."); }
+      })
+      .finally(() => { if (active) setFixturesLoading(false); });
+    return () => {
+      active = false;
+      operationRef.current += 1;
+      creatingRef.current = false;
+    };
   }, [open]);
 
-  // ESC closes
+  const closePalette = useCallback(() => {
+    operationRef.current += 1;
+    creatingRef.current = false;
+    onClose();
+  }, [onClose]);
+
+  // Trap keyboard focus and return it to the invoking control when closing.
   useEffect(() => {
     if (!open) return;
+    const previous = document.activeElement as HTMLElement | null;
+    panelRef.current?.querySelector("input")?.focus();
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") closePalette();
+      if (e.key === "Tab") {
+        const controls = Array.from(panelRef.current?.querySelectorAll<HTMLElement>("input, button:not(:disabled)") ?? []);
+        const first = controls[0];
+        const last = controls[controls.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus(); }
+        if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
+      }
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        const controls = Array.from(panelRef.current?.querySelectorAll<HTMLElement>("input, button:not(:disabled)") ?? []);
+        if (!controls.length) return;
+        const current = controls.indexOf(document.activeElement as HTMLElement);
+        const delta = e.key === "ArrowDown" ? 1 : -1;
+        const next = (current + delta + controls.length) % controls.length;
+        e.preventDefault();
+        controls[next]?.focus();
+      }
     }
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+    return () => { window.removeEventListener("keydown", onKey); previous?.focus(); };
+  }, [closePalette, open]);
 
   if (!open) return null;
 
@@ -83,35 +129,58 @@ export function SearchPalette({ open, onClose }: Props) {
     : fixtures.slice(0, 3);
 
   function go(href: string) {
+    operationRef.current += 1;
+    creatingRef.current = false;
     navigate(href);
     onClose();
     setQuery("");
   }
 
   async function loadFixture(name: string) {
-    onClose();
-    setQuery("");
-    const { case_id } = await api.createFromFixture(name);
-    navigate(`/cases/${case_id}`);
+    if (creatingRef.current) return;
+    creatingRef.current = true;
+    const operation = ++operationRef.current;
+    setCreating(true);
+    setError(null);
+    try {
+      const { case_id } = await api.createFromFixture(name);
+      if (operation !== operationRef.current) return;
+      navigate(`/cases/${case_id}`);
+      onClose();
+      setQuery("");
+    } catch {
+      if (operation !== operationRef.current) return;
+      setError("The demo case could not be created. Check your connection and try again.");
+    } finally {
+      if (operation === operationRef.current) {
+        creatingRef.current = false;
+        setCreating(false);
+      }
+    }
   }
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-start justify-center pt-[12vh] px-4"
-      onClick={onClose}
+      onClick={closePalette}
     >
       {/* Backdrop */}
       <div className="absolute inset-0 bg-ink-primary/40 backdrop-blur-sm animate-slide-in-up" />
 
       {/* Panel */}
       <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Search workspace and demo cases"
+        aria-busy={creating || fixturesLoading}
         className="relative w-full max-w-xl bg-surface-raised border border-surface-border rounded-2xl shadow-2xl overflow-hidden animate-slide-in-up"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-3 px-4 py-3 border-b border-surface-border">
           <Search size={16} className="text-ink-muted" />
           <input
-            autoFocus
+            aria-label="Search workspace and demo cases"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search cases, policies, agents..."
@@ -119,7 +188,7 @@ export function SearchPalette({ open, onClose }: Props) {
           />
           <button
             type="button"
-            onClick={onClose}
+            onClick={closePalette}
             className="text-ink-faint hover:text-ink-primary transition-colors duration-150"
             aria-label="Close palette"
           >
@@ -128,6 +197,10 @@ export function SearchPalette({ open, onClose }: Props) {
         </div>
 
         <div className="max-h-[60vh] overflow-y-auto">
+          {error && <p role="alert" className="px-4 py-3 text-sm text-accent-red">{error}</p>}
+          {fixturesLoading && <p role="status" className="px-4 py-3 text-sm text-ink-muted">Loading demo cases…</p>}
+          {creating && <p role="status" className="px-4 py-3 text-sm">Creating demo case…</p>}
+          {!fixturesLoading && !filteredSections.length && !filteredFixtures.length && !error && <p role="status" className="px-4 py-3 text-sm text-ink-muted">No matching pages or demo cases.</p>}
           {filteredSections.map((section) => (
             <div key={section.label} className="py-2">
               <div className="px-4 py-1 text-[10px] text-compact text-ink-faint">
@@ -137,6 +210,7 @@ export function SearchPalette({ open, onClose }: Props) {
                 <button
                   key={item.href}
                   type="button"
+                  disabled={creating}
                   onClick={() => go(item.href)}
                   className="w-full flex items-center justify-between px-4 py-2 text-sm text-ink-body hover:bg-surface-raised-hi transition-colors"
                 >
@@ -156,6 +230,7 @@ export function SearchPalette({ open, onClose }: Props) {
                 <button
                   key={f.name}
                   type="button"
+                  disabled={creating}
                   onClick={() => loadFixture(f.name)}
                   className="w-full flex items-center justify-between px-4 py-2 text-sm text-ink-body hover:bg-surface-raised-hi transition-colors"
                 >

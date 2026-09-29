@@ -10,7 +10,6 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import re
-from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
@@ -167,6 +166,7 @@ async def login(req: LoginRequest) -> TokenResponse:
          the seeded demo credentials so the deployed app stays usable.
     """
     email = req.email.lower()
+    db_unavailable = False
     try:
         row = await db.fetchrow(
             """SELECT u.id, u.email, u.password_hash, u.full_name, u.role,
@@ -176,7 +176,10 @@ async def login(req: LoginRequest) -> TokenResponse:
                WHERE u.email = $1""",
             email,
         )
-    except Exception:
+    except Exception as exc:
+        if settings.ENVIRONMENT != "dev" or not settings.AUTH_DBLESS_DEMO_ENABLED:
+            raise HTTPException(status_code=503, detail="Authentication service unavailable") from exc
+        db_unavailable = True
         row = None
 
     if row is not None and verify_password(req.password, row["password_hash"]):
@@ -199,7 +202,7 @@ async def login(req: LoginRequest) -> TokenResponse:
     # DB-less fallback — only the seeded demo users + the configured demo
     # password are accepted. Anyone else gets a generic 401.
     demo = _DEMO_USERS_DBLESS.get(email)
-    if demo is not None and req.password == settings.DEMO_USER_PASSWORD:
+    if db_unavailable and demo is not None and req.password == settings.DEMO_USER_PASSWORD:
         token = create_access_token(
             user_id=demo["id"], organization_id=demo["organization_id"],
             role=demo["role"], email=email,
@@ -287,10 +290,7 @@ async def create_user_in_org(
 ) -> dict[str, Any]:
     """Admin: create a new user inside the admin's organization.
 
-    DB-less deploys (no RDS): we still return a valid-looking user record so
-    the /settings UI can render a success state. The user won't actually be
-    able to log in until RDS is provisioned and the real INSERT lands — the
-    response includes `db_unavailable: true` so the UI can surface that."""
+    Returns success only after the user row is durably stored."""
     user_id = f"user_{uuid4().hex[:10]}"
     try:
         existing = await db.fetchval("SELECT id FROM users WHERE email = $1", req.email.lower())
@@ -311,18 +311,9 @@ async def create_user_in_org(
         }
     except HTTPException:
         raise
-    except Exception:
-        return {
-            "id": user_id,
-            "email": req.email.lower(),
-            "full_name": req.full_name,
-            "role": req.role,
-            "db_unavailable": True,
-            "note": (
-                "User accepted in DB-less demo mode. The record is not "
-                "persisted; provision RDS to enable real user creation."
-            ),
-        }
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="User could not be saved. Please retry.") from exc
+
 
 
 @router.get("/me/activity")
@@ -409,15 +400,8 @@ async def get_my_activity(
         events = [*cases_activity, *review_activity, *login_activity]
         events.sort(key=lambda e: e["at"] or "", reverse=True)
         return {"events": events[:limit]}
-    except Exception:
-        # DB-less deployments: a short synthetic feed so the profile panel
-        # still renders something meaningful instead of an empty state.
-        now = datetime.now(UTC)
-        return {
-            "events": [
-                {"id": "demo:login", "kind": "login", "at": now.isoformat(), "summary": "Signed in"},
-                {"id": "demo:case_opened", "kind": "case_opened",
-                 "at": now.isoformat(), "summary": "Opened case AUTH-2918 · Trastuzumab · pending"},
-            ],
-            "db_unavailable": True,
-        }
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Activity history is temporarily unavailable.",
+        ) from exc

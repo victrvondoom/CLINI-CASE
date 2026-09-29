@@ -27,7 +27,7 @@ export default function TrustSection() {
           Every decision, accounted for.
         </h2>
         <p style={{ opacity: 0.7, fontSize: "0.95rem", lineHeight: 1.7, marginBottom: "2rem" }}>
-          PHI is redacted before inference and receipted afterwards. Low-confidence cases
+          Local document extraction is the default. Cloud OCR requires deployment approval. Identifier screening is not complete de-identification; review documents before sharing. Low-confidence cases
           route to a named human reviewer rather than auto-approving. Every case carries a
           timeline you can hand to an auditor.
         </p>
@@ -81,7 +81,7 @@ export default function TrustSection() {
           }}
         >
           <div style={{ opacity: 0.5, marginBottom: "0.5rem" }}>
-            # actual case-timeline event schema
+            # illustrative case-timeline event (screening is not certification)
           </div>
           <pre style={{ margin: 0, whiteSpace: "pre-wrap", opacity: 0.8, lineHeight: 1.6 }}>
             {JSON.stringify(
@@ -89,7 +89,7 @@ export default function TrustSection() {
                 actor: "system",
                 event_type: "document_uploaded",
                 title: "Document uploaded: pathology_report.pdf",
-                body: "PHI redacted: true · indexed: true",
+                body: "identifier screening: complete · human review: required",
               },
               null,
               2,

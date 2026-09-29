@@ -128,7 +128,7 @@ export default function Dashboard() {
             </p>
 
             <div className="mt-6 flex items-center gap-2 flex-wrap">
-              <TrustChip dot="cyan">HIPAA · PHI redaction</TrustChip>
+              <TrustChip dot="amber">Privacy screening · review required</TrustChip>
               <TrustChip dot="brand">FHIR R4 · USCDI v3</TrustChip>
               <TrustChip dot="green">Bedrock-ready</TrustChip>
               <TrustChip dot="cyan">CMS-0057-F · 2026 / 2027</TrustChip>

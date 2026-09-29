@@ -17,9 +17,11 @@ from __future__ import annotations
 
 import time
 from collections import OrderedDict
+from copy import deepcopy
 from typing import ClassVar
 
 from app.agents.intake.pipeline.base import IntakeContext, IntakeStage
+from app.config import settings
 
 _CACHE_MAX_ENTRIES = 256
 _CACHE_TTL_SECONDS = 60 * 60  # 1 hour
@@ -48,10 +50,10 @@ class _LRUWithTTL:
             return None
         # Mark as recently used
         self._store.move_to_end(key)
-        return value
+        return deepcopy(value)
 
     def put(self, key: str, value: dict) -> None:
-        self._store[key] = (time.time(), value)
+        self._store[key] = (time.time(), deepcopy(value))
         self._store.move_to_end(key)
         while len(self._store) > self._max_entries:
             self._store.popitem(last=False)
@@ -72,7 +74,8 @@ class DeduplicateStage(IntakeStage):
     outputs_produced: ClassVar[list[str]] = ["deduplicate.cache_hit"]
 
     async def run(self, ctx: IntakeContext) -> None:
-        cached = _CACHE.get(ctx.sha256)
+        key = cache_key(ctx.sha256, ctx.tenant_id)
+        cached = _CACHE.get(key) if key else None
         if cached is None:
             ctx.payload["deduplicate.cache_hit"] = False
             return
@@ -82,9 +85,18 @@ class DeduplicateStage(IntakeStage):
         ctx.short_circuit_reason = "cache_hit"
 
 
-def _store_in_cache(sha256: str, intake_result_dict: dict) -> None:
-    """Called by the assemble stage on success to populate the cache."""
-    _CACHE.put(sha256, intake_result_dict)
+def cache_key(sha256: str, tenant_id: str | None) -> str | None:
+    # Unscoped callers cannot reuse patient material; policy changes invalidate cache.
+    if not tenant_id:
+        return None
+    return f"{tenant_id}:{settings.CLOUD_DOCUMENT_PROCESSING_ENABLED}:{sha256}"
+
+
+def _store_in_cache(sha256: str, intake_result_dict: dict, tenant_id: str | None = None) -> None:
+    """Called by assemble; never cache unscoped patient data."""
+    key = cache_key(sha256, tenant_id)
+    if key:
+        _CACHE.put(key, intake_result_dict)
 
 
 def clear_cache_for_tests() -> None:

@@ -32,6 +32,8 @@ from app.models import (
 )
 from app.models.necessity import CriterionAssessment
 
+pytestmark = pytest.mark.live
+
 
 def _strip_code_fence(text: str) -> str:
     """LLMs sometimes wrap JSON in ```json fences. Strip them."""

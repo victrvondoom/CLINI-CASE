@@ -7,6 +7,7 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.auth.jwt_helpers import decode_access_token
+from app.config import settings
 from app.db import db
 
 _bearer = HTTPBearer(auto_error=False)
@@ -49,27 +50,20 @@ async def get_current_user(
                FROM users WHERE id = $1""",
             user_id,
         )
-    except Exception:
-        # DB-less deployments (e.g. ECS Fargate without RDS, S3-only API
-        # demos) cannot do the user lookup. Trust the JWT claims directly —
-        # the token is already signature-verified by decode_access_token,
-        # so the claims are tamper-evident. Use this only when explicitly
-        # operating in DB-less mode.
-        row = None
+    except Exception as exc:
+        if settings.ENVIRONMENT == "dev" and settings.AUTH_DBLESS_DEMO_ENABLED:
+            # Only known demo identities may survive an actual database outage.
+            # A successful lookup returning no row MUST revoke an old token.
+            from app.api.auth import _DEMO_USERS_DBLESS
+            demo = _DEMO_USERS_DBLESS.get(claims.get("email", ""))
+            if demo and all((
+                user_id == demo["id"], claims.get("org") == demo["organization_id"],
+                claims.get("role") == demo["role"],
+            )):
+                return {**demo, "email": claims["email"], "created_at": None}
+        raise HTTPException(status_code=503, detail="Authentication service unavailable") from exc
 
     if row is None:
-        # Reconstruct from JWT claims when the DB has no row (or is offline).
-        # Only safe because decode_access_token already verified the signature.
-        if claims.get("email") and claims.get("org") and claims.get("role"):
-            return {
-                "id": user_id,
-                "email": claims["email"],
-                "full_name": claims.get("full_name") or claims["email"],
-                "organization_id": claims["org"],
-                "organization_name": claims.get("org_name"),
-                "role": claims["role"],
-                "created_at": None,
-            }
         raise HTTPException(status_code=401, detail="User no longer exists")
 
     return dict(row)

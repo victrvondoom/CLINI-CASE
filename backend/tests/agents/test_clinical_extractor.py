@@ -16,6 +16,8 @@ from app.graph.state import ClinCaseState
 from app.llm import get_llm_client
 from app.models import ClinicalSnapshot
 
+pytestmark = pytest.mark.live
+
 
 @pytest.mark.asyncio
 async def test_extracts_stage_iiia_her2pos_breast_cancer(fhir_bundle_factory):

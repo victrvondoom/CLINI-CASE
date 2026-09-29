@@ -1,13 +1,16 @@
 /**
  * Landing-page design tokens + copy.
  *
- * The landing page runs its own dark "aperture" palette, independent of the
- * app's light/dark theme tokens — it is a marketing surface, not app chrome.
- * Colors live here (TS) as well as in landing.css (CSS vars) because the
- * inline SVG backdrop needs them as literal values.
+ * The landing page runs its own "aperture" palette (dark or light), separate
+ * from the app's light/dark theme tokens — it is a marketing surface, not app
+ * chrome, but it now follows the same theme choice (see lib/theme.ts) so a
+ * visitor who flips to light doesn't land back on a dark page after signing
+ * in. Colors live here (TS) as well as in landing.css (CSS vars) because the
+ * inline SVG backdrop and the WebGL scene need them as literal values, not
+ * CSS custom properties.
  */
 
-export const apertureColors = {
+export const apertureColorsDark = {
   void: "#050505",
   ink: "#101010",
   bone: "#ececec",
@@ -15,6 +18,24 @@ export const apertureColors = {
   violet: "#8a8a8a",
   ember: "#6f6f6f",
 } as const;
+
+export const apertureColorsLight = {
+  void: "#ffffff",
+  ink: "#f4f4f4",
+  bone: "#101010",
+  cyan: "#1a1a1a",
+  violet: "#5a5a5a",
+  ember: "#787878",
+} as const;
+
+export type ApertureTheme = "dark" | "light";
+
+export function getApertureColors(theme: ApertureTheme) {
+  return theme === "light" ? apertureColorsLight : apertureColorsDark;
+}
+
+/** @deprecated Use `getApertureColors(theme)` — kept for any stray import. */
+export const apertureColors = apertureColorsDark;
 
 /** The six steps a prior-auth request passes through inside ClinCase. */
 export const LIFECYCLE_STEPS = [
@@ -25,13 +46,13 @@ export const LIFECYCLE_STEPS = [
   },
   {
     n: "02",
-    title: "PHI is redacted, then indexed",
-    body: "Identifiers are stripped and receipted before a single token reaches a model. The redaction receipt is attached to the case for audit.",
+    title: "Text is screened, then indexed",
+    body: "Recognized identifiers are redacted and recorded. Automated screening is not a guarantee of de-identification; review documents and deployment controls before using patient data.",
   },
   {
     n: "03",
     title: "The right policy is retrieved",
-    body: "The agent pulls the payer's current medical policy for that drug and that indication — with the clause, the version, and the effective date.",
+    body: "The agent retrieves the configured payer policy for that drug and indication — with the clause, the version, and the effective date.",
   },
   {
     n: "04",
@@ -45,8 +66,8 @@ export const LIFECYCLE_STEPS = [
   },
   {
     n: "06",
-    title: "Submitted, tracked, appealed",
-    body: "The packet goes out through the payer gateway. If it comes back denied, the appeal letter is already drafted from the same evidence.",
+    title: "Prepared, reviewed, appealed",
+    body: "Prepare the packet for review and draft an appeal from the same evidence. Live payer submission requires an external integration.",
   },
 ] as const;
 
@@ -64,8 +85,8 @@ export const DOMAINS = [
 
 /** Compliance posture — status strings are deliberately honest, not aspirational. */
 export const COMPLIANCE_MARKS = [
-  { label: "HIPAA",         status: "PHI redaction enforced" },
+  { label: "Privacy controls", status: "deployment review required" },
   { label: "CMS-0057-F",    status: "8 clauses tracked" },
-  { label: "SOC 2 Type II",  status: "in progress" },
+  { label: "SOC 2 Type II",  status: "not independently attested" },
   { label: "Audit trail",    status: "every case event" },
 ] as const;

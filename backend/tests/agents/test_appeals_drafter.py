@@ -20,6 +20,8 @@ from app.models import (
     RequestedTreatment,
 )
 
+pytestmark = pytest.mark.live
+
 
 @pytest.mark.asyncio
 async def test_drafts_appeal_for_her2_documentation_dispute():

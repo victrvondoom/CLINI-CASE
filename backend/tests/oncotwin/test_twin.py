@@ -4,7 +4,12 @@ from __future__ import annotations
 import pytest
 
 from app.oncotwin.engine.warning import RANK
-from app.oncotwin.fhir.mapping import build_bundle, fhir_to_observation, observation_to_fhir, wearable_sample_to_observation
+from app.oncotwin.fhir.mapping import (
+    build_bundle,
+    fhir_to_observation,
+    observation_to_fhir,
+    wearable_sample_to_observation,
+)
 from app.oncotwin.service import compute_history, compute_twin, key_moments, twin_card
 
 

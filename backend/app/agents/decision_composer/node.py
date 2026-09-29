@@ -5,6 +5,7 @@ from typing import Any
 
 from app.agents.decision_composer.orchestrator import decision_composer
 from app.agents.decision_composer.schemas import *  # noqa: F401,F403
+from app.agents.decision_composer.sub_agents.verdict_synthesizer import evaluate_verdict
 from app.graph.state import ClinCaseState, get_or_init_agent_context
 from app.models import (  # noqa: F401
     AppealDraft,
@@ -20,25 +21,8 @@ from app.models import (  # noqa: F401
 
 
 def derive_verdict(assessment: NecessityAssessment) -> str:
-    """Pure-Python deterministic verdict rule. Mirrors verdict_synthesizer's logic.
-
-    Inlined here (no asyncio) so the legacy synchronous callers don't disturb
-    the test event-loop session. The single source of truth for the rule is
-    `verdict_synthesizer._execute_deterministic`; this function MUST stay in
-    lockstep with it.
-    """
-    a = assessment
-    for c in a.criteria:
-        if c.criterion_type == "inclusion" and c.status == "NOT_MET":
-            return "DENY"
-        if c.criterion_type == "exclusion" and c.status == "MET":
-            return "DENY"
-    for c in a.criteria:
-        if c.status == "AMBIGUOUS":
-            return "REFER"
-    if a.overall_confidence < 0.75:
-        return "REFER"
-    return "APPROVE"
+    """Compatibility entry point using the same rule as the production agent."""
+    return evaluate_verdict(VerdictSynthesizerInput(assessment=assessment)).verdict
 
 
 async def compose_decision(state: ClinCaseState) -> ClinCaseState:

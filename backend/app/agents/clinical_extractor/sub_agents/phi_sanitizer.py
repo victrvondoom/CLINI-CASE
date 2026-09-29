@@ -1,10 +1,10 @@
 """PHISanitizer — Clinical Extractor sub-agent.
 
-Deterministic. Bedrock-Guardrails-compatible PHI mask. Pattern-based PII
+Deterministic best-effort pattern screening, not complete de-identification.
+Output has a Bedrock-Guardrails-compatible PHI mask shape. Pattern-based PII
 detection that emits the same shape Bedrock Guardrails returns from its
-`assessments[].sensitiveInformationPolicy.piiEntities[]` block. On Bedrock
-deployment, this sub-agent's output is replaced 1-for-1 by the Guardrail's
-output.
+`assessments[].sensitiveInformationPolicy.piiEntities[]` block. Provider guardrails, when configured, are an additional control; this code
+does not verify arbitrary free-text de-identification.
 """
 from __future__ import annotations
 
@@ -25,7 +25,10 @@ _PATTERNS: list[tuple[str, re.Pattern[str], str]] = [
     ("DOB",     re.compile(r"\b\d{4}-\d{2}-\d{2}\b"),                 "{DATE}"),
     ("EMAIL",   re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"), "{EMAIL}"),
     ("PHONE",   re.compile(r"\b\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}\b"), "{PHONE}"),
-    ("NAME",    re.compile(r"\b[A-Z][a-z]{1,15} [A-Z][a-z]{1,15}\b"),  "{NAME}"),
+    ("NAME",    re.compile(r"\b(?:patient(?: name)?|name)\s*:\s*[^\n;,]+", re.I), "{NAME}"),
+    # Conservative unlabeled-name context. Avoid masking clinical phrases such
+    # as "Malignant neoplasm" merely because both words are capitalized.
+    ("NAME",    re.compile(r"\b[A-Z][a-z]{1,20} [A-Z][a-z]{1,20}(?=\s+(?:presented|arrived|reports|was|is|admitted)\b)"), "{NAME}"),
     ("ADDRESS", re.compile(r"\b\d{1,5} [A-Z][a-z]+ (Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd)\b"), "{ADDRESS}"),
 ]
 
@@ -36,7 +39,7 @@ class PHISanitizerAgent(Agent[PHISanitizerInput, PHISanitizerOutput]):
     role: ClassVar[str] = "phi_masking"
     description: ClassVar[str] = (
         "Pattern-based PII mask emitting Bedrock-Guardrails-compatible output shape. "
-        "On Bedrock deployment this is replaced 1-for-1 by the Guardrail's PII filter."
+        "Not a guarantee of complete de-identification; provider governance remains required."
     )
 
     input_schema: ClassVar[type] = PHISanitizerInput

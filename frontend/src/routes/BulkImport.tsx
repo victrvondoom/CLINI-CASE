@@ -340,7 +340,7 @@ function generateComplianceReport(rows: CaseQueueRow[], totalCost: number): void
 - **CMS-0057-F § IV.A** (89 FR 8758) — Prior Authorization API mandate, effective **Jan 1, 2027**
 - Built to the **Da Vinci PAS Implementation Guide** (FHIR R4 · USCDI v3)
 - All decisions traceable to FHIR resource IDs and policy section pointers
-- HIPAA · PHI redaction · synthetic patient initials only
+- Demonstration report · synthetic patient initials · privacy review required before real data use
 
 ## Batch outcomes
 

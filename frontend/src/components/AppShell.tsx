@@ -11,13 +11,14 @@
  *   - SearchPalette:  Cmd+K modal overlay
  */
 import { useCallback, useEffect, useState } from "react";
-import { Outlet, useLocation } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
 import { ActivityTicker } from "./ActivityTicker";
 import { FAB } from "./FAB";
 import { SearchPalette } from "./SearchPalette";
 import { Sidenav } from "./Sidenav";
 import { TopBar } from "./TopBar";
+import { RouteBoundary } from "./RouteBoundary";
 
 // Routes that already have their own primary CTA at the bottom-right where
 // the FAB would otherwise overlap content. The FAB is suppressed here.
@@ -27,6 +28,7 @@ const _SUPPRESS_FAB_ROUTES = new Set([
 
 export function AppShell() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const showFab = !_SUPPRESS_FAB_ROUTES.has(location.pathname);
 
@@ -43,6 +45,7 @@ export function AppShell() {
         !!target &&
         (target.tagName === "INPUT" ||
           target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
           target.isContentEditable);
 
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
@@ -50,25 +53,26 @@ export function AppShell() {
         setPaletteOpen((prev) => !prev);
         return;
       }
-      if (!isInput && !e.metaKey && !e.ctrlKey && !e.altKey && e.key.toLowerCase() === "n") {
+      if (!paletteOpen && !isInput && !e.metaKey && !e.ctrlKey && !e.altKey && e.key.toLowerCase() === "n") {
         e.preventDefault();
-        window.location.assign("/intake");
+        navigate("/intake");
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [navigate, paletteOpen]);
 
   return (
     <div className="min-h-screen bg-surface-bg text-ink-body">
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:z-[100] focus:top-2 focus:left-2 focus:bg-surface-raised focus:p-3">Skip to content</a>
       <ActivityTicker />
       <TopBar onOpenSearch={openPalette} />
 
       {/* Compensate for fixed ticker (28px on sm+) + topbar (56px) = 84px */}
       <div className="pt-14 sm:pt-[84px] flex">
         <Sidenav />
-        <main className="flex-1 min-w-0">
-          <Outlet />
+        <main id="main-content" tabIndex={-1} className="flex-1 min-w-0">
+          <RouteBoundary><Outlet /></RouteBoundary>
         </main>
       </div>
 

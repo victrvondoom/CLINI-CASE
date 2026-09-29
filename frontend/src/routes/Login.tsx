@@ -4,11 +4,12 @@
  * Polished pre-demo: ClinCase mark (public/clincase-mark.svg), ambient glow,
  * and one-click demo accounts so evaluators can land in a workspace without typing.
  */
-import { Loader2, LogIn, ShieldCheck, Sparkles } from "lucide-react";
+import { Loader2, LogIn, Moon, ShieldCheck, Sparkles, Sun } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../components/AuthContext";
+import { useTheme } from "../lib/theme";
 
 const DEMO_ACCOUNTS = [
   { email: "admin@clincase.health",        password: "clincase2026", role: "Admin",       desc: "Full access" },
@@ -18,6 +19,7 @@ const DEMO_ACCOUNTS = [
 
 export default function Login() {
   const { login } = useAuth();
+  const { theme, toggle } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const from = (location.state as { from?: string } | null)?.from ?? "/dashboard";
@@ -49,6 +51,17 @@ export default function Login() {
 
   return (
     <div className="relative min-h-screen flex items-center justify-center px-4 py-12 overflow-hidden bg-gradient-to-br from-surface-bg via-surface-bg to-accent-brand/[0.04]">
+      {/* ---- Theme toggle ---- */}
+      <button
+        type="button"
+        onClick={toggle}
+        className="absolute top-4 right-4 z-10 inline-grid place-items-center w-9 h-9 rounded-md border border-surface-border bg-surface-raised text-ink-muted hover:text-ink-primary hover:border-surface-border-hi hover:shadow-[var(--shadow-raise)] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-brand"
+        aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+        title={theme === "dark" ? "Switch to light" : "Switch to dark"}
+      >
+        {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+      </button>
+
       {/* ---- Ambient backdrop blobs (turned up to obvious) ---- */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -top-40 -left-40 w-[720px] h-[720px] rounded-full bg-accent-brand/40 blur-[100px] motion-safe:animate-pulse [animation-duration:6s]" />
@@ -191,7 +204,7 @@ export default function Login() {
         {/* ---- Compliance footer ---- */}
         <div className="text-micro mt-6 flex items-center justify-center gap-1.5 text-ink-faint">
           <ShieldCheck size={11} className="text-accent-green" />
-          <span>HIPAA · SOC 2 · CMS-0057-F § IV.A audited</span>
+          <span>Demo workspace · human review required · no compliance attestation</span>
         </div>
         <div className="text-micro mt-2 text-center text-ink-faint leading-relaxed">
           7-agent LangGraph DAG · AWS Bedrock · Claude Sonnet 4.6 + Haiku 4.5 · MCP-compatible

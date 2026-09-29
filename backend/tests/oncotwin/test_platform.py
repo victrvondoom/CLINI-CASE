@@ -92,7 +92,7 @@ def test_horizon_model_is_monotone_and_declines_unsupported_horizons(demo_sims):
     comp = compute_twin(rec, 26, history=compute_history(rec, 26))
     out = hm.horizons(comp.F[25], primary_7d=comp.prediction["risk"])
     cum = out["curve"]["cumulative"]
-    assert all(b >= a for a, b in zip(cum, cum[1:]))
+    assert all(b >= a for a, b in zip(cum, cum[1:], strict=False))
     six = next(h for h in out["horizons"] if h["horizon"] == "6 h")
     assert six["supported"] is False and six["risk"] is None and "daily" in six["reason"]
     assert hm.integrity_verified

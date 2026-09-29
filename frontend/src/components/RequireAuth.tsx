@@ -15,15 +15,26 @@ interface Props {
 }
 
 export function RequireAuth({ children, roles }: Props) {
-  const { user, loading } = useAuth();
+  const { user, loading, verificationError, refresh, logout } = useAuth();
   const location = useLocation();
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen text-ink-muted">
+      <div role="status" className="flex items-center justify-center h-screen text-ink-muted">
         <Loader2 size={20} className="animate-spin mr-2" />
         Verifying session...
       </div>
+    );
+  }
+
+  if (verificationError) {
+    return (
+      <section role="alert" className="mx-auto max-w-md p-8 text-ink-body">
+        <h1 className="text-xl font-semibold">Session verification unavailable</h1>
+        <p className="my-4">{verificationError}</p>
+        <button type="button" className="rounded bg-accent-blue px-4 py-2 text-white" onClick={() => void refresh()}>Retry verification</button>
+        <button type="button" className="ml-4 underline" onClick={logout}>Sign out</button>
+      </section>
     );
   }
 

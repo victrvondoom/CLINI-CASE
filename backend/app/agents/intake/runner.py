@@ -21,7 +21,7 @@ from app.agents.intake.pipeline import run_intake_pipeline
 from app.models.intake import IntakeDocument, IntakeResult
 
 
-async def parse_document(doc: IntakeDocument) -> IntakeResult:
+async def parse_document(doc: IntakeDocument, *, tenant_id: str | None = None) -> IntakeResult:
     """End-to-end intake. Always returns an IntakeResult; never raises.
 
     Pipeline (in order):
@@ -34,4 +34,4 @@ async def parse_document(doc: IntakeDocument) -> IntakeResult:
 
     Per-stage timing lands in IntakeResult.audit.stage_timings_ms.
     """
-    return await run_intake_pipeline(doc)
+    return await run_intake_pipeline(doc, tenant_id=tenant_id)

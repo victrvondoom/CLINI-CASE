@@ -47,3 +47,13 @@ from app.agents.necessity_reasoner import (
 Running this parent produces one `agent_runs` row for the orchestrator
 (`necessity_reasoner`) plus one row per sub-agent invocation (`necessity_reasoner.<sub_name>`).
 Hierarchy is reflected in the `AgentTrace.parent_span_id` chain.
+
+### Calibration integrity
+
+The calibrator must return exactly one finite confidence in [0, 1] for every
+input match. Missing or extra scores fail explicitly; no criterion is dropped
+or fabricated. Each match must retain its source criterion, and splitter
+outputs must contain nonblank, unique criteria with valid excerpt indices.
+The canonical aggregate is bounded by the minimum criterion confidence; a
+lower supplied aggregate is preserved conservatively. Malformed output cannot
+produce an approval and is surfaced through the existing job failure path.
