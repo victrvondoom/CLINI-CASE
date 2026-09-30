@@ -16,6 +16,7 @@ is wired" probe a reviewer or auditor runs once.
 
 from __future__ import annotations
 
+import logging
 import subprocess
 import time
 from datetime import UTC, datetime
@@ -88,13 +89,19 @@ def _system_counts() -> dict[str, Any]:
     from app import policy_catalog
     from app.agents.manifest import AGENT_MANIFEST, total_sub_agents
 
-    cat = policy_catalog.catalog()
-    return {
+    counts: dict[str, Any] = {
         "agents": len(AGENT_MANIFEST),
         "sub_agents": total_sub_agents(),
-        "policies_indexed": cat["n"],
-        "payers": len(cat["payers"]),
+        "policies_indexed": None,
+        "payers": None,
     }
+    try:
+        cat = policy_catalog.catalog()
+        counts["policies_indexed"] = cat["n"]
+        counts["payers"] = len(cat["payers"])
+    except Exception:  # noqa: BLE001 - a bad data file must not take /capabilities down
+        logging.getLogger(__name__).exception("policy catalog unavailable for /capabilities")
+    return counts
 
 
 @router.get("/capabilities")

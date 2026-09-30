@@ -101,7 +101,7 @@ async def _case_row(organization_id: str, case_id: str) -> dict[str, Any] | None
 
 
 async def _siblings(organization_id: str, case: dict[str, Any]) -> dict[str, dict[str, Any]]:
-    """Cases with the same clinical bundle, patient and treatment, keyed by payer (latest per payer)."""
+    """Cases with the same clinical bundle, patient and treatment, keyed by payer (the viewed case for its own payer, else the latest)."""
     rows = await db.fetch(
         """SELECT DISTINCT ON (c.payer_id)
                   c.id, c.payer_id, c.status, c.created_at,
@@ -115,13 +115,14 @@ async def _siblings(organization_id: str, case: dict[str, Any]) -> dict[str, dic
              AND c.patient_initials = $2
              AND lower(c.requested_treatment_name) = lower($3)
              AND c.fhir_bundle = $4::jsonb
-           ORDER BY c.payer_id, c.created_at DESC""",
+           ORDER BY c.payer_id, (c.id = $5) DESC, c.created_at DESC""",
         organization_id,
         case["patient_initials"],
         case["requested_treatment_name"],
         case["fhir_bundle"]
         if isinstance(case["fhir_bundle"], str)
         else json.dumps(case["fhir_bundle"]),
+        case["id"],
     )
     return {r["payer_id"]: dict(r) for r in rows}
 

@@ -1,6 +1,6 @@
 """Public agent manifest endpoint.
 
-Surfaces the 7-agent / 21-sub-agent decomposition for the frontend Agents
+Surfaces the 7-agent / 22-sub-agent decomposition for the frontend Agents
 page and any external MCP / TriZetto AI Gateway integration that wants to
 introspect the system.
 """
@@ -8,6 +8,8 @@ introspect the system.
 from __future__ import annotations
 
 import asyncio
+import logging
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -28,6 +30,7 @@ _APP_DIR = Path(__file__).resolve().parents[1]
 _PROMPTS_DIR = _APP_DIR / "prompts"
 
 
+@lru_cache(maxsize=1)
 def pipeline_graph() -> dict[str, Any] | None:
     """Topology of the compiled LangGraph pipeline — the real nodes and edges, not a hand-drawn diagram.
 
@@ -37,6 +40,7 @@ def pipeline_graph() -> dict[str, Any] | None:
 
         g = build_full_graph().get_graph()
     except Exception:  # noqa: BLE001
+        logging.getLogger(__name__).exception("pipeline graph could not be built")
         return None
     skip = {"__start__", "__end__"}
     edges = [
@@ -61,7 +65,7 @@ def pipeline_graph() -> dict[str, Any] | None:
 
 @router.get("/manifest")
 async def agents_manifest() -> dict[str, Any]:
-    """Return the full 7-agent / 21-sub-agent manifest plus the real pipeline topology."""
+    """Return the full 7-agent / 22-sub-agent manifest plus the real pipeline topology."""
     graph = pipeline_graph()
     order = {n: i + 1 for i, n in enumerate(graph["order"])} if graph else {}
     agents = [{**a, "pipeline_index": order.get(a["name"])} for a in AGENT_MANIFEST]
