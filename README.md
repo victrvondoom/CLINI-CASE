@@ -139,7 +139,7 @@ flowchart TB
     end
 
     subgraph ORCH["Layer 2 - Orchestration"]
-        LG["LangGraph DAG (7 agents - 21 sub-agents - conditional edges)"]
+        LG["LangGraph DAG (7 agents - 22 sub-agents - conditional edges)"]
         QUEUE["Postgres job queue + HITL reviewer gate"]
     end
 

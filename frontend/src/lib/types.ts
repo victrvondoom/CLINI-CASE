@@ -248,3 +248,123 @@ export type TraceEvent =
   | AgentFinishedEvent
   | AgentErrorEvent
   | DoneEvent;
+
+// ---- Cohort analytics (GET /cohorts) -------------------------------------------------------
+export interface CohortInsight {
+  id: string;
+  accent: "amber" | "blue" | "violet" | "green";
+  metric: string;
+  metric_label: string;
+  title: string;
+  detail: string;
+  link: { label: string; to: string };
+}
+
+export interface CohortReport {
+  window_days: number;
+  generated_at: string;
+  total_cases: number;
+  decided_cases: number;
+  pending_cases: number;
+  verdicts: { APPROVE: number; DENY: number; REFER: number };
+  approval_by_payer: { payer: string; decided: number; approve: number; deny: number; refer: number; rate: number | null }[];
+  time_to_decision: {
+    buckets: { bucket: string; count: number }[];
+    timed_cases: number;
+    median_seconds: number | null;
+    p90_seconds: number | null;
+  };
+  verdict_by_treatment: { treatment: string; approve: number; deny: number; refer: number }[];
+  status_counts: Record<string, number>;
+  insights: CohortInsight[];
+  min_group_size: number;
+}
+
+// ---- Reviewer queue (GET /reviewer/queue) --------------------------------------------------
+export interface ReviewQueueItem {
+  case_id: string;
+  patient: string;
+  treatment: string;
+  payer: "aetna" | "uhc" | "bcbs" | "anthem" | string;
+  status: string;
+  priority: "high" | "medium" | "low";
+  reason: string;
+  missing_evidence: string | null;
+  unresolved_criteria: number;
+  confidence: number | null;
+  age_minutes: number;
+  referred_at: string;
+}
+
+export interface ReviewQueueReport {
+  generated_at: string;
+  total: number;
+  priority_rule: string;
+  counts: { high: number; medium: number; low: number };
+  items: ReviewQueueItem[];
+}
+
+// ---- Policy catalog (GET /policy-catalog[/{id}]) -------------------------------------------
+export interface PolicyCatalogItem {
+  payer_id: string;
+  policy_id: string;
+  title: string;
+  treatment_keywords: string[];
+  source_url: string | null;
+  section_count: number;
+  word_count: number;
+  recent_change_at: string | null;
+  has_recent_change: boolean;
+}
+
+export interface PolicyCatalog {
+  n: number;
+  payers: string[];
+  n_with_recent_change: number;
+  snapshot: { taken_at: string; version: string };
+  policies: PolicyCatalogItem[];
+}
+
+export interface PolicyChange {
+  payer: string;
+  treatment: string;
+  policy_id: string;
+  version_old: string;
+  version_new: string;
+  changed_at: string;
+  summary: string;
+  diff: { action: "added" | "removed" | "modified"; section: string; text: string }[];
+  in_flight_pas_affected?: number;
+}
+
+export interface PolicyDetail extends PolicyCatalogItem {
+  sections: { heading: string | null; page_number: number | null; word_count: number; text: string }[];
+  diffs: PolicyChange[];
+  related: { payer_id: string; policy_id: string; title: string }[];
+  snapshot: { taken_at: string; version: string; note: string };
+  open_cases: { case_id: string; patient: string; treatment: string; status: string; created_at: string }[];
+  open_cases_available: boolean;
+}
+
+// ---- Multi-payer comparison (GET /cases/{id}/compare) --------------------------------------
+export interface PayerColumn {
+  payer_id: "aetna" | "uhc" | "bcbs" | "anthem" | string;
+  name: string;
+  is_this_case: boolean;
+  policy: { policy_id: string; title: string; source_url: string | null; section_count: number; has_recent_change: boolean } | null;
+  case: { case_id: string; status: string; created_at: string } | null;
+  decision: { verdict: "APPROVE" | "DENY" | "REFER"; confidence: number; rationale: string | null; decided_at: string } | null;
+  state: "decided" | "in_progress" | "not_started" | "no_policy";
+  can_create: boolean;
+}
+
+export interface CaseComparison {
+  case_id: string;
+  treatment: string;
+  j_code: string | null;
+  patient: string;
+  payer_id: string;
+  payers: PayerColumn[];
+  recommendation: { primary: string | null; fallback: string | null; summary: string };
+  method: string;
+}

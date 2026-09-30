@@ -13,9 +13,10 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from app import db
 from app.agents.manifest import AGENT_MANIFEST, flatten_sub_agents, total_sub_agents
+from app.analytics.agent_metrics import fetch_agent_metrics
 from app.auth import get_current_user
+from app.db import db
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 
@@ -27,13 +28,48 @@ _APP_DIR = Path(__file__).resolve().parents[1]
 _PROMPTS_DIR = _APP_DIR / "prompts"
 
 
+def pipeline_graph() -> dict[str, Any] | None:
+    """Topology of the compiled LangGraph pipeline — the real nodes and edges, not a hand-drawn diagram.
+
+    Returns None if the graph cannot be built (the manifest must still be servable)."""
+    try:
+        from app.graph.build import build_full_graph
+
+        g = build_full_graph().get_graph()
+    except Exception:  # noqa: BLE001
+        return None
+    skip = {"__start__", "__end__"}
+    edges = [
+        {"source": e.source, "target": e.target, "conditional": bool(e.conditional)}
+        for e in g.edges
+    ]
+    # Execution order: walk from __start__ following the first (unconditional-preferred) edge.
+    nxt: dict[str, str] = {}
+    for e in sorted(edges, key=lambda x: x["conditional"]):
+        nxt.setdefault(e["source"], e["target"])
+    order: list[str] = []
+    cur = nxt.get("__start__")
+    while cur and cur not in skip and cur not in order:
+        order.append(cur)
+        cur = nxt.get(cur)
+    # agents that are only reachable through conditional branches keep their graph position
+    for n in g.nodes:
+        if n not in skip and n not in order:
+            order.append(n)
+    return {"nodes": [n for n in g.nodes if n not in skip], "edges": edges, "order": order}
+
+
 @router.get("/manifest")
 async def agents_manifest() -> dict[str, Any]:
-    """Return the full 7-agent / 21-sub-agent manifest."""
+    """Return the full 7-agent / 21-sub-agent manifest plus the real pipeline topology."""
+    graph = pipeline_graph()
+    order = {n: i + 1 for i, n in enumerate(graph["order"])} if graph else {}
+    agents = [{**a, "pipeline_index": order.get(a["name"])} for a in AGENT_MANIFEST]
     return {
         "n_agents": len(AGENT_MANIFEST),
         "n_sub_agents": total_sub_agents(),
-        "agents": AGENT_MANIFEST,
+        "agents": agents,
+        "graph": graph,
     }
 
 
@@ -42,6 +78,20 @@ async def sub_agents_flat() -> dict[str, Any]:
     """Flat list of every sub-agent across all parents — handy for /eval and /agents."""
     flat = flatten_sub_agents()
     return {"n": len(flat), "sub_agents": flat}
+
+
+@router.get("/metrics")
+async def agents_metrics(
+    hours: int = Query(default=24, ge=1, le=24 * 30, description="Look-back window in hours."),
+    user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Real per-agent invocations / success / latency / tokens / cost for the caller's organisation."""
+    try:
+        return await fetch_agent_metrics(user["organization_id"], hours)
+    except Exception as exc:  # noqa: BLE001 - never fabricate numbers when the database is unavailable
+        raise HTTPException(
+            503, "Agent metrics need the case database, which is unavailable."
+        ) from exc
 
 
 @router.get("/{agent_name}/runs")

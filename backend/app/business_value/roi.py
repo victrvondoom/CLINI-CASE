@@ -18,7 +18,7 @@ numbers come from?" can point to AMA / CAQH / KFF directly.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC
 
 from app.db import db
@@ -55,6 +55,21 @@ CLINCASE_P50_SECONDS = 60.0
 # =============================================================================
 
 
+def token_pricing() -> dict[str, dict[str, float]]:
+    from app.agents.framework.models import HAIKU_LITE, SONNET_REASONING
+
+    return {
+        "sonnet": {
+            "in": SONNET_REASONING.cost_per_million_input_tokens,
+            "out": SONNET_REASONING.cost_per_million_output_tokens,
+        },
+        "haiku": {
+            "in": HAIKU_LITE.cost_per_million_input_tokens,
+            "out": HAIKU_LITE.cost_per_million_output_tokens,
+        },
+    }
+
+
 @dataclass
 class CaseROI:
     case_id: str
@@ -68,6 +83,12 @@ class CaseROI:
     speedup_factor: float | None
     annual_extrapolation_usd: float | None  # if this org runs N similar cases / year
     citations: list[str]
+    #: the manual-PA baseline (minutes) the savings / speed-up numbers are measured against
+    manual_minutes: float = MANUAL_PA_MINUTES
+    #: USD per 1M tokens by model family — the same table the agent framework bills against
+    token_pricing_usd_per_m: dict[str, dict[str, float]] = field(
+        default_factory=lambda: token_pricing()
+    )
 
 
 def _verdict_to_clincase_cost(verdict: str | None) -> float:
@@ -163,12 +184,23 @@ class OrgValueRollup:
     avg_decision_seconds: float | None
     avg_speedup_factor: float | None
     citations: list[str]
+    #: cases created per UTC day for the last 7 days, oldest first (last item = today)
+    daily_cases_7d: list[int] = field(default_factory=lambda: [0] * 7)
+    #: change in mean time-to-decision vs the previous calendar month, in % (negative = faster); None if either is unknown
+    avg_decision_change_pct: float | None = None
+    #: the baselines the savings / speed-up maths are measured against — served so the UI never hard-codes them
+    assumptions: dict[str, float] = field(
+        default_factory=lambda: {
+            "manual_pa_cost_usd": MANUAL_PA_COST_USD,
+            "manual_pa_minutes": MANUAL_PA_MINUTES,
+        }
+    )
 
 
 async def org_value_rollup(organization_id: str) -> OrgValueRollup:
     """Org-level direct-savings rollup. Star Ratings + abrasion are in
     sibling modules `star_ratings.py` and `provider_abrasion.py`."""
-    from datetime import datetime
+    from datetime import datetime, timedelta
 
     # Cases this month
     rows = await db.fetch(
@@ -230,6 +262,33 @@ async def org_value_rollup(organization_id: str) -> OrgValueRollup:
     )
     annual_projection = n_30 * 12.0 * blended_savings
 
+    # Real activity series + month-over-month speed change (both derived from this org's own cases)
+    daily_rows = await db.fetch(
+        """SELECT (c.created_at AT TIME ZONE 'UTC')::date AS d, COUNT(*)::INT AS n
+           FROM cases c
+           WHERE c.organization_id = $1
+             AND c.created_at >= (date_trunc('day', NOW() AT TIME ZONE 'UTC') - INTERVAL '6 days')
+           GROUP BY 1""",
+        organization_id,
+    )
+    today = datetime.now(UTC).date()
+    by_day = {r["d"]: r["n"] for r in daily_rows}
+    daily = [int(by_day.get(today - timedelta(days=6 - i), 0)) for i in range(7)]
+
+    prev_row = await db.fetchrow(
+        """SELECT AVG(EXTRACT(EPOCH FROM (d.created_at - c.created_at)))::FLOAT AS avg_dur
+           FROM cases c
+           JOIN LATERAL (
+               SELECT created_at FROM decisions WHERE case_id = c.id ORDER BY id DESC LIMIT 1
+           ) d ON TRUE
+           WHERE c.organization_id = $1
+             AND c.created_at >= date_trunc('month', NOW() AT TIME ZONE 'UTC') - INTERVAL '1 month'
+             AND c.created_at <  date_trunc('month', NOW() AT TIME ZONE 'UTC')""",
+        organization_id,
+    )
+    prev_avg = prev_row["avg_dur"] if prev_row else None
+    change_pct = round(100.0 * (avg_dur - prev_avg) / prev_avg, 1) if avg_dur and prev_avg else None
+
     return OrgValueRollup(
         organization_id=organization_id,
         asof_iso=datetime.now(UTC).isoformat(),
@@ -245,4 +304,6 @@ async def org_value_rollup(organization_id: str) -> OrgValueRollup:
             "CAQH 2024 Index — PA admin cost",
             "ClinCase ops/SCALING.md per-case cost model",
         ],
+        daily_cases_7d=daily,
+        avg_decision_change_pct=change_pct,
     )

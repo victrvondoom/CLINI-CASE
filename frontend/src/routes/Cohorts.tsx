@@ -1,161 +1,167 @@
-﻿/**
- * /cohorts — Cross-case analytics. Cohort insight cards + bar/distribution charts.
- *
- * "Across 124 cases, 67% of trastuzumab denials share missing LVEF documentation."
- * — the data flywheel signal.
+/**
+ * /cohorts — Cross-case analytics for THIS organisation, computed live from its cases and decisions
+ * (GET /api/v1/cohorts). Nothing on this page is a fixture: with no cases it shows an empty state, and
+ * insight cards only appear when there is enough evidence behind them.
  */
-import { ArrowRight, BarChart3, Lightbulb } from "lucide-react";
+import { ArrowRight, BarChart3, Lightbulb, Loader2, RefreshCw } from "lucide-react";
+import { Link } from "react-router-dom";
+import { useState } from "react";
 
-interface Insight {
-  id: string;
-  title: string;
-  detail: string;
-  metric: string;
-  metric_label: string;
-  cta_label: string;
-  accent: "amber" | "blue" | "violet" | "green";
-}
+import { api } from "../lib/api";
+import type { CohortInsight } from "../lib/types";
+import { useLive } from "../lib/useLive";
 
-const INSIGHTS: Insight[] = [
-  {
-    id: "her2-lvef-gap",
-    title: "67% of trastuzumab denials share missing LVEF documentation",
-    detail: "Across 12 trastuzumab denials in the last 30 days, 8 had no LVEF assessment within the payer window. Recommend pre-submission ECHO orders.",
-    metric: "12",
-    metric_label: "cases affected",
-    cta_label: "View cases",
-    accent: "amber",
-  },
-  {
-    id: "aetna-vs-uhc-time",
-    title: "Aetna takes 2.3× longer to approve than UHC for stage IIIA breast cancer",
-    detail: "Avg time-to-decision: Aetna 18m, UHC 8m. Driver: Aetna's stricter LVEF window (60d vs UHC's lenient).",
-    metric: "8 vs 18",
-    metric_label: "minutes (UHC vs Aetna)",
-    cta_label: "View comparison",
-    accent: "blue",
-  },
-  {
-    id: "ecog-correlation",
-    title: "Patients with ECOG 2 have 34% lower approval rate vs ECOG 0–1",
-    detail: "Across all payers and treatments. Driver: payers' performance-status thresholds are inconsistently enforced.",
-    metric: "−34%",
-    metric_label: "approval delta",
-    cta_label: "Export cohort",
-    accent: "violet",
-  },
-  {
-    id: "appeal-success",
-    title: "84% of ClinCase-drafted appeals are overturned (vs 67% manual baseline)",
-    detail: "47 appeals drafted, 39 overturned. NCCN-grounded arguments + structured biomarker citations correlate with overturn.",
-    metric: "84%",
-    metric_label: "overturn rate",
-    cta_label: "View appeals",
-    accent: "green",
-  },
-];
-
-const ACCENT_BG: Record<Insight["accent"], string> = {
+const ACCENT_BG: Record<CohortInsight["accent"], string> = {
   amber:  "bg-accent-amber/5  border-accent-amber/30",
   blue:   "bg-accent-blue/5   border-accent-blue/30",
   violet: "bg-accent-violet/5 border-accent-violet/30",
   green:  "bg-accent-green/5  border-accent-green/30",
 };
 
-const ACCENT_ICON: Record<Insight["accent"], string> = {
+const ACCENT_ICON: Record<CohortInsight["accent"], string> = {
   amber:  "text-accent-amber",
   blue:   "text-accent-blue",
   violet: "text-accent-violet",
   green:  "text-accent-green",
 };
 
-// Approval rate by payer (synthetic)
-const APPROVAL_BY_PAYER = [
-  { payer: "Aetna",  rate: 71 },
-  { payer: "UHC",    rate: 78 },
-  { payer: "BCBS",   rate: 64 },
-  { payer: "Anthem", rate: 69 },
+const WINDOWS = [
+  { days: 30, label: "30 days" },
+  { days: 90, label: "90 days" },
+  { days: 365, label: "1 year" },
 ];
 
-// Time-to-decision distribution buckets (synthetic)
-const TIME_DIST = [
-  { bucket: "< 1m", count: 18 },
-  { bucket: "1-3m", count: 42 },
-  { bucket: "3-5m", count: 28 },
-  { bucket: "5-10m", count: 22 },
-  { bucket: "10-30m", count: 11 },
-  { bucket: "> 30m", count: 3 },
-];
-
-const VERDICT_BY_TREATMENT = [
-  { treatment: "trastuzumab",       approve: 22, deny: 4, refer: 6 },
-  { treatment: "osimertinib",       approve: 15, deny: 1, refer: 3 },
-  { treatment: "pembrolizumab",     approve: 12, deny: 2, refer: 5 },
-  { treatment: "olaparib",          approve: 9,  deny: 0, refer: 2 },
-  { treatment: "T-DXd",             approve: 6,  deny: 1, refer: 2 },
-];
+const POLL_MS = 60_000;
 
 export default function Cohorts() {
+  const [days, setDays] = useState(90);
+  const { data, error, loading, updatedAt, reload } = useLive(() => api.getCohorts(days), [days], POLL_MS);
+  const empty = !!data && data.total_cases === 0;
+
   return (
-    <div className="px-6 py-6">
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold text-ink-primary leading-tight flex items-center gap-2">
-          <BarChart3 size={22} className="text-accent-brand" />
-          Cohort insights
-        </h1>
-        <p className="text-sm text-ink-muted mt-1">
-          Cross-case analytics across <span className="text-mono-tech text-ink-body">124</span> cases ·
-          <span className="mx-2 text-ink-faint">·</span>
-          <span className="text-accent-cyan font-medium">data flywheel · learning over time</span>
-        </p>
+    <div className="px-6 py-6" data-testid="cohorts-page">
+      <header className="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold text-ink-primary leading-tight flex items-center gap-2">
+            <BarChart3 size={22} className="text-accent-brand" />
+            Cohort insights
+          </h1>
+          <p className="text-sm text-ink-muted mt-1" data-testid="cohorts-summary">
+            {data ? (
+              <>
+                Cross-case analytics across <span className="text-mono-tech text-ink-body">{data.total_cases}</span> cases
+                in the last {data.window_days} days ·{" "}
+                <span className="text-mono-tech text-ink-body">{data.decided_cases}</span> decided ·{" "}
+                <span className="text-mono-tech text-ink-body">{data.pending_cases}</span> pending
+              </>
+            ) : (
+              "Cross-case analytics for your organisation"
+            )}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 text-xs">
+          <div role="group" aria-label="Time window" className="inline-flex rounded-md border border-surface-border overflow-hidden">
+            {WINDOWS.map((w) => (
+              <button
+                key={w.days}
+                type="button"
+                aria-pressed={days === w.days}
+                onClick={() => setDays(w.days)}
+                className={`px-2.5 py-1 ${days === w.days ? "bg-accent-brand/15 text-ink-primary" : "text-ink-muted hover:text-ink-primary"}`}
+              >
+                {w.label}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={reload}
+            aria-label="Refresh cohort data"
+            className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-surface-border text-ink-muted hover:text-ink-primary"
+          >
+            {loading ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+            {updatedAt ? updatedAt.toLocaleTimeString() : "Refresh"}
+          </button>
+        </div>
       </header>
 
-      {/* Insight cards */}
-      <section className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        {INSIGHTS.map((it) => (
-          <div
-            key={it.id}
-            className={`border-2 rounded-2xl p-5 ${ACCENT_BG[it.accent]} relative overflow-hidden`}
-          >
-            <Lightbulb size={16} className={`${ACCENT_ICON[it.accent]} mb-2`} />
-            <div className="text-2xl font-bold text-ink-primary nums-tabular leading-none">
-              {it.metric}
-            </div>
-            <div className="text-[11px] text-compact text-ink-muted mt-1">
-              {it.metric_label}
-            </div>
-            <h3 className="text-sm font-semibold text-ink-primary mt-3 leading-snug">
-              {it.title}
-            </h3>
-            <p className="text-xs text-ink-muted mt-2 leading-relaxed">
-              {it.detail}
-            </p>
-            <button
-              type="button"
-              className={`mt-3 text-xs font-medium ${ACCENT_ICON[it.accent]} hover:underline flex items-center gap-1`}
+      {error && (
+        <div role="alert" data-testid="cohorts-error" className="mb-4 rounded-lg border border-accent-red/40 bg-accent-red/10 px-3 py-2 text-sm text-ink-body">
+          Could not load cohort analytics: {error}{" "}
+          <button type="button" onClick={reload} className="underline">Retry</button>
+        </div>
+      )}
+
+      {!data && loading && <p className="text-sm text-ink-muted" role="status">Loading cohort analytics…</p>}
+
+      {empty && (
+        <div data-testid="cohorts-empty" className="rounded-2xl border border-surface-border bg-surface-raised p-8 text-center">
+          <p className="text-sm text-ink-body">No cases in the last {data!.window_days} days.</p>
+          <p className="text-xs text-ink-muted mt-1">
+            Cohort insights are computed from your organisation's real cases and decisions —{" "}
+            <Link to="/intake" className="text-accent-brand hover:underline">run a case</Link> and they will appear here.
+          </p>
+        </div>
+      )}
+
+      {data && !empty && (
+        <>
+          <section className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6" aria-label="Insights">
+            {data.insights.length === 0 && (
+              <p className="text-xs text-ink-muted md:col-span-2" data-testid="cohorts-no-insights">
+                Not enough decided cases yet for comparative insights (each comparison needs at least {data.min_group_size} decided
+                cases per group). Charts below show what is available.
+              </p>
+            )}
+            {data.insights.map((it) => (
+              <div key={it.id} data-testid={`insight-${it.id}`} className={`border-2 rounded-2xl p-5 ${ACCENT_BG[it.accent]} relative overflow-hidden`}>
+                <Lightbulb size={16} className={`${ACCENT_ICON[it.accent]} mb-2`} />
+                <div className="text-2xl font-bold text-ink-primary nums-tabular leading-none">{it.metric}</div>
+                <div className="text-[11px] text-compact text-ink-muted mt-1">{it.metric_label}</div>
+                <h3 className="text-sm font-semibold text-ink-primary mt-3 leading-snug">{it.title}</h3>
+                <p className="text-xs text-ink-muted mt-2 leading-relaxed">{it.detail}</p>
+                <Link to={it.link.to} className={`mt-3 text-xs font-medium ${ACCENT_ICON[it.accent]} hover:underline inline-flex items-center gap-1`}>
+                  {it.link.label} <ArrowRight size={11} />
+                </Link>
+              </div>
+            ))}
+          </section>
+
+          <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <ChartCard title="Approval rate by payer" subtitle={`last ${data.window_days}d · decided cases`}>
+              {data.approval_by_payer.length ? (
+                <BarsHorizontal
+                  data={data.approval_by_payer.map((p) => ({ label: p.payer, value: p.rate ?? 0, suffix: "%", note: `n=${p.decided}` }))}
+                  max={100}
+                />
+              ) : (
+                <NoData />
+              )}
+            </ChartCard>
+
+            <ChartCard
+              title="Time-to-decision distribution"
+              subtitle={data.time_to_decision.timed_cases ? `${data.time_to_decision.timed_cases} timed cases` : "no timed cases"}
             >
-              {it.cta_label} <ArrowRight size={11} />
-            </button>
-          </div>
-        ))}
-      </section>
+              {data.time_to_decision.timed_cases ? (
+                <BarsVertical data={data.time_to_decision.buckets.map((b) => ({ label: b.bucket, value: b.count }))} />
+              ) : (
+                <NoData />
+              )}
+            </ChartCard>
 
-      {/* Charts grid */}
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <ChartCard title="Approval rate by payer" subtitle="last 30d">
-          <BarsHorizontal data={APPROVAL_BY_PAYER.map((p) => ({ label: p.payer, value: p.rate, suffix: "%" }))} max={100} />
-        </ChartCard>
-
-        <ChartCard title="Time-to-decision distribution" subtitle="all cases">
-          <BarsVertical data={TIME_DIST.map((t) => ({ label: t.bucket, value: t.count }))} />
-        </ChartCard>
-
-        <ChartCard title="Verdict mix by treatment" subtitle="last 90d">
-          <StackedBars data={VERDICT_BY_TREATMENT} />
-        </ChartCard>
-      </section>
+            <ChartCard title="Verdict mix by treatment" subtitle={`last ${data.window_days}d`}>
+              {data.verdict_by_treatment.length ? <StackedBars data={data.verdict_by_treatment} /> : <NoData />}
+            </ChartCard>
+          </section>
+        </>
+      )}
     </div>
   );
+}
+
+function NoData() {
+  return <p className="text-xs text-ink-muted py-6 text-center">No decided cases in this window.</p>;
 }
 
 // =============================================================================
@@ -174,7 +180,7 @@ function ChartCard({ title, subtitle, children }: { title: string; subtitle: str
   );
 }
 
-function BarsHorizontal({ data, max }: { data: { label: string; value: number; suffix?: string }[]; max: number }) {
+function BarsHorizontal({ data, max }: { data: { label: string; value: number; suffix?: string; note?: string }[]; max: number }) {
   return (
     <div className="space-y-2.5">
       {data.map((d) => (
@@ -189,6 +195,7 @@ function BarsHorizontal({ data, max }: { data: { label: string; value: number; s
           <span className="text-ink-body text-mono-tech w-10 text-right nums-tabular">
             {d.value}{d.suffix ?? ""}
           </span>
+          {d.note && <span className="text-[10px] text-ink-faint text-mono-tech w-10">{d.note}</span>}
         </div>
       ))}
     </div>
@@ -196,7 +203,7 @@ function BarsHorizontal({ data, max }: { data: { label: string; value: number; s
 }
 
 function BarsVertical({ data }: { data: { label: string; value: number }[] }) {
-  const max = Math.max(...data.map((d) => d.value));
+  const max = Math.max(1, ...data.map((d) => d.value));
   return (
     <div className="mt-2">
       <div className="flex items-end gap-2 h-32">
@@ -228,7 +235,7 @@ function BarsVertical({ data }: { data: { label: string; value: number }[] }) {
 }
 
 function StackedBars({ data }: { data: { treatment: string; approve: number; deny: number; refer: number }[] }) {
-  const max = Math.max(...data.map((d) => d.approve + d.deny + d.refer));
+  const max = Math.max(1, ...data.map((d) => d.approve + d.deny + d.refer));
   return (
     <div className="space-y-2 mt-1">
       {data.map((d) => {

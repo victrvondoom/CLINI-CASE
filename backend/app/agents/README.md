@@ -81,7 +81,7 @@ Agent.invoke(input, ctx) →
  11. return AgentResult[O] with cost / tokens / retries / grader_score
 ```
 
-## The 21 sub-agents at a glance
+## The 22 sub-agents at a glance
 
 | # | Parent | Sub-agent | Kind | Model | Reflection |
 |---|---|---|---|---|---|

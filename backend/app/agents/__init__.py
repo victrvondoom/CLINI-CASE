@@ -1,4 +1,4 @@
-"""ClinCase agents — 7 parent orchestrators × 21 sub-agents.
+"""ClinCase agents — 7 parent orchestrators × 22 sub-agents.
 
 Canonical architecture (everything is `Agent[I, O]` from app.agents.framework):
 

@@ -3,6 +3,11 @@
 import { authHeader, clearAuth } from "./auth";
 import type {
   AgentRun,
+  CaseComparison,
+  CohortReport,
+  PolicyCatalog,
+  PolicyDetail,
+  ReviewQueueReport,
   DemoFixture,
   RunResult,
 } from "./types";
@@ -612,6 +617,30 @@ export const api = {
     const res = await authedFetch(`${BASE}/business-value/case/${caseId}`);
     return jsonOrThrow(res);
   },
+  async getReviewQueue(limit = 50): Promise<ReviewQueueReport> {
+    const res = await authedFetch(`${BASE}/reviewer/queue?limit=${limit}`);
+    return jsonOrThrow(res);
+  },
+  async getPolicyCatalog(): Promise<PolicyCatalog> {
+    const res = await authedFetch(`${BASE}/policy-catalog`);
+    return jsonOrThrow(res);
+  },
+  async getPolicyDetail(policyId: string): Promise<PolicyDetail> {
+    const res = await authedFetch(`${BASE}/policy-catalog/${encodeURIComponent(policyId)}`);
+    return jsonOrThrow(res);
+  },
+  async getCaseComparison(caseId: string): Promise<CaseComparison> {
+    const res = await authedFetch(`${BASE}/cases/${encodeURIComponent(caseId)}/compare`);
+    return jsonOrThrow(res);
+  },
+  async createComparisonCase(caseId: string, payerId: string): Promise<{ case_id: string; created: boolean; payer_id: string }> {
+    const res = await authedFetch(`${BASE}/cases/${encodeURIComponent(caseId)}/compare/${encodeURIComponent(payerId)}`, { method: "POST" });
+    return jsonOrThrow(res);
+  },
+  async getCohorts(days = 90): Promise<CohortReport> {
+    const res = await authedFetch(`${BASE}/cohorts?days=${days}`);
+    return jsonOrThrow(res);
+  },
   async getOrgValue(): Promise<OrgValueRollup> {
     const res = await authedFetch(`${BASE}/business-value/org`);
     return jsonOrThrow(res);
@@ -764,6 +793,10 @@ export interface CaseROI {
   speedup_factor: number | null;
   annual_extrapolation_usd: number | null;
   citations: string[];
+  /** manual-PA baseline in minutes used for the savings / speed-up numbers */
+  manual_minutes?: number;
+  /** USD per 1M tokens by model family (same table the backend bills against) */
+  token_pricing_usd_per_m?: Record<string, { in: number; out: number }>;
 }
 
 export interface OrgValueRollup {
@@ -777,6 +810,13 @@ export interface OrgValueRollup {
   avg_decision_seconds: number | null;
   avg_speedup_factor: number | null;
   citations: string[];
+  /** cases created per UTC day, last 7 days, oldest first */
+  daily_cases_7d?: number[];
+  /** % change in mean time-to-decision vs previous calendar month (negative = faster) */
+  avg_decision_change_pct?: number | null;
+  /** baselines the savings / speed-up maths use */
+  assumptions?: { manual_pa_cost_usd: number; manual_pa_minutes: number };
+  db_unavailable?: boolean;
 }
 
 export interface StarImpactProjection {

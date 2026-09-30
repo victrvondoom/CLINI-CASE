@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Top app bar (h-14) — sits below the ActivityTicker (sm:top-7) so the
  * 28px live ticker peeks above it. Ported 1:1 from the deployed
  * clinical-healthcare showcase (components.jsx TopBar, lines 379-450).
@@ -6,7 +6,7 @@
  * Layout (left → right):
  *   - Logo + brand lockup ("ClinCase." with cyan dot · "Clinical AI Platform")
  *   - Cmd+K search (md+ block, mobile icon-only)
- *   - StatusPill ("All systems operational")
+ *   - Status link (opens the live system status panel)
  *   - NotificationsBell (with unread count)
  *   - Theme toggle
  *   - UserChip (initials + role + Verified badge)
@@ -18,16 +18,21 @@ import {
   Bell,
   BookOpen,
   CheckCircle,
+  Heart,
   Moon,
   Search,
+  ShieldCheck,
   Sun,
+  Zap,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { useAuth } from "./AuthContext";
 import { ProfilePanel } from "./ProfilePanel";
+import { EMPTY_SNAPSHOT, buildNotifications, fetchSnapshot, notifSignature, type TickerIcon, type Tone } from "../lib/liveFeed";
 import { useTheme } from "../lib/theme";
+import { useLive } from "../lib/useLive";
 
 interface Props {
   onOpenSearch: () => void;
@@ -135,26 +140,36 @@ function StatusPill() {
 }
 
 // ---------- Notifications bell ----------
-type Tone = "emerald" | "amber" | "cyan" | "brand";
-interface Notif {
-  tone: Tone;
-  Icon: LucideIcon;
-  title: string;
-  body: string;
-  time: string;
-}
+type NotifTone = Tone;
+const NOTIF_ICON: Record<TickerIcon, LucideIcon> = {
+  activity: Activity, alert: AlertCircle, check: CheckCircle, heart: Heart, shield: ShieldCheck, spark: BookOpen, zap: Zap,
+};
+const READ_KEY = "clincase-notifs-read";
 
-const NOTIFS: Notif[] = [
-  { tone: "emerald", Icon: CheckCircle, title: "Demo: approval event",      body: "Synthetic case · illustrative notification",                time: "sample" },
-  { tone: "amber",   Icon: AlertCircle, title: "Demo: review required",      body: "Missing evidence routes to a reviewer",                      time: "sample" },
-  { tone: "brand",   Icon: BookOpen,    title: "Demo: policy provenance",    body: "Configured policy references would appear here",             time: "sample" },
-  { tone: "cyan",    Icon: Activity,    title: "Metrics require telemetry",  body: "No production SLA result is claimed by this sample",          time: "sample" },
-];
+function loadRead(): Set<string> {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(READ_KEY) ?? "[]") as string[]);
+  } catch {
+    return new Set();
+  }
+}
 
 function NotificationsBell() {
   const [open, setOpen] = useState(false);
-  const [unread, setUnread] = useState(3);
+  const [read, setRead] = useState<Set<string>>(loadRead);
   const ref = useRef<HTMLDivElement>(null);
+  // Real notifications from live state; a count change makes an item unread again.
+  const notifs = buildNotifications(useLive(fetchSnapshot, [], 60_000).data ?? EMPTY_SNAPSHOT);
+  const unread = notifs.filter((n) => !read.has(notifSignature(n))).length;
+  const markAllRead = () => {
+    const next = new Set(notifs.map(notifSignature));
+    setRead(next);
+    try {
+      localStorage.setItem(READ_KEY, JSON.stringify([...next]));
+    } catch {
+      /* private mode — read state simply won't persist */
+    }
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -165,8 +180,9 @@ function NotificationsBell() {
     return () => document.removeEventListener("mousedown", onClick);
   }, [open]);
 
-  const toneCls = (t: Tone) =>
-    t === "emerald" ? "text-accent-green   bg-accent-green/10  border-accent-green/30"
+  const toneCls = (t: NotifTone) =>
+    t === "red"     ? "text-accent-red     bg-accent-red/10    border-accent-red/30"
+    : t === "emerald" ? "text-accent-green   bg-accent-green/10  border-accent-green/30"
     : t === "amber" ? "text-accent-amber   bg-accent-amber/10  border-accent-amber/30"
     : t === "cyan"  ? "text-accent-cyan    bg-accent-cyan/10   border-accent-cyan/30"
     :                 "text-accent-brand-glow bg-accent-brand/10 border-accent-brand/30";
@@ -177,7 +193,6 @@ function NotificationsBell() {
         type="button"
         onClick={() => {
           setOpen((o) => !o);
-          if (unread) setUnread(0);
         }}
         className="relative inline-grid place-items-center w-8 h-8 rounded-md border border-surface-border bg-surface-raised text-ink-muted hover:text-ink-primary hover:border-surface-border-hi hover:shadow-[var(--shadow-raise)] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-brand"
         aria-label="Notifications"
@@ -196,26 +211,41 @@ function NotificationsBell() {
         >
           <div className="px-3.5 py-2.5 border-b border-surface-border flex items-center justify-between">
             <span className="text-[12px] font-semibold text-ink-primary">Notifications</span>
-            <span className="text-[10px] text-mono-tech text-ink-muted">live · 4 new</span>
+            <span className="text-[10px] text-mono-tech text-ink-muted" data-testid="notif-count">{notifs.length === 0 ? "all clear" : `${unread} new · ${notifs.length} total`}</span>
           </div>
           <ul className="max-h-[360px] overflow-auto divide-y divide-surface-border">
-            {NOTIFS.map((n, i) => (
-              <li key={i} className="px-3.5 py-2.5 hover:bg-surface-raised-hi flex items-start gap-2.5">
-                <span className={`shrink-0 w-7 h-7 rounded-md grid place-items-center border ${toneCls(n.tone)}`}>
-                  <n.Icon size={13} />
-                </span>
-                <div className="flex-1 min-w-0">
-                  <div className="text-[12.5px] font-medium text-ink-primary truncate">{n.title}</div>
-                  <div className="text-[11px] text-ink-muted truncate">{n.body}</div>
-                </div>
-                <span className="text-[10px] text-mono-tech text-ink-faint shrink-0 mt-0.5">{n.time}</span>
-              </li>
-            ))}
+            {notifs.length === 0 && (
+              <li className="px-3.5 py-6 text-center text-[12px] text-ink-muted" data-testid="notif-empty">Nothing needs your attention.</li>
+            )}
+            {notifs.map((n) => {
+              const Icon = NOTIF_ICON[n.icon];
+              const body = (
+                <>
+                  <span className={`shrink-0 w-7 h-7 rounded-md grid place-items-center border ${toneCls(n.tone)}`}>
+                    <Icon size={13} />
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[12.5px] font-medium text-ink-primary">{n.title}</div>
+                    <div className="text-[11px] text-ink-muted">{n.body}</div>
+                  </div>
+                  {!read.has(notifSignature(n)) && <span className="shrink-0 mt-1.5 w-1.5 h-1.5 rounded-full bg-accent-brand" aria-label="unread" />}
+                </>
+              );
+              return (
+                <li key={n.key} data-testid={`notif-${n.key}`}>
+                  {n.to ? (
+                    <Link to={n.to} onClick={() => setOpen(false)} className="px-3.5 py-2.5 hover:bg-surface-raised-hi flex items-start gap-2.5">{body}</Link>
+                  ) : (
+                    <div className="px-3.5 py-2.5 flex items-start gap-2.5">{body}</div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
           <div className="px-3.5 py-2 border-t border-surface-border bg-surface-raised-hi/40 flex items-center justify-between">
             <button
               type="button"
-              onClick={() => setUnread(0)}
+              onClick={markAllRead}
               className="text-[11px] text-mono-tech text-ink-muted hover:text-ink-body"
             >
               Mark all read

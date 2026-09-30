@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Left sidenav. Sections: Workspace / Knowledge / Analytics / Admin.
  * Active route gets accent-brand left border + tinted bg + brand-tinted text.
  *
@@ -42,6 +42,8 @@ import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 
 import { api } from "../lib/api";
+import { EMPTY_SNAPSHOT, buildNavChips, fetchSnapshot } from "../lib/liveFeed";
+import { useLive } from "../lib/useLive";
 import { AboutModal } from "./AboutModal";
 import { useAuth } from "./AuthContext";
 
@@ -116,7 +118,7 @@ const SECTIONS: NavSection[] = [
     items: [
       { label: "Policies",  href: "/policies", icon: BookOpen },
       { label: "Agents",    href: "/agents",   icon: Cpu },
-      { label: "Oncology",  href: "/onco",     icon: Stethoscope, chip: "10 USPs" },
+      { label: "Oncology",  href: "/onco",     icon: Stethoscope, chip: "ONCO" },
     ],
   },
   {
@@ -124,7 +126,7 @@ const SECTIONS: NavSection[] = [
     items: [
       { label: "Cohorts",         href: "/cohorts",     icon: BarChart3 },
       { label: "Reviewer queue",  href: "/reviewer",    icon: UserCheck, liveBadge: "awaitingReview", reviewerOrAdmin: true },
-      { label: "Eval harness",    href: "/eval",        icon: Microscope, chip: "F1 .90" },
+      { label: "Eval harness",    href: "/eval",        icon: Microscope },
     ],
   },
   {
@@ -178,6 +180,9 @@ export function Sidenav() {
     };
   }, []);
 
+  // Metric-style chips (F1, projected savings, layer count) come from real endpoints; absent until loaded.
+  const chips = buildNavChips(useLive(fetchSnapshot, [], 5 * 60_000).data ?? EMPTY_SNAPSHOT);
+
   // Filter sections by role
   const visibleSections = SECTIONS.map((section) => ({
     ...section,
@@ -213,7 +218,7 @@ export function Sidenav() {
               </div>
               <div className="mt-1 space-y-0.5">
                 {section.items.map((item) => (
-                  <NavItemRow key={item.href} item={item} liveCounts={liveCounts} />
+                  <NavItemRow key={item.href} item={item} liveCounts={liveCounts} chips={chips} />
                 ))}
               </div>
             </div>
@@ -272,7 +277,8 @@ export function Sidenav() {
   );
 }
 
-function NavItemRow({ item, liveCounts }: { item: NavItem; liveCounts: NavLiveCounts }) {
+function NavItemRow({ item, liveCounts, chips }: { item: NavItem; liveCounts: NavLiveCounts; chips: Record<string, string | null> }) {
+  const chip = item.chip ?? chips[item.href] ?? null;
   const Icon = item.icon;
   const liveValue = item.liveBadge ? liveCounts[item.liveBadge] : null;
   const badgeText = item.liveBadge ? (liveValue !== null ? String(liveValue) : null) : item.badge ?? null;
@@ -310,9 +316,9 @@ function NavItemRow({ item, liveCounts }: { item: NavItem; liveCounts: NavLiveCo
           )}
           <Icon size={15} className={clsx(isActive ? "text-accent-brand" : "", "transition-colors duration-200")} />
           <span className="flex-1 truncate">{item.label}</span>
-          {item.chip && (
-            <span className="text-[9px] text-mono-tech px-1 py-0.5 rounded bg-accent-cyan/10 text-accent-cyan">
-              {item.chip}
+          {chip && (
+            <span data-testid={`chip-${item.href}`} className="text-[9px] text-mono-tech px-1 py-0.5 rounded bg-accent-cyan/10 text-accent-cyan">
+              {chip}
             </span>
           )}
           {badgeText && (

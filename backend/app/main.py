@@ -365,6 +365,12 @@ from app.api import (  # noqa: E402
     cardiotwin as cardiotwin_api,
 )
 from app.api import (  # noqa: E402
+    case_compare as case_compare_api,
+)
+from app.api import (  # noqa: E402
+    cohorts as cohorts_api,
+)
+from app.api import (  # noqa: E402
     compliance as compliance_api,
 )
 from app.api import (  # noqa: E402
@@ -416,6 +422,9 @@ from app.api import (  # noqa: E402
     policies as policies_api,
 )
 from app.api import (  # noqa: E402
+    policy_catalog as policy_catalog_api,
+)
+from app.api import (  # noqa: E402
     privacy as privacy_api,
 )
 from app.api import (  # noqa: E402
@@ -432,6 +441,9 @@ from app.api import (  # noqa: E402
 )
 from app.api import (  # noqa: E402
     responsible_ai as responsible_ai_api,
+)
+from app.api import (  # noqa: E402
+    reviewer_queue as reviewer_queue_api,
 )
 from app.api import (  # noqa: E402
     sagas as sagas_api,
@@ -496,6 +508,10 @@ app.include_router(oncology_stack.router, prefix="/api/v1")
 app.include_router(oncotwin_api.router, prefix="/api/v1")
 app.include_router(oncotwin_intel_api.router, prefix="/api/v1")  # OncoTwin 2.0 (additive)
 app.include_router(cardiotwin_api.router, prefix="/api/v1")  # CardioTwin (additive)
+app.include_router(cohorts_api.router, prefix="/api/v1")
+app.include_router(reviewer_queue_api.router, prefix="/api/v1")
+app.include_router(policy_catalog_api.router, prefix="/api/v1")
+app.include_router(case_compare_api.router, prefix="/api/v1")
 # AquaHealth — OneAquaHealth freshwater ecosystem module (additive; own tables,
 # own agents, own routes. ClinCase's clinical workflow is unchanged).
 app.include_router(aquahealth_api.router, prefix="/api/v1")

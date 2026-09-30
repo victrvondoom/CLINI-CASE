@@ -24,6 +24,7 @@ from typing import Any
 
 from fastapi import APIRouter
 
+from app.compliance.cms_0057f import CLAUSES
 from app.config import settings
 
 router = APIRouter(tags=["ops"])
@@ -82,6 +83,20 @@ async def version() -> dict[str, Any]:
     }
 
 
+def _system_counts() -> dict[str, Any]:
+    """Facts about what is actually loaded in this process — computed, so they cannot drift from the code."""
+    from app import policy_catalog
+    from app.agents.manifest import AGENT_MANIFEST, total_sub_agents
+
+    cat = policy_catalog.catalog()
+    return {
+        "agents": len(AGENT_MANIFEST),
+        "sub_agents": total_sub_agents(),
+        "policies_indexed": cat["n"],
+        "payers": len(cat["payers"]),
+    }
+
+
 @router.get("/capabilities")
 async def capabilities() -> dict[str, Any]:
     """Feature-flag snapshot. Reviewers can verify the deployment mode without reading code.
@@ -118,8 +133,9 @@ async def capabilities() -> dict[str, Any]:
             "redis_pub_sub_disabled": not settings.REDIS_URL,
             "hitl_threshold_zero": settings.HITL_CONFIDENCE_THRESHOLD == 0.0,
         },
+        "system": _system_counts(),
         "compliance": {
-            "cms_0057f_clauses_tracked": 8,
+            "cms_0057f_clauses_tracked": len(CLAUSES),
             "responsible_ai_card_endpoint": "/api/v1/responsible-ai/model-card",
             "evidence_pack_endpoint": "/api/v1/cases/{case_id}/evidence-pack",
         },

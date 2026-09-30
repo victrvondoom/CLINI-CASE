@@ -20,6 +20,7 @@ from app.business_value import (
     projected_star_impact,
     provider_abrasion_score,
 )
+from app.business_value.roi import MANUAL_PA_COST_USD, MANUAL_PA_MINUTES
 
 router = APIRouter(prefix="/business-value", tags=["business-value"])
 
@@ -60,6 +61,12 @@ async def org_value(
             "avg_decision_seconds": None,
             "avg_speedup_factor": None,
             "citations": [],
+            "daily_cases_7d": [0] * 7,
+            "avg_decision_change_pct": None,
+            "assumptions": {
+                "manual_pa_cost_usd": MANUAL_PA_COST_USD,
+                "manual_pa_minutes": MANUAL_PA_MINUTES,
+            },
             "db_unavailable": True,
         }
 

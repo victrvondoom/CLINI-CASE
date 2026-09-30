@@ -2,31 +2,19 @@ import type { ReactNode } from "react";
 
 import CountUp from "./CountUp";
 import Reveal from "./Reveal";
-import { DOMAINS, LIFECYCLE_STEPS } from "./tokens";
 import { useSystemHealth } from "./useSystemHealth";
 
 export default function Metrics() {
   const { health, capabilities, latencyMs, loading } = useSystemHealth();
 
+  // Every number is read from this deployment (/capabilities + /healthz); an unavailable value shows "--".
+  const sys = capabilities?.system;
   const cards: { label: string; display: ReactNode }[] = [
-    {
-      label: "cancer programs covered",
-      display: <CountUp value={DOMAINS.length} />,
-    },
-    {
-      label: "lifecycle stages per case",
-      display: <CountUp value={LIFECYCLE_STEPS.length} />,
-    },
-    {
-      label: "CMS-0057-F clauses tracked",
-      display: (
-        <CountUp value={capabilities?.compliance?.cms_0057f_clauses_tracked ?? null} />
-      ),
-    },
-    {
-      label: "this health check",
-      display: latencyMs != null ? `${latencyMs}ms` : "--",
-    },
+    { label: "agents in the pipeline", display: <CountUp value={sys?.agents ?? null} /> },
+    { label: "sub-agents", display: <CountUp value={sys?.sub_agents ?? null} /> },
+    { label: "payer policies indexed", display: <CountUp value={sys?.policies_indexed ?? null} /> },
+    { label: "CMS-0057-F clauses tracked", display: <CountUp value={capabilities?.compliance?.cms_0057f_clauses_tracked ?? null} /> },
+    { label: "this health check", display: latencyMs != null ? `${latencyMs}ms` : "--" },
   ];
 
   return (

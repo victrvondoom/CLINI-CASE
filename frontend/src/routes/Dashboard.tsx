@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Dashboard — the new /dashboard route. Replaces the legacy Home component.
  *
  * Layout (top-down):
@@ -18,6 +18,9 @@ import { LivePipelineConsole } from "../components/LivePipelineConsole";
 import { RecentCasesRibbon } from "../components/RecentCasesRibbon";
 import { StatTile } from "../components/StatTile";
 import { api, type OrgValueRollup } from "../lib/api";
+import { fetchManifest, getJson } from "../lib/agentsApi";
+import { buildAgents } from "../lib/agentsModel";
+import { useLive } from "../lib/useLive";
 import { CMS_0057_F_CLAUSES, daysUntil } from "../lib/regulatory";
 import { usePipelineRun } from "../lib/usePipelineRun";
 import type { DemoFixture } from "../lib/types";
@@ -68,7 +71,14 @@ export default function Dashboard() {
   }, []);
 
   // Active cases sparkline (last 7d, plausible synthetic series)
-  const sparkActive = useMemo(() => [3, 5, 4, 6, 9, 7, 12], []);
+  // Real activity series from the org's own cases (last 7 UTC days); hidden until there is any activity.
+  const sparkActive = useMemo(() => {
+    const d = orgValue?.daily_cases_7d;
+    return d && d.some((n) => n > 0) ? d : undefined;
+  }, [orgValue]);
+  const baseline = orgValue?.assumptions;
+  const manifest = useLive(fetchManifest, [], 0);
+  const caps = useLive(() => getJson<{ deployment?: { llm_provider?: string; bedrock_model_id?: string } }>("/api/v1/capabilities", false), [], 0);
 
   async function startDemo(name: string) {
     setCreating(name);
@@ -170,7 +180,7 @@ export default function Dashboard() {
       <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="reveal-go" style={{ animationDelay: "40ms" }}>
           <StatTile
-            eyebrow="ACTIVE CASES"
+            eyebrow="CASES · MTD"
             value={orgValue ? String(orgValue.cases_total) : "—"}
             spark={sparkActive}
             hint={
@@ -188,11 +198,11 @@ export default function Dashboard() {
                 ? `${orgValue.avg_decision_seconds.toFixed(1)}s`
                 : "—"
             }
-            trend={{ value: -98, goodDirection: "down" }}
+            trend={orgValue?.avg_decision_change_pct != null ? { value: orgValue.avg_decision_change_pct, goodDirection: "down" } : undefined}
             hint={
               orgValue?.avg_speedup_factor != null
-                ? `${orgValue.avg_speedup_factor.toFixed(1)}× faster than 18-min AMA median`
-                : "vs 18-min AMA median"
+                ? `${orgValue.avg_speedup_factor.toFixed(1)}× faster than the ${baseline?.manual_pa_minutes ?? "—"}-min manual baseline`
+                : `vs ${baseline?.manual_pa_minutes ?? "—"}-min manual baseline`
             }
           />
         </div>
@@ -205,7 +215,7 @@ export default function Dashboard() {
                 : "—"
             }
             valueClassName="text-accent-green"
-            hint="vs $1,500 / case AMA baseline"
+            hint={`vs $${baseline ? baseline.manual_pa_cost_usd.toLocaleString() : "—"} / case manual baseline`}
           />
         </div>
         <div className="reveal-go" style={{ animationDelay: "220ms" }}>
@@ -239,13 +249,18 @@ export default function Dashboard() {
           style={{ animationDelay: "340ms" }}
         >
           <div className="text-[10px] text-compact text-accent-brand mb-2">
-            7-AGENT LANGGRAPH DAG · 22 SUB-AGENTS
+            <span data-testid="dag-summary">
+              {manifest.data ? `${manifest.data.n_agents}-AGENT LANGGRAPH DAG · ${manifest.data.n_sub_agents} SUB-AGENTS` : "LANGGRAPH DAG"}
+            </span>
           </div>
-          <div className="text-mono-tech text-xs md:text-sm text-ink-primary leading-relaxed">
-            Clinical Extractor → Policy Retriever → Necessity Reasoner → Decision Composer → Denial Forecaster → Appeals Drafter → Patient Communicator
+          <div className="text-mono-tech text-xs md:text-sm text-ink-primary leading-relaxed" data-testid="dag-flow">
+            {manifest.data ? buildAgents(manifest.data, null).map((a) => a.display).join(" → ") : "Loading pipeline…"}
           </div>
-          <div className="mt-1 text-[11px] text-ink-muted">
-            Bedrock + Claude Sonnet 4.6 · MCP-native · Neuro-SAN compatible (
+          <div className="mt-1 text-[11px] text-ink-muted" data-testid="dag-provider">
+            {caps.data?.deployment?.llm_provider
+              ? `${caps.data.deployment.llm_provider}${caps.data.deployment.bedrock_model_id ? ` · ${caps.data.deployment.bedrock_model_id}` : ""} · `
+              : ""}
+            MCP-native · Neuro-SAN compatible (
             <code className="text-mono-tech">ops/neuro/clincase-network.hocon</code>)
           </div>
           <Link
