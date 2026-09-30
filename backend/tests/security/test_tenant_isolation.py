@@ -161,6 +161,9 @@ async def test_org_admin_cannot_use_platform_routes(world, method, path, body):
 
 
 async def test_org_admin_still_has_own_org_scope(world):
+    from app.security.breach_detector import ensure_schema
+
+    await ensure_schema()  # created at app startup in production; CI's database is schema.sql only
     a, _b, c = world
     r = await c.get("/api/v1/security/anomalies", headers=_h(a["admin"]))
     assert r.status_code == 200 and r.json()["scope"] == "same-org"
