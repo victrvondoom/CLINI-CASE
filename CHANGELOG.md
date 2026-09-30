@@ -82,7 +82,7 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - `ops/architecture/` — target architecture, business use case, AI adaptation gap, agentic actions, Q vs Bedrock
 - `ops/adr/0001-0008` — 8 Architecture Decision Records (Nygard format)
 - `ops/kiro/HOOKS.md` and `.kiro/hooks/`
-- `LICENSE` (MIT), `CONTRIBUTING.md`, `SECURITY.md`, `ROADMAP.md`, `ARCHITECTURE.md`
+- `LICENSE` (subsequently changed to proprietary, all rights reserved), `CONTRIBUTING.md`, `SECURITY.md`, `ROADMAP.md`, `ARCHITECTURE.md`
 - `docs/INDEX.md` and `docs/ARCHITECTURE_DIAGRAM.md`
 
 ---

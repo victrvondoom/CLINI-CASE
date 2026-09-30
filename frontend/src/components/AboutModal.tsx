@@ -163,7 +163,7 @@ export function AboutModal({ open, onClose }: Props) {
         )}
 
         <div className="mt-6 pt-4 border-t border-surface-border text-[11px] text-ink-faint">
-          ClinCase — Built by vsrupeshkumar · MIT License
+          ClinCase — Built by vsrupeshkumar · Proprietary · All rights reserved
         </div>
       </div>
     </div>

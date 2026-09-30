@@ -13,7 +13,7 @@ Every doc in this repo, with one-line purpose. Use this as the table of contents
 | [`CHANGELOG.md`](../CHANGELOG.md) | What shipped, and when |
 | [`CONTRIBUTING.md`](../CONTRIBUTING.md) | How to add agents · how to extend · architecture boundary rules |
 | [`SECURITY.md`](../SECURITY.md) | Responsible-disclosure policy + scope |
-| [`LICENSE`](../LICENSE) | MIT |
+| [`LICENSE`](../LICENSE) | Proprietary — all rights reserved; signed written authorization required |
 | [`Makefile`](../Makefile) | All dev tasks — `make help` |
 
 ## Product

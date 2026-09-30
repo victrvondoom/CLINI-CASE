@@ -1,21 +1,41 @@
-MIT License
+PROPRIETARY SOFTWARE LICENSE
 
-Copyright (c) 2026 vsrupeshkumar
+Copyright (c) 2026 vsrupeshkumar. All rights reserved.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+ClinCase, OncoTwin, and all associated source code, object code,
+documentation, designs, data, models, workflows, and other materials in this
+repository (collectively, the "Software") are proprietary works owned by
+vsrupeshkumar, except for third-party materials identified separately.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+NO PERMISSION IS GRANTED to use, copy, reproduce, modify, adapt, merge,
+publish, distribute, sublicense, sell, host, deploy, publicly display, make
+available, create derivative works from, reverse engineer, or otherwise
+exploit the Software, in whole or in part.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+Access to or public availability of the Software does not grant any license
+or other right to the Software.
+
+A person or entity may use the Software only after receiving prior, express
+written authorization from vsrupeshkumar in a written agreement signed by
+both vsrupeshkumar and the authorized person or an authorized representative
+of the entity. Any authorized use is limited strictly to the scope, purpose,
+duration, and other terms stated in that agreement. Permission may not be
+transferred, assigned, sublicensed, or shared unless the signed agreement
+expressly permits it.
+
+Any unauthorized use, copying, modification, distribution, deployment, or
+other exploitation of the Software may constitute copyright infringement and
+may result in legal action, complaints to applicable platforms or service
+providers, and pursuit of all remedies available under applicable law.
+
+Third-party libraries, dependencies, datasets, models, trademarks, and other
+materials remain subject to their respective licenses and ownership terms.
+Nothing in this license expands or restricts rights granted by those third
+parties.
+
+THE SOFTWARE IS PROVIDED "AS IS," WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT. TO THE MAXIMUM
+EXTENT PERMITTED BY LAW, THE COPYRIGHT OWNER SHALL NOT BE LIABLE FOR ANY
+CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM OR RELATED TO THE SOFTWARE OR
+ITS USE.

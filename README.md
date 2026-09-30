@@ -15,7 +15,7 @@
 [![AWS Bedrock](https://img.shields.io/badge/AWS%20Bedrock-Claude%20Sonnet%204.6%20%2B%20Haiku%204.5-ff9900?style=for-the-badge&logo=amazonaws&logoColor=white)](#%EF%B8%8F-tech-stack)
 [![CMS-0057-F](https://img.shields.io/badge/CMS--0057--F-FHIR%20PA%20API%202027-2563eb?style=for-the-badge&logo=hl7&logoColor=white)](#-regulatory-alignment)
 [![LangGraph](https://img.shields.io/badge/LangGraph-7--agent%20DAG-5b21b6?style=for-the-badge)](#-the-7-agent-pipeline)
-[![MIT License](https://img.shields.io/badge/License-MIT-1f2937?style=for-the-badge)](LICENSE)
+[![Proprietary License](https://img.shields.io/badge/License-Proprietary-b91c1c?style=for-the-badge)](LICENSE)
 
 [![FastAPI](https://img.shields.io/badge/FastAPI-Python%203.11-009688?style=flat-square&logo=fastapi&logoColor=white)](#%EF%B8%8F-tech-stack)
 [![React 18](https://img.shields.io/badge/React-18-61dafb?style=flat-square&logo=react&logoColor=black)](#%EF%B8%8F-tech-stack)
@@ -24,6 +24,12 @@
 [![Postgres](https://img.shields.io/badge/Postgres-pgvector-336791?style=flat-square&logo=postgresql&logoColor=white)](#%EF%B8%8F-tech-stack)
 
 </div>
+
+> [!CAUTION]
+> **Proprietary software — all rights reserved.** Public availability of this repository does not grant permission
+> to use, copy, modify, distribute, deploy, host, or create derivative works from the software. Use is permitted only
+> under prior written authorization in an agreement signed by **vsrupeshkumar** and the authorized person or entity.
+> See [LICENSE](LICENSE) for the complete terms.
 
 > [!IMPORTANT]
 > **This README describes running code, not mockups.** Every agent, endpoint and table named here exists in this repository and runs locally. Where a feature is a stub or a design path rather than finished, this document says so.
@@ -598,7 +604,10 @@ To report a vulnerability, see [SECURITY.md](SECURITY.md). **Do not open a publi
 
 ## 📄 License
 
-Released under the **MIT License**. See [LICENSE](LICENSE).
+Copyright © 2026 **vsrupeshkumar**. **All rights reserved.** This is proprietary software, not open-source software.
+No permission is granted to use, copy, modify, distribute, deploy, host, sublicense, sell, or create derivative works
+unless the user has prior written authorization in an agreement signed by vsrupeshkumar and the authorized person or
+entity. See [LICENSE](LICENSE) for the complete terms.
 
 ---
 
