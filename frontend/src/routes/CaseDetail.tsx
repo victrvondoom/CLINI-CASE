@@ -5,6 +5,7 @@ import { Link, useParams } from "react-router-dom";
 import { AppealLetterEditor } from "../components/AppealLetterEditor";
 import { AuditLogViewer } from "../components/AuditLogViewer";
 import { BusinessValuePanel } from "../components/BusinessValuePanel";
+import { CaseTwinPanel } from "../components/CaseTwinPanel";
 import { CaseEconomicsStrip } from "../components/CaseEconomicsStrip";
 import { ComplianceScorecardCard } from "../components/ComplianceScorecardCard";
 import { DenialForecastCard } from "../components/DenialForecastCard";
@@ -255,6 +256,8 @@ export default function CaseDetail() {
           {result && (
             <CaseEconomicsStrip caseId={caseId} refreshKey={1} />
           )}
+
+          {result && <CaseTwinPanel caseId={caseId} />}
 
           {result && (
             <AuditLogViewer

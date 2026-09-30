@@ -34,6 +34,11 @@ def _clinical_pointers(value: Any, path: str = "") -> set[str]:
     return pointers
 
 
+def clinical_pointers(value: Any) -> set[str]:
+    """Every pointer a clinical citation may legitimately use for this snapshot."""
+    return _clinical_pointers(value)
+
+
 def validate_citation_provenance(input: CitationLinkerInput, output: CitationLinkerOutput) -> None:
     """Reject incomplete or unresolvable citations before creating a decision."""
     if not output.every_claim_has_pointer:

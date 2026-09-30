@@ -56,7 +56,7 @@ def summarize_agent(row: dict[str, Any], cost_rows: list[dict[str, Any]]) -> dic
         else round(float(row["mean_out"])),
         "cost_usd": round(cost, 4),
         "model_id": row.get("model_id"),
-        "last_run_at": last.isoformat() if hasattr(last, "isoformat") else last,
+        "last_run_at": last.isoformat() if isinstance(last, datetime) else last,
         "state": state,
     }
 

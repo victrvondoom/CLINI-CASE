@@ -4,6 +4,7 @@ import { authHeader, clearAuth } from "./auth";
 import type {
   AgentRun,
   CaseComparison,
+  CaseTwin,
   CohortReport,
   PolicyCatalog,
   PolicyDetail,
@@ -635,6 +636,10 @@ export const api = {
   },
   async createComparisonCase(caseId: string, payerId: string): Promise<{ case_id: string; created: boolean; payer_id: string }> {
     const res = await authedFetch(`${BASE}/cases/${encodeURIComponent(caseId)}/compare/${encodeURIComponent(payerId)}`, { method: "POST" });
+    return jsonOrThrow(res);
+  },
+  async getCaseTwin(caseId: string): Promise<CaseTwin> {
+    const res = await authedFetch(`${BASE}/cases/${encodeURIComponent(caseId)}/twin`);
     return jsonOrThrow(res);
   },
   async getCohorts(days = 90): Promise<CohortReport> {

@@ -162,6 +162,10 @@ def agent_span(
         "clincase.case_id": case_id or "",
         "clincase.agent_name": agent_name or "",
     }
+    if organization_id and case_id:
+        from app.twin.intelligence_id import case_intelligence_id
+
+        attrs["clincase.case_intelligence_id"] = case_intelligence_id(organization_id, case_id)
     if attributes:
         attrs.update(attributes)
 
