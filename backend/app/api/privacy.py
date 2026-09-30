@@ -12,7 +12,7 @@ from typing import Any
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
-from app.auth import require_role
+from app.auth import require_platform_admin, require_role
 from app.privacy.erasure import (
     ErasureRequest,
     hard_delete_due,
@@ -68,7 +68,7 @@ async def list_requests(
 
 @router.post("/_run_hard_delete")
 async def run_hard_delete(
-    user: dict[str, Any] = Depends(require_role("admin")),  # noqa: ARG001
+    user: dict[str, Any] = Depends(require_platform_admin),  # noqa: ARG001
 ) -> dict[str, Any]:
     """Operator job runner — reconciles past-grace-window soft-deletes."""
     n = await hard_delete_due()

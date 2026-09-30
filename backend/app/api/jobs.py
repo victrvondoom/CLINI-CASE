@@ -27,7 +27,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Response
 
-from app.auth.dependencies import get_current_user, require_role
+from app.auth.dependencies import get_current_user, require_platform_admin
 from app.db import db
 from app.jobs import queue as jq
 from app.llm.factory import llm_unavailable_reason
@@ -240,7 +240,7 @@ async def list_case_jobs(
 
 @router.get("/jobs/queue/depth", status_code=200)
 async def queue_depth(
-    _user: dict[str, Any] = Depends(require_role("admin")),
+    _user: dict[str, Any] = Depends(require_platform_admin),
 ) -> dict[str, Any]:
     """Return global operational queue depth to administrators."""
     depth = await jq.queue_depth()

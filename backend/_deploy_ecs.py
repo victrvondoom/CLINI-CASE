@@ -31,6 +31,8 @@ load_dotenv("../.env")
 import boto3
 from botocore.exceptions import ClientError
 
+from _ecs_task_env import build_task_env_and_secrets, execution_role_secret_policy, secret_arns
+
 REGION = "us-east-1"
 ACCOUNT = boto3.client("sts").get_caller_identity()["Account"]
 IMAGE_URI = f"{ACCOUNT}.dkr.ecr.{REGION}.amazonaws.com/clincase-backend:latest"
@@ -165,6 +167,13 @@ def setup_iam_roles() -> tuple[str, str]:
         attach_managed=[
             "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
         ],
+        inline=(
+            {"clincase-read-task-secrets": pol}
+            if (pol := execution_role_secret_policy(
+                secret_arns(os.environ), os.environ.get("SECRETS_KMS_KEY_ARN")
+            ))
+            else None
+        ),
     )
     info(f"exec role = {exec_arn}")
 
@@ -305,42 +314,19 @@ def setup_logs() -> str:
 # ---------------------------------------------------------------------------
 # 5. ECS cluster + task definition + service
 # ---------------------------------------------------------------------------
-def env_for_task() -> list[dict[str, str]]:
-    """Read the local .env and pass through the keys the container needs.
+CORS_ORIGINS = (
+    "http://clincase-demo-26697.s3-website-us-east-1.amazonaws.com,"
+    "http://localhost:5173"
+)
 
-    AWS_* are explicitly excluded — Fargate provides credentials via the task
-    role (ECS metadata endpoint v3/v4), so the in-container boto3 picks them
-    up automatically. Including session tokens here would baked them into the
-    task definition, which is bad practice + ties to a 1-hour expiry."""
-    pass_through = [
-        "LLM_PROVIDER", "OPENROUTER_API_KEY", "OPENROUTER_MODEL",
-        "ANTHROPIC_API_KEY", "ANTHROPIC_MODEL",
-        "BEDROCK_MODEL_ID", "BEDROCK_HAIKU_MODEL_ID",
-        "BEDROCK_GUARDRAIL_ID", "BEDROCK_GUARDRAIL_VERSION",
-        "BEDROCK_KB_ID", "BEDROCK_KB_DATA_SOURCE_ID",
-        "POLICIES_S3_BUCKET",
-        "DATABASE_URL", "EMBEDDING_MODEL", "LOG_LEVEL",
-        "USE_BEDROCK_KB", "SEED_ON_BOOT",
-        "DEMO_USER_PASSWORD", "JWT_SECRET",
-    ]
-    out: list[dict[str, str]] = [{"name": "AWS_REGION", "value": REGION}]
-    for k in pass_through:
-        v = os.environ.get(k)
-        if v:
-            out.append({"name": k, "value": v})
-    # CORS — allow our static S3 site
-    out.append({"name": "CORS_ORIGINS", "value": (
-        "http://clincase-demo-26697.s3-website-us-east-1.amazonaws.com,"
-        "http://localhost:5173"
-    )})
-    # Override SEED_ON_BOOT: we don't want the deployed pod seeding demo data
-    # against a (potentially missing) DB. The DB is local-only for now.
-    out.append({"name": "SEED_ON_BOOT", "value": "false"})
-    # No DATABASE_URL passthrough — the pod doesn't have access to localhost:15432.
-    # Strip any DATABASE_URL we accidentally added above.
-    out = [e for e in out if e["name"] != "DATABASE_URL"]
-    out.append({"name": "DATABASE_URL", "value": "postgresql://disabled@disabled/disabled"})
-    return out
+
+def env_for_task() -> tuple[list[dict[str, str]], list[dict[str, str]]]:
+    """(environment, secrets) for the container definition.
+
+    AWS_* are never passed: Fargate provides credentials through the task role. ENVIRONMENT is always
+    explicit (DEPLOY_ENVIRONMENT, default "staging"), and outside dev every credential must be a Secrets
+    Manager ARN (`<NAME>_SECRET_ARN`) — see `_ecs_task_env.py`."""
+    return build_task_env_and_secrets(os.environ, region=REGION, cors_origins=CORS_ORIGINS)
 
 
 def setup_cluster_and_service(
@@ -360,6 +346,7 @@ def setup_cluster_and_service(
         info("cluster clincase exists")
 
     # Register task definition
+    task_env, task_secrets = env_for_task()
     td = ecs.register_task_definition(
         family="clincase-backend-task",
         networkMode="awsvpc",
@@ -373,7 +360,8 @@ def setup_cluster_and_service(
             "image": IMAGE_URI,
             "essential": True,
             "portMappings": [{"containerPort": 8000, "protocol": "tcp"}],
-            "environment": env_for_task(),
+            "environment": task_env,
+            "secrets": task_secrets,
             "logConfiguration": {
                 "logDriver": "awslogs",
                 "options": {
@@ -439,6 +427,7 @@ def main() -> int:
     print(f"image       : {IMAGE_URI}")
     print(f"S3 bucket   : {S3_POLICIES_BUCKET}")
 
+    env_for_task()  # fail fast on unsafe/missing configuration, before any AWS resource is created
     vpc_id, subnet_ids = get_network()
     alb_sg, task_sg = setup_security_groups(vpc_id)
     exec_arn, task_arn = setup_iam_roles()

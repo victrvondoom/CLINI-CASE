@@ -22,7 +22,7 @@ KEDA is the standard pattern for "scale workers on queue depth."
 | Resource | Purpose |
 |---|---|
 | `ScaledObject/clincase-worker` | Tells KEDA to scale the `clincase-worker` Deployment based on Postgres queue depth |
-| `TriggerAuthentication/clincase-postgres` | KEDA reads DB credentials from `clincase-secrets` |
+| `TriggerAuthentication/clincase-postgres` | KEDA reads the DB DSN from Secret `clincase-keda-postgres-conn`, materialised from AWS Secrets Manager by External Secrets (`ops/k8s/external-secrets.yaml`) |
 | `Trigger: postgresql` | Polls `SELECT COUNT(*) FROM case_jobs WHERE status='queued'` every 30s |
 
 ## Scaling policy

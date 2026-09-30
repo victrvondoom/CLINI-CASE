@@ -21,17 +21,34 @@ from typing import Any
 from app.agents.policy_retriever import _candidate_sections
 from app.db import db
 
+
+class CaseNotFoundError(LookupError):
+    """The case does not exist *for the caller's organisation* (identical for 'absent' and 'other tenant')."""
+
+
+async def _require_case(organization_id: str, case_id: str) -> None:
+    """Tenant gate for every case-scoped tool: one org-filtered lookup before any case data is read."""
+    found = await db.fetchval(
+        "SELECT 1 FROM cases WHERE id = $1 AND organization_id = $2", case_id, organization_id
+    )
+    if not found:
+        raise CaseNotFoundError(case_id)
+
+
 # =============================================================================
 # Tool 1: policy_lookup
 # =============================================================================
 
 
-async def policy_lookup(payer_id: str, treatment: str) -> dict[str, Any]:
+async def policy_lookup(organization_id: str, payer_id: str, treatment: str) -> dict[str, Any]:
     """Return the matching policy sections for a (payer, treatment) pair.
 
     Uses the same retrieval primitive as the in-graph Policy Retriever agent;
     on production deployment this is backed by Bedrock Knowledge Base.
     """
+    del (
+        organization_id
+    )  # the payer policy corpus is global (shared reference data), not tenant data
     candidates = _candidate_sections(payer_id, treatment)
     if not candidates:
         return _text_block(
@@ -75,13 +92,14 @@ async def policy_lookup(payer_id: str, treatment: str) -> dict[str, Any]:
 # =============================================================================
 
 
-async def clinical_extract(case_id: str) -> dict[str, Any]:
+async def clinical_extract(organization_id: str, case_id: str) -> dict[str, Any]:
     """Return the structured clinical snapshot extracted by the agent.
 
     Reads from the persisted agent_traces table; does NOT re-run the LLM
     (idempotent, audit-grade). In production this is the cheapest read in
     the system because every case has the snapshot pre-computed.
     """
+    await _require_case(organization_id, case_id)
     row = await db.fetchrow(
         """SELECT output_json FROM agent_traces
            WHERE case_id = $1 AND agent_name = 'clinical_extractor'
@@ -118,13 +136,14 @@ async def clinical_extract(case_id: str) -> dict[str, Any]:
 # =============================================================================
 
 
-async def decision_check(case_id: str) -> dict[str, Any]:
+async def decision_check(organization_id: str, case_id: str) -> dict[str, Any]:
     """Return the verdict + cited rationale for a case.
 
     Reads the persisted Decision Composer output; does NOT re-run the LLM.
     Used by external orchestrators (TriZetto AI Gateway) to query ClinCase's
     determination without invoking the full DAG.
     """
+    await _require_case(organization_id, case_id)
     row = await db.fetchrow(
         """SELECT verdict, rationale, citations_json, confidence, created_at
            FROM decisions WHERE case_id = $1
@@ -176,13 +195,14 @@ async def decision_check(case_id: str) -> dict[str, Any]:
 # =============================================================================
 
 
-async def appeal_draft(case_id: str) -> dict[str, Any]:
+async def appeal_draft(organization_id: str, case_id: str) -> dict[str, Any]:
     """Return the drafted appeal letter for a denied case.
 
     Reads the persisted Appeals Drafter output. If the case wasn't denied,
     no appeal exists; the tool returns a helpful message with the actual
     verdict.
     """
+    await _require_case(organization_id, case_id)
     appeal = await db.fetchrow(
         """SELECT appeal_body, structured_arguments_json, created_at
            FROM appeals WHERE case_id = $1
@@ -233,13 +253,14 @@ async def appeal_draft(case_id: str) -> dict[str, Any]:
 # =============================================================================
 
 
-async def audit_query(case_id: str) -> dict[str, Any]:
+async def audit_query(organization_id: str, case_id: str) -> dict[str, Any]:
     """Return the full agent trace for a case (audit-grade provenance).
 
     This is the tool a CMS auditor uses to reconstruct a decision. Returns
     every agent invocation: input tokens, output tokens, model id, latency,
     system prompt version hash. Reproducible to the millisecond.
     """
+    await _require_case(organization_id, case_id)
     rows = await db.fetch(
         """SELECT agent_name, model_id, input_tokens, output_tokens,
                   started_at, completed_at, latency_ms, status

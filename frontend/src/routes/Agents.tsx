@@ -260,6 +260,7 @@ function MCPSection({ tools, endpoint, spec }: { tools: McpTool[]; endpoint: str
         </div>
         <pre className="text-[11px] text-mono-tech text-ink-body bg-surface-panel border border-surface-border rounded p-2 overflow-x-auto">
 {`curl -X POST http://localhost:8000/mcp \\
+  -H "Authorization: Bearer $CLINCASE_JWT" \\
   -H "Content-Type: application/json" \\
   -d '{
     "jsonrpc": "2.0", "id": 1, "method": "tools/call",

@@ -14,6 +14,8 @@ Public surface:
 from app.auth.dependencies import (
     get_current_user,
     get_optional_user,
+    is_platform_admin,
+    require_platform_admin,
     require_role,
 )
 from app.auth.jwt_helpers import (
@@ -26,6 +28,8 @@ from app.auth.jwt_helpers import (
 __all__ = [
     "get_current_user",
     "get_optional_user",
+    "is_platform_admin",
+    "require_platform_admin",
     "require_role",
     "hash_password",
     "verify_password",

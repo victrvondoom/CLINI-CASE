@@ -64,6 +64,7 @@ dev = [
   "hypothesis==6.115.5",    # property-based security and routing invariants
   "ruff==0.7.4",
   "mypy==1.13.0",
+  "PyYAML>=6.0",            # deployment-manifest regression tests
 ]
 
 [build-system]

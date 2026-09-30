@@ -4,17 +4,8 @@
 # Polls the case_jobs queue every 30s; scales workers between 2 and 50 pods
 # based on a target of "≤ 5 queued jobs per pod."
 
-apiVersion: v1
-kind: Secret
-metadata:
-  name: clincase-keda-postgres-conn
-  namespace: clincase
-type: Opaque
-stringData:
-  # In production this is overridden via Sealed Secrets / External Secrets
-  # Operator pulling from AWS Secrets Manager. The value is a libpq DSN.
-  connection: "postgresql://clincase:clincase@clincase-postgres.clincase.svc.cluster.local:5432/clincase?sslmode=disable"
-
+# The connection Secret `clincase-keda-postgres-conn` is created by External Secrets from AWS Secrets
+# Manager (ops/k8s/external-secrets.yaml). No credential is committed in this file.
 ---
 apiVersion: keda.sh/v1alpha1
 kind: TriggerAuthentication

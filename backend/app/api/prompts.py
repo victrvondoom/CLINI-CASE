@@ -15,7 +15,8 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from app.auth import require_role
+from app.auth import require_platform_admin
+from app.db import db
 from app.prompts_versioning import (
     activate_prompt,
     add_prompt,
@@ -46,7 +47,7 @@ class AssignBody(BaseModel):
 
 @router.get("")
 async def list_all(
-    user: dict[str, Any] = Depends(require_role("admin")),  # noqa: ARG001
+    user: dict[str, Any] = Depends(require_platform_admin),  # noqa: ARG001
 ) -> dict[str, Any]:
     rows = await list_prompts()
     return {"count": len(rows), "prompts": rows}
@@ -55,7 +56,7 @@ async def list_all(
 @router.get("/{agent_name}")
 async def list_by_agent(
     agent_name: str,
-    user: dict[str, Any] = Depends(require_role("admin")),  # noqa: ARG001
+    user: dict[str, Any] = Depends(require_platform_admin),  # noqa: ARG001
 ) -> dict[str, Any]:
     rows = await list_prompts(agent_name=agent_name)
     return {"agent_name": agent_name, "count": len(rows), "versions": rows}
@@ -64,7 +65,7 @@ async def list_by_agent(
 @router.post("")
 async def post_prompt(
     body: AddPromptBody,
-    user: dict[str, Any] = Depends(require_role("admin")),  # noqa: ARG001
+    user: dict[str, Any] = Depends(require_platform_admin),  # noqa: ARG001
 ) -> dict[str, Any]:
     await add_prompt(
         agent_name=body.agent_name,
@@ -80,7 +81,7 @@ async def post_prompt(
 async def activate(
     agent_name: str,
     version: str,
-    user: dict[str, Any] = Depends(require_role("admin")),  # noqa: ARG001
+    user: dict[str, Any] = Depends(require_platform_admin),  # noqa: ARG001
 ) -> dict[str, Any]:
     await activate_prompt(agent_name=agent_name, version=version)
     return {"status": "active", "agent_name": agent_name, "version": version}
@@ -90,7 +91,7 @@ async def activate(
 async def post_traffic_split(
     agent_name: str,
     body: TrafficSplitBody,
-    user: dict[str, Any] = Depends(require_role("admin")),  # noqa: ARG001
+    user: dict[str, Any] = Depends(require_platform_admin),  # noqa: ARG001
 ) -> dict[str, Any]:
     try:
         await set_traffic_split(agent_name=agent_name, weights=body.weights)
@@ -103,10 +104,11 @@ async def post_traffic_split(
 async def post_assign(
     agent_name: str,
     body: AssignBody,
-    user: dict[str, Any] = Depends(require_role("admin")),
+    user: dict[str, Any] = Depends(require_platform_admin),
 ) -> dict[str, Any]:
-    if body.organization_id != user["organization_id"]:
-        raise HTTPException(status_code=403, detail="cross-tenant assignment forbidden")
+    # Platform-operator surface: any existing organisation may be targeted.
+    if not await db.fetchval("SELECT 1 FROM organizations WHERE id = $1", body.organization_id):
+        raise HTTPException(status_code=404, detail="organization not found")
     await assign_to_tenant(
         organization_id=body.organization_id,
         agent_name=agent_name,

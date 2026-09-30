@@ -15,13 +15,24 @@ from collections.abc import AsyncIterator
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from app.auth import get_current_user
 from app.main import app
 
 
 @pytest.fixture
 async def client() -> AsyncIterator[AsyncClient]:
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as c:
-        yield c
+    """An authenticated caller: /mcp always requires a bearer identity (see tests/security for the 401 and tenant cases)."""
+    app.dependency_overrides[get_current_user] = lambda: {
+        "id": "u1",
+        "organization_id": "org_mcp_test",
+        "role": "reviewer",
+        "email": "r@test",
+    }
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as c:
+            yield c
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
 
 
 @pytest.mark.asyncio

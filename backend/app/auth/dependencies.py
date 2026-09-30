@@ -98,3 +98,33 @@ def require_role(*allowed_roles: str):
         return user
 
     return _check
+
+
+_DEV_PLATFORM_ADMIN_ID = "user_demoadmin"  # the seeded demo administrator (dev only)
+
+
+def platform_admin_user_ids() -> set[str]:
+    """Platform operators, identified by server-generated user id.
+
+    Deliberately NOT by e-mail: anyone can register an unclaimed address, whereas a user id is minted by the
+    server and cannot be chosen by a caller."""
+    ids = {i.strip() for i in settings.PLATFORM_ADMIN_USER_IDS.split(",") if i.strip()}
+    if settings.ENVIRONMENT == "dev":
+        ids.add(_DEV_PLATFORM_ADMIN_ID)
+    return ids
+
+
+def is_platform_admin(user: dict[str, Any]) -> bool:
+    """Organisation admin AND on the operator allow-list. `admin` alone never crosses tenants."""
+    return user.get("role") == "admin" and str(user.get("id", "")) in platform_admin_user_ids()
+
+
+async def require_platform_admin(
+    user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    """403 unless the caller is a platform operator (cross-tenant surface)."""
+    if not is_platform_admin(user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Requires platform administrator"
+        )
+    return user
