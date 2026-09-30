@@ -24,6 +24,7 @@ ClinCase's existing FHIR work (`app/api/fhir_pas.py`, `app/api/fhir_bulk.py`,
 `app/oncotwin/fhir/`) is untouched: this module adds a parallel export for a
 different resource domain and reuses the same Bundle idiom.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -49,8 +50,7 @@ STANDARDS_NOTE = (
 )
 
 PROTOTYPE_NOTE = (
-    "Prototype interoperability representation. AquaHealth's own JSON shape, "
-    "not a standard."
+    "Prototype interoperability representation. AquaHealth's own JSON shape, " "not a standard."
 )
 
 #: UCUM units for the quantitative measurements.
@@ -84,12 +84,14 @@ def _presence_entries(
         value = getattr(section, field, None)
         if not isinstance(value, Presence) or not value.is_informative:
             continue
-        out.append({
-            "code": field,
-            "label": label,
-            "value": value.value,
-            "observed": value == Presence.OBSERVED,
-        })
+        out.append(
+            {
+                "code": field,
+                "label": label,
+                "value": value.value,
+                "observed": value == Presence.OBSERVED,
+            }
+        )
     return out
 
 
@@ -187,9 +189,7 @@ def to_prototype_record(obs: Observation) -> dict[str, Any]:
                 "decision": r.decision.value,
                 "reviewer": r.reviewer_label,
                 "comment": r.comment,
-                "correctedStatus": (
-                    r.corrected_status.value if r.corrected_status else None
-                ),
+                "correctedStatus": (r.corrected_status.value if r.corrected_status else None),
                 "rejectedFindings": r.rejected_findings,
                 "reviewedAt": r.reviewed_at.isoformat(),
             }
@@ -204,11 +204,13 @@ def _quantity_component(field: str, value: float) -> dict[str, Any]:
     unit, ucum = _UCUM.get(field, ("", "1"))
     return {
         "code": {
-            "coding": [{
-                "system": CODE_SYSTEM,
-                "code": field,
-                "display": _MEASUREMENT_DISPLAY.get(field, field),
-            }],
+            "coding": [
+                {
+                    "system": CODE_SYSTEM,
+                    "code": field,
+                    "display": _MEASUREMENT_DISPLAY.get(field, field),
+                }
+            ],
         },
         "valueQuantity": {
             "value": value,
@@ -227,18 +229,22 @@ def _presence_component(field: str, presence: Presence) -> dict[str, Any]:
     """
     return {
         "code": {
-            "coding": [{
-                "system": CODE_SYSTEM,
-                "code": field,
-                "display": FIELD_LABELS.get(field, field),
-            }],
+            "coding": [
+                {
+                    "system": CODE_SYSTEM,
+                    "code": field,
+                    "display": FIELD_LABELS.get(field, field),
+                }
+            ],
         },
         "valueCodeableConcept": {
-            "coding": [{
-                "system": f"{CODE_SYSTEM}-presence",
-                "code": presence.value,
-                "display": presence.value.replace("_", " ").capitalize(),
-            }],
+            "coding": [
+                {
+                    "system": f"{CODE_SYSTEM}-presence",
+                    "code": presence.value,
+                    "display": presence.value.replace("_", " ").capitalize(),
+                }
+            ],
         },
     }
 
@@ -277,10 +283,12 @@ def to_fhir_observation(obs: Observation) -> dict[str, Any]:
                 },
             ],
         },
-        "identifier": [{
-            "system": "https://example.org/aquahealth/observation",
-            "value": obs.reference,
-        }],
+        "identifier": [
+            {
+                "system": "https://example.org/aquahealth/observation",
+                "value": obs.reference,
+            }
+        ],
         # `final` once a reviewer has completed the loop; `preliminary` while
         # the AI assessment is still awaiting human verification.
         "status": (
@@ -288,19 +296,25 @@ def to_fhir_observation(obs: Observation) -> dict[str, Any]:
             if obs.review is not None and obs.review_status.value == "completed"
             else "preliminary"
         ),
-        "category": [{
-            "coding": [{
-                "system": f"{CODE_SYSTEM}-category",
-                "code": "environmental",
-                "display": "Environmental / freshwater ecosystem observation",
-            }],
-        }],
+        "category": [
+            {
+                "coding": [
+                    {
+                        "system": f"{CODE_SYSTEM}-category",
+                        "code": "environmental",
+                        "display": "Environmental / freshwater ecosystem observation",
+                    }
+                ],
+            }
+        ],
         "code": {
-            "coding": [{
-                "system": CODE_SYSTEM,
-                "code": "freshwater-ecosystem-observation",
-                "display": "Urban freshwater ecosystem citizen observation",
-            }],
+            "coding": [
+                {
+                    "system": CODE_SYSTEM,
+                    "code": "freshwater-ecosystem-observation",
+                    "display": "Urban freshwater ecosystem citizen observation",
+                }
+            ],
             "text": f"Freshwater observation at {obs.waterbody_name}",
         },
         "effectiveDateTime": obs.observed_at.isoformat(),
@@ -312,13 +326,15 @@ def to_fhir_observation(obs: Observation) -> dict[str, Any]:
         # There is no standard Observation element for a sampling coordinate,
         # so it travels as an explicitly-named extension rather than being
         # forced into an unrelated standard field.
-        resource["extension"] = [{
-            "url": "https://example.org/fhir/StructureDefinition/aquahealth-location",
-            "extension": [
-                {"url": "latitude", "valueDecimal": obs.location.latitude},
-                {"url": "longitude", "valueDecimal": obs.location.longitude},
-            ],
-        }]
+        resource["extension"] = [
+            {
+                "url": "https://example.org/fhir/StructureDefinition/aquahealth-location",
+                "extension": [
+                    {"url": "latitude", "valueDecimal": obs.location.latitude},
+                    {"url": "longitude", "valueDecimal": obs.location.longitude},
+                ],
+            }
+        ]
 
     if obs.assessment is not None:
         a = obs.assessment
@@ -333,13 +349,17 @@ def to_fhir_observation(obs: Observation) -> dict[str, Any]:
             },
             {"text": a.disclaimer},
         ]
-        resource["interpretation"] = [{
-            "coding": [{
-                "system": f"{CODE_SYSTEM}-status",
-                "code": a.status.value,
-                "display": a.status.value.replace("_", " ").title(),
-            }],
-        }]
+        resource["interpretation"] = [
+            {
+                "coding": [
+                    {
+                        "system": f"{CODE_SYSTEM}-status",
+                        "code": a.status.value,
+                        "display": a.status.value.replace("_", " ").title(),
+                    }
+                ],
+            }
+        ]
 
     return resource
 
@@ -350,11 +370,13 @@ def to_fhir_bundle(observations: list[Observation]) -> dict[str, Any]:
         "resourceType": "Bundle",
         "type": "collection",
         "meta": {
-            "tag": [{
-                "system": f"{CODE_SYSTEM}-tag",
-                "code": "prototype-representation",
-                "display": STANDARDS_NOTE,
-            }],
+            "tag": [
+                {
+                    "system": f"{CODE_SYSTEM}-tag",
+                    "code": "prototype-representation",
+                    "display": STANDARDS_NOTE,
+                }
+            ],
         },
         "total": len(observations),
         "entry": [{"resource": to_fhir_observation(o)} for o in observations],
@@ -381,14 +403,8 @@ def signal_catalog() -> dict[str, Any]:
             for k, v in _UCUM.items()
         ],
         "qualitative": {
-            "water_appearance": [
-                {"code": c, "display": d} for c, d in WATER_APPEARANCE_FIELDS
-            ],
-            "biodiversity": [
-                {"code": c, "display": d} for c, d in BIODIVERSITY_FIELDS
-            ],
-            "environmental_context": [
-                {"code": c, "display": d} for c, d in CONTEXT_FIELDS
-            ],
+            "water_appearance": [{"code": c, "display": d} for c, d in WATER_APPEARANCE_FIELDS],
+            "biodiversity": [{"code": c, "display": d} for c, d in BIODIVERSITY_FIELDS],
+            "environmental_context": [{"code": c, "display": d} for c, d in CONTEXT_FIELDS],
         },
     }

@@ -5,6 +5,7 @@ has resourceType=Bundle, contains entries with valid resource shapes,
 counts each resource type, and collects any structural issues. Errors
 short-circuit the parent before any LLM token is spent.
 """
+
 from __future__ import annotations
 
 from collections import Counter
@@ -20,9 +21,7 @@ from app.agents.framework import Agent, AgentContext
 _REQUIRED_RESOURCE_TYPES = {"Patient", "Condition"}
 
 
-class FHIRResourceValidatorAgent(
-    Agent[FHIRResourceValidatorInput, FHIRResourceValidatorOutput]
-):
+class FHIRResourceValidatorAgent(Agent[FHIRResourceValidatorInput, FHIRResourceValidatorOutput]):
     name: ClassVar[str] = "fhir_resource_validator"
     parent: ClassVar[str] = "clinical_extractor"
     role: ClassVar[str] = "structural_validation"
@@ -55,9 +54,7 @@ class FHIRResourceValidatorAgent(
                     message="Top-level resourceType must be 'Bundle'.",
                 )
             )
-            return FHIRResourceValidatorOutput(
-                is_valid=False, resource_counts={}, issues=issues
-            )
+            return FHIRResourceValidatorOutput(is_valid=False, resource_counts={}, issues=issues)
 
         entries: list[dict[str, Any]] = bundle.get("entry") or []
         if not entries:

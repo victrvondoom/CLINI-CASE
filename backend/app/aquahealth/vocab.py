@@ -20,6 +20,7 @@ treat them differently: "looked, saw no fish" is evidence, "did not look" is
 a data gap. Collapsing them into a boolean would silently manufacture data,
 so the distinction is preserved end-to-end.
 """
+
 from __future__ import annotations
 
 from enum import StrEnum
@@ -140,16 +141,30 @@ CONTEXT_FIELDS: tuple[tuple[str, str], ...] = (
 )
 
 #: Fields where OBSERVED is the concerning direction (a pollution-style signal).
-ADVERSE_WHEN_OBSERVED: frozenset[str] = frozenset({
-    "floating_waste", "foam", "algae", "oily_film", "unusual_colour",
-    "unusual_odour", "dead_organisms", "waste_accumulation",
-    "suspected_discharge",
-})
+ADVERSE_WHEN_OBSERVED: frozenset[str] = frozenset(
+    {
+        "floating_waste",
+        "foam",
+        "algae",
+        "oily_film",
+        "unusual_colour",
+        "unusual_odour",
+        "dead_organisms",
+        "waste_accumulation",
+        "suspected_discharge",
+    }
+)
 
 #: Fields where OBSERVED is a positive/healthy sign (life is present).
-POSITIVE_WHEN_OBSERVED: frozenset[str] = frozenset({
-    "fish", "birds", "insects", "aquatic_plants", "macroinvertebrates",
-})
+POSITIVE_WHEN_OBSERVED: frozenset[str] = frozenset(
+    {
+        "fish",
+        "birds",
+        "insects",
+        "aquatic_plants",
+        "macroinvertebrates",
+    }
+)
 
 ALL_QUALITATIVE_FIELDS: tuple[tuple[str, str], ...] = (
     WATER_APPEARANCE_FIELDS + BIODIVERSITY_FIELDS + CONTEXT_FIELDS

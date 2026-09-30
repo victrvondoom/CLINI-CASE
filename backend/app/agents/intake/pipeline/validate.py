@@ -3,6 +3,7 @@
 Soft validation only — never raises. Sets risk_flags + requires_human_review
 on the context so the assemble stage can propagate them to the IntakeResult.
 """
+
 from __future__ import annotations
 
 from typing import ClassVar

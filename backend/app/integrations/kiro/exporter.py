@@ -13,6 +13,7 @@ The CLI form is the one Kiro IDE itself can wire to a pre-commit Hook so
 specs always reflect the current code. The HTTP form is the one a
 developer runs from the demo UI ("watch us regenerate Kiro specs live").
 """
+
 from __future__ import annotations
 
 import json
@@ -40,8 +41,8 @@ def _requirements_md(entry: dict[str, Any]) -> str:
         f"  - LLM-backed via Bedrock {primary.get('size', 'sonnet')} "
         f"({primary.get('role', 'reasoning')}) by default; "
         f"fallback model `{fallback.get('size', 'sonnet')}` on retry."
-        if is_llm else
-        "  - Deterministic Python implementation; no LLM call."
+        if is_llm
+        else "  - Deterministic Python implementation; no LLM call."
     )
 
     return f"""# Requirements — `{name}`
@@ -116,17 +117,21 @@ def _design_md(entry: dict[str, Any]) -> str:
     in_guardrails = entry.get("input_guardrails", [])
     out_guardrails = entry.get("output_guardrails", [])
 
-    parent_section = f"""
+    parent_section = (
+        f"""
 This agent is a **sub-agent** of `{parent}`. It shares the parent's
 `AgentContext`, including:
   - `BudgetTracker` — per-case $5 / 600K-token ceiling
   - `TraceSink` — `PostgresTraceSink` in production, `InMemoryTraceSink` in tests
   - `WorkingMemory` — case-scoped scratch
   - `parent_span_id` — wires this span under the parent in the AgentTrace tree
-""" if parent else """
+"""
+        if parent
+        else """
 This agent is a **top-level orchestrator**. Its output is one of the
 seven nodes in the LangGraph DAG (`app/graph/build.py`).
 """
+    )
 
     return f"""# Design — `{name}`
 
@@ -199,18 +204,23 @@ def _tasks_md(entry: dict[str, Any]) -> str:
 
     pkg_path = (
         f"backend/app/agents/{parent}/sub_agents/{name}.py"
-        if parent else f"backend/app/agents/{name}/orchestrator.py"
+        if parent
+        else f"backend/app/agents/{name}/orchestrator.py"
     )
 
-    llm_specific_tasks = """
+    llm_specific_tasks = (
+        """
 - [ ] Author `system_prompt` in `backend/app/prompts/{parent}/sub_agents/{name}.txt` (or `{name}.txt` for orchestrators).
 - [ ] Set `primary_model` to the appropriate `ModelSpec` (`SONNET_REASONING`, `HAIKU_LITE`, etc.).
 - [ ] If output requires reflection, set `quality_threshold > 0` and reuse `LLMGrader` default.
 - [ ] Add a `phi_sanitizer` input guardrail when prompt receives raw FHIR.
-""" if is_llm else """
+"""
+        if is_llm
+        else """
 - [ ] Implement `_execute_deterministic(input, ctx) -> output` in `{file}`.
 - [ ] Set `primary_model = None` so the framework knows to skip the LLM path.
 """
+    )
 
     return f"""# Tasks — `{name}`
 
@@ -366,6 +376,7 @@ def export_kiro_specs(out_root: Path | None = None) -> dict[str, Any]:
 
 def _main() -> None:
     import json
+
     summary = export_kiro_specs()
     print(json.dumps(summary, indent=2))
 

@@ -8,8 +8,8 @@
  *   - BCBS   — strictest on combo-regimen documentation
  *   - Anthem — formulary-tier nuances; sometimes denies APPROVABLE cases
  *
- * Used by /cases/:id/compare. No real LLM calls — this is the platform-demo
- * pattern; in production each verdict would come from a parallel agent run.
+ * Used ONLY by the /sandbox what-if simulator. No LLM calls: verdicts here are a documentation heuristic and are
+ * labelled SIMULATED. The real /cases/:id/compare page reads recorded decisions from the backend instead.
  */
 import type { Verdict } from "./types";
 

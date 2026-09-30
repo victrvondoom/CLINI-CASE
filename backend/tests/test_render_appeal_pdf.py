@@ -10,6 +10,7 @@ Verifies the renderer produces:
 
 This test is purely local — no DB, no LLM, no network. Runs in <2s.
 """
+
 from __future__ import annotations
 
 import io

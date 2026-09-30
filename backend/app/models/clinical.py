@@ -2,6 +2,7 @@
 
 Source of truth: PROPOSAL.md §9.1.
 """
+
 from __future__ import annotations
 
 from pydantic import BaseModel, Field

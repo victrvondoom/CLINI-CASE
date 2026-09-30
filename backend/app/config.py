@@ -3,6 +3,7 @@
 Single source of truth for all runtime config. Import `settings` everywhere
 config is needed. Never read `os.environ` directly outside this module.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -27,6 +28,7 @@ _ENV_FILE = _REPO_ROOT / ".env"
 # process environment. Bridge the two so the same `.env` works for both.
 try:
     from dotenv import load_dotenv as _load_dotenv
+
     _load_dotenv(_ENV_FILE, override=False)
 except ImportError:
     pass
@@ -166,7 +168,9 @@ class Settings(BaseSettings):
             if self.AUTH_DBLESS_DEMO_ENABLED:
                 raise RuntimeError("DB-less demo authentication is restricted to ENVIRONMENT=dev")
             if not self.MCP_AUTH_TOKEN or len(self.MCP_AUTH_TOKEN) < 32:
-                raise RuntimeError("Set a random MCP_AUTH_TOKEN of at least 32 characters outside dev")
+                raise RuntimeError(
+                    "Set a random MCP_AUTH_TOKEN of at least 32 characters outside dev"
+                )
             if self.JWT_SECRET == _DEV_JWT_SECRET_SENTINEL:
                 raise RuntimeError(
                     f"FATAL: ENVIRONMENT={self.ENVIRONMENT} but JWT_SECRET is the "

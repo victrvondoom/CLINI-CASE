@@ -4,6 +4,7 @@ LLM-backed (Sonnet). Cross-encoder reranks candidate sections; fires only
 when keyword_filter returns more than 5 candidates. Uses the existing
 rerank prompt at `app/prompts/policy_retriever_rerank.txt`.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -18,7 +19,10 @@ from app.agents.policy_retriever.schemas import LLMRerankerInput, LLMRerankerOut
 
 _PROMPT = (
     Path(__file__).resolve().parents[3]
-    / "prompts" / "policy_retriever" / "sub_agents" / "llm_reranker.txt"
+    / "prompts"
+    / "policy_retriever"
+    / "sub_agents"
+    / "llm_reranker.txt"
 ).read_text(encoding="utf-8")
 
 
@@ -44,9 +48,10 @@ class LLMRerankerAgent(Agent[LLMRerankerInput, LLMRerankerOutput]):
 
     def _build_user_message(self, input: LLMRerankerInput) -> str:
         ctx = input.clinical_context
-        bio = ", ".join(
-            f"{b.get('name', '?')}={b.get('value', '?')}" for b in ctx.biomarkers
-        ) or "(none)"
+        bio = (
+            ", ".join(f"{b.get('name', '?')}={b.get('value', '?')}" for b in ctx.biomarkers)
+            or "(none)"
+        )
         parts = [
             "CLINICAL_CASE:",
             f"  Diagnosis: {ctx.diagnosis_icd10} - {ctx.diagnosis_description}",
@@ -59,9 +64,7 @@ class LLMRerankerAgent(Agent[LLMRerankerInput, LLMRerankerOutput]):
         ]
         for i, c in enumerate(input.candidates):
             snippet = c.section_text[:300].replace("\n", " ")
-            parts.append(
-                f"  [{i}] {c.policy_title} | {c.section_heading}: {snippet}..."
-            )
+            parts.append(f"  [{i}] {c.policy_title} | {c.section_heading}: {snippet}...")
         parts += [
             "",
             f"Return at most {min(input.top_k, len(input.candidates))} indices, most relevant first.",

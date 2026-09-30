@@ -7,6 +7,7 @@ The actual gate (atomic increment + 429 response) lives in `app/quotas.py`
 and is called from `app/api/cases.py:run_full` and `app/api/jobs.py:run_full_async`.
 This router is for visibility/operations only — it does not enforce.
 """
+
 from __future__ import annotations
 
 from typing import Any

@@ -12,6 +12,7 @@ Reference:
   - MCP spec: https://modelcontextprotocol.io
   - TriZetto AI Gateway is MCP-compliant per re:Invent 2025 IND210.
 """
+
 from __future__ import annotations
 
 import json
@@ -46,17 +47,17 @@ async def policy_lookup(payer_id: str, treatment: str) -> dict[str, Any]:
     for i, c in enumerate(candidates[:5], 1):
         p = c["policy"]
         s = c["section"]
-        summary_lines.append(
-            f"{i}. {p['policy_title']}  [{p['policy_id']}] — § {s['heading']}"
+        summary_lines.append(f"{i}. {p['policy_title']}  [{p['policy_id']}] — § {s['heading']}")
+        structured.append(
+            {
+                "policy_id": p["policy_id"],
+                "policy_title": p["policy_title"],
+                "section_heading": s["heading"],
+                "section_text": s["text"],
+                "source_url": p.get("source_url"),
+                "page_number": s.get("page_number"),
+            }
         )
-        structured.append({
-            "policy_id": p["policy_id"],
-            "policy_title": p["policy_title"],
-            "section_heading": s["heading"],
-            "section_text": s["text"],
-            "source_url": p.get("source_url"),
-            "page_number": s.get("page_number"),
-        })
     return {
         "content": [
             {"type": "text", "text": "\n".join(summary_lines)},
@@ -151,19 +152,19 @@ async def decision_check(case_id: str) -> dict[str, Any]:
             },
             {
                 "type": "text",
-                "text": "```json\n" + json.dumps(
+                "text": "```json\n"
+                + json.dumps(
                     {
                         "case_id": case_id,
                         "verdict": row["verdict"],
                         "confidence": float(row["confidence"]) if row["confidence"] else None,
                         "rationale": row["rationale"],
                         "citations": citations,
-                        "decided_at": row["created_at"].isoformat()
-                        if row["created_at"]
-                        else None,
+                        "decided_at": row["created_at"].isoformat() if row["created_at"] else None,
                     },
                     indent=2,
-                ) + "\n```",
+                )
+                + "\n```",
             },
         ],
         "isError": False,
@@ -194,9 +195,7 @@ async def appeal_draft(case_id: str) -> dict[str, Any]:
             case_id,
         )
         if decision and decision["verdict"] != "DENY":
-            return _text_block(
-                f"No appeal needed: case {case_id} was {decision['verdict']}."
-            )
+            return _text_block(f"No appeal needed: case {case_id} was {decision['verdict']}.")
         return _text_block(
             f"No appeal drafted for case {case_id} yet. "
             f"Run the Appeals Drafter via the LangGraph DAG."
@@ -210,7 +209,8 @@ async def appeal_draft(case_id: str) -> dict[str, Any]:
             {
                 "type": "text",
                 "text": (
-                    "```json\n" + json.dumps(
+                    "```json\n"
+                    + json.dumps(
                         {
                             "case_id": case_id,
                             "structured_arguments": args,
@@ -219,7 +219,8 @@ async def appeal_draft(case_id: str) -> dict[str, Any]:
                             else None,
                         },
                         indent=2,
-                    ) + "\n```"
+                    )
+                    + "\n```"
                 ),
             },
         ],
@@ -259,16 +260,18 @@ async def audit_query(case_id: str) -> dict[str, Any]:
             f"out={r['output_tokens'] or 0:>5}  "
             f"{latency:>6}ms  {r['status']}"
         )
-        structured.append({
-            "agent": r["agent_name"],
-            "model_id": r["model_id"],
-            "input_tokens": r["input_tokens"],
-            "output_tokens": r["output_tokens"],
-            "started_at": r["started_at"].isoformat() if r["started_at"] else None,
-            "completed_at": r["completed_at"].isoformat() if r["completed_at"] else None,
-            "latency_ms": latency,
-            "status": r["status"],
-        })
+        structured.append(
+            {
+                "agent": r["agent_name"],
+                "model_id": r["model_id"],
+                "input_tokens": r["input_tokens"],
+                "output_tokens": r["output_tokens"],
+                "started_at": r["started_at"].isoformat() if r["started_at"] else None,
+                "completed_at": r["completed_at"].isoformat() if r["completed_at"] else None,
+                "latency_ms": latency,
+                "status": r["status"],
+            }
+        )
     return {
         "content": [
             {"type": "text", "text": "\n".join(lines)},

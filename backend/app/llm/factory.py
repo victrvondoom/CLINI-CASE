@@ -1,4 +1,5 @@
 """LLM client factory. Returns the configured provider, wrapped in the GenAI Gateway."""
+
 from __future__ import annotations
 
 from functools import lru_cache
@@ -19,6 +20,7 @@ def llm_unavailable_reason() -> str | None:
             )
     elif provider == "bedrock":
         import boto3
+
         if boto3.Session().get_credentials() is None:
             return (
                 "No AWS credentials found for LLM_PROVIDER=bedrock. "
@@ -42,12 +44,15 @@ def get_llm_client() -> LLMClient:
     underlying: LLMClient
     if settings.LLM_PROVIDER == "anthropic":
         from app.llm.anthropic_client import AnthropicClient
+
         underlying = AnthropicClient()
     elif settings.LLM_PROVIDER == "openrouter":
         from app.llm.openrouter_client import OpenRouterClient
+
         underlying = OpenRouterClient()
     elif settings.LLM_PROVIDER == "bedrock":
         from app.llm.bedrock_client import BedrockClient
+
         underlying = BedrockClient()
     else:
         raise ValueError(f"Unknown LLM_PROVIDER: {settings.LLM_PROVIDER}")
@@ -56,4 +61,5 @@ def get_llm_client() -> LLMClient:
         return underlying
 
     from app.llm.gateway import GenAIGateway
+
     return GenAIGateway(underlying)

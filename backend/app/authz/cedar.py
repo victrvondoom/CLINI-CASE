@@ -15,6 +15,7 @@ Migration path:
 
 Pairs with: ops/architecture/AUTHZ_CEDAR.md
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -29,21 +30,23 @@ class AuthzDeniedError(Exception):
         self.principal = principal
         self.action = action
         self.resource = resource
-        super().__init__(f"AUTHZ_DENIED: {reason} (principal={principal} action={action} resource={resource})")
+        super().__init__(
+            f"AUTHZ_DENIED: {reason} (principal={principal} action={action} resource={resource})"
+        )
 
 
 @dataclass(frozen=True)
 class Principal:
     user_id: str
     organization_id: str
-    role: str                    # 'coordinator' | 'reviewer' | 'admin'
+    role: str  # 'coordinator' | 'reviewer' | 'admin'
     attributes: dict[str, Any] = field(default_factory=dict)
     # attributes can include: lob, msa_id, license_state, npi, oncology_cert
 
 
 @dataclass(frozen=True)
 class Resource:
-    kind: str                    # 'case' | 'evidence_pack' | 'audit_log' | ...
+    kind: str  # 'case' | 'evidence_pack' | 'audit_log' | ...
     id: str
     organization_id: str
     attributes: dict[str, Any] = field(default_factory=dict)
@@ -72,28 +75,33 @@ PolicyEffect = str  # "permit" | "forbid"
 _POLICIES: list[tuple[PolicyEffect, set[str], Any, str]] = [
     # ===================== forbid (deny-wins) ===============================
     (
-        "forbid", {"case:read", "case:update", "case:delete", "case:run", "case:resume"},
+        "forbid",
+        {"case:read", "case:update", "case:delete", "case:run", "case:resume"},
         lambda p, r, _ctx: p.organization_id != r.organization_id,
         "deny-cross-org-case-access",
     ),
     (
-        "forbid", {"case:sign-off"},
+        "forbid",
+        {"case:sign-off"},
         lambda p, r, _ctx: r.attributes.get("signed_by_physician") is True,
         "deny-double-signoff-CA-SB1120",
     ),
     (
-        "forbid", {"case:sign-off"},
+        "forbid",
+        {"case:sign-off"},
         lambda p, r, _ctx: p.role == "coordinator",
         "deny-coordinator-signoff",
     ),
     (
-        "forbid", {"audit_log:read"},
+        "forbid",
+        {"audit_log:read"},
         lambda p, r, _ctx: p.role != "admin",
         "deny-audit-log-non-admin",
     ),
     # ===================== permit ==========================================
     (
-        "permit", {"case:read", "case:update", "case:run", "case:resume"},
+        "permit",
+        {"case:read", "case:update", "case:run", "case:resume"},
         lambda p, r, _ctx: (
             p.organization_id == r.organization_id
             and p.role in {"coordinator", "reviewer", "admin"}
@@ -101,7 +109,8 @@ _POLICIES: list[tuple[PolicyEffect, set[str], Any, str]] = [
         "permit-same-org-case-rw",
     ),
     (
-        "permit", {"case:sign-off"},
+        "permit",
+        {"case:sign-off"},
         lambda p, r, _ctx: (
             p.organization_id == r.organization_id
             and p.role in {"reviewer", "admin"}
@@ -110,12 +119,14 @@ _POLICIES: list[tuple[PolicyEffect, set[str], Any, str]] = [
         "permit-reviewer-signoff",
     ),
     (
-        "permit", {"audit_log:read"},
+        "permit",
+        {"audit_log:read"},
         lambda p, _r, _ctx: p.role == "admin",
         "permit-admin-audit-read",
     ),
     (
-        "permit", {"case:scope-by-lob:read"},
+        "permit",
+        {"case:scope-by-lob:read"},
         lambda p, r, _ctx: (
             p.organization_id == r.organization_id
             and p.role in {"coordinator", "reviewer", "admin"}
@@ -127,10 +138,10 @@ _POLICIES: list[tuple[PolicyEffect, set[str], Any, str]] = [
         "permit-lob-scoped-case-read",
     ),
     (
-        "permit", {"evidence_pack:read"},
+        "permit",
+        {"evidence_pack:read"},
         lambda p, r, _ctx: (
-            p.organization_id == r.organization_id
-            and p.role in {"reviewer", "admin"}
+            p.organization_id == r.organization_id and p.role in {"reviewer", "admin"}
         ),
         "permit-evidence-pack-reviewer-admin",
     ),

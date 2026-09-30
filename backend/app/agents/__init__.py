@@ -1,4 +1,4 @@
-"""ClinCase agents — 7 parent orchestrators × 21 sub-agents.
+"""ClinCase agents — 7 parent orchestrators × 22 sub-agents.
 
 Canonical architecture (everything is `Agent[I, O]` from app.agents.framework):
 
@@ -23,6 +23,7 @@ Public exports:
 Importing this package is side-effect-free except for the canonical
 agent instances being instantiated at module load time.
 """
+
 from app.agents.appeals_drafter import (
     appeals_drafter,
     appeals_drafter_node,

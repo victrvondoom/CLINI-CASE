@@ -25,6 +25,7 @@ The numbers are PROJECTIONS, not guarantees — any payer analyst will
 recognize that's how Star math works. We make the projection method
 transparent + cite the public source.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -89,11 +90,14 @@ async def projected_star_impact(
         member_count = 100_000
 
     # Pull case-level activity to qualify the projection
-    last_90d = await db.fetchval(
-        """SELECT COUNT(*)::INT FROM cases
+    last_90d = (
+        await db.fetchval(
+            """SELECT COUNT(*)::INT FROM cases
            WHERE organization_id = $1 AND created_at >= NOW() - INTERVAL '90 days'""",
-        organization_id,
-    ) or 0
+            organization_id,
+        )
+        or 0
+    )
 
     notes = [
         f"Projection assumes {member_count:,} MA members at {current_star_assumption:.2f} stars current.",

@@ -16,6 +16,7 @@ because every parent and sub-agent draws from the same `BudgetTracker`
 on this single object. Creating multiple contexts per case breaks the
 ceiling invariant.
 """
+
 from __future__ import annotations
 
 import uuid

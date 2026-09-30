@@ -17,6 +17,7 @@ then characterises every later day relative to that personal range:
 All deviation functions accept a leading batch axis so the what-if simulator
 can run them on Monte Carlo futures with exactly the same code.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -27,7 +28,7 @@ import numpy as np
 from app.oncotwin.engine.series import PatientSeries
 from app.oncotwin.signals import DAILY_SIGNALS, MODEL_SIGNALS, SIGNALS, adverse_sign
 
-DEVIATION_Z = 1.5            # adverse deviation threshold used for persistence / concordance
+DEVIATION_Z = 1.5  # adverse deviation threshold used for persistence / concordance
 SUDDEN_JUMP_Z = 2.5
 CUSUM_K = 0.5
 CUSUM_H = 4.0
@@ -57,16 +58,25 @@ class SignalBaseline:
         spec = SIGNALS[self.signal]
         if spec.transform == "log":
             med = float(np.exp(self.median_t))
-            lo, hi = float(np.exp(self.median_t - 2 * self.spread_t)), float(np.exp(self.median_t + 2 * self.spread_t))
+            lo, hi = (
+                float(np.exp(self.median_t - 2 * self.spread_t)),
+                float(np.exp(self.median_t + 2 * self.spread_t)),
+            )
         else:
             med = self.median_t
             lo, hi = self.median_t - 2 * self.spread_t, self.median_t + 2 * self.spread_t
         d = spec.decimals
         return {
-            "signal": self.signal, "label": spec.label, "unit": spec.unit_display,
-            "median": round(med, d), "low": round(lo, d), "high": round(hi, d),
-            "spread": round(self.spread_t, 4), "transform": spec.transform,
-            "n_days": self.n_days, "established": self.established,
+            "signal": self.signal,
+            "label": spec.label,
+            "unit": spec.unit_display,
+            "median": round(med, d),
+            "low": round(lo, d),
+            "high": round(hi, d),
+            "spread": round(self.spread_t, 4),
+            "transform": spec.transform,
+            "n_days": self.n_days,
+            "established": self.established,
             "adverse_direction": spec.adverse,
             "population_reference": POPULATION_REFERENCE.get(self.signal),
         }
@@ -78,7 +88,7 @@ class Baseline:
     window: tuple[int, int]
     kind: str
     adequacy: float
-    corr_inv: np.ndarray        # inverse shrunk correlation over MODEL_SIGNALS
+    corr_inv: np.ndarray  # inverse shrunk correlation over MODEL_SIGNALS
 
     @property
     def median_vec(self) -> np.ndarray:
@@ -101,8 +111,12 @@ class Baseline:
 def compute_baseline(series: PatientSeries) -> Baseline:
     end = min(series.baseline_end_day, series.as_of_day)
     start = 1
-    kind = "pre-treatment" if series.as_of_day >= series.baseline_end_day else "pre-treatment (still accruing)"
-    avail = [np.sum(~np.isnan(series.values[k][start - 1:end])) for k in MODEL_SIGNALS]
+    kind = (
+        "pre-treatment"
+        if series.as_of_day >= series.baseline_end_day
+        else "pre-treatment (still accruing)"
+    )
+    avail = [np.sum(~np.isnan(series.values[k][start - 1 : end])) for k in MODEL_SIGNALS]
     if end < 3 or np.median(avail) < 3:
         # No usable pre-treatment window (monitoring began on treatment).
         end = min(series.as_of_day, 10)
@@ -112,7 +126,7 @@ def compute_baseline(series: PatientSeries) -> Baseline:
     zmat = []
     for key in DAILY_SIGNALS:
         spec = SIGNALS[key]
-        x = series.transformed(key)[start - 1:end]
+        x = series.transformed(key)[start - 1 : end]
         x = x[~np.isnan(x)]
         if x.size == 0:
             continue
@@ -127,9 +141,9 @@ def compute_baseline(series: PatientSeries) -> Baseline:
 
     for key in MODEL_SIGNALS:
         b = signals[key]
-        x = series.transformed(key)[start - 1:end]
+        x = series.transformed(key)[start - 1 : end]
         zmat.append((x - b.median_t) / b.spread_t if b.n_days else np.full(end - start + 1, np.nan))
-    Z = np.array(zmat).T                               # (days, S)
+    Z = np.array(zmat).T  # (days, S)
     corr = _shrunk_corr(Z)
     adequacy = float(np.mean([min(1.0, signals[k].n_days / 10.0) for k in MODEL_SIGNALS]))
     return Baseline(signals, (start, end), kind, adequacy, np.linalg.inv(corr))
@@ -156,7 +170,9 @@ def _shrunk_corr(Z: np.ndarray) -> np.ndarray:
 # =============================================================================
 
 
-def adverse_z(values_t: np.ndarray, baseline: Baseline, keys: tuple[str, ...] = MODEL_SIGNALS) -> np.ndarray:
+def adverse_z(
+    values_t: np.ndarray, baseline: Baseline, keys: tuple[str, ...] = MODEL_SIGNALS
+) -> np.ndarray:
     med = np.array([baseline.signals[k].median_t for k in keys])
     spread = np.array([baseline.signals[k].spread_t for k in keys])
     signs = np.array([adverse_sign(k) for k in keys])

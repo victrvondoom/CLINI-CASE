@@ -23,6 +23,7 @@ Use:
     await db.fetch_ro("SELECT 1")             # reader endpoint
     await db.execute("INSERT ...", val)
 """
+
 from __future__ import annotations
 
 import os
@@ -109,13 +110,15 @@ class Database:
     # -------------------------------------------------------------------------
 
     async def execute(self, query: str, *args: Any) -> str:
-        return await self.pool.execute(query, *args)
+        result: str = await self.pool.execute(query, *args)
+        return result
 
     async def fetchrow(self, query: str, *args: Any) -> asyncpg.Record | None:
         return await self.pool.fetchrow(query, *args)
 
     async def fetch(self, query: str, *args: Any) -> list[asyncpg.Record]:
-        return await self.pool.fetch(query, *args)
+        rows: list[asyncpg.Record] = await self.pool.fetch(query, *args)
+        return rows
 
     async def fetchval(self, query: str, *args: Any) -> Any:
         return await self.pool.fetchval(query, *args)
@@ -129,7 +132,8 @@ class Database:
         return await self.ro_pool.fetchrow(query, *args)
 
     async def fetch_ro(self, query: str, *args: Any) -> list[asyncpg.Record]:
-        return await self.ro_pool.fetch(query, *args)
+        rows: list[asyncpg.Record] = await self.ro_pool.fetch(query, *args)
+        return rows
 
     async def fetchval_ro(self, query: str, *args: Any) -> Any:
         return await self.ro_pool.fetchval(query, *args)

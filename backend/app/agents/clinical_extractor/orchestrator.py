@@ -9,6 +9,7 @@ After sub-agents run, the parent fires ONE Sonnet LLM call to assemble the
 full ClinicalSnapshot, merging the biomarker_specialist's curated list as
 the authoritative biomarker block.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -142,13 +143,13 @@ class ClinicalExtractorAgent(Agent[ClinicalExtractorInput, ClinicalExtractorOutp
         snapshot = ClinicalSnapshot.model_validate_json(_strip_code_fence(response.text))
 
         if bio_result.output.biomarkers:
-            snapshot = snapshot.model_copy(
-                update={"biomarkers": bio_result.output.biomarkers}
-            )
+            snapshot = snapshot.model_copy(update={"biomarkers": bio_result.output.biomarkers})
 
         # Provider-visible aliases preserve evidence linking without exposing raw IDs.
         _, alias_map = prepare_fhir(input.fhir_bundle)
-        snapshot = ClinicalSnapshot.model_validate(restore_source_ids(snapshot.model_dump(), alias_map))
+        snapshot = ClinicalSnapshot.model_validate(
+            restore_source_ids(snapshot.model_dump(), alias_map)
+        )
         return ClinicalExtractorOutput(
             snapshot=snapshot,
             n_resources_validated=sum(validation.output.resource_counts.values()),

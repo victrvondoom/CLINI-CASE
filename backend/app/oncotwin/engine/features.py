@@ -28,6 +28,7 @@ detected more events earlier (EARLY WARNING sensitivity 90 % vs 85 %, median
 lead 4.0 vs 3.5 days) at the cost of more false alerts (1.67 vs 1.26 per
 100 patient-days), so it stays (see docs/ONCOTWIN.md, "Design decisions").
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -46,8 +47,18 @@ from app.oncotwin.engine.series import PatientSeries
 from app.oncotwin.signals import MODEL_SIGNALS, adverse_sign
 
 CONTEXT_FEATURES = (
-    "n_concordant", "anomaly", "persist_max", "nadir_risk", "anc_twin_log", "anc_twin_low",
-    "anc_lab_low", "adherence_7d", "adherence_gap", "age65", "on_treatment", "myelotox",
+    "n_concordant",
+    "anomaly",
+    "persist_max",
+    "nadir_risk",
+    "anc_twin_log",
+    "anc_twin_low",
+    "anc_lab_low",
+    "adherence_7d",
+    "adherence_gap",
+    "age65",
+    "on_treatment",
+    "myelotox",
 )
 FEATURE_NAMES: tuple[str, ...] = (
     tuple(f"z_{s}" for s in MODEL_SIGNALS)
@@ -73,11 +84,11 @@ def nadir_risk(days_since_dose: np.ndarray, myelotox: float, gcsf_cycle: np.ndar
 
 
 def feature_tensor(
-    values_t: np.ndarray,          # (B, T, S) transformed, NaN missing
+    values_t: np.ndarray,  # (B, T, S) transformed, NaN missing
     baseline: Baseline,
     *,
-    nadir: np.ndarray,              # (B, T) or (T,)
-    anc_twin_log: np.ndarray,       # (B, T) or (T,)
+    nadir: np.ndarray,  # (B, T) or (T,)
+    anc_twin_log: np.ndarray,  # (B, T) or (T,)
     anc_twin_low: np.ndarray,
     anc_lab_low: np.ndarray,
     adherence_7d: np.ndarray,
@@ -96,7 +107,7 @@ def feature_tensor(
 
     F = np.zeros((B, T, len(FEATURE_NAMES)))
     F[:, :, :N_SIG] = np.clip(np.nan_to_num(z_cf, nan=0.0), -3.0, 8.0)
-    F[:, :, N_SIG:2 * N_SIG] = np.clip(np.nan_to_num(slope3, nan=0.0), -4.0, 4.0)
+    F[:, :, N_SIG : 2 * N_SIG] = np.clip(np.nan_to_num(slope3, nan=0.0), -4.0, 4.0)
 
     def put(name: str, arr) -> None:
         F[:, :, IDX[name]] = np.broadcast_to(np.asarray(arr, dtype=float), (B, T))
@@ -137,12 +148,15 @@ def series_context(
     lab_low = np.zeros(n)
     for d, v, _ in series.labs.get("anc", []):
         if v < 1.0:
-            lab_low[d - 1: min(n, d + 6)] = 1.0
+            lab_low[d - 1 : min(n, d + 6)] = 1.0
     adh, sched = series.adherence_7d()
     return {
         "nadir": nadir_risk(dsd, myelo, gcsf),
-        "anc_twin_log": anc_log, "anc_twin_low": anc_low, "anc_lab_low": lab_low,
-        "adherence_7d": adh, "adherence_sched": sched,
+        "anc_twin_log": anc_log,
+        "anc_twin_low": anc_low,
+        "anc_lab_low": lab_low,
+        "adherence_7d": adh,
+        "adherence_sched": sched,
         "age65": 1.0 if series.profile.age >= 65 else 0.0,
         "on_treatment": (~np.isnan(dsd)).astype(float),
         "myelotox": myelo,
@@ -150,7 +164,9 @@ def series_context(
 
 
 def series_features(
-    series: PatientSeries, baseline: Baseline, neutro: NeutrophilTwin | None = None,
+    series: PatientSeries,
+    baseline: Baseline,
+    neutro: NeutrophilTwin | None = None,
     anc_arrays: tuple[np.ndarray, np.ndarray] | None = None,
 ) -> np.ndarray:
     """(T, F) feature matrix for the patient's actual history."""

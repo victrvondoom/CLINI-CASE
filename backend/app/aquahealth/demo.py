@@ -15,6 +15,7 @@ verdict would misrepresent how the system behaves on real, patchy citizen data.
 Coordinates are real urban freshwater locations so the map looks plausible,
 but no measurement here was ever taken from those waters.
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
@@ -118,9 +119,7 @@ def _obs(
     )
 
 
-def _demo_photo(
-    filename: str, caption: str, labels: list[tuple[str, Confidence]]
-) -> PhotoEvidence:
+def _demo_photo(filename: str, caption: str, labels: list[tuple[str, Confidence]]) -> PhotoEvidence:
     """A photo record with AI-assisted candidate labels and no image bytes.
 
     `uri` stays None: the demo ships metadata only, so nothing here can be
@@ -160,44 +159,77 @@ def _build_script() -> list[ObservationCreate]:
     # --- Riverside Brook: recovering -------------------------------------
     script += [
         _obs(
-            "riverside-brook", 68,
+            "riverside-brook",
+            68,
             appearance=WaterAppearance(
-                floating_waste=YES, foam=YES, algae=NO, oily_film=NO,
-                unusual_colour=NO, unusual_odour=YES, clarity="cloudy",
+                floating_waste=YES,
+                foam=YES,
+                algae=NO,
+                oily_film=NO,
+                unusual_colour=NO,
+                unusual_odour=YES,
+                clarity="cloudy",
             ),
             biodiversity=Biodiversity(
-                fish=NO, birds=YES, insects=NO, aquatic_plants=YES,
-                macroinvertebrates=NO, dead_organisms=NO,
+                fish=NO,
+                birds=YES,
+                insects=NO,
+                aquatic_plants=YES,
+                macroinvertebrates=NO,
+                dead_organisms=NO,
             ),
             context=EnvironmentalContext(
-                recent_rainfall=YES, waste_accumulation=YES, construction=NO,
+                recent_rainfall=YES,
+                waste_accumulation=YES,
+                construction=NO,
             ),
             measurements=Measurements(ph=7.9, turbidity_ntu=48, dissolved_oxygen_mgl=5.4),
             note="Litter caught on the bank after the weekend. Water looked murky.",
         ),
         _obs(
-            "riverside-brook", 47,
+            "riverside-brook",
+            47,
             appearance=WaterAppearance(
-                floating_waste=YES, foam=NO, algae=NO, oily_film=NO,
-                unusual_colour=NO, unusual_odour=NO, clarity="slightly_cloudy",
+                floating_waste=YES,
+                foam=NO,
+                algae=NO,
+                oily_film=NO,
+                unusual_colour=NO,
+                unusual_odour=NO,
+                clarity="slightly_cloudy",
             ),
             biodiversity=Biodiversity(
-                fish=NO, birds=YES, insects=YES, aquatic_plants=YES,
-                macroinvertebrates=NO, dead_organisms=NO,
+                fish=NO,
+                birds=YES,
+                insects=YES,
+                aquatic_plants=YES,
+                macroinvertebrates=NO,
+                dead_organisms=NO,
             ),
             context=EnvironmentalContext(waste_accumulation=YES, recent_rainfall=NO),
             measurements=Measurements(ph=7.6, turbidity_ntu=22, dissolved_oxygen_mgl=6.2),
             note="Council cleared part of the bank. Fewer bottles than last month.",
         ),
         _obs(
-            "riverside-brook", 24,
+            "riverside-brook",
+            24,
             appearance=WaterAppearance(
-                floating_waste=NO, foam=NO, algae=NO, oily_film=NO,
-                unusual_colour=NO, unusual_odour=NO, clarity="clear",
+                floating_waste=NO,
+                foam=NO,
+                algae=NO,
+                oily_film=NO,
+                unusual_colour=NO,
+                unusual_odour=NO,
+                clarity="clear",
             ),
             biodiversity=Biodiversity(
-                fish=YES, birds=YES, insects=YES, aquatic_plants=YES,
-                macroinvertebrates=YES, dead_organisms=NO, unusual_organisms=NO,
+                fish=YES,
+                birds=YES,
+                insects=YES,
+                aquatic_plants=YES,
+                macroinvertebrates=YES,
+                dead_organisms=NO,
+                unusual_organisms=NO,
             ),
             context=EnvironmentalContext(recent_rainfall=NO, waste_accumulation=NO),
             measurements=Measurements(
@@ -206,17 +238,31 @@ def _build_script() -> list[ObservationCreate]:
             note="Small fish visible near the footbridge. Best it has looked all year.",
         ),
         _obs(
-            "riverside-brook", 6,
+            "riverside-brook",
+            6,
             appearance=WaterAppearance(
-                floating_waste=NO, foam=NO, algae=NO, oily_film=NO,
-                unusual_colour=NO, unusual_odour=NO, clarity="clear",
+                floating_waste=NO,
+                foam=NO,
+                algae=NO,
+                oily_film=NO,
+                unusual_colour=NO,
+                unusual_odour=NO,
+                clarity="clear",
             ),
             biodiversity=Biodiversity(
-                fish=YES, birds=YES, insects=YES, aquatic_plants=YES,
-                macroinvertebrates=YES, dead_organisms=NO, unusual_organisms=NO,
+                fish=YES,
+                birds=YES,
+                insects=YES,
+                aquatic_plants=YES,
+                macroinvertebrates=YES,
+                dead_organisms=NO,
+                unusual_organisms=NO,
             ),
             context=EnvironmentalContext(
-                recent_rainfall=NO, construction=NO, waste_accumulation=NO, drought=NO,
+                recent_rainfall=NO,
+                construction=NO,
+                waste_accumulation=NO,
+                drought=NO,
             ),
             measurements=Measurements(
                 ph=7.5, water_temperature_c=15.1, turbidity_ntu=7, dissolved_oxygen_mgl=8.8
@@ -228,14 +274,24 @@ def _build_script() -> list[ObservationCreate]:
     # --- City Park Pond: stable and healthy ------------------------------
     script += [
         _obs(
-            "city-park-pond", 55,
+            "city-park-pond",
+            55,
             appearance=WaterAppearance(
-                floating_waste=NO, foam=NO, algae=NO, oily_film=NO,
-                unusual_colour=NO, unusual_odour=NO, clarity="clear",
+                floating_waste=NO,
+                foam=NO,
+                algae=NO,
+                oily_film=NO,
+                unusual_colour=NO,
+                unusual_odour=NO,
+                clarity="clear",
             ),
             biodiversity=Biodiversity(
-                fish=YES, birds=YES, insects=YES, aquatic_plants=YES,
-                macroinvertebrates=YES, dead_organisms=NO,
+                fish=YES,
+                birds=YES,
+                insects=YES,
+                aquatic_plants=YES,
+                macroinvertebrates=YES,
+                dead_organisms=NO,
             ),
             context=EnvironmentalContext(recent_rainfall=NO, drought=NO, construction=NO),
             measurements=Measurements(
@@ -244,28 +300,49 @@ def _build_script() -> list[ObservationCreate]:
             note="Ducks and dragonflies as usual.",
         ),
         _obs(
-            "city-park-pond", 33,
+            "city-park-pond",
+            33,
             appearance=WaterAppearance(
-                floating_waste=NO, foam=NO, algae=NO, oily_film=NO,
-                unusual_colour=NO, unusual_odour=NO, clarity="clear",
+                floating_waste=NO,
+                foam=NO,
+                algae=NO,
+                oily_film=NO,
+                unusual_colour=NO,
+                unusual_odour=NO,
+                clarity="clear",
             ),
             biodiversity=Biodiversity(
-                fish=YES, birds=YES, insects=YES, aquatic_plants=YES,
-                macroinvertebrates=YES, dead_organisms=NO, unusual_organisms=NO,
+                fish=YES,
+                birds=YES,
+                insects=YES,
+                aquatic_plants=YES,
+                macroinvertebrates=YES,
+                dead_organisms=NO,
+                unusual_organisms=NO,
             ),
             measurements=Measurements(
                 ph=7.4, water_temperature_c=18.4, turbidity_ntu=8, dissolved_oxygen_mgl=8.1
             ),
         ),
         _obs(
-            "city-park-pond", 17,
+            "city-park-pond",
+            17,
             appearance=WaterAppearance(
-                floating_waste=NO, foam=NO, algae=YES, oily_film=NO,
-                unusual_colour=NO, unusual_odour=NO, clarity="slightly_cloudy",
+                floating_waste=NO,
+                foam=NO,
+                algae=YES,
+                oily_film=NO,
+                unusual_colour=NO,
+                unusual_odour=NO,
+                clarity="slightly_cloudy",
             ),
             biodiversity=Biodiversity(
-                fish=YES, birds=YES, insects=YES, aquatic_plants=YES,
-                macroinvertebrates=YES, dead_organisms=NO,
+                fish=YES,
+                birds=YES,
+                insects=YES,
+                aquatic_plants=YES,
+                macroinvertebrates=YES,
+                dead_organisms=NO,
             ),
             context=EnvironmentalContext(recent_rainfall=NO, drought=YES),
             measurements=Measurements(
@@ -281,14 +358,24 @@ def _build_script() -> list[ObservationCreate]:
             ],
         ),
         _obs(
-            "city-park-pond", 4,
+            "city-park-pond",
+            4,
             appearance=WaterAppearance(
-                floating_waste=NO, foam=NO, algae=NO, oily_film=NO,
-                unusual_colour=NO, unusual_odour=NO, clarity="clear",
+                floating_waste=NO,
+                foam=NO,
+                algae=NO,
+                oily_film=NO,
+                unusual_colour=NO,
+                unusual_odour=NO,
+                clarity="clear",
             ),
             biodiversity=Biodiversity(
-                fish=YES, birds=YES, insects=YES, aquatic_plants=YES,
-                macroinvertebrates=YES, dead_organisms=NO,
+                fish=YES,
+                birds=YES,
+                insects=YES,
+                aquatic_plants=YES,
+                macroinvertebrates=YES,
+                dead_organisms=NO,
             ),
             measurements=Measurements(
                 ph=7.3, water_temperature_c=17.1, turbidity_ntu=7, dissolved_oxygen_mgl=8.6
@@ -300,46 +387,81 @@ def _build_script() -> list[ObservationCreate]:
     # --- Old Mill Canal: deteriorating -> early warning -------------------
     script += [
         _obs(
-            "mill-canal", 40,
+            "mill-canal",
+            40,
             appearance=WaterAppearance(
-                floating_waste=YES, foam=NO, algae=NO, oily_film=NO,
-                unusual_colour=NO, unusual_odour=NO, clarity="slightly_cloudy",
+                floating_waste=YES,
+                foam=NO,
+                algae=NO,
+                oily_film=NO,
+                unusual_colour=NO,
+                unusual_odour=NO,
+                clarity="slightly_cloudy",
             ),
             biodiversity=Biodiversity(
-                fish=YES, birds=YES, insects=YES, aquatic_plants=NO, dead_organisms=NO,
+                fish=YES,
+                birds=YES,
+                insects=YES,
+                aquatic_plants=NO,
+                dead_organisms=NO,
             ),
             context=EnvironmentalContext(construction=YES, waste_accumulation=NO),
             measurements=Measurements(ph=7.5, turbidity_ntu=18, dissolved_oxygen_mgl=7.2),
             note="Building work started on the far bank.",
         ),
         _obs(
-            "mill-canal", 26,
+            "mill-canal",
+            26,
             appearance=WaterAppearance(
-                floating_waste=YES, foam=YES, algae=NO, oily_film=NO,
-                unusual_colour=YES, unusual_odour=NO, clarity="cloudy",
+                floating_waste=YES,
+                foam=YES,
+                algae=NO,
+                oily_film=NO,
+                unusual_colour=YES,
+                unusual_odour=NO,
+                clarity="cloudy",
             ),
             biodiversity=Biodiversity(
-                fish=NO, birds=YES, insects=YES, aquatic_plants=NO,
-                macroinvertebrates=NO, dead_organisms=NO,
+                fish=NO,
+                birds=YES,
+                insects=YES,
+                aquatic_plants=NO,
+                macroinvertebrates=NO,
+                dead_organisms=NO,
             ),
             context=EnvironmentalContext(
-                construction=YES, waste_accumulation=YES, recent_rainfall=YES,
+                construction=YES,
+                waste_accumulation=YES,
+                recent_rainfall=YES,
             ),
             measurements=Measurements(ph=7.8, turbidity_ntu=76, dissolved_oxygen_mgl=5.6),
             note="Water looks browner than usual and there is foam by the lock.",
         ),
         _obs(
-            "mill-canal", 14,
+            "mill-canal",
+            14,
             appearance=WaterAppearance(
-                floating_waste=YES, foam=YES, algae=YES, oily_film=YES,
-                unusual_colour=YES, unusual_odour=YES, clarity="opaque",
+                floating_waste=YES,
+                foam=YES,
+                algae=YES,
+                oily_film=YES,
+                unusual_colour=YES,
+                unusual_odour=YES,
+                clarity="opaque",
             ),
             biodiversity=Biodiversity(
-                fish=NO, birds=NO, insects=NO, aquatic_plants=NO,
-                macroinvertebrates=NO, dead_organisms=NO, unusual_organisms=NO,
+                fish=NO,
+                birds=NO,
+                insects=NO,
+                aquatic_plants=NO,
+                macroinvertebrates=NO,
+                dead_organisms=NO,
+                unusual_organisms=NO,
             ),
             context=EnvironmentalContext(
-                construction=YES, waste_accumulation=YES, suspected_discharge=YES,
+                construction=YES,
+                waste_accumulation=YES,
+                suspected_discharge=YES,
                 recent_rainfall=NO,
             ),
             measurements=Measurements(
@@ -359,18 +481,32 @@ def _build_script() -> list[ObservationCreate]:
             ],
         ),
         _obs(
-            "mill-canal", 3,
+            "mill-canal",
+            3,
             appearance=WaterAppearance(
-                floating_waste=YES, foam=YES, algae=YES, oily_film=YES,
-                unusual_colour=YES, unusual_odour=YES, clarity="opaque",
+                floating_waste=YES,
+                foam=YES,
+                algae=YES,
+                oily_film=YES,
+                unusual_colour=YES,
+                unusual_odour=YES,
+                clarity="opaque",
             ),
             biodiversity=Biodiversity(
-                fish=NO, birds=NO, insects=NO, aquatic_plants=NO,
-                macroinvertebrates=NO, dead_organisms=YES, unusual_organisms=NO,
+                fish=NO,
+                birds=NO,
+                insects=NO,
+                aquatic_plants=NO,
+                macroinvertebrates=NO,
+                dead_organisms=YES,
+                unusual_organisms=NO,
             ),
             context=EnvironmentalContext(
-                construction=YES, waste_accumulation=YES, suspected_discharge=YES,
-                recent_rainfall=NO, unusual_activity=YES,
+                construction=YES,
+                waste_accumulation=YES,
+                suspected_discharge=YES,
+                recent_rainfall=NO,
+                unusual_activity=YES,
             ),
             measurements=Measurements(
                 ph=9.2, water_temperature_c=22.4, turbidity_ntu=190, dissolved_oxygen_mgl=2.6
@@ -389,10 +525,16 @@ def _build_script() -> list[ObservationCreate]:
     # --- North Wetland Edge: deliberately sparse --------------------------
     script.append(
         _obs(
-            "north-wetland", 9,
+            "north-wetland",
+            9,
             appearance=WaterAppearance(
-                floating_waste=UNK, foam=SKIP, algae=UNK, oily_film=SKIP,
-                unusual_colour=SKIP, unusual_odour=SKIP, clarity="unknown",
+                floating_waste=UNK,
+                foam=SKIP,
+                algae=UNK,
+                oily_film=SKIP,
+                unusual_colour=SKIP,
+                unusual_odour=SKIP,
+                clarity="unknown",
             ),
             biodiversity=Biodiversity(birds=YES),
             note="Walked past quickly, only had time to note the herons.",

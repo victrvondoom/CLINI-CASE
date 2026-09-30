@@ -25,6 +25,7 @@ Today the saga engine is wired for the post-decision flow:
 
 Pairs with: ops/architecture/SAGA_PATTERN.md
 """
+
 from __future__ import annotations
 
 import json
@@ -64,7 +65,7 @@ class Saga:
     saga_id: str
     case_id: str
     organization_id: str
-    saga_type: str                       # e.g. "post_decision_v1"
+    saga_type: str  # e.g. "post_decision_v1"
     status: SagaStatus
     steps: list[SagaStep]
     created_at: str
@@ -112,7 +113,9 @@ StepCallable = Callable[[dict[str, Any]], Awaitable[dict[str, Any]]]
 _STEP_REGISTRY: dict[str, tuple[StepCallable, StepCallable | None]] = {}
 
 
-def register_step(name: str, *, action: StepCallable, compensate: StepCallable | None = None) -> None:
+def register_step(
+    name: str, *, action: StepCallable, compensate: StepCallable | None = None
+) -> None:
     """Register a saga step. Call from module init time."""
     _STEP_REGISTRY[name] = (action, compensate)
 
@@ -153,8 +156,12 @@ def _deserialize(row: Any) -> Saga:
         status=row["status"],
         steps=steps,
         error=row["error"],
-        created_at=row["created_at"].isoformat() if hasattr(row["created_at"], "isoformat") else row["created_at"],
-        updated_at=row["updated_at"].isoformat() if hasattr(row["updated_at"], "isoformat") else row["updated_at"],
+        created_at=row["created_at"].isoformat()
+        if hasattr(row["created_at"], "isoformat")
+        else row["created_at"],
+        updated_at=row["updated_at"].isoformat()
+        if hasattr(row["updated_at"], "isoformat")
+        else row["updated_at"],
     )
 
 
@@ -242,7 +249,9 @@ async def execute_saga(saga: Saga) -> Saga:
             saga.status = "failed"
             failed_index = i
             await _persist(saga)
-            log.warning("saga.step.failed", saga_id=saga.saga_id, step=step.name, error=step.last_error)
+            log.warning(
+                "saga.step.failed", saga_id=saga.saga_id, step=step.name, error=step.last_error
+            )
             break
 
     if failed_index is not None:
@@ -290,18 +299,23 @@ async def get_saga(saga_id: str) -> Saga | None:
     return _deserialize(row)
 
 
-async def list_sagas(*, organization_id: str, status: str | None = None, limit: int = 100) -> list[Saga]:
+async def list_sagas(
+    *, organization_id: str, status: str | None = None, limit: int = 100
+) -> list[Saga]:
     if status:
         rows = await db.fetch(
             "SELECT * FROM case_sagas WHERE organization_id = $1 AND status = $2 "
             "ORDER BY created_at DESC LIMIT $3",
-            organization_id, status, limit,
+            organization_id,
+            status,
+            limit,
         )
     else:
         rows = await db.fetch(
             "SELECT * FROM case_sagas WHERE organization_id = $1 "
             "ORDER BY created_at DESC LIMIT $2",
-            organization_id, limit,
+            organization_id,
+            limit,
         )
     return [_deserialize(r) for r in rows]
 

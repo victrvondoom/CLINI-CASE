@@ -10,6 +10,7 @@ makes onboarding a structured, idempotent, audited operation.
 Today only the platform's super-admin can create tenants. Future:
 self-service signup gated by EULA + OIDC IdP discovery.
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -27,14 +28,14 @@ router = APIRouter(prefix="/admin/tenants", tags=["admin"])
 
 
 class CreateTenantBody(BaseModel):
-    name:               str  = Field(..., min_length=2, max_length=80)
-    slug:               str  = Field(..., min_length=2, max_length=40, pattern="^[a-z0-9-]+$")
-    admin_email:        EmailStr
-    admin_full_name:    str  = Field(..., min_length=2, max_length=80)
-    data_region:        str  = Field(default="ap-south-1")
-    tier:               str  = Field(default="silver", pattern="^(bronze|silver|gold)$")
-    eula_accepted:      bool = Field(default=False)
-    baa_signed:         bool = Field(default=False)
+    name: str = Field(..., min_length=2, max_length=80)
+    slug: str = Field(..., min_length=2, max_length=40, pattern="^[a-z0-9-]+$")
+    admin_email: EmailStr
+    admin_full_name: str = Field(..., min_length=2, max_length=80)
+    data_region: str = Field(default="ap-south-1")
+    tier: str = Field(default="silver", pattern="^(bronze|silver|gold)$")
+    eula_accepted: bool = Field(default=False)
+    baa_signed: bool = Field(default=False)
 
 
 @router.post("")
@@ -51,13 +52,17 @@ async def create_tenant(
     initial_password = secrets.token_urlsafe(20)
 
     async with db.pool.acquire() as conn, conn.transaction():
-        existing = await conn.fetchrow("SELECT id FROM organizations WHERE id = $1 OR slug = $2", org_id, body.slug)
+        existing = await conn.fetchrow(
+            "SELECT id FROM organizations WHERE id = $1 OR slug = $2", org_id, body.slug
+        )
         if existing is not None:
             raise HTTPException(status_code=409, detail=f"organization already exists: {body.slug}")
 
         await conn.execute(
             "INSERT INTO organizations (id, name, slug) VALUES ($1, $2, $3)",
-            org_id, body.name, body.slug,
+            org_id,
+            body.name,
+            body.slug,
         )
 
         # Initial org_quotas row (residency + tier — round 9 schema columns).
@@ -70,7 +75,9 @@ async def create_tenant(
                 ON CONFLICT (organization_id) DO UPDATE
                   SET data_region = EXCLUDED.data_region, tier = EXCLUDED.tier
                 """,
-                org_id, body.data_region, body.tier,
+                org_id,
+                body.data_region,
+                body.tier,
             )
 
         user_id = f"user_{secrets.token_hex(8)}"
@@ -89,15 +96,15 @@ async def create_tenant(
     cell = cell_for_organization(organization_id=org_id, data_region=body.data_region)
 
     return {
-        "organization_id":   org_id,
-        "slug":               body.slug,
-        "name":               body.name,
-        "data_region":        body.data_region,
-        "tier":               body.tier,
-        "cell_id":            cell.cell_id,
-        "admin_user_id":      user_id,
-        "admin_email":        str(body.admin_email),
-        "initial_password":   initial_password,    # one-shot; not stored anywhere else
+        "organization_id": org_id,
+        "slug": body.slug,
+        "name": body.name,
+        "data_region": body.data_region,
+        "tier": body.tier,
+        "cell_id": cell.cell_id,
+        "admin_user_id": user_id,
+        "admin_email": str(body.admin_email),
+        "initial_password": initial_password,  # one-shot; not stored anywhere else
         "next_steps": [
             "Send the admin user the initial password through an out-of-band channel.",
             "Configure OIDC at /api/v1/auth/oidc/login if SSO is required.",
@@ -132,5 +139,5 @@ async def get_tenant(
     return {
         **dict(row),
         "cell_id": cell.cell_id,
-        "region":  cell.region,
+        "region": cell.region,
     }

@@ -3,6 +3,7 @@
 Bypasses trace_agent (no DB needed) - calls LLM directly with a
 synthetic denial scenario and validates the output structure.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -93,9 +94,10 @@ async def test_drafts_appeal_for_her2_documentation_dispute():
     appeal = AppealDraft.model_validate_json(_strip_code_fence(response.text))
 
     # Required fields populated
-    assert appeal.patient_initials.upper() in ("JD", "MD"), (
-        f"Patient initials should be MD per input, got {appeal.patient_initials}"
-    )
+    assert appeal.patient_initials.upper() in (
+        "JD",
+        "MD",
+    ), f"Patient initials should be MD per input, got {appeal.patient_initials}"
     assert appeal.payer_id == "aetna"
     assert "trastuzumab" in appeal.requested_treatment.lower()
 
@@ -118,4 +120,7 @@ async def test_drafts_appeal_for_her2_documentation_dispute():
     assert "her2" in arg_evidence_str or "3+" in arg_evidence_str
 
     # Requested action is present
-    assert "overturn" in appeal.requested_action.lower() or "authoriz" in appeal.requested_action.lower()
+    assert (
+        "overturn" in appeal.requested_action.lower()
+        or "authoriz" in appeal.requested_action.lower()
+    )

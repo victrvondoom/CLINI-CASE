@@ -23,6 +23,7 @@ Production wiring lands at the first customer that runs Marquez.
 
 Pairs with: ops/architecture/DATA_LINEAGE.md
 """
+
 from __future__ import annotations
 
 import os
@@ -50,6 +51,7 @@ async def _post(event: dict[str, Any]) -> None:
         return
     try:
         import httpx  # type: ignore[import-not-found]
+
         async with httpx.AsyncClient(timeout=2.0) as client:
             resp = await client.post(
                 _OPENLINEAGE_URL,
@@ -73,14 +75,18 @@ async def emit_agent_run(
     run_id: str,
     case_id: str,
     organization_id: str,
-    event_type: str,                              # "START" | "COMPLETE" | "FAIL"
+    event_type: str,  # "START" | "COMPLETE" | "FAIL"
     inputs: list[dict[str, Any]] | None = None,
     outputs: list[dict[str, Any]] | None = None,
     error: str | None = None,
 ) -> None:
     """Emit an OpenLineage event for an agent run."""
     facets: dict[str, Any] = {
-        "case_id": {"_producer": _PRODUCER, "_schemaURL": "https://clincase.com/lineage/case-id-facet/v1.json", "case_id": case_id},
+        "case_id": {
+            "_producer": _PRODUCER,
+            "_schemaURL": "https://clincase.com/lineage/case-id-facet/v1.json",
+            "case_id": case_id,
+        },
         "organization_id": {"_producer": _PRODUCER, "organization_id": organization_id},
     }
     if error:
@@ -119,7 +125,7 @@ async def emit_rag_retrieval(
     run_id: str,
     case_id: str,
     organization_id: str,
-    backend: str,                  # "bedrock_kb" | "amazon_q" | "file_corpus"
+    backend: str,  # "bedrock_kb" | "amazon_q" | "file_corpus"
     query: str,
     retrieved_doc_ids: list[str],
     score_top1: float | None = None,

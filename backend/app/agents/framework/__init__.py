@@ -10,6 +10,7 @@ Modules:
   trace_sink  — TraceSink ABC + Postgres / InMemory impls
   types       — AgentResult, AgentMetadata, AgentTrace, Cost, TokenUsage
 """
+
 from app.agents.framework.agent import (
     Agent,
     AgentExhaustedError,
@@ -66,3 +67,46 @@ from app.agents.framework.types import (
     SpanStatus,
     TokenUsage,
 )
+
+__all__ = [
+    "Agent",
+    "AgentExhaustedError",
+    "InputBlockedError",
+    "OutputBlockedError",
+    "BudgetExceededError",
+    "BudgetTracker",
+    "new_default_budget",
+    "AgentContext",
+    "new_agent_context",
+    "GraderInput",
+    "GraderScore",
+    "LLMGrader",
+    "get_default_grader",
+    "CitationCompletenessGuardrail",
+    "Guardrail",
+    "GuardrailDecision",
+    "GuardrailResult",
+    "PHIInputGuardrail",
+    "SchemaGuardrail",
+    "TokenBudgetGuardrail",
+    "HAIKU_GRADER",
+    "HAIKU_LITE",
+    "SONNET_LETTER",
+    "SONNET_LONG_JSON",
+    "SONNET_MEDIUM_JSON",
+    "SONNET_REASONING",
+    "ModelRouter",
+    "ModelSpec",
+    "estimate_cost",
+    "resolve_model_id",
+    "InMemoryTraceSink",
+    "PostgresTraceSink",
+    "TraceSink",
+    "AgentMetadata",
+    "AgentResult",
+    "AgentTrace",
+    "Cost",
+    "SpanKind",
+    "SpanStatus",
+    "TokenUsage",
+]

@@ -9,6 +9,7 @@ Orchestrator on the production framework. Composes 3 sub-agents:
 Activated on DENY verdicts via the LangGraph conditional edge after the
 Denial Forecaster.
 """
+
 from __future__ import annotations
 
 from datetime import date
@@ -112,6 +113,3 @@ class AppealsDrafterAgent(Agent[AppealsDrafterInput, AppealsDrafterOutput]):
 
 
 appeals_drafter = AppealsDrafterAgent()
-
-
-

@@ -13,9 +13,10 @@ to `intake_documents`, and referenced by source_resource_id in any
 downstream agent_runs row that consumes it. A scanned-fax verdict is as
 auditable as a clean-FHIR verdict.
 """
+
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -57,11 +58,11 @@ class DocumentClassification(BaseModel):
     """
 
     document_type: Literal[
-        "typed_print",        # Word/PDF-generated, scanned at high DPI
-        "handwritten",        # pen-on-paper, photographed
-        "mixed",              # typed letterhead + handwritten margins / Rx pad
-        "structured_form",    # PA form / checkbox-heavy intake form
-        "unreadable",         # severe blur / tilt / low resolution
+        "typed_print",  # Word/PDF-generated, scanned at high DPI
+        "handwritten",  # pen-on-paper, photographed
+        "mixed",  # typed letterhead + handwritten margins / Rx pad
+        "structured_form",  # PA form / checkbox-heavy intake form
+        "unreadable",  # severe blur / tilt / low resolution
     ]
     confidence: float = Field(..., ge=0.0, le=1.0)
     rationale: str = Field(..., description="One sentence why")
@@ -106,7 +107,7 @@ class OCRResult(BaseModel):
     overall_confidence: float = Field(..., ge=0.0, le=1.0)
     phi_redactions_applied: int = Field(default=0, ge=0)
     pages: int = Field(default=1, ge=1)
-    clinical_snapshot_partial: dict = Field(
+    clinical_snapshot_partial: dict[str, Any] = Field(
         default_factory=dict,
         description=(
             "Partial ClinicalSnapshot extracted by vision-LLM engines in the "
@@ -129,7 +130,7 @@ class IntakeResult(BaseModel):
 
     classification: DocumentClassification
     ocr: OCRResult
-    clinical_snapshot_partial: dict
+    clinical_snapshot_partial: dict[str, Any]
     risk_flags: list[str] = Field(
         default_factory=list,
         description=(
@@ -145,7 +146,7 @@ class IntakeResult(BaseModel):
             "router uses this to short-circuit straight to the Reviewer queue."
         ),
     )
-    audit: dict = Field(
+    audit: dict[str, Any] = Field(
         default_factory=dict,
         description=(
             "{document_sha256, engines_used, latency_ms, cost_usd}. Persisted "

@@ -14,6 +14,7 @@ Notes on the mapping:
     otherwise we surface the LINE blocks as `full_text` and leave the
     Vision/Shaper layer to do field naming.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -43,10 +44,10 @@ class AWSTextractEngine(OCREngine):
 
     name: ClassVar[str] = "aws_textract"
     capabilities: ClassVar[EngineCapabilities] = EngineCapabilities(
-        handles_handwriting=True,        # Textract has a HANDWRITING feature, but accuracy is lower than Claude
+        handles_handwriting=True,  # Textract has a HANDWRITING feature, but accuracy is lower than Claude
         handles_typed_print=True,
-        handles_tables=True,             # FORMS + TABLES feature types
-        handles_pdf=True,                # async API path; sync API supports single-page PDFs
+        handles_tables=True,  # FORMS + TABLES feature types
+        handles_pdf=True,  # async API path; sync API supports single-page PDFs
         requires_aws_credentials=True,
         requires_internet=True,
         typical_latency_ms=2500,
@@ -151,19 +152,12 @@ def _map_textract_response(response: dict[str, Any], *, engine_name: str) -> OCR
                 line_texts.append(text)
 
     # Compute overall confidence as mean of word confidences (graceful default)
-    overall = (
-        sum(word_confidences) / len(word_confidences)
-        if word_confidences
-        else 0.0
-    )
+    overall = sum(word_confidences) / len(word_confidences) if word_confidences else 0.0
 
     # Pull FORMS (KEY_VALUE_SET) into ExtractedField rows
     extracted: list[ExtractedField] = []
     for b in blocks:
-        if (
-            b.get("BlockType") == "KEY_VALUE_SET"
-            and "KEY" in (b.get("EntityTypes") or [])
-        ):
+        if b.get("BlockType") == "KEY_VALUE_SET" and "KEY" in (b.get("EntityTypes") or []):
             key_text = _resolve_text(b, by_id)
             value_b = _find_value_for_key(b, by_id)
             value_text = _resolve_text(value_b, by_id) if value_b else ""
@@ -205,7 +199,10 @@ def _resolve_text(block: dict | None, by_id: dict) -> str:
                 continue
             if child.get("BlockType") == "WORD":
                 pieces.append(child.get("Text", ""))
-            elif child.get("BlockType") == "SELECTION_ELEMENT" and child.get("SelectionStatus") == "SELECTED":
+            elif (
+                child.get("BlockType") == "SELECTION_ELEMENT"
+                and child.get("SelectionStatus") == "SELECTED"
+            ):
                 pieces.append("[X]")
     return " ".join(pieces)
 

@@ -1,4 +1,5 @@
 """Contract tests for fhir_resource_validator DeterministicSubAgent."""
+
 from __future__ import annotations
 
 from app.agents.clinical_extractor.schemas import FHIRResourceValidatorInput

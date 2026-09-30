@@ -17,6 +17,7 @@ would actually see.
 Every number written to the artifact is computed here on synthetic data and
 is labelled as such; it is NOT evidence of clinical performance.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -75,10 +76,12 @@ class PatientData:
     eligible: np.ndarray
     onsets: list[int]
     acute: np.ndarray
-    nadir: np.ndarray               # expected-nadir timing weight (model feature + FN rule input)
+    nadir: np.ndarray  # expected-nadir timing weight (model feature + FN rule input)
 
 
-def labels_from_record(series: PatientSeries, n_days: int) -> tuple[np.ndarray, np.ndarray, list[int]]:
+def labels_from_record(
+    series: PatientSeries, n_days: int
+) -> tuple[np.ndarray, np.ndarray, list[int]]:
     """y[t]=1 if a qualifying Encounter starts on t+1..t+7; eligibility mask."""
     onsets = sorted(a["day"] for a in series.admissions)
     n = series.n
@@ -105,8 +108,16 @@ def build_patient_dataset(sim) -> PatientData:
     ctx = series_context(series, NeutrophilTwin(series))
     F = feature_tensor(signal_matrix(series), baseline, **ctx)[0]
     y, eligible, onsets = labels_from_record(series, rec.n_days)
-    return PatientData(rec.profile.patient_id, series, F, y, eligible, onsets, series.acute_care_mask(),
-                       np.asarray(ctx["nadir"], dtype=float))
+    return PatientData(
+        rec.profile.patient_id,
+        series,
+        F,
+        y,
+        eligible,
+        onsets,
+        series.acute_care_mask(),
+        np.asarray(ctx["nadir"], dtype=float),
+    )
 
 
 def _stack(data: list[PatientData]) -> tuple[np.ndarray, np.ndarray]:
@@ -130,7 +141,7 @@ def event_level(data: list[PatientData], alert_fn, min_rank: int) -> dict[str, A
     detected, leads, n_events = 0, [], 0
     false_alerts, patient_days = 0, 0
     for d in data:
-        alerts = alert_fn(d)        # list of per-day ranks
+        alerts = alert_fn(d)  # list of per-day ranks
         first = d.series.first_dose_day
         for o in d.onsets:
             if first is None or o <= first:
@@ -158,8 +169,12 @@ def event_level(data: list[PatientData], alert_fn, min_rank: int) -> dict[str, A
         "events_detected": detected,
         "sensitivity": round(detected / n_events, 3) if n_events else None,
         "median_lead_time_days": float(np.median(leads)) if leads else None,
-        "lead_time_days_iqr": [float(np.percentile(leads, 25)), float(np.percentile(leads, 75))] if leads else None,
-        "false_alert_onsets_per_100_patient_days": round(100.0 * false_alerts / max(1, patient_days), 2),
+        "lead_time_days_iqr": [float(np.percentile(leads, 25)), float(np.percentile(leads, 75))]
+        if leads
+        else None,
+        "false_alert_onsets_per_100_patient_days": round(
+            100.0 * false_alerts / max(1, patient_days), 2
+        ),
         "patient_days": patient_days,
     }
 
@@ -177,7 +192,13 @@ def population_baseline(train: list[PatientData]) -> Baseline:
         med = float(np.median(meds))
         between = float(np.median(np.abs(np.array(meds) - med)) * 1.4826)
         within = float(np.median(spreads))
-        sigs[key] = SignalBaseline(key, med, max(SIGNALS[key].spread_floor, float(np.hypot(between, within))), len(meds), True)
+        sigs[key] = SignalBaseline(
+            key,
+            med,
+            max(SIGNALS[key].spread_floor, float(np.hypot(between, within))),
+            len(meds),
+            True,
+        )
     return Baseline(sigs, (1, 13), "population", 1.0, np.eye(len(MODEL_SIGNALS)))
 
 
@@ -187,22 +208,26 @@ def population_threshold_alerts(d: PatientData) -> list[int]:
     out = []
     for t in range(d.series.n):
         hit = (
-            (v["temperature"][t] >= 38.0) or (v["resting_hr"][t] >= 100)
-            or (v["spo2"][t] < 92) or (v["sbp"][t] < 90)
+            (v["temperature"][t] >= 38.0)
+            or (v["resting_hr"][t] >= 100)
+            or (v["spo2"][t] < 92)
+            or (v["sbp"][t] < 90)
         )
         out.append(RANK["EARLY WARNING"] if bool(hit) else 0)
     return out
 
 
-def train(n_patients: int = 800, seed: int = COHORT_SEED, *, write: bool = True, verbose: bool = True) -> dict[str, Any]:
+def train(
+    n_patients: int = 800, seed: int = COHORT_SEED, *, write: bool = True, verbose: bool = True
+) -> dict[str, Any]:
     t0 = datetime.now(UTC)
     sims = generate_cohort(n_patients, seed)
     data = [build_patient_dataset(s) for s in sims]
     order = np.random.default_rng(seed).permutation(len(data))
     n_tr, n_va = int(0.6 * len(data)), int(0.2 * len(data))
     train_d = [data[i] for i in order[:n_tr]]
-    valid_d = [data[i] for i in order[n_tr:n_tr + n_va]]
-    test_d = [data[i] for i in order[n_tr + n_va:]]
+    valid_d = [data[i] for i in order[n_tr : n_tr + n_va]]
+    test_d = [data[i] for i in order[n_tr + n_va :]]
     Xtr, ytr = _stack(train_d)
     Xva, yva = _stack(valid_d)
     Xte, yte = _stack(test_d)
@@ -234,12 +259,16 @@ def train(n_patients: int = 800, seed: int = COHORT_SEED, *, write: bool = True,
         thr = threshold_for_ppv(yva, pva, PPV_TARGETS[tier])
         if thr is None:
             thr = threshold_for_sensitivity(yva, pva, SENS_FALLBACK[tier])
-            derivation[tier] = f"validation sensitivity {SENS_FALLBACK[tier]:.0%} (PPV target {PPV_TARGETS[tier]:.0%} unattainable)"
+            derivation[tier] = (
+                f"validation sensitivity {SENS_FALLBACK[tier]:.0%} (PPV target {PPV_TARGETS[tier]:.0%} unattainable)"
+            )
         else:
             derivation[tier] = f"lowest threshold with validation PPV ≥ {PPV_TARGETS[tier]:.0%}"
         thresholds[tier] = thr
     thresholds["early_warning"] = max(thresholds["early_warning"], thresholds["watch"] * 1.5)
-    thresholds["high_priority"] = max(thresholds["high_priority"], thresholds["early_warning"] * 1.5)
+    thresholds["high_priority"] = max(
+        thresholds["high_priority"], thresholds["early_warning"] * 1.5
+    )
 
     # ---- Test-set evaluation ----------------------------------------------
     pte = model.predict_proba(Xte)
@@ -278,7 +307,9 @@ def train(n_patients: int = 800, seed: int = COHORT_SEED, *, write: bool = True,
         out = []
         for d in ds:
             Fp = series_features(d.series, pop_base, NeutrophilTwin(d.series))
-            out.append(PatientData(d.patient_id, d.series, Fp, d.y, d.eligible, d.onsets, d.acute, d.nadir))
+            out.append(
+                PatientData(d.patient_id, d.series, Fp, d.y, d.eligible, d.onsets, d.acute, d.nadir)
+            )
         abl_data[split] = out
     m_pop = fit_logistic(*_stack(abl_data["train"]), best_l2)
     Xa_va, ya_va = _stack(abl_data["valid"])
@@ -288,7 +319,9 @@ def train(n_patients: int = 800, seed: int = COHORT_SEED, *, write: bool = True,
     abl_thr = {}
     for tier in ("watch", "early_warning", "high_priority"):
         thr = threshold_for_ppv(ya_va, pa_va, PPV_TARGETS[tier])
-        abl_thr[tier] = thr if thr is not None else threshold_for_sensitivity(ya_va, pa_va, SENS_FALLBACK[tier])
+        abl_thr[tier] = (
+            thr if thr is not None else threshold_for_sensitivity(ya_va, pa_va, SENS_FALLBACK[tier])
+        )
     abl_thr["early_warning"] = max(abl_thr["early_warning"], abl_thr["watch"] * 1.5)
     abl_thr["high_priority"] = max(abl_thr["high_priority"], abl_thr["early_warning"] * 1.5)
 
@@ -343,10 +376,13 @@ def train(n_patients: int = 800, seed: int = COHORT_SEED, *, write: bool = True,
             "cohort": "synthetic (app/oncotwin/simulator/cohort.py)",
             "cohort_seed": seed,
             "n_patients": len(data),
-            "n_train": len(train_d), "n_valid": len(valid_d), "n_test": len(test_d),
+            "n_train": len(train_d),
+            "n_valid": len(valid_d),
+            "n_test": len(test_d),
             "n_events_total": n_events_all,
             "patients_with_event": sum(1 for d in data if d.onsets),
-            "train_patient_days": int(len(ytr)), "train_positive_days": int(ytr.sum()),
+            "train_patient_days": int(len(ytr)),
+            "train_positive_days": int(ytr.sum()),
             "trained_at": t0.isoformat().replace("+00:00", "Z"),
             "duration_seconds": round((datetime.now(UTC) - t0).total_seconds(), 1),
         },
@@ -356,19 +392,27 @@ def train(n_patients: int = 800, seed: int = COHORT_SEED, *, write: bool = True,
             "Outcome is limited to the OP-35 conditions represented in the simulator (febrile neutropenia / sepsis / pneumonia, dehydration).",
         ],
     }
-    payload = json.dumps({k: v for k, v in artifact.items() if k != "training"}, sort_keys=True).encode()
+    payload = json.dumps(
+        {k: v for k, v in artifact.items() if k != "training"}, sort_keys=True
+    ).encode()
     artifact["sha256"] = hashlib.sha256(payload).hexdigest()
     if write:
         ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
         ARTIFACT_PATH.write_text(json.dumps(artifact, indent=1), encoding="utf-8")
     if verbose:
-        print(json.dumps({k: artifact[k] for k in ("l2", "thresholds", "metrics", "comparators")}, indent=1))
+        print(
+            json.dumps(
+                {k: artifact[k] for k in ("l2", "thresholds", "metrics", "comparators")}, indent=1
+            )
+        )
         print(json.dumps(artifact["training"], indent=1))
     return artifact
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     ap.add_argument("--n", type=int, default=800)
     ap.add_argument("--seed", type=int, default=COHORT_SEED)
     ap.add_argument("--dry-run", action="store_true", help="do not write the artifact")

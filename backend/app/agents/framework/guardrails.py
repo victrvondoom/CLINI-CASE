@@ -7,6 +7,7 @@ Production-essential. Every Agent gets two guardrail hooks:
 
 Concrete impls live in `_concrete.py` so this module is import-light.
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -16,10 +17,10 @@ from typing import Any
 
 
 class GuardrailDecision(str, Enum):
-    PASS = "pass"        # all clear, continue
-    MASK = "mask"        # payload mutated; continue with mutated form
-    BLOCK = "block"      # halt invocation; record reason
-    RETRY = "retry"      # output is invalid; agent should retry
+    PASS = "pass"  # all clear, continue
+    MASK = "mask"  # payload mutated; continue with mutated form
+    BLOCK = "block"  # halt invocation; record reason
+    RETRY = "retry"  # output is invalid; agent should retry
 
 
 @dataclass
@@ -40,8 +41,7 @@ class Guardrail(ABC):
     applies_to: str  # "input" | "output"
 
     @abstractmethod
-    async def check(self, payload: Any, *, agent_name: str, case_id: str) -> GuardrailResult:
-        ...
+    async def check(self, payload: Any, *, agent_name: str, case_id: str) -> GuardrailResult: ...
 
     def manifest_entry(self) -> dict[str, Any]:
         return {
@@ -164,7 +164,9 @@ class TokenBudgetGuardrail(Guardrail):
 
     async def check(self, payload: Any, *, agent_name: str, case_id: str) -> GuardrailResult:
         try:
-            text = payload.model_dump_json() if hasattr(payload, "model_dump_json") else str(payload)
+            text = (
+                payload.model_dump_json() if hasattr(payload, "model_dump_json") else str(payload)
+            )
         except Exception:  # noqa: BLE001
             return GuardrailResult(decision=GuardrailDecision.PASS)
         # Crude: 4 chars ≈ 1 token

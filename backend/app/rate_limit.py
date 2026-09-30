@@ -24,6 +24,7 @@ the global rate is multiplied by replica count.
 
 Pairs with: ops/architecture/RATE_LIMITING.md (the policy doc).
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -46,6 +47,7 @@ log = structlog.get_logger()
 # Tighter buckets at the case-create + case-run endpoints (the expensive ones).
 # Healthz / metrics get a generous limit so monitoring doesn't get throttled.
 
+
 @dataclass(frozen=True)
 class RateLimit:
     per_second: int
@@ -54,24 +56,24 @@ class RateLimit:
 
 _DEFAULT_LIMITS: dict[str, dict[str, RateLimit]] = {
     "bronze": {
-        "default":             RateLimit(per_second=10,  per_minute=300),
-        "POST /api/v1/cases":  RateLimit(per_second=2,   per_minute=60),
+        "default": RateLimit(per_second=10, per_minute=300),
+        "POST /api/v1/cases": RateLimit(per_second=2, per_minute=60),
         "POST /api/v1/cases/{case_id}/run-async": RateLimit(per_second=2, per_minute=60),
-        "GET /metrics":        RateLimit(per_second=100, per_minute=6000),
+        "GET /metrics": RateLimit(per_second=100, per_minute=6000),
         "GET /api/v1/healthz": RateLimit(per_second=100, per_minute=6000),
     },
     "silver": {
-        "default":             RateLimit(per_second=50,  per_minute=1500),
-        "POST /api/v1/cases":  RateLimit(per_second=10,  per_minute=300),
+        "default": RateLimit(per_second=50, per_minute=1500),
+        "POST /api/v1/cases": RateLimit(per_second=10, per_minute=300),
         "POST /api/v1/cases/{case_id}/run-async": RateLimit(per_second=10, per_minute=300),
-        "GET /metrics":        RateLimit(per_second=100, per_minute=6000),
+        "GET /metrics": RateLimit(per_second=100, per_minute=6000),
         "GET /api/v1/healthz": RateLimit(per_second=100, per_minute=6000),
     },
     "gold": {
-        "default":             RateLimit(per_second=200, per_minute=6000),
-        "POST /api/v1/cases":  RateLimit(per_second=50,  per_minute=1500),
+        "default": RateLimit(per_second=200, per_minute=6000),
+        "POST /api/v1/cases": RateLimit(per_second=50, per_minute=1500),
         "POST /api/v1/cases/{case_id}/run-async": RateLimit(per_second=50, per_minute=1500),
-        "GET /metrics":        RateLimit(per_second=100, per_minute=6000),
+        "GET /metrics": RateLimit(per_second=100, per_minute=6000),
         "GET /api/v1/healthz": RateLimit(per_second=100, per_minute=6000),
     },
 }
@@ -120,7 +122,7 @@ class _RedisBucketStore:
         # not atomic across replicas — close enough for rate limiting.
         try:
             await self._r.zremrangebyscore(key, 0, cutoff)  # type: ignore[attr-defined]
-            count_raw = await self._r.zcard(key)             # type: ignore[attr-defined]
+            count_raw = await self._r.zcard(key)  # type: ignore[attr-defined]
             count = int(count_raw or 0)
             if count >= limit:
                 # Find the oldest member's score for Retry-After
@@ -130,7 +132,7 @@ class _RedisBucketStore:
                     retry_after_ms = (float(oldest_score) + window_ms) - now_ms
                     return False, count, max(retry_after_ms, 0.0)
                 return False, count, float(window_ms)
-            await self._r.zadd(key, {member: now_ms})        # type: ignore[attr-defined]
+            await self._r.zadd(key, {member: now_ms})  # type: ignore[attr-defined]
             await self._r.expire(key, max(int(window_ms / 1000.0) + 1, 1))  # type: ignore[attr-defined]
             return True, count + 1, 0.0
         except Exception as e:  # noqa: BLE001
@@ -169,13 +171,15 @@ def _resolve_limits(*, tier: str, route: str) -> RateLimit:
 @dataclass(frozen=True)
 class RateLimitDecision:
     allowed: bool
-    bucket: str          # "per_second" | "per_minute" | "ok"
+    bucket: str  # "per_second" | "per_minute" | "ok"
     count: int
     limit: int
     retry_after_ms: float
 
 
-async def check_rate_limit(*, organization_id: str, tier: str, method: str, path: str) -> RateLimitDecision:
+async def check_rate_limit(
+    *, organization_id: str, tier: str, method: str, path: str
+) -> RateLimitDecision:
     """Top-level entry. Checks per-second AND per-minute buckets; returns the
     first one that rejects (or "ok" if both pass).
     """

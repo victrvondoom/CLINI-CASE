@@ -9,6 +9,7 @@ Orchestrator on the production framework. Composes 3 sub-agents:
 empathy_layer + action_step_writer fire concurrently; reading_level_tuner
 runs after empathy_layer to apply Flesch-Kincaid grade enforcement.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -100,6 +101,3 @@ class PatientCommunicatorAgent(Agent[PatientCommunicatorInput, PatientCommunicat
 
 
 patient_communicator = PatientCommunicatorAgent()
-
-
-

@@ -5,6 +5,7 @@ counter position + supporting evidence quotations from the snapshot.
 quality_threshold=0.80 because counter-evidence accuracy directly determines
 appeal-overturn probability.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -23,13 +24,14 @@ from app.agents.framework import (
 
 _PROMPT = (
     Path(__file__).resolve().parents[3]
-    / "prompts" / "appeals_drafter" / "sub_agents" / "counter_evidence_finder.txt"
+    / "prompts"
+    / "appeals_drafter"
+    / "sub_agents"
+    / "counter_evidence_finder.txt"
 ).read_text(encoding="utf-8")
 
 
-class CounterEvidenceFinderAgent(
-    Agent[CounterEvidenceFinderInput, CounterEvidenceFinderOutput]
-):
+class CounterEvidenceFinderAgent(Agent[CounterEvidenceFinderInput, CounterEvidenceFinderOutput]):
     name: ClassVar[str] = "counter_evidence_finder"
     parent: ClassVar[str] = "appeals_drafter"
     role: ClassVar[str] = "counter_evidence_extraction"

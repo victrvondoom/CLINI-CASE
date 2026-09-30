@@ -25,6 +25,13 @@ export interface Capabilities {
   compliance?: {
     cms_0057f_clauses_tracked?: number;
   };
+  /** counts computed from what is loaded in the running process */
+  system?: {
+    agents?: number;
+    sub_agents?: number;
+    policies_indexed?: number;
+    payers?: number;
+  };
   thresholds?: {
     hitl_confidence_threshold?: number;
   };

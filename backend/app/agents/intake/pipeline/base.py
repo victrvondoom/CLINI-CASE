@@ -11,6 +11,7 @@ mutability over immutability because:
     would be an unnecessary copy
   - Audit fields accumulate naturally
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

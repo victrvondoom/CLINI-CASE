@@ -1,4 +1,5 @@
 """Schemas for the policy_retriever package — orchestrator + sub-agents."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -10,6 +11,7 @@ from app.models import ClinicalSnapshot, PolicyExcerpt
 # =============================================================================
 # Orchestrator I/O — parent agent contract
 # =============================================================================
+
 
 class PolicyRetrieverInput(BaseModel):
     payer_id: str
@@ -81,9 +83,7 @@ class LLMRerankerOutput(BaseModel):
 
 class CitationResolverInput(BaseModel):
     candidates: list[CandidateSection]
-    ranks: list[int] = Field(
-        ..., description="Indices into candidates, in relevance order."
-    )
+    ranks: list[int] = Field(..., description="Indices into candidates, in relevance order.")
 
 
 class CitationResolverOutput(BaseModel):

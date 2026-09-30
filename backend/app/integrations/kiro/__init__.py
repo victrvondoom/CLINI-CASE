@@ -25,6 +25,7 @@ tree to mirror the current `AGENT_MANIFEST`. Hand edits to those files
 are clobbered — that's by design. Edit the agent's source code (the spec
 is generated from it).
 """
+
 from app.integrations.kiro.exporter import (
     export_kiro_specs,
     kiro_spec_for_agent,

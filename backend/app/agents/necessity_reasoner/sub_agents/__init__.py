@@ -1,9 +1,10 @@
 """Necessity Reasoner sub-agents — public surface.
 
-  • criterion_splitter      (LLM, Sonnet)              — atomicizes criteria
-  • evidence_matcher        (LLM, Sonnet, REFLECTION)  — per-criterion judgement
-  • confidence_calibrator   (LLM, Haiku)               — min-aggregation
+• criterion_splitter      (LLM, Sonnet)              — atomicizes criteria
+• evidence_matcher        (LLM, Sonnet, REFLECTION)  — per-criterion judgement
+• confidence_calibrator   (LLM, Haiku)               — min-aggregation
 """
+
 from app.agents.necessity_reasoner.sub_agents.confidence_calibrator import (
     ConfidenceCalibratorAgent,
     confidence_calibrator,

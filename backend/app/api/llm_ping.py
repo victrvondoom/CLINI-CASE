@@ -5,6 +5,7 @@ configured correctly:
 
     curl http://localhost:8000/api/v1/llm/ping
 """
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException

@@ -40,27 +40,11 @@ export function ComplianceScorecardCard({ caseId, refreshKey = 0 }: Props) {
           setError(null);
         }
       })
-      .catch(() => {
-        // DB-less / endpoint-unavailable demo fallback. Show a fully-satisfied
-        // CMS-0057-F + SB-1120 scorecard so the auditor panel renders.
+      .catch((e) => {
+        // No fallback data: a compliance scorecard must never show clauses as "satisfied" that were not computed.
         if (!cancelled) {
-          setData({
-            organization_id: "org_demo",
-            asof_iso: new Date().toISOString(),
-            n_clauses_in_force: 6,
-            n_satisfied_in_force: 6,
-            in_force_satisfied: true,
-            clauses: [
-              { clause_id: "§ IV.A", title: "Decision rationale traceability", satisfied: true,  in_force_today: true, severity: "critical", evidence: "agent_runs chain · SHA-256 indexed · 4 agents recorded" },
-              { clause_id: "§ IV.B.1", title: "Standard 7-day SLA",            satisfied: true,  in_force_today: true, severity: "critical", evidence: "Decision in 76.5s — well under 7-day SLA" },
-              { clause_id: "§ IV.B.2", title: "Expedited 72-hour SLA",         satisfied: true,  in_force_today: true, severity: "critical", evidence: "Decision in 76.5s — well under 72h" },
-              { clause_id: "§ IV.C",   title: "Adverse-determination clinician sign-off (CA SB-1120)", satisfied: true, in_force_today: true, severity: "critical", evidence: "HITL Reviewer Gate active for confidence < 0.70" },
-              { clause_id: "§ IV.D.1", title: "Auditor-grade evidence pack",   satisfied: true,  in_force_today: true, severity: "high",     evidence: "Per-case JSON bundle SHA-256 tamper-evident over entire payload" },
-              { clause_id: "§ IV.E",   title: "AI-generated disclosure (CA AB-3030)", satisfied: true, in_force_today: true, severity: "high", evidence: "AI-generated tag rendered on every decision card" },
-              { clause_id: "§ V.A",    title: "FHIR PA API conformance",       satisfied: true,  in_force_today: false, severity: "high",    evidence: "Da Vinci PAS 2.0.1 native — operational by 2027-01-01 mandate" },
-            ],
-          } as CaseComplianceScorecard);
-          setError(null);
+          setData(null);
+          setError(e instanceof Error ? e.message : String(e));
         }
       })
       .finally(() => {

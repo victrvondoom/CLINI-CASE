@@ -18,7 +18,10 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 
-import { PAYERS } from "../lib/syntheticCases";
+import { api } from "../lib/api";
+import type { PolicyCatalog } from "../lib/types";
+import { useLive } from "../lib/useLive";
+import { PAYERS as FALLBACK_PAYERS } from "../lib/syntheticCases";
 import {
   defaultScenarioParams, HER2_STATUS_LABELS, meanConfidence, runScenario, tallyVerdicts,
   type Her2Status, type ScenarioParams, type ScenarioRunResult,
@@ -29,6 +32,7 @@ import {
 import type { PayerId, PayerVerdict } from "../lib/compareSimulation";
 import type { Verdict } from "../lib/types";
 
+// Reference J-codes (billing-code data, not case data). Treatment / payer OPTIONS come from the live policy catalog.
 const TREATMENT_JCODES: Record<string, string> = {
   "trastuzumab": "J9355",
   "osimertinib": "J9335",
@@ -40,7 +44,22 @@ const TREATMENT_JCODES: Record<string, string> = {
   "enzalutamide": "J9180",
   "brentuximab vedotin": "J9042",
 };
-const TREATMENT_LIST = Object.keys(TREATMENT_JCODES);
+const FALLBACK_TREATMENTS = Object.keys(TREATMENT_JCODES);
+const PAYER_LABELS: Record<string, string> = Object.fromEntries(FALLBACK_PAYERS.map((p) => [p.id, p.label]));
+
+/** J-code for a treatment name, matched on drug name (case-insensitive); "—" when we have no code for it. */
+function jCodeFor(treatment: string): string {
+  const t = treatment.toLowerCase();
+  const hit = Object.entries(TREATMENT_JCODES).find(([k]) => t.includes(k.toLowerCase().split(" ")[0]));
+  return hit ? hit[1] : "—";
+}
+
+/** The catalog policy governing (payer, treatment) — same whole-keyword rule the backend uses. */
+export function policyOnFile(catalog: PolicyCatalog | null, payer: string, treatment: string) {
+  if (!catalog) return null;
+  const t = treatment.toLowerCase();
+  return catalog.policies.find((p) => p.payer_id === payer && p.treatment_keywords.some((k) => t.includes(k.toLowerCase()))) ?? null;
+}
 const HER2_OPTIONS: Her2Status[] = ["positive", "negative", "equivocal", "unknown"];
 const STAGE_OPTIONS = ["I", "II", "IIIA", "IIIB", "IV"];
 
@@ -57,6 +76,16 @@ export default function Sandbox() {
   const [baseline, setBaseline] = useState<ScenarioRunResult | null>(null);
   const [history, setHistory] = useState<SavedScenario[]>(() => loadScenarios());
   const [saved, setSaved] = useState(false);
+  const catalogLive = useLive(() => api.getPolicyCatalog(), []);
+  const catalog = catalogLive.data;
+  const treatmentOptions = useMemo(
+    () => (catalog ? [...new Set(catalog.policies.map((p) => p.treatment_keywords[0]))].sort() : FALLBACK_TREATMENTS),
+    [catalog],
+  );
+  const payerOptions = useMemo(
+    () => (catalog ? catalog.payers.map((id) => ({ id, label: PAYER_LABELS[id] ?? id.toUpperCase() })) : FALLBACK_PAYERS),
+    [catalog],
+  );
 
   const set = <K extends keyof ScenarioParams>(key: K, value: ScenarioParams[K]) => {
     setParams((p) => ({ ...p, [key]: value }));
@@ -170,14 +199,14 @@ export default function Sandbox() {
                   onChange={(e) => set("treatment", e.target.value)}
                   className="px-3 py-1.5 rounded-lg border border-surface-border bg-surface-bg text-sm text-ink-primary focus:outline-none focus:ring-2 focus:ring-accent-brand/40"
                 >
-                  {TREATMENT_LIST.map((t) => <option key={t} value={t}>{t}</option>)}
+                  {(treatmentOptions.includes(params.treatment) ? treatmentOptions : [params.treatment, ...treatmentOptions]).map((t) => <option key={t} value={t}>{t}</option>)}
                 </select>
               </label>
 
               <label className="flex flex-col gap-1">
                 <span className="text-xs font-medium text-ink-body">J-code (auto)</span>
                 <div className="px-3 py-1.5 rounded-lg border border-surface-border bg-surface-panel text-sm text-mono-tech text-accent-amber">
-                  {TREATMENT_JCODES[params.treatment] ?? "J9999"}
+                  {jCodeFor(params.treatment)}
                 </div>
               </label>
 
@@ -208,7 +237,7 @@ export default function Sandbox() {
                   onChange={(e) => set("livePayer", e.target.value as PayerId)}
                   className="px-3 py-1.5 rounded-lg border border-surface-border bg-surface-bg text-sm text-ink-primary focus:outline-none focus:ring-2 focus:ring-accent-brand/40"
                 >
-                  {PAYERS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+                  {payerOptions.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
                 </select>
               </label>
 
@@ -282,8 +311,11 @@ export default function Sandbox() {
             <div className="bg-surface-raised border border-surface-border rounded-2xl p-5">
               <div className="flex items-center justify-between mb-1">
                 <h2 className="text-sm font-semibold text-ink-primary">Results — {run.params.label}</h2>
-                <span className="text-[10px] text-compact px-1.5 py-0.5 rounded bg-accent-brand/10 text-accent-brand">
-                  SIMULATED
+                <span
+                  className="text-[10px] text-compact px-1.5 py-0.5 rounded bg-accent-brand/10 text-accent-brand"
+                  title="Verdicts come from a documentation heuristic, not the ClinCase agent pipeline. Use Compare on a real case for recorded outcomes."
+                >
+                  SIMULATED · heuristic
                 </span>
               </div>
               {tally && (
@@ -300,7 +332,10 @@ export default function Sandbox() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
                 {run.result.payers.map((p) => (
-                  <SandboxVerdictTile key={p.payer_id} verdict={p} isPrimary={p.payer_id === run.result.recommendation.primary} />
+                  <div key={p.payer_id} className="flex flex-col gap-1">
+                    <SandboxVerdictTile verdict={p} isPrimary={p.payer_id === run.result.recommendation.primary} />
+                    <PolicyChip catalog={catalog} payer={p.payer_id} treatment={run.params.treatment} />
+                  </div>
                 ))}
               </div>
 
@@ -459,5 +494,17 @@ function SandboxVerdictTile({ verdict, isPrimary }: { verdict: PayerVerdict; isP
       <div className="text-[10px] text-mono-tech text-ink-muted">{Math.round(verdict.confidence * 100)}% confidence</div>
       <p className="text-[11px] text-ink-body leading-snug line-clamp-2">{verdict.reasoning_summary}</p>
     </div>
+  );
+}
+
+function PolicyChip({ catalog, payer, treatment }: { catalog: PolicyCatalog | null; payer: string; treatment: string }) {
+  if (!catalog) return null;
+  const pol = policyOnFile(catalog, payer, treatment);
+  return pol ? (
+    <a href={`/policies/${pol.policy_id}/diff`} data-testid={`sandbox-policy-${payer}`} className="text-[10px] text-mono-tech text-accent-brand hover:underline px-1">
+      real policy on file: {pol.policy_id}
+    </a>
+  ) : (
+    <span data-testid={`sandbox-policy-${payer}`} className="text-[10px] text-mono-tech text-ink-faint px-1">no policy on file for this drug</span>
   );
 }

@@ -3,6 +3,7 @@
 The frontend's Home page lists these and lets the user spin up a case
 with two clicks. Fixture FHIR bundles live in `tests/fixtures/`.
 """
+
 from __future__ import annotations
 
 import json
@@ -70,12 +71,7 @@ DEMO_FIXTURES: list[dict[str, Any]] = [
 @router.get("")
 async def list_fixtures() -> dict[str, Any]:
     """List the curated demo fixtures available to the UI."""
-    return {
-        "fixtures": [
-            dict(f.items())
-            for f in DEMO_FIXTURES
-        ]
-    }
+    return {"fixtures": [dict(f.items()) for f in DEMO_FIXTURES]}
 
 
 @router.post("/{name}/create-case")

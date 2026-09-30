@@ -7,6 +7,7 @@ so the agent code stays provider-agnostic (per AAOSA gateway-plane rules).
 Output shape: same `OCRResult` every engine returns. The structured field
 extraction lives in the prompt at `app/prompts/intake/vision_extractor.txt`.
 """
+
 from __future__ import annotations
 
 import json
@@ -28,8 +29,7 @@ from app.models.intake import (
 )
 
 _PROMPT = (
-    Path(__file__).resolve().parents[3]
-    / "prompts" / "intake" / "vision_extractor.txt"
+    Path(__file__).resolve().parents[3] / "prompts" / "intake" / "vision_extractor.txt"
 ).read_text(encoding="utf-8")
 
 

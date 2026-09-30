@@ -22,6 +22,7 @@ SRE can correlate cross-cell traffic.
 
 Pairs with: ops/architecture/CELL_BASED_ARCHITECTURE.md
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -35,7 +36,7 @@ class Cell:
     aurora_cluster_arn: str
     k8s_namespace: str
     bedrock_iam_role_arn: str
-    capacity_tenants: int     # soft cap
+    capacity_tenants: int  # soft cap
 
 
 # ---------------------------------------------------------------------------

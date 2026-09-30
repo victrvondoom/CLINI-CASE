@@ -6,6 +6,7 @@ the environment (via task role on ECS, or `aws configure` locally).
 This client uses the Bedrock Converse API for vendor-neutral chat.
 Guardrails (BEDROCK_GUARDRAIL_ID) are applied automatically when set.
 """
+
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
@@ -54,7 +55,7 @@ class BedrockClient(LLMClient):
         model = model_id or self._default_model
 
         def _call() -> dict[str, Any]:
-            return self._client.converse(
+            response: dict[str, Any] = self._client.converse(
                 modelId=model,
                 system=[{"text": system}],
                 messages=[{"role": "user", "content": [{"text": user}]}],
@@ -64,6 +65,7 @@ class BedrockClient(LLMClient):
                 },
                 **self._guardrail_kwargs(),
             )
+            return response
 
         response = await asyncio.to_thread(_call)
         text = response["output"]["message"]["content"][0]["text"]
@@ -102,12 +104,10 @@ class BedrockClient(LLMClient):
         model = model_id or self._default_model
         fmt = image_format.lower().replace("image/", "")
         if fmt not in {"png", "jpeg", "webp", "gif"}:
-            raise ValueError(
-                f"Bedrock vision supports png/jpeg/webp/gif; got {image_format!r}"
-            )
+            raise ValueError(f"Bedrock vision supports png/jpeg/webp/gif; got {image_format!r}")
 
         def _call() -> dict[str, Any]:
-            return self._client.converse(
+            response: dict[str, Any] = self._client.converse(
                 modelId=model,
                 system=[{"text": system}],
                 messages=[
@@ -130,6 +130,7 @@ class BedrockClient(LLMClient):
                 },
                 **self._guardrail_kwargs(),
             )
+            return response
 
         response = await asyncio.to_thread(_call)
         text = response["output"]["message"]["content"][0]["text"]

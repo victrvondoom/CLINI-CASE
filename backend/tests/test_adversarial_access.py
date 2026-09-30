@@ -1,4 +1,5 @@
 """Regressions for access-control and reviewer audit boundaries."""
+
 from __future__ import annotations
 
 import asyncio
@@ -30,7 +31,9 @@ async def test_case_stream_hides_cross_tenant_case(monkeypatch) -> None:
     app = FastAPI()
     app.include_router(stream.router)
     app.dependency_overrides[get_current_user] = lambda: {
-        "id": "reviewer-1", "organization_id": "org-1", "role": "reviewer"
+        "id": "reviewer-1",
+        "organization_id": "org-1",
+        "role": "reviewer",
     }
     monkeypatch.setattr(stream.db, "fetchval", AsyncMock(return_value=None))
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
@@ -43,7 +46,9 @@ async def test_case_owner_can_receive_stream(monkeypatch) -> None:
     app = FastAPI()
     app.include_router(stream.router)
     app.dependency_overrides[get_current_user] = lambda: {
-        "id": "reviewer-1", "organization_id": "org-1", "role": "reviewer"
+        "id": "reviewer-1",
+        "organization_id": "org-1",
+        "role": "reviewer",
     }
     monkeypatch.setattr(stream.db, "fetchval", AsyncMock(return_value=1))
     queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
@@ -58,7 +63,9 @@ async def test_case_owner_can_receive_stream(monkeypatch) -> None:
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("router,path", [(llm_ping.router, "/llm/ping"), (jobs.router, "/jobs/queue/depth")])
+@pytest.mark.parametrize(
+    "router,path", [(llm_ping.router, "/llm/ping"), (jobs.router, "/jobs/queue/depth")]
+)
 async def test_metered_and_global_operational_routes_require_auth(router, path: str) -> None:
     app = FastAPI()
     app.include_router(router)

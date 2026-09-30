@@ -3,6 +3,7 @@
 Tests the deterministic verdict rule directly (no LLM needed) plus one
 LLM contract test that exercises the full citation chain output.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -67,10 +68,12 @@ def test_verdict_deny_when_inclusion_not_met():
 
 
 def test_verdict_deny_when_exclusion_applies():
-    a = _na([
-        _crit("HER2+", "MET", "inclusion"),
-        _crit("Active ILD", "MET", "exclusion"),
-    ])
+    a = _na(
+        [
+            _crit("HER2+", "MET", "inclusion"),
+            _crit("Active ILD", "MET", "exclusion"),
+        ]
+    )
     assert derive_verdict(a) == "DENY"
 
 
@@ -86,10 +89,12 @@ def test_verdict_refer_on_low_confidence():
 
 def test_verdict_approve_when_exclusion_not_applies():
     """An exclusion criterion that's NOT_MET means it doesn't apply - good."""
-    a = _na([
-        _crit("HER2+", "MET", "inclusion"),
-        _crit("Active ILD", "NOT_MET", "exclusion"),
-    ])
+    a = _na(
+        [
+            _crit("HER2+", "MET", "inclusion"),
+            _crit("Active ILD", "NOT_MET", "exclusion"),
+        ]
+    )
     assert derive_verdict(a) == "APPROVE"
 
 

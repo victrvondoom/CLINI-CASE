@@ -9,6 +9,7 @@ This:
   4. On clean exit: updates the row with output + latency, emits `agent_finished`.
   5. On exception: updates row with error, emits `agent_error`, re-raises.
 """
+
 from __future__ import annotations
 
 import json

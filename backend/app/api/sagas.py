@@ -1,10 +1,11 @@
 """Saga inspection + replay endpoints.
 
-  GET  /api/v1/sagas/me                       caller's recent sagas
-  GET  /api/v1/sagas/me?status=failed         filter by status
-  GET  /api/v1/sagas/{saga_id}                detail
-  POST /api/v1/sagas/{saga_id}/replay         operator-driven replay
+GET  /api/v1/sagas/me                       caller's recent sagas
+GET  /api/v1/sagas/me?status=failed         filter by status
+GET  /api/v1/sagas/{saga_id}                detail
+POST /api/v1/sagas/{saga_id}/replay         operator-driven replay
 """
+
 from __future__ import annotations
 
 from typing import Any

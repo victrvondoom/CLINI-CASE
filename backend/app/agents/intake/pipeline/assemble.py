@@ -7,6 +7,7 @@ the partial ClinicalSnapshot from the vision response when present.
 This is the only stage that touches the IntakeResult Pydantic model
 directly; every other stage works on the IntakeContext payload dict.
 """
+
 from __future__ import annotations
 
 from typing import Any, ClassVar
@@ -35,9 +36,7 @@ class AssembleStage(IntakeStage):
             ctx.payload["assemble.intake_result"] = IntakeResult.model_validate(cached)
             return
 
-        classification: DocumentClassification | None = ctx.payload.get(
-            "classify.classification"
-        )
+        classification: DocumentClassification | None = ctx.payload.get("classify.classification")
         ocr: OCRResult | None = ctx.payload.get("extract.ocr")
 
         # Best-effort fallback when classification missing (e.g. preprocess

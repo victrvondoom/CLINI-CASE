@@ -8,6 +8,7 @@ Day-2 minimum:
         Returns the ClinicalSnapshot. Used to validate the agent stack
         end-to-end before the full LangGraph DAG is wired.
 """
+
 from __future__ import annotations
 
 import json
@@ -35,8 +36,14 @@ router = APIRouter(prefix="/cases", tags=["cases"])
 log = structlog.get_logger()
 
 CASE_STATUSES = (
-    "pending", "running", "awaiting_review", "approved",
-    "denied", "referred", "appealed", "overturned",
+    "pending",
+    "running",
+    "awaiting_review",
+    "approved",
+    "denied",
+    "referred",
+    "appealed",
+    "overturned",
 )
 
 
@@ -68,9 +75,7 @@ class CreateCaseRequest(BaseModel):
     patient_initials: str = Field(..., examples=["JD"])
     fhir_bundle: dict
     physician_note: str | None = None
-    requested_treatment: dict = Field(
-        ..., examples=[{"name": "trastuzumab", "j_code": "J9355"}]
-    )
+    requested_treatment: dict = Field(..., examples=[{"name": "trastuzumab", "j_code": "J9355"}])
 
 
 class CreateCaseResponse(BaseModel):
@@ -129,12 +134,12 @@ async def list_cases(
         )
         # True total for the filter (not capped by LIMIT) — nav badges and
         # "N total" headers need the real count, not just len(page).
-        total = await db.fetchval(
-            f"SELECT COUNT(*) FROM cases c {where_clause}", *count_params
-        )
+        total = await db.fetchval(f"SELECT COUNT(*) FROM cases c {where_clause}", *count_params)
     except Exception as exc:
         log.warning("cases.list.unavailable", error_type=type(exc).__name__)
-        raise HTTPException(status_code=503, detail="Case storage is unavailable. Please retry.") from exc
+        raise HTTPException(
+            status_code=503, detail="Case storage is unavailable. Please retry."
+        ) from exc
 
     return {
         "cases": [
@@ -192,7 +197,8 @@ async def run_clinical_extractor(
     """Run Clinical Extractor on the given case. Returns ClinicalSnapshot."""
     row = await db.fetchrow(
         "SELECT * FROM cases WHERE id = $1 AND organization_id = $2",
-        case_id, user["organization_id"],
+        case_id,
+        user["organization_id"],
     )
     if row is None:
         raise HTTPException(status_code=404, detail=f"Case {case_id} not found")
@@ -200,7 +206,9 @@ async def run_clinical_extractor(
     state = ClinCaseState(
         case_id=case_id,
         organization_id=user["organization_id"],
-        fhir_bundle=json.loads(row["fhir_bundle"]) if isinstance(row["fhir_bundle"], str) else row["fhir_bundle"],
+        fhir_bundle=json.loads(row["fhir_bundle"])
+        if isinstance(row["fhir_bundle"], str)
+        else row["fhir_bundle"],
         physician_note=row["physician_note"],
         requested_treatment={
             "name": row["requested_treatment_name"],
@@ -225,11 +233,14 @@ async def get_case(
     try:
         row = await db.fetchrow(
             "SELECT * FROM cases WHERE id = $1 AND organization_id = $2",
-            case_id, user["organization_id"],
+            case_id,
+            user["organization_id"],
         )
     except Exception as exc:
         log.warning("cases.get.unavailable", error_type=type(exc).__name__)
-        raise HTTPException(status_code=503, detail="Case storage is unavailable. Please retry.") from exc
+        raise HTTPException(
+            status_code=503, detail="Case storage is unavailable. Please retry."
+        ) from exc
     if row is None:
         raise HTTPException(status_code=404, detail=f"Case {case_id} not found")
     return {
@@ -254,7 +265,8 @@ async def run_partial(
     """Run the 3-agent partial graph: Extractor -> Retriever -> Reasoner."""
     row = await db.fetchrow(
         "SELECT * FROM cases WHERE id = $1 AND organization_id = $2",
-        case_id, user["organization_id"],
+        case_id,
+        user["organization_id"],
     )
     if row is None:
         raise HTTPException(status_code=404, detail=f"Case {case_id} not found")
@@ -314,7 +326,8 @@ async def run_full(
     try:
         row = await db.fetchrow(
             "SELECT * FROM cases WHERE id = $1 AND organization_id = $2",
-            case_id, user["organization_id"],
+            case_id,
+            user["organization_id"],
         )
     except Exception as exc:
         log.warning("case.run.storage_unavailable", error_type=type(exc).__name__)
@@ -368,16 +381,19 @@ async def run_full(
                 "UPDATE cases SET status = 'awaiting_review' WHERE id = $1",
                 case_id,
             )
-            await publish(case_id, {
-                "type": "hitl_pause",
-                "case_id": case_id,
-                "reason": final.pause_reason,
-                "overall_confidence": (
-                    final.necessity_assessment.overall_confidence
-                    if final.necessity_assessment
-                    else None
-                ),
-            })
+            await publish(
+                case_id,
+                {
+                    "type": "hitl_pause",
+                    "case_id": case_id,
+                    "reason": final.pause_reason,
+                    "overall_confidence": (
+                        final.necessity_assessment.overall_confidence
+                        if final.necessity_assessment
+                        else None
+                    ),
+                },
+            )
 
         # Persist the decision to the decisions table — and emit a domain event
         # in the SAME transaction (transactional outbox pattern). Downstream
@@ -427,16 +443,16 @@ async def run_full(
                 # one clinical state transition. Any failure rolls all of it back.
                 if final.appeal_draft is not None:
                     appeal_id = await conn.fetchval(
-                    """INSERT INTO appeals (case_id, appeal_body,
+                        """INSERT INTO appeals (case_id, appeal_body,
                                                 structured_arguments_json)
                            VALUES ($1, $2, $3)
                            RETURNING id""",
-                    case_id,
-                    final.appeal_draft.appeal_body,
-                    json.dumps(
-                        [a.model_dump() for a in final.appeal_draft.structured_arguments]
-                    ),
-                )
+                        case_id,
+                        final.appeal_draft.appeal_body,
+                        json.dumps(
+                            [a.model_dump() for a in final.appeal_draft.structured_arguments]
+                        ),
+                    )
                     await emit_appeal_drafted(
                         organization_id=user["organization_id"],
                         case_id=case_id,
@@ -464,9 +480,7 @@ async def run_full(
         if final.necessity_assessment
         else None,
         "decision": final.decision.model_dump() if final.decision else None,
-        "denial_forecast": final.denial_forecast.model_dump()
-        if final.denial_forecast
-        else None,
+        "denial_forecast": final.denial_forecast.model_dump() if final.denial_forecast else None,
         "appeal_draft": final.appeal_draft.model_dump() if final.appeal_draft else None,
         "patient_communication": final.patient_communication.model_dump()
         if final.patient_communication
@@ -551,9 +565,7 @@ async def resume_after_review(
                 json.dumps(citations),
                 1.0,
             )
-            await conn.execute(
-                "UPDATE cases SET status = $1 WHERE id = $2", new_status, case_id
-            )
+            await conn.execute("UPDATE cases SET status = $1 WHERE id = $2", new_status, case_id)
             await conn.execute(
                 """INSERT INTO reviewer_actions (case_id, reviewer_id, action, note)
                    VALUES ($1, $2, $3, $4)""",
@@ -567,12 +579,15 @@ async def resume_after_review(
     except Exception as exc:
         raise HTTPException(status_code=503, detail="Review service unavailable") from exc
 
-    await publish(case_id, {
-        "type": "hitl_resume",
-        "case_id": case_id,
-        "verdict": req.verdict,
-        "reviewer_id": user["id"],
-    })
+    await publish(
+        case_id,
+        {
+            "type": "hitl_resume",
+            "case_id": case_id,
+            "verdict": req.verdict,
+            "reviewer_id": user["id"],
+        },
+    )
     await publish(case_id, {"type": "done", "case_id": case_id})
 
     return {
@@ -584,7 +599,9 @@ async def resume_after_review(
 
 
 class ReviewActionRequest(BaseModel):
-    action: str = Field(..., examples=["override_to_approve", "override_to_deny", "escalate", "add_note"])
+    action: str = Field(
+        ..., examples=["override_to_approve", "override_to_deny", "escalate", "add_note"]
+    )
     note: str | None = None
     reviewer_id: str | None = Field(
         default=None,
@@ -609,7 +626,9 @@ async def submit_review(
     """
     valid_actions = {"approve", "override_to_approve", "override_to_deny", "escalate", "add_note"}
     if req.action not in valid_actions:
-        raise HTTPException(status_code=400, detail=f"Invalid action. Must be one of {valid_actions}")
+        raise HTTPException(
+            status_code=400, detail=f"Invalid action. Must be one of {valid_actions}"
+        )
 
     try:
         async with db.pool.acquire() as conn, conn.transaction():
@@ -666,7 +685,8 @@ async def get_audit(
     try:
         own = await db.fetchval(
             "SELECT 1 FROM cases WHERE id = $1 AND organization_id = $2",
-            case_id, user["organization_id"],
+            case_id,
+            user["organization_id"],
         )
         if not own:
             raise HTTPException(status_code=404, detail=f"Case {case_id} not found")

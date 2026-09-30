@@ -1,19 +1,33 @@
 """Prompt data minimization; screening is not certified de-identification."""
+
 from __future__ import annotations
 
 from datetime import date
 from typing import Any
 
-_IDENTITY_FIELDS = frozenset({
-    "identifier", "telecom", "address", "contact", "photo", "text", "meta",
-    "fullUrl", "presentedForm", "attachment", "communication",
-    "generalPractitioner", "managingOrganization",
-})
+_IDENTITY_FIELDS = frozenset(
+    {
+        "identifier",
+        "telecom",
+        "address",
+        "contact",
+        "photo",
+        "text",
+        "meta",
+        "fullUrl",
+        "presentedForm",
+        "attachment",
+        "communication",
+        "generalPractitioner",
+        "managingOrganization",
+    }
+)
 _PERSON_TYPES = {"Patient", "Practitioner", "RelatedPerson", "Organization"}
 
 
 def screen_text(text: str) -> str:
     from app.agents.clinical_extractor.sub_agents.phi_sanitizer import _PATTERNS
+
     for _, pattern, replacement in _PATTERNS:
         text = pattern.sub(replacement, text)
     return text
@@ -50,7 +64,9 @@ def prepare_fhir(bundle: dict[str, Any]) -> tuple[dict[str, Any], dict[str, str]
                 try:
                     born = date.fromisoformat(value["birthDate"])
                     today = date.today()
-                    age = today.year - born.year - ((today.month, today.day) < (born.month, born.day))
+                    age = (
+                        today.year - born.year - ((today.month, today.day) < (born.month, born.day))
+                    )
                     if 0 <= age <= 130:
                         result["ageYears"] = age
                 except (TypeError, ValueError):

@@ -4,6 +4,7 @@ Deterministic. Maps the ranks from LLMReranker (or a default 0..N
 pass-through when no rerank fired) onto the candidate list and produces
 fully-pointered PolicyExcerpt objects with relevance scores.
 """
+
 from __future__ import annotations
 
 from typing import ClassVar

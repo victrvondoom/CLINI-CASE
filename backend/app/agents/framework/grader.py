@@ -15,6 +15,7 @@ the grader's feedback embedded in the user message. Bounded by
 This is the difference between a "prompt with structured output" and a
 real agent. The grader is what closes the loop.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -106,7 +107,6 @@ class LLMGrader:
         usage = {
             "input_tokens": response.input_tokens,
             "output_tokens": response.output_tokens,
-            "model_id": response.model_id,
         }
         return score, usage
 

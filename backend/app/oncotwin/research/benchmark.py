@@ -20,6 +20,7 @@ Every arm is compared with the multimodal reference by a PAIRED patient bootstra
 (ΔAUROC with 95 % CI) — "does fusion actually help?" is answered with an interval,
 not an adjective. All numbers are SYNTHETIC-cohort results.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -60,14 +61,26 @@ def _without(*groups: str) -> tuple[str, ...]:
 
 
 MODALITY = [
-    ExperimentConfig("Static context only", ("treatment", "demographics"),
-                     notes="regimen myelotoxicity, cycle timing, on-treatment flag, age — no monitoring data"),
-    ExperimentConfig("Clinical-only (EHR)", ("labs_twin", "treatment", "adherence", "demographics"),
-                     notes="labs + neutrophil twin, treatment context, adherence — no wearables / home devices / PRO"),
-    ExperimentConfig("Wearable-only", ("wearables", "multi_signal"),
-                     notes="personal-baseline deviations of wearable signals and their composites only"),
-    ExperimentConfig("Remote monitoring (wearables + home + PRO)", ("wearables", "home", "symptoms", "multi_signal"),
-                     notes="all dynamic signals, no EHR context"),
+    ExperimentConfig(
+        "Static context only",
+        ("treatment", "demographics"),
+        notes="regimen myelotoxicity, cycle timing, on-treatment flag, age — no monitoring data",
+    ),
+    ExperimentConfig(
+        "Clinical-only (EHR)",
+        ("labs_twin", "treatment", "adherence", "demographics"),
+        notes="labs + neutrophil twin, treatment context, adherence — no wearables / home devices / PRO",
+    ),
+    ExperimentConfig(
+        "Wearable-only",
+        ("wearables", "multi_signal"),
+        notes="personal-baseline deviations of wearable signals and their composites only",
+    ),
+    ExperimentConfig(
+        "Remote monitoring (wearables + home + PRO)",
+        ("wearables", "home", "symptoms", "multi_signal"),
+        notes="all dynamic signals, no EHR context",
+    ),
     ExperimentConfig("Multimodal Digital Twin", ALL_GROUPS, notes="the deployed feature set"),
 ]
 ABLATION = [
@@ -84,17 +97,42 @@ COMPARATORS = [
     ExperimentConfig("Population vital-sign thresholds", (), model="vital_threshold_rule"),
     ExperimentConfig("Mahalanobis anomaly score alone", ALL_GROUPS, model="anomaly_score"),
 ]
-HORIZONS = [ExperimentConfig(f"Multimodal, {h}-day horizon", ALL_GROUPS, horizon=h) for h in (1, 3, 7)]
+HORIZONS = [
+    ExperimentConfig(f"Multimodal, {h}-day horizon", ALL_GROUPS, horizon=h) for h in (1, 3, 7)
+]
 
 
 def _arm_row(arm, ref) -> dict[str, Any]:
-    keep = ("auroc", "auroc_95ci", "auprc", "brier", "ece", "precision", "recall", "f1", "threshold", "threshold_basis",
-            "events", "events_detected", "event_sensitivity", "median_lead_time_days", "lead_times_days",
-            "false_alert_onsets_per_100_patient_days", "n_features", "n_patient_days", "n_positive", "l2",
-            "top_coefficients", "calibration")
-    return {"config": arm.config.describe(), "metrics": {k: arm.metrics.get(k) for k in keep},
-            "paired_vs_multimodal": None if ref is None or arm is ref else paired_delta(arm, ref),
-            "seconds": round(arm.seconds, 1)}
+    keep = (
+        "auroc",
+        "auroc_95ci",
+        "auprc",
+        "brier",
+        "ece",
+        "precision",
+        "recall",
+        "f1",
+        "threshold",
+        "threshold_basis",
+        "events",
+        "events_detected",
+        "event_sensitivity",
+        "median_lead_time_days",
+        "lead_times_days",
+        "false_alert_onsets_per_100_patient_days",
+        "n_features",
+        "n_patient_days",
+        "n_positive",
+        "l2",
+        "top_coefficients",
+        "calibration",
+    )
+    return {
+        "config": arm.config.describe(),
+        "metrics": {k: arm.metrics.get(k) for k in keep},
+        "paired_vs_multimodal": None if ref is None or arm is ref else paired_delta(arm, ref),
+        "seconds": round(arm.seconds, 1),
+    }
 
 
 def deployed_system_leads(cohort) -> dict[str, Any]:
@@ -109,35 +147,64 @@ def deployed_system_leads(cohort) -> dict[str, Any]:
             if first is None or o <= first:
                 continue
             n_events += 1
-            hits = [t for t in range(max(0, o - 8), o - 1) if ranks[t] >= RANK["EARLY WARNING"] and not d.acute[t]]
+            hits = [
+                t
+                for t in range(max(0, o - 8), o - 1)
+                if ranks[t] >= RANK["EARLY WARNING"] and not d.acute[t]
+            ]
             if hits:
                 detected += 1
                 leads.append(o - (min(hits) + 1))
-    return {"events": n_events, "events_detected": detected,
-            "median_lead_time_days": float(np.median(leads)) if leads else None,
-            "lead_times_days": sorted(int(x) for x in leads), "source": "deployed OT-ACUTE-7 model + rules + hysteresis"}
+    return {
+        "events": n_events,
+        "events_detected": detected,
+        "median_lead_time_days": float(np.median(leads)) if leads else None,
+        "lead_times_days": sorted(int(x) for x in leads),
+        "source": "deployed OT-ACUTE-7 model + rules + hysteresis",
+    }
 
 
 def _truth_onsets(truth, first_dose: int | None, acute: np.ndarray) -> list[int]:
     inf, deh = np.array(truth.infection), np.array(truth.dehydration)
     hot = (inf >= INF_ONSET) | (deh >= DEH_ONSET)
-    return [i + 1 for i in range(3, len(hot))
-            if hot[i] and not hot[i - 3:i].any() and first_dose is not None and i + 1 > first_dose and not acute[i]]
+    return [
+        i + 1
+        for i in range(3, len(hot))
+        if hot[i]
+        and not hot[i - 3 : i].any()
+        and first_dose is not None
+        and i + 1 > first_dose
+        and not acute[i]
+    ]
 
 
 def changepoint_study(cohort) -> dict[str, Any]:
-    stats = {"bocpd": {"hits": 0, "delays": [], "false": 0}, "cusum": {"hits": 0, "delays": [], "false": 0}}
+    stats = {
+        "bocpd": {"hits": 0, "delays": [], "false": 0},
+        "cusum": {"hits": 0, "delays": [], "false": 0},
+    }
     n_onsets, pdays, explained = 0, 0, 0
     for p in cohort.part("test"):
         s, b = p.data.series, p.baseline
         first = s.first_dose_day
         onsets = _truth_onsets(p.truth, first, p.data.acute)
         n_onsets += len(onsets)
-        pdays += sum(1 for d in range(1, s.n + 1) if first is not None and d > first and not p.data.acute[d - 1])
+        pdays += sum(
+            1
+            for d in range(1, s.n + 1)
+            if first is not None and d > first and not p.data.acute[d - 1]
+        )
         cps = detect(s, b)["change_points"]
-        explained += sum(1 for c in cps if c["significance"] == "significant" and c["expected_treatment_effect"])
-        boc = [(c["day"], c["detected_on_day"]) for c in cps
-               if c["significance"] == "significant" and c["kind"] != "recovery shift" and not c["expected_treatment_effect"]]
+        explained += sum(
+            1 for c in cps if c["significance"] == "significant" and c["expected_treatment_effect"]
+        )
+        boc = [
+            (c["day"], c["detected_on_day"])
+            for c in cps
+            if c["significance"] == "significant"
+            and c["kind"] != "recovery shift"
+            and not c["expected_treatment_effect"]
+        ]
         alarm = (cusum(adverse_z(signal_matrix(s), b))[0] >= 4.0).any(axis=1)
         cus = [(d, d) for d in range(2, s.n + 1) if alarm[d - 1] and not alarm[d - 2]]
         for name, dets in (("bocpd", boc), ("cusum", cus)):
@@ -149,22 +216,42 @@ def changepoint_study(cohort) -> dict[str, Any]:
                     stats[name]["hits"] += 1
                     stats[name]["delays"].append(best[1] - o)
                     used.add(best)
-            stats[name]["false"] += sum(1 for c, dd in dets if (c, dd) not in used and first is not None and c > first
-                                        and not any(abs(c - o) <= 5 for o in onsets))
+            stats[name]["false"] += sum(
+                1
+                for c, dd in dets
+                if (c, dd) not in used
+                and first is not None
+                and c > first
+                and not any(abs(c - o) <= 5 for o in onsets)
+            )
     out: dict[str, Any] = {
-        "truth_definition": (f"deterioration onset = first day the generator's latent infection ≥ {INF_ONSET} or "
-                             f"dehydration ≥ {DEH_ONSET} after ≥ 3 days below, on treatment, outside acute care"),
+        "truth_definition": (
+            f"deterioration onset = first day the generator's latent infection ≥ {INF_ONSET} or "
+            f"dehydration ≥ {DEH_ONSET} after ≥ 3 days below, on treatment, outside acute care"
+        ),
         "match_rule": "detected regime start within ±3 days of the onset and confirmed ≤ 5 days after it",
-        "n_truth_onsets": n_onsets, "on_treatment_patient_days": pdays,
-        "treatment_explained_change_points": explained}
+        "n_truth_onsets": n_onsets,
+        "on_treatment_patient_days": pdays,
+        "treatment_explained_change_points": explained,
+    }
     for name, st in stats.items():
-        out[name] = {"detected": st["hits"], "sensitivity": round(st["hits"] / max(1, n_onsets), 3),
-                     "median_detection_delay_days": float(np.median(st["delays"])) if st["delays"] else None,
-                     "delay_iqr": ([float(np.percentile(st["delays"], 25)), float(np.percentile(st["delays"], 75))]
-                                   if st["delays"] else None),
-                     "false_detections_per_100_patient_days": round(100.0 * st["false"] / max(1, pdays), 2)}
-    out["bocpd"]["method"] = "BOCPD — significant, adverse/mixed, not explained by a chemotherapy dose"
-    out["cusum"]["method"] = "per-signal one-sided CUSUM ≥ 4 on any signal (the pre-existing drift alarm)"
+        out[name] = {
+            "detected": st["hits"],
+            "sensitivity": round(st["hits"] / max(1, n_onsets), 3),
+            "median_detection_delay_days": float(np.median(st["delays"])) if st["delays"] else None,
+            "delay_iqr": (
+                [float(np.percentile(st["delays"], 25)), float(np.percentile(st["delays"], 75))]
+                if st["delays"]
+                else None
+            ),
+            "false_detections_per_100_patient_days": round(100.0 * st["false"] / max(1, pdays), 2),
+        }
+    out["bocpd"]["method"] = (
+        "BOCPD — significant, adverse/mixed, not explained by a chemotherapy dose"
+    )
+    out["cusum"]["method"] = (
+        "per-signal one-sided CUSUM ≥ 4 on any signal (the pre-existing drift alarm)"
+    )
     return out
 
 
@@ -191,16 +278,21 @@ def neutrophil_study(cohort) -> dict[str, Any]:
             cover += int(est["p10"] <= v <= est["p90"])
             cover_pred += int(pred["p_lo"] <= v <= pred["p_hi"])
             n += 1
-    return {"task": "predict each on-treatment ANC result from the labs strictly before it plus the dose history",
-            "n_predictions": n,
-            "mae_log_anc": {k: round(float(np.mean(v)), 4) for k, v in err.items()},
-            "median_fold_error": {k: round(float(np.exp(np.median(v))), 3) for k, v in err.items()},
-            "coverage_of_80pct_intervals": {
-                "latent_anc_interval": round(cover / max(1, n), 3),
-                "predictive_interval_incl_lab_noise": round(cover_pred / max(1, n), 3)},
-            "interpretation": ("The twin's displayed interval describes the TRUE ANC (drug-sensitivity uncertainty only); "
-                               "a measured lab also carries assay noise, so lab-vs-twin comparisons use the predictive "
-                               "interval.")}
+    return {
+        "task": "predict each on-treatment ANC result from the labs strictly before it plus the dose history",
+        "n_predictions": n,
+        "mae_log_anc": {k: round(float(np.mean(v)), 4) for k, v in err.items()},
+        "median_fold_error": {k: round(float(np.exp(np.median(v))), 3) for k, v in err.items()},
+        "coverage_of_80pct_intervals": {
+            "latent_anc_interval": round(cover / max(1, n), 3),
+            "predictive_interval_incl_lab_noise": round(cover_pred / max(1, n), 3),
+        },
+        "interpretation": (
+            "The twin's displayed interval describes the TRUE ANC (drug-sensitivity uncertainty only); "
+            "a measured lab also carries assay noise, so lab-vs-twin comparisons use the predictive "
+            "interval."
+        ),
+    }
 
 
 def latent_study(cohort) -> dict[str, Any]:
@@ -210,14 +302,22 @@ def latent_study(cohort) -> dict[str, Any]:
         s = p.data.series
         first = s.first_dose_day or s.n + 1
         lat = estimate_latent(s, p.baseline)["series"]
-        truth = {"infection": p.truth.infection, "dehydration": p.truth.dehydration, "fatigue": p.truth.fatigue}
+        truth = {
+            "infection": p.truth.infection,
+            "dehydration": p.truth.dehydration,
+            "fatigue": p.truth.fatigue,
+        }
         for t in range(first - 1, s.n):
             for i, k in enumerate(P.LATENT):
                 est[k].append(float(lat[t, i]))
                 tru[k].append(float(truth[k][t]))
-    return {"pearson_r_estimated_vs_true": {k: round(float(np.corrcoef(est[k], tru[k])[0, 1]), 3) for k in P.LATENT},
-            "n_patient_days": len(est["infection"]),
-            "note": "Identical-twin experiment: the generator shares the observation-model structure with the twin."}
+    return {
+        "pearson_r_estimated_vs_true": {
+            k: round(float(np.corrcoef(est[k], tru[k])[0, 1]), 3) for k in P.LATENT
+        },
+        "n_patient_days": len(est["infection"]),
+        "note": "Identical-twin experiment: the generator shares the observation-model structure with the twin.",
+    }
 
 
 def run_benchmark(n: int = 1000, *, write: bool = True, progress=print) -> dict[str, Any]:
@@ -261,28 +361,51 @@ def run_benchmark(n: int = 1000, *, write: bool = True, progress=print) -> dict[
         "reference_arm": "Multimodal Digital Twin",
         "modality_benchmark": [_arm_row(a, ref) for a in mod],
         "ablation": [_arm_row(a, ref) for a in abl],
-        "personalization": {"question": "Do patient-specific baselines improve prediction over a pooled population 'normal'?",
-                            "personal": _arm_row(ref, None), "population": _arm_row(pers, ref)},
+        "personalization": {
+            "question": "Do patient-specific baselines improve prediction over a pooled population 'normal'?",
+            "personal": _arm_row(ref, None),
+            "population": _arm_row(pers, ref),
+        },
         "comparators": [_arm_row(a, None) for a in cmp_],
-        "horizons": {"per_horizon_logistic": [_arm_row(a, None) for a in hor], "survival_model_test_metrics": surv},
+        "horizons": {
+            "per_horizon_logistic": [_arm_row(a, None) for a in hor],
+            "survival_model_test_metrics": surv,
+        },
         "lead_time": {
             "definition": "days from the first alert (≥ EARLY WARNING) in the 7 days before a qualifying onset to that onset",
-            "deployed_system": {**deployed, "histogram_0_to_7_days": hist(deployed["lead_times_days"])},
-            "arms": [{"name": a.config.name, "median_lead_time_days": a.metrics.get("median_lead_time_days"),
-                      "events_detected": a.metrics.get("events_detected"), "events": a.metrics.get("events"),
-                      "histogram_0_to_7_days": hist(a.metrics.get("lead_times_days") or []),
-                      "false_alert_onsets_per_100_patient_days": a.metrics.get("false_alert_onsets_per_100_patient_days")}
-                     for a in (ref, pers, *mod[:4], *cmp_)]},
+            "deployed_system": {
+                **deployed,
+                "histogram_0_to_7_days": hist(deployed["lead_times_days"]),
+            },
+            "arms": [
+                {
+                    "name": a.config.name,
+                    "median_lead_time_days": a.metrics.get("median_lead_time_days"),
+                    "events_detected": a.metrics.get("events_detected"),
+                    "events": a.metrics.get("events"),
+                    "histogram_0_to_7_days": hist(a.metrics.get("lead_times_days") or []),
+                    "false_alert_onsets_per_100_patient_days": a.metrics.get(
+                        "false_alert_onsets_per_100_patient_days"
+                    ),
+                }
+                for a in (ref, pers, *mod[:4], *cmp_)
+            ],
+        },
         "change_point_detection": cps,
         "neutrophil_twin": neut,
         "latent_state_recovery": lat,
-        "event_metric_note": ("Arm-level event metrics use each arm's validation-derived probability threshold (PPV ≥ 25 %) "
-                              "without clinical rules or hysteresis so arms are comparable; the deployed-system row uses "
-                              "the full tiering."),
+        "event_metric_note": (
+            "Arm-level event metrics use each arm's validation-derived probability threshold (PPV ≥ 25 %) "
+            "without clinical rules or hysteresis so arms are comparable; the deployed-system row uses "
+            "the full tiering."
+        ),
         "runtime_seconds": round(time.time() - t0, 1),
     }
-    body = json.dumps({k: v for k, v in results.items() if k not in ("generated_at", "runtime_seconds")},
-                      sort_keys=True, default=str).encode()
+    body = json.dumps(
+        {k: v for k, v in results.items() if k not in ("generated_at", "runtime_seconds")},
+        sort_keys=True,
+        default=str,
+    ).encode()
     results["sha256"] = hashlib.sha256(body).hexdigest()
     if write:
         RESULTS_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -295,7 +418,9 @@ def load_results() -> dict[str, Any] | None:
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     ap.add_argument("--n", type=int, default=1000)
     ap.add_argument("--dry-run", action="store_true")
     a = ap.parse_args()
@@ -304,16 +429,44 @@ def main() -> None:
         print(f"\n{sec}")
         for row in r[sec]:
             m, d = row["metrics"], row["paired_vs_multimodal"]
-            print(f"  {row['config']['name']:<44} AUROC {m['auroc']} {m['auroc_95ci']}  lead {m['median_lead_time_days']}  "
-                  f"FA/100 {m['false_alert_onsets_per_100_patient_days']}  Δ {d and (d['delta_auroc'], d['ci95'])}")
-    print("\ncomparators", [(row["config"]["name"], row["metrics"]["auroc"], row["metrics"]["events_detected"],
-                              row["metrics"]["median_lead_time_days"]) for row in r["comparators"]])
-    print("horizons", [(row["config"]["name"], row["metrics"]["auroc"]) for row in r["horizons"]["per_horizon_logistic"]])
-    print("change points", json.dumps({k: r["change_point_detection"][k] for k in ("bocpd", "cusum", "n_truth_onsets")}))
+            print(
+                f"  {row['config']['name']:<44} AUROC {m['auroc']} {m['auroc_95ci']}  lead {m['median_lead_time_days']}  "
+                f"FA/100 {m['false_alert_onsets_per_100_patient_days']}  Δ {d and (d['delta_auroc'], d['ci95'])}"
+            )
+    print(
+        "\ncomparators",
+        [
+            (
+                row["config"]["name"],
+                row["metrics"]["auroc"],
+                row["metrics"]["events_detected"],
+                row["metrics"]["median_lead_time_days"],
+            )
+            for row in r["comparators"]
+        ],
+    )
+    print(
+        "horizons",
+        [
+            (row["config"]["name"], row["metrics"]["auroc"])
+            for row in r["horizons"]["per_horizon_logistic"]
+        ],
+    )
+    print(
+        "change points",
+        json.dumps(
+            {k: r["change_point_detection"][k] for k in ("bocpd", "cusum", "n_truth_onsets")}
+        ),
+    )
     print("neutrophil", json.dumps(r["neutrophil_twin"]))
     print("latent", json.dumps(r["latent_state_recovery"]))
-    print("deployed", r["lead_time"]["deployed_system"]["median_lead_time_days"], r["lead_time"]["deployed_system"]["events_detected"],
-          "runtime", r["runtime_seconds"])
+    print(
+        "deployed",
+        r["lead_time"]["deployed_system"]["median_lead_time_days"],
+        r["lead_time"]["deployed_system"]["events_detected"],
+        "runtime",
+        r["runtime_seconds"],
+    )
 
 
 if __name__ == "__main__":

@@ -23,6 +23,7 @@ ClinCase shrinks each component by orders of magnitude:
 We score per provider (NPI) using the cases they submitted; lower score
 means happier provider, lower turnover risk.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -31,9 +32,9 @@ from app.db import db
 
 # ---- Scoring weights (1 unit ≈ 1 minute of provider attention) ------------
 
-BASE_PER_CASE = 5.0          # the act of doing a PA at all
+BASE_PER_CASE = 5.0  # the act of doing a PA at all
 DELAY_PENALTY_PER_DAY = 30.0  # 30 minutes of provider thrash per delay-day
-DENIAL_PENALTY = 60.0         # initial reaction, calls, frustration
+DENIAL_PENALTY = 60.0  # initial reaction, calls, frustration
 APPEAL_BURDEN_HOURS_DEFAULT = 2.5  # AMA: ~2.5 hrs writing/calling per appeal
 
 # Manual baseline (industry) — assume 7-day TAT typical, 30% denial,

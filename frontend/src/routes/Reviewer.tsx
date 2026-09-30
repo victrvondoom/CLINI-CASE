@@ -1,4 +1,4 @@
-﻿/**
+/**
  * /reviewer — REFER-status cases routed to human reviewers.
  * Override-and-learn: reviewer overrides become training feedback.
  */
@@ -20,32 +20,11 @@ import { useEffect, useState } from "react";
 import { PayerCell } from "../components/PayerCell";
 import { api } from "../lib/api";
 import type { CaseListItem } from "../lib/api";
+import type { ReviewQueueItem, ReviewQueueReport } from "../lib/types";
+import { useLive } from "../lib/useLive";
 
 type Priority = "high" | "medium" | "low";
-
-interface ReviewItem {
-  id: string;
-  case_id: string;
-  patient: string;
-  treatment: string;
-  payer: "aetna" | "uhc" | "bcbs" | "anthem";
-  priority: Priority;
-  reason: string;
-  missing_evidence: string;
-  ago_minutes: number;
-  confidence: number;
-}
-
-const QUEUE: ReviewItem[] = [
-  { id: "rev_01", case_id: "case_8f4ad9c2", patient: "S.D.", treatment: "trastuzumab",      payer: "aetna",  priority: "high",   reason: "Baseline LVEF documentation outside payer window",      missing_evidence: "ECHO/MUGA within 60 days (current: 75d ago)",  ago_minutes:  4, confidence: 0.50 },
-  { id: "rev_02", case_id: "case_3d44e1b9", patient: "P.N.", treatment: "pembrolizumab",    payer: "bcbs",   priority: "medium", reason: "MSI-H status not documented for indication",            missing_evidence: "MSI / dMMR companion-diagnostic result", ago_minutes: 14, confidence: 0.62 },
-  { id: "rev_03", case_id: "case_a8f23910", patient: "R.K.", treatment: "osimertinib",      payer: "uhc",    priority: "high",   reason: "EGFR mutation type unclear",                            missing_evidence: "Specific exon 19 / L858R / T790M designation", ago_minutes: 27, confidence: 0.55 },
-  { id: "rev_04", case_id: "case_e9128d3c", patient: "F.E.", treatment: "T-DXd",            payer: "aetna",  priority: "high",   reason: "Prior anthracycline; new 30-day LVEF requirement",      missing_evidence: "Repeat echocardiogram within 30 days of initiation",  ago_minutes: 33, confidence: 0.48 },
-  { id: "rev_05", case_id: "case_6a7b8c9d", patient: "C.R.", treatment: "osimertinib",      payer: "anthem", priority: "medium", reason: "ECOG status not in chart",                              missing_evidence: "Documented ECOG performance status (0–4)", ago_minutes: 47, confidence: 0.65 },
-  { id: "rev_06", case_id: "case_9c12fa70", patient: "T.O.", treatment: "olaparib",         payer: "aetna",  priority: "low",    reason: "BRCA testing methodology footnote missing",             missing_evidence: "Companion-diagnostic name + version", ago_minutes: 78, confidence: 0.78 },
-  { id: "rev_07", case_id: "case_2b1f8a04", patient: "K.M.", treatment: "dabrafenib + trametinib", payer: "uhc", priority: "medium", reason: "BRAF V600E confirmation method unclear", missing_evidence: "PCR vs FISH vs NGS designation", ago_minutes: 96, confidence: 0.70 },
-  { id: "rev_08", case_id: "case_5e87bb31", patient: "L.W.", treatment: "trastuzumab",      payer: "aetna",  priority: "low",    reason: "Cardiac comorbidity history incomplete",                missing_evidence: "Prior history of NYHA II-IV heart failure",  ago_minutes: 122, confidence: 0.72 },
-];
+type ReviewItem = ReviewQueueItem & { id: string };
 
 const PRIORITY_TINT: Record<Priority, string> = {
   high:   "bg-accent-red/15    text-accent-red",
@@ -55,7 +34,9 @@ const PRIORITY_TINT: Record<Priority, string> = {
 
 function fmtAgo(min: number): string {
   if (min < 60) return `${min}m ago`;
-  return `${Math.floor(min / 60)}h ${min % 60}m ago`;
+  if (min < 48 * 60) return `${Math.floor(min / 60)}h ${min % 60}m ago`;
+  const d = Math.floor(min / 1440);
+  return `${d}d ${Math.floor((min % 1440) / 60)}h ago`;
 }
 
 type ActionResult = {
@@ -66,17 +47,16 @@ type ActionResult = {
 };
 
 export default function Reviewer() {
-  const [selected, setSelected] = useState<ReviewItem | null>(null);
-  const [queue, setQueue] = useState<ReviewItem[]>(QUEUE);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState<string | null>(null);
   const [recent, setRecent] = useState<ActionResult[]>([]);
   const [actionError, setActionError] = useState<string | null>(null);
+  const live = useLive<ReviewQueueReport>(() => api.getReviewQueue(50), [], 30_000);
+  const queue: ReviewItem[] = (live.data?.items ?? []).map((i) => ({ ...i, id: i.case_id }));
+  const selected = queue.find((q) => q.id === selectedId) ?? null;
 
-  const counts = {
-    high:   queue.filter((q) => q.priority === "high").length,
-    medium: queue.filter((q) => q.priority === "medium").length,
-    low:    queue.filter((q) => q.priority === "low").length,
-  };
+  const counts = live.data?.counts ?? { high: 0, medium: 0, low: 0 };
+  const avgWait = queue.length ? Math.round(queue.reduce((s, q) => s + q.age_minutes, 0) / queue.length) : null;
 
   async function submitAction(
     item: ReviewItem,
@@ -86,32 +66,13 @@ export default function Reviewer() {
     setSubmitting(action);
     setActionError(null);
     try {
-      // Synthetic-data items don't exist in the backend DB.
-      // Pretend success client-side; in production every queue row would be a real case.
-      let result: ActionResult;
-      try {
-        const r = await api.submitReview(item.case_id, { action, note });
-        result = { ...r, ts: Date.now() } as ActionResult;
-      } catch {
-        result = {
-          case_id: item.case_id,
-          action,
-          new_status: action === "override_to_approve" ? "approved"
-                     : action === "override_to_deny" ? "denied"
-                     : "referred",
-          ts: Date.now(),
-        };
-      }
-
-      // Remove from queue (escalate/add_note keep in queue)
-      if (action === "override_to_approve" || action === "override_to_deny") {
-        setQueue((prev) => prev.filter((q) => q.id !== item.id));
-        setSelected(null);
-      }
-
-      setRecent((prev) => [result, ...prev].slice(0, 5));
+      // A review is only recorded if the backend confirms it — a failure is shown, never simulated as success.
+      const r = await api.submitReview(item.case_id, { action, note });
+      setRecent((prev) => [{ ...r, ts: Date.now() } as ActionResult, ...prev].slice(0, 5));
+      if (action === "override_to_approve" || action === "override_to_deny") setSelectedId(null);
+      live.reload();
     } catch (e) {
-      setActionError(String(e));
+      setActionError(e instanceof Error ? e.message : String(e));
     } finally {
       setSubmitting(null);
     }
@@ -125,7 +86,7 @@ export default function Reviewer() {
           Reviewer queue
         </h1>
         <p className="text-sm text-ink-muted mt-1">
-          <span className="text-mono-tech text-ink-body">{QUEUE.length}</span> REFER cases awaiting human review
+          <span className="text-mono-tech text-ink-body" data-testid="queue-total">{queue.length}</span> REFER cases awaiting human review
           <span className="mx-2 text-ink-faint">·</span>
           <span className="text-accent-red font-medium">{counts.high} high</span>
           <span className="mx-2 text-ink-faint">·</span>
@@ -143,20 +104,33 @@ export default function Reviewer() {
         <div className="bg-surface-raised border border-surface-border rounded-2xl overflow-hidden">
           <div className="px-5 py-3 border-b border-surface-border flex items-center justify-between">
             <h3 className="text-sm font-semibold text-ink-primary">Queue</h3>
-            <span className="text-[11px] text-mono-tech text-ink-muted">avg wait: 38m</span>
+            <span className="text-[11px] text-mono-tech text-ink-muted" data-testid="avg-wait">{avgWait == null ? "avg wait: —" : `avg wait: ${fmtAgo(avgWait).replace(" ago", "")}`}</span>
           </div>
           <div className="divide-y divide-surface-border">
-            {queue.length === 0 && (
-              <div className="p-10 text-center text-ink-muted text-sm">
+            {live.error && (
+              <div role="alert" data-testid="queue-error" className="p-4 text-sm text-accent-red">
+                Could not load the reviewer queue: {live.error}{" "}
+                <button type="button" className="underline" onClick={live.reload}>Retry</button>
+              </div>
+            )}
+            {!live.data && live.loading && (
+              <div className="p-10 text-center text-ink-muted text-sm" role="status">
+                <Loader2 size={20} className="mx-auto mb-2 animate-spin" />
+                Loading reviewer queue…
+              </div>
+            )}
+            {live.data && queue.length === 0 && (
+              <div data-testid="queue-empty" className="p-10 text-center text-ink-muted text-sm">
                 <CheckCircle2 size={28} className="mx-auto mb-2 text-accent-green" />
-                Queue cleared. All REFER cases reviewed.
+                Queue cleared. No REFER cases are waiting for review.
               </div>
             )}
             {queue.map((q) => (
               <button
                 key={q.id}
                 type="button"
-                onClick={() => setSelected(q)}
+                data-testid={`queue-item-${q.id}`}
+                onClick={() => setSelectedId(q.id)}
                 className={clsx(
                   "w-full text-left px-5 py-3 transition-colors flex items-start gap-3 hover:bg-surface-raised-hi",
                   selected?.id === q.id && "bg-accent-brand/5",
@@ -175,15 +149,16 @@ export default function Reviewer() {
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <PayerCell payer_id={q.payer} showLabel={false} />
-                  <span className="text-[11px] text-mono-tech text-ink-faint w-14 text-right">{fmtAgo(q.ago_minutes)}</span>
+                  <span className="text-[11px] text-mono-tech text-ink-faint w-14 text-right">{fmtAgo(q.age_minutes)}</span>
                 </div>
               </button>
             ))}
           </div>
         </div>
 
-        {/* Side panel */}
-        <div className="bg-surface-raised border border-surface-border rounded-2xl overflow-hidden lg:sticky lg:top-20 lg:self-start">
+        {/* Side column: review panel + confirmations */}
+        <div className="lg:sticky lg:top-20 lg:self-start">
+        <div className="bg-surface-raised border border-surface-border rounded-2xl overflow-hidden">
           {!selected ? (
             <div className="p-10 text-center text-ink-muted text-sm">
               <ClipboardCheck size={36} className="mx-auto mb-3 text-ink-faint" />
@@ -209,7 +184,7 @@ export default function Reviewer() {
                 <div>
                   <div className="text-[10px] text-compact text-ink-muted mb-1">Necessity Reasoner verdict</div>
                   <div className="text-sm text-accent-amber font-semibold">REFER</div>
-                  <div className="text-xs text-ink-muted">confidence {(selected.confidence * 100).toFixed(0)}%</div>
+                  <div className="text-xs text-ink-muted">confidence {selected.confidence == null ? "—" : `${(selected.confidence * 100).toFixed(0)}%`}</div>
                 </div>
                 <div>
                   <div className="text-[10px] text-compact text-ink-muted mb-1">Reason for refer</div>
@@ -217,7 +192,7 @@ export default function Reviewer() {
                 </div>
                 <div>
                   <div className="text-[10px] text-compact text-ink-muted mb-1">Missing evidence</div>
-                  <p className="text-sm text-ink-body leading-relaxed">{selected.missing_evidence}</p>
+                  <p className="text-sm text-ink-body leading-relaxed">{selected.missing_evidence ?? "None recorded by the Necessity Reasoner."}</p>
                 </div>
               </div>
               <div className="border-t border-surface-border px-5 py-4 space-y-2">
@@ -276,27 +251,30 @@ export default function Reviewer() {
                 Reviewer overrides feed back into the system for retraining
               </div>
 
-              {recent.length > 0 && (
-                <div className="border-t border-surface-border px-5 py-3 bg-accent-green/5">
-                  <div className="text-[10px] text-compact text-accent-green mb-1.5">
-                    Recent actions ({recent.length})
-                  </div>
-                  <div className="space-y-1">
-                    {recent.map((r, i) => (
-                      <div key={i} className="text-[11px] text-ink-body text-mono-tech flex items-center gap-2">
-                        <CheckCircle2 size={10} className="text-accent-green" />
-                        <span className="text-ink-muted">{r.case_id}</span>
-                        <span>·</span>
-                        <span className="text-accent-green">{r.action}</span>
-                        <span>·</span>
-                        <span>{r.new_status}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </>
           )}
+        </div>
+
+        {/* confirmations stay visible after a case leaves the queue */}
+        {recent.length > 0 && (
+          <div data-testid="recent-actions" className="mt-3 border border-accent-green/30 rounded-2xl px-5 py-3 bg-accent-green/5">
+            <div className="text-[10px] text-compact text-accent-green mb-1.5">
+              Recent actions ({recent.length})
+            </div>
+            <div className="space-y-1">
+              {recent.map((r, i) => (
+                <div key={i} className="text-[11px] text-ink-body text-mono-tech flex items-center gap-2">
+                  <CheckCircle2 size={10} className="text-accent-green" />
+                  <span className="text-ink-muted">{r.case_id}</span>
+                  <span>·</span>
+                  <span className="text-accent-green">{r.action}</span>
+                  <span>·</span>
+                  <span>{r.new_status}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         </div>
       </div>
     </div>

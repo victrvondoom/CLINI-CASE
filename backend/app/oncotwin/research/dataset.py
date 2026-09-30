@@ -8,6 +8,7 @@ The dataset version is a SHA-256 over (seed, size, split rule, OncoTwin version
 and the source code of the generator + feature pipeline): change any of them and
 the version — and the cache key — changes.
 """
+
 from __future__ import annotations
 
 import gzip
@@ -34,8 +35,17 @@ from app.oncotwin.simulator.patients import simulate
 
 CACHE_DIR = Path(__file__).resolve().parents[3] / ".cache" / "oncotwin"
 DEFAULT_N = 1000
-_SOURCES = ("simulator/patients.py", "simulator/physiology.py", "simulator/cohort.py", "simulator/regimens.py",
-            "engine/features.py", "engine/baseline.py", "engine/series.py", "engine/quality.py", "engine/neutrophil.py")
+_SOURCES = (
+    "simulator/patients.py",
+    "simulator/physiology.py",
+    "simulator/cohort.py",
+    "simulator/regimens.py",
+    "engine/features.py",
+    "engine/baseline.py",
+    "engine/series.py",
+    "engine/quality.py",
+    "engine/neutrophil.py",
+)
 
 
 @dataclass
@@ -61,16 +71,26 @@ class Cohort:
         return [self.patients[i] for i in self.split[name]]
 
     def meta(self) -> dict[str, Any]:
-        return {"dataset_id": f"synthetic-cohort-{self.seed}-{self.n}", "version": self.version, "seed": self.seed,
-                "n_patients": self.n, "split": {k: len(v) for k, v in self.split.items()},
-                "split_rule": "by patient, 60/20/20, numpy default_rng(seed).permutation — identical to ml/train.py",
-                "n_events": sum(len(p.data.onsets) for p in self.patients),
-                "built_seconds": round(self.built_seconds, 1), "synthetic": True}
+        return {
+            "dataset_id": f"synthetic-cohort-{self.seed}-{self.n}",
+            "version": self.version,
+            "seed": self.seed,
+            "n_patients": self.n,
+            "split": {k: len(v) for k, v in self.split.items()},
+            "split_rule": "by patient, 60/20/20, numpy default_rng(seed).permutation — identical to ml/train.py",
+            "n_events": sum(len(p.data.onsets) for p in self.patients),
+            "built_seconds": round(self.built_seconds, 1),
+            "synthetic": True,
+        }
 
 
 def dataset_version(n: int, seed: int) -> str:
     root = Path(__file__).resolve().parents[1]
-    h = hashlib.sha256(json.dumps({"n": n, "seed": seed, "oncotwin": ONCOTWIN_VERSION, "split": "60/20/20"}).encode())
+    h = hashlib.sha256(
+        json.dumps(
+            {"n": n, "seed": seed, "oncotwin": ONCOTWIN_VERSION, "split": "60/20/20"}
+        ).encode()
+    )
     for rel in _SOURCES:
         h.update((root / rel).read_bytes())
     return h.hexdigest()[:16]
@@ -84,13 +104,24 @@ def build_patient(index: int, seed: int) -> CohortPatient:
     ctx = series_context(series, NeutrophilTwin(series))
     F = feature_tensor(signal_matrix(series), baseline, **ctx)[0]
     y, eligible, onsets = labels_from_record(series, rec.n_days)
-    data = PatientData(rec.profile.patient_id, series, F, y, eligible, onsets, series.acute_care_mask(),
-                       np.asarray(ctx["nadir"], dtype=float))
-    return CohortPatient(data=data, baseline=baseline, ctx=ctx, truth=sim.truth, regimen=rec.profile.regimen_code)
+    data = PatientData(
+        rec.profile.patient_id,
+        series,
+        F,
+        y,
+        eligible,
+        onsets,
+        series.acute_care_mask(),
+        np.asarray(ctx["nadir"], dtype=float),
+    )
+    return CohortPatient(
+        data=data, baseline=baseline, ctx=ctx, truth=sim.truth, regimen=rec.profile.regimen_code
+    )
 
 
-def build_cohort(n: int = DEFAULT_N, seed: int = COHORT_SEED,
-                 progress: Callable[[int, int], None] | None = None) -> Cohort:
+def build_cohort(
+    n: int = DEFAULT_N, seed: int = COHORT_SEED, progress: Callable[[int, int], None] | None = None
+) -> Cohort:
     t0 = time.time()
     patients = []
     for i in range(n):
@@ -99,16 +130,24 @@ def build_cohort(n: int = DEFAULT_N, seed: int = COHORT_SEED,
             progress(i + 1, n)
     order = np.random.default_rng(seed).permutation(n)
     n_tr, n_va = int(0.6 * n), int(0.2 * n)
-    split = {"train": order[:n_tr].tolist(), "valid": order[n_tr:n_tr + n_va].tolist(),
-             "test": order[n_tr + n_va:].tolist()}
+    split = {
+        "train": order[:n_tr].tolist(),
+        "valid": order[n_tr : n_tr + n_va].tolist(),
+        "test": order[n_tr + n_va :].tolist(),
+    }
     return Cohort(seed, n, dataset_version(n, seed), patients, split, time.time() - t0)
 
 
 _MEMO: dict[tuple[int, int], Cohort] = {}
 
 
-def load_cohort(n: int = DEFAULT_N, seed: int = COHORT_SEED, *, rebuild: bool = False,
-                progress: Callable[[int, int], None] | None = None) -> Cohort:
+def load_cohort(
+    n: int = DEFAULT_N,
+    seed: int = COHORT_SEED,
+    *,
+    rebuild: bool = False,
+    progress: Callable[[int, int], None] | None = None,
+) -> Cohort:
     """In-process memo → on-disk cache (gzip pickle, local only, never committed) → build.
 
     Security note: pickle is used ONLY for this developer cache of synthetic data that

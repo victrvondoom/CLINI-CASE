@@ -20,6 +20,7 @@ Tier = max(probability tier, rule tier), where
 Hysteresis: escalation is immediate; de-escalation drops one tier only after
 two consecutive days below the current tier, so the display does not flap.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -41,12 +42,22 @@ FEATURE_GROUP: dict[str, str] = {}
 for _s in MODEL_SIGNALS:
     FEATURE_GROUP[f"z_{_s}"] = _s
     FEATURE_GROUP[f"slope3_{_s}"] = _s
-FEATURE_GROUP.update({
-    "n_concordant": "multi_signal", "anomaly": "multi_signal", "persist_max": "multi_signal",
-    "nadir_risk": "neutrophil", "anc_twin_log": "neutrophil", "anc_twin_low": "neutrophil",
-    "anc_lab_low": "neutrophil", "adherence_7d": "adherence", "adherence_gap": "adherence",
-    "age65": "context", "on_treatment": "context", "myelotox": "context",
-})
+FEATURE_GROUP.update(
+    {
+        "n_concordant": "multi_signal",
+        "anomaly": "multi_signal",
+        "persist_max": "multi_signal",
+        "nadir_risk": "neutrophil",
+        "anc_twin_log": "neutrophil",
+        "anc_twin_low": "neutrophil",
+        "anc_lab_low": "neutrophil",
+        "adherence_7d": "adherence",
+        "adherence_gap": "adherence",
+        "age65": "context",
+        "on_treatment": "context",
+        "myelotox": "context",
+    }
+)
 GROUP_LABEL = {
     **{s: SIGNALS[s].label for s in MODEL_SIGNALS},
     "multi_signal": "Multi-signal pattern (concordance, anomaly, persistence)",
@@ -89,30 +100,56 @@ def rule_tiers(
         neutro = F[t, IDX["anc_lab_low"]] > 0 or F[t, IDX["anc_twin_low"]] >= 0.5 or nadir
         tt = temp[t]
         prev = temp[t - 1] if t > 0 else np.nan
-        febrile = (not np.isnan(tt)) and (tt >= FN_TEMP_SINGLE or (tt >= FN_TEMP_SUSTAINED and not np.isnan(prev) and prev >= FN_TEMP_SUSTAINED))
+        febrile = (not np.isnan(tt)) and (
+            tt >= FN_TEMP_SINGLE
+            or (tt >= FN_TEMP_SUSTAINED and not np.isnan(prev) and prev >= FN_TEMP_SUSTAINED)
+        )
         if febrile and neutro:
             tiers[t] = "HIGH PRIORITY"
-            fired[t].append({
-                "rule": "possible_febrile_neutropenia", "tier": "HIGH PRIORITY",
-                "text": (f"Temperature {tt:.1f} °C with neutropenia risk "
-                         f"(twin P[ANC<1.0] {F[t, IDX['anc_twin_low']]:.0%}"
-                         f"{', measured ANC < 1.0 in last 7 d' if F[t, IDX['anc_lab_low']] > 0 else ''}"
-                         f"{', expected nadir window' if nadir else ''})."),
-                "basis": "IDSA neutropenic fever definition (Freifeld et al., Clin Infect Dis 2011;52:e56-93)",
-            })
+            fired[t].append(
+                {
+                    "rule": "possible_febrile_neutropenia",
+                    "tier": "HIGH PRIORITY",
+                    "text": (
+                        f"Temperature {tt:.1f} °C with neutropenia risk "
+                        f"(twin P[ANC<1.0] {F[t, IDX['anc_twin_low']]:.0%}"
+                        f"{', measured ANC < 1.0 in last 7 d' if F[t, IDX['anc_lab_low']] > 0 else ''}"
+                        f"{', expected nadir window' if nadir else ''})."
+                    ),
+                    "basis": "IDSA neutropenic fever definition (Freifeld et al., Clin Infect Dis 2011;52:e56-93)",
+                }
+            )
         if not np.isnan(sbp[t]) and sbp[t] < 90:
             tiers[t] = "HIGH PRIORITY"
-            fired[t].append({"rule": "hypotension", "tier": "HIGH PRIORITY",
-                             "text": f"Systolic BP {sbp[t]:.0f} mmHg (< 90).", "basis": "hemodynamic safety rule"})
+            fired[t].append(
+                {
+                    "rule": "hypotension",
+                    "tier": "HIGH PRIORITY",
+                    "text": f"Systolic BP {sbp[t]:.0f} mmHg (< 90).",
+                    "basis": "hemodynamic safety rule",
+                }
+            )
         risk_ok = probs is None or float(probs[t]) >= floor
-        if (RANK[tiers[t]] < RANK["WATCH"] and F[t, IDX["n_concordant"]] >= 3
-                and F[t, IDX["persist_max"]] >= 2 and risk_ok):
+        if (
+            RANK[tiers[t]] < RANK["WATCH"]
+            and F[t, IDX["n_concordant"]] >= 3
+            and F[t, IDX["persist_max"]] >= 2
+            and risk_ok
+        ):
             tiers[t] = "WATCH"
-            fired[t].append({"rule": "multi_signal_trajectory", "tier": "WATCH",
-                             "text": (f"{int(F[t, IDX['n_concordant']])} signals ≥ {DEVIATION_Z} SD adverse, "
-                                      f"sustained {int(F[t, IDX['persist_max']])} days"
-                                      + (f", model risk {float(probs[t]):.1%}" if probs is not None else "") + "."),
-                             "basis": "trajectory rule (personal baseline + model-risk floor)"})
+            fired[t].append(
+                {
+                    "rule": "multi_signal_trajectory",
+                    "tier": "WATCH",
+                    "text": (
+                        f"{int(F[t, IDX['n_concordant']])} signals ≥ {DEVIATION_Z} SD adverse, "
+                        f"sustained {int(F[t, IDX['persist_max']])} days"
+                        + (f", model risk {float(probs[t]):.1%}" if probs is not None else "")
+                        + "."
+                    ),
+                    "basis": "trajectory rule (personal baseline + model-risk floor)",
+                }
+            )
     return tiers, fired
 
 
@@ -138,9 +175,9 @@ def apply_hysteresis(raw: list[str], acute: np.ndarray, *, hold_days: int = 2) -
 
 def classify_trajectory(F: np.ndarray, t: int) -> dict[str, Any]:
     """Name the current trajectory from the last few days of features."""
-    zs = F[max(0, t - 3): t + 1, :N_SIG]
-    slopes = F[t, N_SIG:2 * N_SIG]
-    conc = F[max(0, t - 3): t + 1, IDX["n_concordant"]]
+    zs = F[max(0, t - 3) : t + 1, :N_SIG]
+    slopes = F[t, N_SIG : 2 * N_SIG]
+    conc = F[max(0, t - 3) : t + 1, IDX["n_concordant"]]
     n_now = int(conc[-1])
     jump = (zs[-1] - zs[-2]) if len(zs) >= 2 else np.zeros(N_SIG)
     adverse_now = [MODEL_SIGNALS[i] for i in range(N_SIG) if zs[-1, i] >= DEVIATION_Z]
@@ -149,7 +186,12 @@ def classify_trajectory(F: np.ndarray, t: int) -> dict[str, Any]:
         name = "sudden multi-signal change"
     elif n_now >= 3 and (len(rising) >= 2 or F[t, IDX["persist_max"]] >= 2):
         name = "multi-signal concordant deterioration"
-    elif len(conc) >= 3 and conc[:-1].max() >= 3 and n_now < conc[:-1].max() and np.nanmean(slopes) < 0:
+    elif (
+        len(conc) >= 3
+        and conc[:-1].max() >= 3
+        and n_now < conc[:-1].max()
+        and np.nanmean(slopes) < 0
+    ):
         name = "recovering toward baseline"
     elif n_now <= 1 and zs[-1].max() >= 2.0 and F[t, IDX["persist_max"]] <= 1:
         name = "isolated deviation"
@@ -157,15 +199,21 @@ def classify_trajectory(F: np.ndarray, t: int) -> dict[str, Any]:
         name = "emerging deviation"
     else:
         name = "stable at personal baseline"
-    return {"pattern": name, "signals_adverse": adverse_now, "signals_rising": rising,
-            "n_concordant": n_now}
+    return {
+        "pattern": name,
+        "signals_adverse": adverse_now,
+        "signals_rising": rising,
+        "n_concordant": n_now,
+    }
 
 
 def group_contributions(contrib: np.ndarray) -> list[dict[str, Any]]:
     groups: dict[str, dict[str, Any]] = {}
     for i, name in enumerate(FEATURE_NAMES):
         g = FEATURE_GROUP[name]
-        entry = groups.setdefault(g, {"group": g, "label": GROUP_LABEL[g], "logit": 0.0, "features": []})
+        entry = groups.setdefault(
+            g, {"group": g, "label": GROUP_LABEL[g], "logit": 0.0, "features": []}
+        )
         entry["logit"] += float(contrib[i])
         entry["features"].append({"feature": name, "logit": round(float(contrib[i]), 3)})
     out = sorted(groups.values(), key=lambda e: -abs(e["logit"]))
@@ -176,7 +224,9 @@ def group_contributions(contrib: np.ndarray) -> list[dict[str, Any]]:
     return out
 
 
-def describe_signal(series: PatientSeries, baseline: Baseline, key: str, t: int, F: np.ndarray) -> dict[str, Any] | None:
+def describe_signal(
+    series: PatientSeries, baseline: Baseline, key: str, t: int, F: np.ndarray
+) -> dict[str, Any] | None:
     spec = SIGNALS[key]
     b = baseline.signals.get(key)
     if b is None or not b.n_days:
@@ -192,54 +242,99 @@ def describe_signal(series: PatientSeries, baseline: Baseline, key: str, t: int,
     slope = F[t, IDX[f"slope3_{key}"]]
     direction = "above" if (v > disp["median"]) else "below"
     return {
-        "signal": key, "label": spec.label, "value": round(float(v), spec.decimals), "unit": spec.unit_display,
-        "day": day, "baseline_median": disp["median"], "baseline_low": disp["low"], "baseline_high": disp["high"],
-        "z_adverse": round(float(z), 2), "slope3_per_day": round(float(slope), 2),
-        "text": (f"{spec.label} {v:.{spec.decimals}f} {spec.unit_display} on Day {day}: "
-                 f"{abs(z):.1f} SD {direction} personal baseline {disp['median']} "
-                 f"(range {disp['low']}–{disp['high']})"
-                 + (f", worsening {slope:+.1f} SD/day over 3 days" if slope >= 0.4 else "")),
+        "signal": key,
+        "label": spec.label,
+        "value": round(float(v), spec.decimals),
+        "unit": spec.unit_display,
+        "day": day,
+        "baseline_median": disp["median"],
+        "baseline_low": disp["low"],
+        "baseline_high": disp["high"],
+        "z_adverse": round(float(z), 2),
+        "slope3_per_day": round(float(slope), 2),
+        "text": (
+            f"{spec.label} {v:.{spec.decimals}f} {spec.unit_display} on Day {day}: "
+            f"{abs(z):.1f} SD {direction} personal baseline {disp['median']} "
+            f"(range {disp['low']}–{disp['high']})"
+            + (f", worsening {slope:+.1f} SD/day over 3 days" if slope >= 0.4 else "")
+        ),
         "observation_id": series.obs_ids[key][day - 1],
     }
 
 
-def review_items(series: PatientSeries, t: int, F: np.ndarray, top_groups: list[str], neutro_est: dict[str, Any] | None) -> list[str]:
+def review_items(
+    series: PatientSeries,
+    t: int,
+    F: np.ndarray,
+    top_groups: list[str],
+    neutro_est: dict[str, Any] | None,
+) -> list[str]:
     """Clinical information a reviewer may want — phrased as considerations, never orders."""
     items: list[str] = []
     day = t + 1
-    infection_like = any(g in top_groups for g in ("temperature", "resting_hr", "hrv_sdnn", "spo2", "neutrophil"))
+    infection_like = any(
+        g in top_groups for g in ("temperature", "resting_hr", "hrv_sdnn", "spo2", "neutrophil")
+    )
     volume_like = any(g in top_groups for g in ("weight", "sbp", "symptom_score", "adherence"))
     anc_v, anc_d, _ = series.last_lab("anc", day, max_age=60)
     if infection_like:
         est = ""
         if neutro_est and neutro_est.get("source") == "fitted twin":
-            est = (f"; twin-estimated ANC today {neutro_est['mean']:.2f} ×10³/µL "
-                   f"(80% interval {neutro_est['p10']:.2f}–{neutro_est['p90']:.2f})")
-        last = f"last measured {anc_v:.2f} ×10³/µL on Day {anc_d}" if anc_v is not None else "no ANC on file"
+            est = (
+                f"; twin-estimated ANC today {neutro_est['mean']:.2f} ×10³/µL "
+                f"(80% interval {neutro_est['p10']:.2f}–{neutro_est['p90']:.2f})"
+            )
+        last = (
+            f"last measured {anc_v:.2f} ×10³/µL on Day {anc_d}"
+            if anc_v is not None
+            else "no ANC on file"
+        )
         items.append(f"CBC with differential (ANC) — {last}{est}.")
-        items.append("Review temperature trend against the institutional febrile-neutropenia pathway "
-                     "(≥ 38.3 °C single reading or ≥ 38.0 °C sustained).")
+        items.append(
+            "Review temperature trend against the institutional febrile-neutropenia pathway "
+            "(≥ 38.3 °C single reading or ≥ 38.0 °C sustained)."
+        )
         first = series.first_dose_day or 0
         last_dose = max(series.dose_days) if series.dose_days else first
         gcsf_this_cycle = any(g >= last_dose for g in series.gcsf_days)
-        items.append(f"Review G-CSF prophylaxis status for the current cycle "
-                     f"({'given' if gcsf_this_cycle else 'none recorded'}).")
+        items.append(
+            f"Review G-CSF prophylaxis status for the current cycle "
+            f"({'given' if gcsf_this_cycle else 'none recorded'})."
+        )
     if volume_like:
         cr_v, cr_d, _ = series.last_lab("creatinine", day, max_age=60)
-        last_cr = f"last creatinine {cr_v:.2f} mg/dL on Day {cr_d}" if cr_v is not None else "no creatinine on file"
-        items.append(f"Basic metabolic panel (creatinine, electrolytes) — {last_cr}; assess oral intake, "
-                     f"emesis/diarrhea frequency and orthostatic symptoms.")
+        last_cr = (
+            f"last creatinine {cr_v:.2f} mg/dL on Day {cr_d}"
+            if cr_v is not None
+            else "no creatinine on file"
+        )
+        items.append(
+            f"Basic metabolic panel (creatinine, electrolytes) — {last_cr}; assess oral intake, "
+            f"emesis/diarrhea frequency and orthostatic symptoms."
+        )
     adh = F[t, IDX["adherence_7d"]]
     if F[t, IDX["adherence_gap"]] > 0.2:
-        items.append(f"Supportive-medication adherence {adh:.0%} over 7 days — explore barriers "
-                     f"(nausea, cost, understanding) with the patient.")
+        items.append(
+            f"Supportive-medication adherence {adh:.0%} over 7 days — explore barriers "
+            f"(nausea, cost, understanding) with the patient."
+        )
     if "spo2" in top_groups:
         items.append("Respiratory assessment — SpO₂ below personal baseline.")
     if series.profile.diabetic and not np.isnan(series.values["glucose_cgm"][t]):
-        items.append("Glycemic review — CGM daily mean relative to personal baseline "
-                     "(steroid premedication and infection both raise glucose).")
-    affected = {f.signal for f in series.flags if f.kind in ("stuck", "implausible", "conflict", "stale")
-                and any(d >= day - 6 for d in f.days)}
-    for sig in sorted(affected & (set(top_groups) | {"weight", "spo2", "resting_hr", "temperature"})):
-        items.append(f"Verify {SIGNALS[sig].label.lower()} data before acting on it (data-quality flag active).")
+        items.append(
+            "Glycemic review — CGM daily mean relative to personal baseline "
+            "(steroid premedication and infection both raise glucose)."
+        )
+    affected = {
+        f.signal
+        for f in series.flags
+        if f.kind in ("stuck", "implausible", "conflict", "stale")
+        and any(d >= day - 6 for d in f.days)
+    }
+    for sig in sorted(
+        affected & (set(top_groups) | {"weight", "spo2", "resting_hr", "temperature"})
+    ):
+        items.append(
+            f"Verify {SIGNALS[sig].label.lower()} data before acting on it (data-quality flag active)."
+        )
     return items

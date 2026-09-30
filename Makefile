@@ -7,6 +7,7 @@
         smoke deck preflight tf.fmt tf.validate kiro.export \
         migrate sbom sign supply-chain \
         twin.test twin.demo twin.stress twin.train twin.reference twin.benchmark \
+        cardio.test cardio.train cardio.data \
         test lint clean
 
 help:
@@ -33,6 +34,9 @@ help:
 	@echo "  twin.train        - retrain OncoTwin models"
 	@echo "  twin.reference    - rebuild the drift reference profile"
 	@echo "  twin.benchmark    - OncoTwin Research Lab benchmark"
+	@echo "  cardio.test       - CardioTwin tests"
+	@echo "  cardio.train      - retrain CardioTwin (deterministic, ~2 min); rewrites artifacts + evaluation report"
+	@echo "  cardio.data       - validate the committed CardioTwin dataset and print its hash"
 	@echo "  test              - run all tests"
 	@echo "  lint              - run all linters"
 
@@ -93,6 +97,17 @@ twin.reference:       ## rebuild the drift-monitor reference profile from the tr
 
 twin.benchmark:       ## Research Lab benchmark (modality, ablation, horizons, change points, lead time)
 	cd backend && python -m app.oncotwin.research.benchmark --n 1000
+
+# --- CardioTwin (cardiovascular vessel-level risk) -----------------------------
+# No database or LLM key needed. Dataset: UCI Extension of Z-Alizadeh Sani (CC BY 4.0), committed with hashes.
+cardio.test:
+	cd backend && pytest tests/cardiotwin -q
+
+cardio.train:         ## nested repeated CV + calibration + audits; writes app/cardiotwin/artifacts/*.json
+	cd backend && python -m app.cardiotwin.training
+
+cardio.data:
+	cd backend && python -m app.cardiotwin.data
 
 # --- database --------------------------------------------------------------
 db.init:

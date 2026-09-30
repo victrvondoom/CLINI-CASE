@@ -11,6 +11,7 @@ budget bounds the entire fan-out — a runaway parallel call still respects
 the per-case ceiling because all sub-agents draw from the same
 BudgetTracker on the shared AgentContext.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -81,17 +82,21 @@ class NecessityReasonerAgent(Agent[NecessityReasonerInput, NecessityReasonerOutp
                 raise ValueError("Atomic criterion references an unavailable policy excerpt")
             key = (criterion.policy_excerpt_index, " ".join(criterion.text.casefold().split()))
             if not key[1] or key in seen:
-                raise ValueError("Atomic criteria must be non-blank and unique within a policy excerpt")
+                raise ValueError(
+                    "Atomic criteria must be non-blank and unique within a policy excerpt"
+                )
             seen.add(key)
 
         # Phase 2 — evidence matching, parallel fan-out (REFLECTION enabled)
-        match_results = await asyncio.gather(*[
-            evidence_matcher.invoke(
-                EvidenceMatcherInput(criterion=c, snapshot=input.snapshot),
-                ctx=ctx,
-            )
-            for c in atomic
-        ])
+        match_results = await asyncio.gather(
+            *[
+                evidence_matcher.invoke(
+                    EvidenceMatcherInput(criterion=c, snapshot=input.snapshot),
+                    ctx=ctx,
+                )
+                for c in atomic
+            ]
+        )
         # Backfill `criterion` onto each EvidenceMatch — the LLM doesn't
         # echo it back; the parent owns the (criterion, match) pairing.
         matches = [

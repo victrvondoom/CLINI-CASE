@@ -21,6 +21,7 @@ Migration path:
 
 Pairs with: ops/architecture/PHI_TOKENIZATION.md
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -83,7 +84,7 @@ def _new_token(kind: str) -> str:
         a = "".join(secrets.choice("0123456789") for _ in range(3))
         b = "".join(secrets.choice("0123456789") for _ in range(2))
         c = "".join(secrets.choice("0123456789") for _ in range(4))
-        return f"9{a[1:]}-{b}-{c}"   # leading-9 token convention
+        return f"9{a[1:]}-{b}-{c}"  # leading-9 token convention
     if kind == "mrn":
         return f"MRN-T{secrets.token_hex(5).upper()}"
     if kind == "dob":
@@ -106,6 +107,7 @@ def _vault_key() -> bytes:
     """Per-tenant vault key. In production: AWS KMS Decrypt every call.
     Today: derived from JWT_SECRET + tenant_id (DEV ONLY)."""
     from app.config import settings
+
     return hashlib.sha256(f"{settings.JWT_SECRET}::vault".encode()).digest()
 
 
@@ -120,7 +122,13 @@ def _encrypt(value: str) -> bytes:
 
 
 def _decrypt(blob: bytes) -> str:
-    return _encrypt(blob.decode("utf-8", errors="replace") if isinstance(blob, str) else blob.decode(errors="replace") if False else _encrypt_inverse(blob))  # noqa
+    return _encrypt(
+        blob.decode("utf-8", errors="replace")
+        if isinstance(blob, str)
+        else blob.decode(errors="replace")
+        if False
+        else _encrypt_inverse(blob)
+    )  # noqa
 
 
 def _encrypt_inverse(blob: bytes) -> str:
@@ -145,7 +153,7 @@ def _hmac_real(value: str) -> str:
 class TokenizationResult:
     token: str
     kind: str
-    is_new: bool         # was this a fresh tokenization or a hit on the vault?
+    is_new: bool  # was this a fresh tokenization or a hit on the vault?
 
 
 async def tokenize(
@@ -167,13 +175,18 @@ async def tokenize(
         SELECT token FROM phi_vault
          WHERE organization_id = $1 AND value_kind = $2 AND real_value_hmac = $3
         """,
-        organization_id, kind, h,
+        organization_id,
+        kind,
+        h,
     )
     if row is not None:
         await db.execute(
             "INSERT INTO phi_vault_access_log (organization_id, token, accessor_id, operation, purpose) "
             "VALUES ($1, $2, $3, 'tokenize', $4)",
-            organization_id, row["token"], accessor_id, purpose,
+            organization_id,
+            row["token"],
+            accessor_id,
+            purpose,
         )
         return TokenizationResult(token=row["token"], kind=kind, is_new=False)
 
@@ -187,13 +200,19 @@ async def tokenize(
                 (organization_id, token, value_kind, real_value_hmac, encrypted_value)
             VALUES ($1, $2, $3, $4, $5)
             """,
-            organization_id, token, kind, h, encrypted,
+            organization_id,
+            token,
+            kind,
+            h,
+            encrypted,
         )
     except Exception:  # noqa: BLE001
         # Race lost — re-fetch
         row = await db.fetchrow(
             "SELECT token FROM phi_vault WHERE organization_id=$1 AND value_kind=$2 AND real_value_hmac=$3",
-            organization_id, kind, h,
+            organization_id,
+            kind,
+            h,
         )
         if row:
             return TokenizationResult(token=row["token"], kind=kind, is_new=False)
@@ -202,7 +221,10 @@ async def tokenize(
     await db.execute(
         "INSERT INTO phi_vault_access_log (organization_id, token, accessor_id, operation, purpose) "
         "VALUES ($1, $2, $3, 'tokenize', $4)",
-        organization_id, token, accessor_id, purpose,
+        organization_id,
+        token,
+        accessor_id,
+        purpose,
     )
     log.info("phi_vault.tokenized", org=organization_id, kind=kind, token_prefix=token[:6])
     return TokenizationResult(token=token, kind=kind, is_new=True)
@@ -227,19 +249,24 @@ async def detokenize(
           FROM phi_vault
          WHERE organization_id = $1 AND token = $2
         """,
-        organization_id, token,
+        organization_id,
+        token,
     )
     await db.execute(
         "INSERT INTO phi_vault_access_log (organization_id, token, accessor_id, operation, purpose) "
         "VALUES ($1, $2, $3, 'detokenize', $4)",
-        organization_id, token, accessor_id, purpose,
+        organization_id,
+        token,
+        accessor_id,
+        purpose,
     )
     if row is None:
         return None
     await db.execute(
         "UPDATE phi_vault SET last_accessed_at = NOW(), access_count = access_count + 1 "
         "WHERE organization_id=$1 AND token=$2",
-        organization_id, token,
+        organization_id,
+        token,
     )
     return _encrypt_inverse(row["encrypted_value"])
 
@@ -252,14 +279,16 @@ async def detokenize(
 _MRN_RE = re.compile(r"\bMRN[:\s#-]*([A-Z0-9]{4,16})\b", re.IGNORECASE)
 
 
-async def tokenize_mrns_in_text(*, organization_id: str, accessor_id: str, text: str) -> tuple[str, list[str]]:
+async def tokenize_mrns_in_text(
+    *, organization_id: str, accessor_id: str, text: str
+) -> tuple[str, list[str]]:
     """Find MRN-shaped substrings in text and tokenize each. Returns
     (text-with-tokens, list-of-issued-tokens)."""
     issued: list[str] = []
     out_parts: list[str] = []
     cursor = 0
     for m in _MRN_RE.finditer(text):
-        out_parts.append(text[cursor:m.start()])
+        out_parts.append(text[cursor : m.start()])
         original = m.group(1)
         res = await tokenize(
             organization_id=organization_id,

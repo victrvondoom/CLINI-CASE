@@ -31,6 +31,7 @@ API replica the ALB routes it to — without Redis, the replica running the case
 publishes events to its in-memory queues and the SSE consumer on a different
 replica sees nothing. Redis pub/sub closes that gap.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -58,10 +59,10 @@ class PubSubBackend(ABC):
     async def publish(self, case_id: str, event: dict[str, Any]) -> None: ...
 
     @abstractmethod
-    def subscribe(self, case_id: str) -> asyncio.Queue: ...
+    def subscribe(self, case_id: str) -> asyncio.Queue[dict[str, Any]]: ...
 
     @abstractmethod
-    def unsubscribe(self, case_id: str, queue: asyncio.Queue) -> None: ...
+    def unsubscribe(self, case_id: str, queue: asyncio.Queue[dict[str, Any]]) -> None: ...
 
     async def connect(self) -> None:  # noqa: D401, B027 — optional hook, not every backend needs one
         """Optional connection / handshake hook. No-op by default."""
@@ -79,7 +80,7 @@ class InProcessBackend(PubSubBackend):
     """Single-process fan-out. Correct for `make dev`, tests, single replica."""
 
     def __init__(self) -> None:
-        self._subscribers: dict[str, list[asyncio.Queue]] = defaultdict(list)
+        self._subscribers: dict[str, list[asyncio.Queue[dict[str, Any]]]] = defaultdict(list)
 
     async def publish(self, case_id: str, event: dict[str, Any]) -> None:
         for queue in list(self._subscribers[case_id]):
@@ -87,12 +88,12 @@ class InProcessBackend(PubSubBackend):
             with contextlib.suppress(asyncio.QueueFull):
                 queue.put_nowait(event)
 
-    def subscribe(self, case_id: str) -> asyncio.Queue:
-        queue: asyncio.Queue = asyncio.Queue(maxsize=1000)
+    def subscribe(self, case_id: str) -> asyncio.Queue[dict[str, Any]]:
+        queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue(maxsize=1000)
         self._subscribers[case_id].append(queue)
         return queue
 
-    def unsubscribe(self, case_id: str, queue: asyncio.Queue) -> None:
+    def unsubscribe(self, case_id: str, queue: asyncio.Queue[dict[str, Any]]) -> None:
         if queue in self._subscribers[case_id]:
             self._subscribers[case_id].remove(queue)
         if not self._subscribers[case_id]:
@@ -125,25 +126,25 @@ class RedisPubSubBackend(PubSubBackend):
         self._publish_client: Any | None = None
         self._subscribe_client: Any | None = None
         self._pubsub: Any | None = None
-        self._reader_task: asyncio.Task | None = None
-        self._local_queues: dict[str, list[asyncio.Queue]] = defaultdict(list)
+        self._reader_task: asyncio.Task[None] | None = None
+        self._local_queues: dict[str, list[asyncio.Queue[dict[str, Any]]]] = defaultdict(list)
         self._connected = False
 
     async def connect(self) -> None:
         if self._connected:
             return
         try:
-            import redis.asyncio as aioredis  # type: ignore[import-not-found]
+            import redis.asyncio as aioredis
         except ImportError as e:  # noqa: BLE001
             raise RuntimeError(
                 "RedisPubSubBackend requires the `redis>=5.0` package. "
                 "Install via `pip install redis>=5.0` or add it to pyproject.toml."
             ) from e
 
-        self._publish_client = aioredis.from_url(
+        self._publish_client = aioredis.from_url(  # type: ignore[no-untyped-call]
             self._url, encoding="utf-8", decode_responses=True
         )
-        self._subscribe_client = aioredis.from_url(
+        self._subscribe_client = aioredis.from_url(  # type: ignore[no-untyped-call]
             self._url, encoding="utf-8", decode_responses=True
         )
         # Verify connectivity early so misconfig fails at startup, not first use.
@@ -189,7 +190,7 @@ class RedisPubSubBackend(PubSubBackend):
                 channel = msg.get("channel") or ""
                 if not channel.startswith(_REDIS_CHANNEL_PREFIX):
                     continue
-                case_id = channel[len(_REDIS_CHANNEL_PREFIX):]
+                case_id = channel[len(_REDIS_CHANNEL_PREFIX) :]
                 try:
                     event = json.loads(msg["data"])
                 except (TypeError, json.JSONDecodeError) as e:  # noqa: BLE001
@@ -214,19 +215,17 @@ class RedisPubSubBackend(PubSubBackend):
             return
         try:
             payload = json.dumps(event, default=str)
-            await self._publish_client.publish(
-                f"{_REDIS_CHANNEL_PREFIX}{case_id}", payload
-            )
+            await self._publish_client.publish(f"{_REDIS_CHANNEL_PREFIX}{case_id}", payload)
         except Exception as e:  # noqa: BLE001
             # Never let SSE failures cascade into agent failures.
             log.warning("streaming.redis.publish_failed", case_id=case_id, error=str(e))
 
-    def subscribe(self, case_id: str) -> asyncio.Queue:
-        queue: asyncio.Queue = asyncio.Queue(maxsize=1000)
+    def subscribe(self, case_id: str) -> asyncio.Queue[dict[str, Any]]:
+        queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue(maxsize=1000)
         self._local_queues[case_id].append(queue)
         return queue
 
-    def unsubscribe(self, case_id: str, queue: asyncio.Queue) -> None:
+    def unsubscribe(self, case_id: str, queue: asyncio.Queue[dict[str, Any]]) -> None:
         if queue in self._local_queues.get(case_id, []):
             self._local_queues[case_id].remove(queue)
         if not self._local_queues.get(case_id):
@@ -279,11 +278,11 @@ async def publish(case_id: str, event: dict[str, Any]) -> None:
     await _BACKEND.publish(case_id, event)
 
 
-def subscribe(case_id: str) -> asyncio.Queue:
+def subscribe(case_id: str) -> asyncio.Queue[dict[str, Any]]:
     """Subscribe to events for case_id. Returns a queue to consume from."""
     return _BACKEND.subscribe(case_id)
 
 
-def unsubscribe(case_id: str, queue: asyncio.Queue) -> None:
+def unsubscribe(case_id: str, queue: asyncio.Queue[dict[str, Any]]) -> None:
     """Stop receiving events. Safe to call multiple times."""
     _BACKEND.unsubscribe(case_id, queue)

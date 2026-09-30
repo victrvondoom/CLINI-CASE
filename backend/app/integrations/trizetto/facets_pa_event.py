@@ -19,6 +19,7 @@ Design notes:
     `notes` field is the only place richer evidence lives in the v3 schema.
     The structured citation_json stays in ClinCase's audit trail.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -34,7 +35,10 @@ from pydantic import BaseModel, Field
 
 class FacetsMember(BaseModel):
     member_id: str = Field(..., description="Facets member ID (subscriber + dependent suffix).")
-    payer_id: str = Field(..., description="Payer LOB code as Facets configures it (CC=commercial, MA=Medicare Advantage).")
+    payer_id: str = Field(
+        ...,
+        description="Payer LOB code as Facets configures it (CC=commercial, MA=Medicare Advantage).",
+    )
 
 
 class FacetsTreatment(BaseModel):
@@ -42,7 +46,9 @@ class FacetsTreatment(BaseModel):
     cpt_code: str | None = Field(None, description="CPT code if drug is procedure-billed.")
     drug_name: str = Field(..., description="Generic / brand name as written by the prescriber.")
     requested_units: int | None = Field(None, description="Requested dose units (mg) for chemo.")
-    site_of_service: str | None = Field(None, description="POS code (11 office, 22 outpatient hospital, etc.).")
+    site_of_service: str | None = Field(
+        None, description="POS code (11 office, 22 outpatient hospital, etc.)."
+    )
 
 
 class FacetsClinCaseAttestation(BaseModel):
@@ -52,12 +58,20 @@ class FacetsClinCaseAttestation(BaseModel):
 
     engine_name: str = Field(default="ClinCase")
     engine_version: str = Field(default="0.1.0")
-    decision_run_id: str = Field(..., description="UUID of the LangGraph DAG run; ties back to agent_runs.")
-    primary_model_id: str = Field(..., description="Bedrock model id, e.g. apac.anthropic.claude-sonnet-4-6-20251022-v1:0.")
+    decision_run_id: str = Field(
+        ..., description="UUID of the LangGraph DAG run; ties back to agent_runs."
+    )
+    primary_model_id: str = Field(
+        ..., description="Bedrock model id, e.g. apac.anthropic.claude-sonnet-4-6-20251022-v1:0."
+    )
     confidence: float = Field(..., ge=0.0, le=1.0)
-    triggered_hitl: bool = Field(default=False, description="True if ClinCase routed the case to human review.")
+    triggered_hitl: bool = Field(
+        default=False, description="True if ClinCase routed the case to human review."
+    )
     case_id: str = Field(..., description="ClinCase internal case_id; pivot for audit drill-down.")
-    decision_hash_sha256: str = Field(..., description="Tamper-evident hash of (verdict|rationale|citations|model_id).")
+    decision_hash_sha256: str = Field(
+        ..., description="Tamper-evident hash of (verdict|rationale|citations|model_id)."
+    )
 
 
 class FacetsPAEvent(BaseModel):
@@ -71,7 +85,9 @@ class FacetsPAEvent(BaseModel):
 
     schema_name: str = Field(default="prior_auth_event", description="Facets event schema family.")
     schema_version: str = Field(default="v3")
-    action: str = Field(..., description="created | updated | closed_approved | closed_denied | closed_referred")
+    action: str = Field(
+        ..., description="created | updated | closed_approved | closed_denied | closed_referred"
+    )
     occurred_at: str = Field(..., description="ISO-8601 UTC timestamp.")
     correlation_id: str = Field(..., description="ClinCase-side correlation ID (case_id).")
     member: FacetsMember

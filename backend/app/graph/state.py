@@ -2,6 +2,7 @@
 
 Source of truth: PROPOSAL.md §8.
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Literal
@@ -38,9 +39,9 @@ class ClinCaseState(BaseModel):
     # --- Input (immutable) ----------------------------------------------
     case_id: str
     organization_id: str = "org_demo"
-    fhir_bundle: dict
+    fhir_bundle: dict[str, Any]
     physician_note: str | None = None
-    requested_treatment: dict  # {name, hcpcs_code, j_code, dose, frequency}
+    requested_treatment: dict[str, Any]  # {name, hcpcs_code, j_code, dose, frequency}
     payer_id: str
 
     # --- Per-case AgentContext (shared budget + trace_sink) -------------
@@ -55,7 +56,7 @@ class ClinCaseState(BaseModel):
     policy_excerpts: list[PolicyExcerpt] = Field(default_factory=list)
     necessity_assessment: NecessityAssessment | None = None
     decision: Decision | None = None
-    denial_forecast: DenialForecast | None = None      # 6th agent — runs on every case
+    denial_forecast: DenialForecast | None = None  # 6th agent — runs on every case
     appeal_draft: AppealDraft | None = None
     patient_communication: PatientCommunication | None = None  # 7th agent — terminal
 
@@ -72,7 +73,7 @@ class ClinCaseState(BaseModel):
 
     # --- Routing / trace -----------------------------------------------
     next_route: Literal["approve_done", "refer_done", "denial_path"] | None = None
-    trace_events: list[dict] = Field(default_factory=list)
+    trace_events: list[dict[str, Any]] = Field(default_factory=list)
 
 
 def get_or_init_agent_context(state: ClinCaseState) -> AgentContext:
@@ -90,4 +91,5 @@ def get_or_init_agent_context(state: ClinCaseState) -> AgentContext:
             case_id=state.case_id,
             organization_id=state.organization_id,
         )
-    return state._agent_context
+    ctx: AgentContext = state._agent_context
+    return ctx

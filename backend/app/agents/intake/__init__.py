@@ -21,6 +21,7 @@ double-charging for LLM tokens — the classifier informs the vision prompt
 ("this is a handwritten Rx, expect drug name + dose") which materially
 improves extraction accuracy on poor-quality inputs.
 """
+
 from app.agents.intake.runner import parse_document
 
 __all__ = ["parse_document"]

@@ -1,4 +1,5 @@
 """LangGraph node + legacy compatibility shims for clinical_extractor."""
+
 from __future__ import annotations
 
 from pathlib import Path

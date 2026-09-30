@@ -10,6 +10,7 @@ would be undemonstrable on exactly the deployments ClinCase supports.
 Nothing here touches the `cases` table or any other existing ClinCase table.
 AquaHealth adds two tables of its own and leaves the clinical schema alone.
 """
+
 from __future__ import annotations
 
 import threading

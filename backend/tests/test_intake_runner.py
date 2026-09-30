@@ -8,6 +8,7 @@ Tests are organised in three layers:
   3. Pipeline   — full end-to-end through the orchestrator with a stub
                   engine; verifies idempotency, fallback chain, HITL routing.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -76,7 +77,11 @@ def _clear_intake_cache():
 def test_classifier_returns_a_valid_classification(fixture_bytes):
     c = classify_document(fixture_bytes)
     assert c.document_type in (
-        "typed_print", "handwritten", "mixed", "structured_form", "unreadable"
+        "typed_print",
+        "handwritten",
+        "mixed",
+        "structured_form",
+        "unreadable",
     )
     assert 0.0 <= c.confidence <= 1.0
     assert c.rationale
@@ -84,9 +89,10 @@ def test_classifier_returns_a_valid_classification(fixture_bytes):
 
 def test_classifier_categorises_synthetic_rx_as_mixed_or_handwritten(fixture_bytes):
     c = classify_document(fixture_bytes)
-    assert c.document_type in ("mixed", "handwritten"), (
-        f"Expected mixed/handwritten on the synthetic Rx, got {c.document_type}"
-    )
+    assert c.document_type in (
+        "mixed",
+        "handwritten",
+    ), f"Expected mixed/handwritten on the synthetic Rx, got {c.document_type}"
 
 
 def test_classifier_handles_garbage_bytes_gracefully():
@@ -100,9 +106,12 @@ def test_classifier_handles_garbage_bytes_gracefully():
 # ---------------------------------------------------------------------------
 class _StubVisionEngine(OCREngine):
     """Returns a deterministic OCRResult; never touches the network."""
+
     name: ClassVar[str] = "claude_vision_bedrock"
     capabilities: ClassVar[EngineCapabilities] = EngineCapabilities(
-        handles_handwriting=True, handles_typed_print=True, handles_tables=True,
+        handles_handwriting=True,
+        handles_typed_print=True,
+        handles_tables=True,
     )
 
     def __init__(self, *, overall_confidence: float = 0.86, with_binding_fields: bool = True):
@@ -112,14 +121,31 @@ class _StubVisionEngine(OCREngine):
     async def extract(self, *, image_bytes, image_format, classification):
         fields: list[ExtractedField] = []
         if self._with_binding:
-            fields.extend([
-                ExtractedField(name="requested_treatment.name", value="trastuzumab",
-                               confidence=0.93, source_excerpt="Inj. Herceptin", page=1),
-                ExtractedField(name="primary_diagnosis.description", value="Carcinoma of left breast",
-                               confidence=0.86, source_excerpt="Ca Breast Lt", page=1),
-                ExtractedField(name="biomarkers.HER2.value", value="Positive",
-                               confidence=0.88, source_excerpt="HER2+", page=1),
-            ])
+            fields.extend(
+                [
+                    ExtractedField(
+                        name="requested_treatment.name",
+                        value="trastuzumab",
+                        confidence=0.93,
+                        source_excerpt="Inj. Herceptin",
+                        page=1,
+                    ),
+                    ExtractedField(
+                        name="primary_diagnosis.description",
+                        value="Carcinoma of left breast",
+                        confidence=0.86,
+                        source_excerpt="Ca Breast Lt",
+                        page=1,
+                    ),
+                    ExtractedField(
+                        name="biomarkers.HER2.value",
+                        value="Positive",
+                        confidence=0.88,
+                        source_excerpt="HER2+",
+                        page=1,
+                    ),
+                ]
+            )
         return OCRResult(
             engine=self.name,
             full_text="Inj. Herceptin 6mg/kg IV q3w x 17",
@@ -135,18 +161,26 @@ class _StubVisionEngine(OCREngine):
                     "source_resource_id": "intake-doc-stub",
                 },
                 "requested_treatment": {
-                    "name": "trastuzumab", "j_code": None, "dose": "6 mg/kg",
-                    "frequency": "q3w x 17", "intent": "adjuvant",
+                    "name": "trastuzumab",
+                    "j_code": None,
+                    "dose": "6 mg/kg",
+                    "frequency": "q3w x 17",
+                    "intent": "adjuvant",
                 },
-            } if self._with_binding else {},
+            }
+            if self._with_binding
+            else {},
         )
 
 
 class _AlwaysFailEngine(OCREngine):
     """Used to verify fallback chain + HITL routing on total failure."""
+
     name: ClassVar[str] = "claude_vision_bedrock"  # match a real engine name for capabilities check
     capabilities: ClassVar[EngineCapabilities] = EngineCapabilities(
-        handles_handwriting=True, handles_typed_print=True, handles_tables=True,
+        handles_handwriting=True,
+        handles_typed_print=True,
+        handles_tables=True,
     )
 
     async def extract(self, *, image_bytes, image_format, classification):
@@ -174,7 +208,9 @@ def test_pipeline_assembles_intake_result_with_stub_vision(fixture_doc):
     assert "stage_timings_ms" in result.audit
     assert result.audit["schema_version"] == "v1"
     # Snapshot was threaded through from vision JSON
-    assert result.clinical_snapshot_partial.get("requested_treatment", {}).get("name") == "trastuzumab"
+    assert (
+        result.clinical_snapshot_partial.get("requested_treatment", {}).get("name") == "trastuzumab"
+    )
 
 
 def test_pipeline_routes_to_hitl_on_low_confidence(fixture_doc):
@@ -228,13 +264,10 @@ def test_pipeline_caches_on_sha256_for_idempotency(fixture_doc):
     # the first result without re-invoking.
     _reset_registry([_AlwaysFailEngine()])
     second = asyncio.run(parse_document(fixture_doc, tenant_id="test-org"))
-    assert second.requires_human_review is False, (
-        "Expected cache hit to bypass the failing engine"
-    )
+    assert second.requires_human_review is False, "Expected cache hit to bypass the failing engine"
     # Snapshot threaded through cache too
     assert (
-        second.clinical_snapshot_partial.get("requested_treatment", {}).get("name")
-        == "trastuzumab"
+        second.clinical_snapshot_partial.get("requested_treatment", {}).get("name") == "trastuzumab"
     )
 
 

@@ -10,6 +10,7 @@ class itself. This file holds:
 When tests stop referencing the legacy shims, this file collapses to just
 the LangGraph node.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -56,8 +57,7 @@ async def necessity_reasoner_node(state: ClinCaseState) -> dict[str, Any]:
 
 
 _PROMPT = (
-    Path(__file__).resolve().parents[2]
-    / "prompts" / "necessity_reasoner" / "orchestrator.txt"
+    Path(__file__).resolve().parents[2] / "prompts" / "necessity_reasoner" / "orchestrator.txt"
 ).read_text(encoding="utf-8")
 
 

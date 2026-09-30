@@ -14,6 +14,7 @@ Registry order matters: when multiple engines could handle a document,
 the EARLIER one in the registry wins. Override per-tenant by setting
 `tenant_policies.preferred_intake_engine` (planned).
 """
+
 from __future__ import annotations
 
 import logging
@@ -33,10 +34,10 @@ log = logging.getLogger(__name__)
 # it's the only engine that handles handwriting reliably — and a typed
 # print document still extracts well from it (just slower / more expensive).
 ENGINE_REGISTRY: list[OCREngine] = [
-    ClaudeVisionEngine(),   # 1st: LLM vision — best quality, handles all doc types
-    PyPDFEngine(),          # 2nd: text-layer PDF extraction — free, no AWS needed
-    AWSTextractEngine(),    # 3rd: Textract — image-only PDFs + typed print
-    TesseractEngine(),      # 4th: last-resort local OCR
+    ClaudeVisionEngine(),  # 1st: LLM vision — best quality, handles all doc types
+    PyPDFEngine(),  # 2nd: text-layer PDF extraction — free, no AWS needed
+    AWSTextractEngine(),  # 3rd: Textract — image-only PDFs + typed print
+    TesseractEngine(),  # 4th: last-resort local OCR
 ]
 
 

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * /policies — Policy Library card grid.
  *
  * 5 real payer policies from backend/app/data/policies.json (mirrored in
@@ -28,7 +28,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { authHeader } from "../lib/auth";
-import { POLICIES } from "../lib/syntheticPolicies";
+import { api } from "../lib/api";
+import { useLive } from "../lib/useLive";
+
+const PAYER_NAMES: Record<string, string> = {
+  aetna: "Aetna",
+  uhc: "UnitedHealthcare",
+  bcbs: "BlueCross BlueShield",
+  anthem: "Anthem",
+};
 
 const PAYER_TINT: Record<string, string> = {
   aetna:  "bg-gray-500/15    text-gray-700    dark:text-gray-300",
@@ -227,9 +235,12 @@ export default function Policies() {
     }
   }, [uploadFile, refreshPolicies]);
 
+  const catalog = useLive(() => api.getPolicyCatalog(), []);
+  const policies = catalog.data?.policies ?? [];
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return POLICIES.filter((p) => {
+    return policies.filter((p) => {
       if (payerFilter !== "all" && p.payer_id !== payerFilter) return false;
       if (q) {
         const blob = `${p.policy_id} ${p.title} ${p.treatment_keywords.join(" ")}`.toLowerCase();
@@ -237,9 +248,9 @@ export default function Policies() {
       }
       return true;
     });
-  }, [search, payerFilter]);
+  }, [search, payerFilter, policies]);
 
-  const recentlyUpdated = POLICIES.filter((p) => p.status === "updated_recently");
+  const recentlyUpdated = policies.filter((p) => p.has_recent_change);
 
   return (
     <div className="px-6 py-6">
@@ -250,9 +261,9 @@ export default function Policies() {
             Policy Library
           </h1>
           <p className="text-sm text-ink-muted mt-1">
-            <span className="text-mono-tech text-ink-body">{POLICIES.length}</span> policies indexed
+            <span className="text-mono-tech text-ink-body" data-testid="policy-count">{catalog.data ? policies.length : "—"}</span> policies indexed
             <span className="mx-2 text-ink-faint">·</span>
-            <span className="text-mono-tech text-ink-body">4</span> payers
+            <span className="text-mono-tech text-ink-body" data-testid="payer-count">{catalog.data ? catalog.data.payers.length : "—"}</span> payers
             <span className="mx-2 text-ink-faint">·</span>
             <span className="text-accent-cyan font-medium">RAG-ready</span>
           </p>
@@ -431,7 +442,7 @@ export default function Policies() {
               {recentlyUpdated.length} polic{recentlyUpdated.length === 1 ? "y" : "ies"} updated recently
             </div>
             <div className="text-xs text-ink-muted mt-0.5">
-              ClinCase automatically re-evaluates in-flight cases against new policy versions. View the diff to see what criteria changed.
+              Matched from the recorded payer policy-change snapshot{catalog.data ? ` (${new Date(catalog.data.snapshot.taken_at).toLocaleDateString()})` : ""}. Open a policy to see what changed and which of your open cases it governs.
             </div>
           </div>
           {recentlyUpdated[0] && (
@@ -439,7 +450,7 @@ export default function Policies() {
               to={`/policies/${recentlyUpdated[0].policy_id}/diff`}
               className="text-xs font-medium text-accent-amber hover:underline shrink-0"
             >
-              View diff →
+              View changes →
             </Link>
           )}
         </div>
@@ -603,10 +614,9 @@ export default function Policies() {
             className="appearance-none pl-3 pr-8 py-1.5 rounded-lg border border-surface-border bg-surface-bg text-sm text-ink-body cursor-pointer hover:bg-surface-raised-hi"
           >
             <option value="all">All payers</option>
-            <option value="aetna">Aetna</option>
-            <option value="uhc">UnitedHealthcare</option>
-            <option value="bcbs">BlueCross BlueShield</option>
-            <option value="anthem">Anthem</option>
+            {(catalog.data?.payers ?? []).map((id) => (
+              <option key={id} value={id}>{PAYER_NAMES[id] ?? id.toUpperCase()}</option>
+            ))}
           </select>
           <ChevronDown
             size={14}
@@ -618,7 +628,7 @@ export default function Policies() {
       {/* Card grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filtered.map((p) => {
-          const isUpdated = p.status === "updated_recently";
+          const isUpdated = p.has_recent_change;
           return (
             <Link
               key={`${p.payer_id}-${p.policy_id}`}
@@ -638,7 +648,7 @@ export default function Policies() {
                     PAYER_TINT[p.payer_id],
                   )}
                 >
-                  {p.initial}
+                  {p.payer_id.charAt(0).toUpperCase()}
                 </span>
                 <div className="flex-1 min-w-0">
                   <div className="text-[10px] text-compact text-ink-muted">
@@ -666,10 +676,10 @@ export default function Policies() {
                   <FileText size={11} />
                   {p.section_count} {p.section_count === 1 ? "section" : "sections"} · {p.word_count.toLocaleString()} words
                 </span>
-                <span>{p.version}</span>
+                <span>{p.source_url ? "source ↗" : ""}</span>
               </div>
               <div className="flex items-center justify-between text-[11px] text-ink-muted">
-                <span>updated {timeAgo(p.last_updated_iso)}</span>
+                <span>{p.recent_change_at ? `change recorded ${timeAgo(p.recent_change_at)}` : "no recorded change"}</span>
                 <span className="flex items-center gap-1 text-accent-brand opacity-0 group-hover:opacity-100 transition-opacity">
                   View policy <ArrowRight size={11} />
                 </span>
@@ -678,7 +688,16 @@ export default function Policies() {
           );
         })}
 
-        {filtered.length === 0 && (
+        {catalog.error && (
+          <div role="alert" data-testid="catalog-error" className="col-span-full p-6 text-sm text-accent-red">
+            Could not load the policy catalog: {catalog.error}{" "}
+            <button type="button" className="underline" onClick={catalog.reload}>Retry</button>
+          </div>
+        )}
+        {!catalog.data && catalog.loading && (
+          <div className="col-span-full p-10 text-center text-ink-muted text-sm" role="status">Loading policies…</div>
+        )}
+        {catalog.data && filtered.length === 0 && (
           <div className="col-span-full p-10 text-center text-ink-muted text-sm">
             No policies match your filters.
           </div>

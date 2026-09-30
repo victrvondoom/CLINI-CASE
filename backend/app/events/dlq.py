@@ -10,6 +10,7 @@ Round-12 adds:
   • Move-to-DLQ rule: attempts >= MAX_ATTEMPTS (default 10)
   • Operator endpoints to inspect DLQ + replay events
 """
+
 from __future__ import annotations
 
 import os
@@ -75,7 +76,9 @@ async def maybe_move_to_dlq(*, event_id: str, attempts: int, last_error: str | N
             row["organization_id"],
             row["event_type"],
             row.get("case_id") if hasattr(row, "get") else row["case_id"],
-            row["payload"] if isinstance(row["payload"], str) else __import__("json").dumps(row["payload"]),
+            row["payload"]
+            if isinstance(row["payload"], str)
+            else __import__("json").dumps(row["payload"]),
             attempts,
             last_error,
             row["created_at"],
@@ -94,13 +97,16 @@ async def list_dlq(
         rows = await db.fetch_ro(
             "SELECT * FROM event_outbox_dlq WHERE organization_id = $1 AND event_type = $2 "
             "ORDER BY moved_to_dlq_at DESC LIMIT $3",
-            organization_id, event_type, limit,
+            organization_id,
+            event_type,
+            limit,
         )
     else:
         rows = await db.fetch_ro(
             "SELECT * FROM event_outbox_dlq WHERE organization_id = $1 "
             "ORDER BY moved_to_dlq_at DESC LIMIT $2",
-            organization_id, limit,
+            organization_id,
+            limit,
         )
     return [dict(r) for r in rows]
 
@@ -111,7 +117,8 @@ async def replay(*, event_id: str, organization_id: str) -> bool:
     async with db.pool.acquire() as conn, conn.transaction():
         row = await conn.fetchrow(
             "SELECT * FROM event_outbox_dlq WHERE event_id = $1 AND organization_id = $2 FOR UPDATE",
-            event_id, organization_id,
+            event_id,
+            organization_id,
         )
         if row is None:
             return False
@@ -128,7 +135,9 @@ async def replay(*, event_id: str, organization_id: str) -> bool:
             row["organization_id"],
             row["event_type"],
             row["case_id"],
-            row["payload"] if isinstance(row["payload"], str) else __import__("json").dumps(row["payload"]),
+            row["payload"]
+            if isinstance(row["payload"], str)
+            else __import__("json").dumps(row["payload"]),
         )
         await conn.execute(
             "UPDATE event_outbox_dlq SET replay_count = replay_count + 1 WHERE event_id = $1",

@@ -1,4 +1,5 @@
 """FastAPI dependencies for authenticated + role-gated routes."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -54,11 +55,15 @@ async def get_current_user(
             # Only known demo identities may survive an actual database outage.
             # A successful lookup returning no row MUST revoke an old token.
             from app.api.auth import _DEMO_USERS_DBLESS
+
             demo = _DEMO_USERS_DBLESS.get(claims.get("email", ""))
-            if demo and all((
-                user_id == demo["id"], claims.get("org") == demo["organization_id"],
-                claims.get("role") == demo["role"],
-            )):
+            if demo and all(
+                (
+                    user_id == demo["id"],
+                    claims.get("org") == demo["organization_id"],
+                    claims.get("role") == demo["role"],
+                )
+            ):
                 return {**demo, "email": claims["email"], "created_at": None}
         raise HTTPException(status_code=503, detail="Authentication service unavailable") from exc
 

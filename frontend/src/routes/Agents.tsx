@@ -1,7 +1,7 @@
-﻿/**
+/**
  * /agents — Agents Meta-View.
  *
- * Datadog-APM-style transparency into the 7 agents (and 21 sub-agents) that power ClinCase.
+ * Datadog-APM-style transparency into the 7 agents (and their sub-agents) that power ClinCase.
  * Each agent: purpose, input → output schema, 24h stats, recent invocations.
  *
  * When someone asks "how does it actually work?", show
@@ -9,7 +9,7 @@
  * health metrics that prove the system is enterprise-grade.
  */
 import clsx from "clsx";
-import { useState, useCallback } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   Activity,
   Cpu,
@@ -26,6 +26,19 @@ import {
   Shield,
 } from "lucide-react";
 import { authHeader } from "../lib/auth";
+import {
+  buildAgents,
+  conditionalBranches,
+  mcpArgs,
+  type AgentState,
+  type AgentView,
+  type AgentsManifest,
+  type McpTool,
+  type MetricsReport,
+  type PipelineGraph,
+} from "../lib/agentsModel";
+import { getJson } from "../lib/agentsApi";
+import { useLive } from "../lib/useLive";
 
 interface AgentRun {
   id: string;
@@ -39,318 +52,139 @@ interface AgentRun {
   error_text: string | null;
 }
 
-interface MCPTool {
-  name: string;
-  description: string;
-  args: { name: string; type: string; required: boolean }[];
-}
-
-const MCP_TOOLS: MCPTool[] = [
-  {
-    name: "policy_lookup",
-    description:
-      "Look up payer-specific PA policy sections for a treatment. Backed by 22-policy corpus across Aetna/UHC/BCBS/Anthem (production: Bedrock KB).",
-    args: [
-      { name: "payer_id", type: "string", required: true },
-      { name: "treatment", type: "string", required: true },
-    ],
-  },
-  {
-    name: "clinical_extract",
-    description:
-      "Return ClinCase's structured ClinicalSnapshot from a case (idempotent read from agent_traces — no LLM re-invocation).",
-    args: [{ name: "case_id", type: "string", required: true }],
-  },
-  {
-    name: "decision_check",
-    description:
-      "Return the verdict (APPROVE/DENY/REFER), confidence, cited rationale, and citations for a case.",
-    args: [{ name: "case_id", type: "string", required: true }],
-  },
-  {
-    name: "appeal_draft",
-    description:
-      "Return the drafted appeal letter for a denied case — NCCN-citing, ready for payer submission.",
-    args: [{ name: "case_id", type: "string", required: true }],
-  },
-  {
-    name: "audit_query",
-    description:
-      "Return full agent trace for CMS-0057-F audit reconstruction: agent names, model IDs, tokens, latency, status.",
-    args: [{ name: "case_id", type: "string", required: true }],
-  },
-];
-
-interface SubAgent {
-  name: string;
-  role: string;
-}
-
-interface AgentMeta {
-  id: string;
-  index: number;
-  display: string;
-  purpose: string;
-  input_type: string;
-  output_type: string;
-  prompt_path: string;
-  model: string;
-  tools_count: number;
-  conditional?: string;
-  invocations_24h: number;
-  success_pct: number;
-  p50_ms: number;
-  p95_ms: number;
-  mean_input_tokens: number;
-  mean_output_tokens: number;
-  cost_24h_usd: number;
-  state: "healthy" | "running" | "error";
-  sub_agents: SubAgent[];
-}
-
-const AGENTS: AgentMeta[] = [
-  {
-    id: "clinical_extractor",
-    index: 1,
-    display: "Clinical Extractor",
-    purpose: "Parses FHIR R4 bundle + physician note into a strictly-typed ClinicalSnapshot.",
-    input_type: "{ fhir_bundle, physician_note?, requested_treatment }",
-    output_type: "ClinicalSnapshot",
-    prompt_path: "backend/app/prompts/clinical_extractor.txt",
-    model: "claude-sonnet-4-6",
-    tools_count: 0,
-    invocations_24h: 1247,
-    success_pct: 100.0,
-    p50_ms: 9_200,
-    p95_ms: 14_100,
-    mean_input_tokens: 2580,
-    mean_output_tokens: 560,
-    cost_24h_usd: 4.12,
-    state: "healthy",
-    sub_agents: [
-      { name: "fhir_resource_validator", role: "Validates Bundle structure pre-LLM" },
-      { name: "biomarker_specialist",     role: "HER2/EGFR/BRCA/ECOG/LVEF extraction" },
-      { name: "phi_sanitizer",            role: "Bedrock Guardrail PII filter wrapper" },
-    ],
-  },
-  {
-    id: "policy_retriever",
-    index: 2,
-    display: "Policy Retriever",
-    purpose: "Filters payer policies by treatment keyword + LLM-reranks top 5 most relevant excerpts.",
-    input_type: "{ clinical_snapshot, payer_id }",
-    output_type: "PolicyExcerpt[]",
-    prompt_path: "backend/app/prompts/policy_retriever_rerank.txt",
-    model: "claude-sonnet-4-6",
-    tools_count: 1,
-    invocations_24h: 1247,
-    success_pct: 100.0,
-    p50_ms: 60,
-    p95_ms: 4_200,
-    mean_input_tokens: 240,
-    mean_output_tokens: 38,
-    cost_24h_usd: 0.31,
-    state: "healthy",
-    sub_agents: [
-      { name: "keyword_filter",     role: "Payer + treatment-keyword candidate filter (no LLM)" },
-      { name: "llm_reranker",       role: "Cross-encoder rerank when >5 candidates" },
-      { name: "citation_resolver",  role: "Source URL + page + section pointer" },
-    ],
-  },
-  {
-    id: "necessity_reasoner",
-    index: 3,
-    display: "Necessity Reasoner",
-    purpose: "Line-by-line criterion match against payer policy. Each criterion → MET / NOT_MET / AMBIGUOUS with confidence score.",
-    input_type: "{ clinical_snapshot, policy_excerpts }",
-    output_type: "NecessityAssessment",
-    prompt_path: "backend/app/prompts/necessity_reasoner.txt",
-    model: "claude-sonnet-4-6",
-    tools_count: 0,
-    invocations_24h: 1241,
-    success_pct: 99.4,
-    p50_ms: 24_800,
-    p95_ms: 31_200,
-    mean_input_tokens: 2399,
-    mean_output_tokens: 1918,
-    cost_24h_usd: 35.92,
-    state: "running",
-    sub_agents: [
-      { name: "criterion_splitter",      role: "Splits multi-clause criteria into atomic checks" },
-      { name: "evidence_matcher",        role: "Matches ClinicalSnapshot facts to each criterion" },
-      { name: "confidence_calibrator",   role: "Per-criterion confidence; aggregates to overall" },
-    ],
-  },
-  {
-    id: "decision_composer",
-    index: 4,
-    display: "Decision Composer",
-    purpose: "Deterministic verdict rule (any NOT_MET → DENY, any AMBIGUOUS → REFER, else APPROVE) plus LLM-generated rationale + citation chain.",
-    input_type: "{ necessity_assessment, clinical_snapshot, policy_excerpts }",
-    output_type: "Decision",
-    prompt_path: "backend/app/prompts/decision_composer.txt",
-    model: "claude-sonnet-4-6",
-    tools_count: 0,
-    invocations_24h: 1241,
-    success_pct: 100.0,
-    p50_ms: 11_200,
-    p95_ms: 13_800,
-    mean_input_tokens: 4124,
-    mean_output_tokens: 614,
-    cost_24h_usd: 12.74,
-    state: "healthy",
-    sub_agents: [
-      { name: "verdict_synthesizer",  role: "Deterministic APPROVE/DENY/REFER rule (no LLM)" },
-      { name: "rationale_writer",     role: "Plain-English paragraph for execs + patients" },
-      { name: "citation_linker",      role: "Every claim has an evidence or policy pointer" },
-    ],
-  },
-  {
-    id: "denial_forecaster",
-    index: 5,
-    display: "Denial Forecaster",
-    purpose: "Predicts the payer's denial probability + top likely denial reasons + recommended appeal angle. KFF-2024 calibrated.",
-    input_type: "{ decision, necessity_assessment, clinical_snapshot, policy_excerpts, payer_id }",
-    output_type: "DenialForecast",
-    prompt_path: "backend/app/prompts/denial_forecaster.txt",
-    model: "claude-sonnet-4-6",
-    tools_count: 0,
-    invocations_24h: 1241,
-    success_pct: 99.8,
-    p50_ms: 4_900,
-    p95_ms: 7_800,
-    mean_input_tokens: 3380,
-    mean_output_tokens: 480,
-    cost_24h_usd: 9.18,
-    state: "healthy",
-    sub_agents: [
-      { name: "probability_estimator",     role: "Base-rate calibrated payer-denial probability ∈ [0,1]" },
-      { name: "reason_predictor",          role: "Top 3 likely payer denial rationales w/ pointers" },
-      { name: "appeal_path_recommender",   role: "Best appeal angle + KFF-baseline overturn probability" },
-    ],
-  },
-  {
-    id: "appeals_drafter",
-    index: 6,
-    display: "Appeals Drafter",
-    purpose: "Drafts a formal evidence-grounded appeal letter (~600 words) on DENY verdicts. NCCN / ASCO / FDA-cited.",
-    input_type: "{ decision, clinical_snapshot, policy_excerpts, external_denial_letter? }",
-    output_type: "AppealDraft",
-    prompt_path: "backend/app/prompts/appeals_drafter.txt",
-    model: "claude-sonnet-4-6",
-    tools_count: 0,
-    conditional: "verdict === 'DENY'",
-    invocations_24h: 287,
-    success_pct: 98.7,
-    p50_ms: 48_500,
-    p95_ms: 52_400,
-    mean_input_tokens: 3049,
-    mean_output_tokens: 2905,
-    cost_24h_usd: 16.49,
-    state: "healthy",
-    sub_agents: [
-      { name: "counter_evidence_finder",     role: "Pulls clinical facts contradicting the denial" },
-      { name: "nccn_reference_specialist",   role: "Finds the precise NCCN guideline citation" },
-      { name: "letter_composer",             role: "Writes the formal appeal letter prose + JSON" },
-    ],
-  },
-  {
-    id: "patient_communicator",
-    index: 7,
-    display: "Patient Communicator",
-    purpose: "Produces a 6th-grade-reading-level patient-facing summary + concrete next-step actions, calibrated to verdict tone.",
-    input_type: "{ decision, appeal_draft?, clinical_snapshot, payer_id }",
-    output_type: "PatientCommunication",
-    prompt_path: "backend/app/prompts/patient_communicator.txt",
-    model: "claude-sonnet-4-6",
-    tools_count: 0,
-    invocations_24h: 1241,
-    success_pct: 100.0,
-    p50_ms: 5_800,
-    p95_ms: 8_400,
-    mean_input_tokens: 1820,
-    mean_output_tokens: 530,
-    cost_24h_usd: 6.94,
-    state: "healthy",
-    sub_agents: [
-      { name: "reading_level_tuner",  role: "Calibrates language to ≤7.0 Flesch-Kincaid grade" },
-      { name: "empathy_layer",        role: "Tone (reassuring/neutral/urgent) by verdict" },
-      { name: "action_step_writer",   role: "Up to 5 concrete next-step imperatives" },
-    ],
-  },
-];
-
-const STATE_DOT: Record<AgentMeta["state"], string> = {
+const STATE_DOT: Record<AgentState, string> = {
   healthy: "bg-accent-green",
   running: "bg-accent-brand animate-pulse-soft",
   error:   "bg-accent-red",
+  idle:    "bg-ink-faint",
 };
 
-const STATE_LABEL: Record<AgentMeta["state"], string> = {
+const STATE_LABEL: Record<AgentState, string> = {
   healthy: "HEALTHY",
   running: "RUNNING",
   error:   "ERROR",
+  idle:    "NO RUNS IN WINDOW",
 };
 
-function formatMs(ms: number): string {
+function formatMs(ms: number | null): string {
+  if (ms == null) return "—";
   if (ms < 1000) return `${ms}ms`;
   return `${(ms / 1000).toFixed(1)}s`;
 }
 
-const totalInvocations = AGENTS.reduce((s, a) => s + a.invocations_24h, 0);
-const totalCost = AGENTS.reduce((s, a) => s + a.cost_24h_usd, 0);
+const WINDOWS = [
+  { hours: 24, label: "24 h" },
+  { hours: 24 * 7, label: "7 d" },
+  { hours: 24 * 30, label: "30 d" },
+];
+const POLL_MS = 30_000;
 
 export default function Agents() {
+  const [hours, setHours] = useState(24);
+  const manifest = useLive<AgentsManifest>(() => getJson("/api/v1/agents/manifest", false), [], 0);
+  const metrics = useLive<MetricsReport>(() => getJson(`/api/v1/agents/metrics?hours=${hours}`), [hours], POLL_MS);
+  const mcp = useLive<{ tools: McpTool[]; endpoint: string; spec_version: string }>(() => getJson("/mcp/manifest", false), [], 0);
+  const agents = useMemo(() => (manifest.data ? buildAgents(manifest.data, metrics.data) : []), [manifest.data, metrics.data]);
+  const winLabel = WINDOWS.find((w) => w.hours === hours)?.label ?? `${hours} h`;
+  const models = useMemo(() => [...new Set(Object.values(metrics.data?.agents ?? {}).map((a) => a.model_id).filter((m): m is string => !!m))], [metrics.data]);
+
   return (
-    <div className="px-6 py-6">
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold text-ink-primary leading-tight flex items-center gap-2">
-          <Cpu size={22} className="text-accent-brand" />
-          Agents
-        </h1>
-        <p className="text-sm text-ink-muted mt-1">
-          <span className="text-mono-tech text-ink-body">7</span> parent agents
-          <span className="mx-2 text-ink-faint">·</span>
-          <span className="text-mono-tech text-ink-body">21</span> sub-agents
-          <span className="mx-2 text-ink-faint">·</span>
-          <span className="text-mono-tech text-ink-body">{totalInvocations.toLocaleString()}</span> invocations / 24h
-          <span className="mx-2 text-ink-faint">·</span>
-          <span className="text-mono-tech text-ink-body">${totalCost.toFixed(2)}</span> cost / 24h
-          <span className="mx-2 text-ink-faint">·</span>
-          <span className="text-accent-cyan text-mono-tech">claude-sonnet-4-6</span>
-        </p>
+    <div className="px-6 py-6" data-testid="agents-page">
+      <header className="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold text-ink-primary leading-tight flex items-center gap-2">
+            <Cpu size={22} className="text-accent-brand" />
+            Agents
+          </h1>
+          <p className="text-sm text-ink-muted mt-1" data-testid="agents-summary">
+            <span className="text-mono-tech text-ink-body">{manifest.data?.n_agents ?? "—"}</span> parent agents
+            <span className="mx-2 text-ink-faint">·</span>
+            <span className="text-mono-tech text-ink-body">{manifest.data?.n_sub_agents ?? "—"}</span> sub-agents
+            <span className="mx-2 text-ink-faint">·</span>
+            <span className="text-mono-tech text-ink-body">{metrics.data ? metrics.data.totals.invocations.toLocaleString() : "—"}</span> invocations / {winLabel}
+            <span className="mx-2 text-ink-faint">·</span>
+            <span className="text-mono-tech text-ink-body">{metrics.data ? `$${metrics.data.totals.cost_usd.toFixed(2)}` : "—"}</span> est. cost / {winLabel}
+            {models.length > 0 && (
+              <>
+                <span className="mx-2 text-ink-faint">·</span>
+                <span className="text-accent-cyan text-mono-tech">{models.join(", ")}</span>
+              </>
+            )}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 text-xs">
+          <div role="group" aria-label="Metrics window" className="inline-flex rounded-md border border-surface-border overflow-hidden">
+            {WINDOWS.map((w) => (
+              <button key={w.hours} type="button" aria-pressed={hours === w.hours} onClick={() => setHours(w.hours)}
+                className={`px-2.5 py-1 ${hours === w.hours ? "bg-accent-brand/15 text-ink-primary" : "text-ink-muted hover:text-ink-primary"}`}>
+                {w.label}
+              </button>
+            ))}
+          </div>
+          <button type="button" onClick={() => { manifest.reload(); metrics.reload(); }} aria-label="Refresh agent data"
+            className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-surface-border text-ink-muted hover:text-ink-primary">
+            {metrics.loading ? <Loader2 size={12} className="animate-spin" /> : null}
+            {metrics.updatedAt ? metrics.updatedAt.toLocaleTimeString() : "Refresh"}
+          </button>
+        </div>
       </header>
 
-      {/* DAG visual */}
-      <section className="bg-surface-raised border border-surface-border rounded-2xl p-5 mb-6">
-        <div className="flex items-center gap-2 mb-3">
-          <Network size={16} className="text-accent-brand" />
-          <h3 className="text-sm font-semibold text-ink-primary">LangGraph DAG</h3>
-          <span className="text-[10px] text-compact text-ink-muted">
-            with conditional edge
-          </span>
+      {manifest.error && (
+        <div role="alert" data-testid="agents-manifest-error" className="mb-4 rounded-lg border border-accent-red/40 bg-accent-red/10 px-3 py-2 text-sm">
+          Could not load the agent manifest: {manifest.error} <button type="button" className="underline" onClick={manifest.reload}>Retry</button>
         </div>
-        <DagVisual agents={AGENTS} />
-      </section>
+      )}
+      {metrics.error && (
+        <div role="alert" data-testid="agents-metrics-error" className="mb-4 rounded-lg border border-accent-amber/40 bg-accent-amber/10 px-3 py-2 text-sm">
+          Live metrics unavailable ({metrics.error}). Agent definitions below are still current; run statistics show “—”.
+        </div>
+      )}
+      {!manifest.data && manifest.loading && <p className="text-sm text-ink-muted" role="status">Loading agents…</p>}
+      {metrics.data && metrics.data.totals.invocations === 0 && (
+        <p data-testid="agents-no-runs" className="mb-4 text-xs text-ink-muted">
+          No agent runs recorded in the last {winLabel} for your organisation — run a case and live statistics will appear here.
+        </p>
+      )}
 
-      {/* Agent cards */}
-      <section className="space-y-4">
-        {AGENTS.map((a) => (
-          <AgentMetaCard key={a.id} agent={a} />
-        ))}
-      </section>
+      {manifest.data && (
+        <>
+          {/* DAG visual */}
+          <section className="bg-surface-raised border border-surface-border rounded-2xl p-5 mb-6">
+            <div className="flex items-center gap-2 mb-3">
+              <Network size={16} className="text-accent-brand" />
+              <h3 className="text-sm font-semibold text-ink-primary">LangGraph DAG</h3>
+              <span className="text-[10px] text-compact text-ink-muted">compiled from the running graph</span>
+            </div>
+            <DagVisual agents={agents} graph={manifest.data.graph} />
+            {conditionalBranches(manifest.data.graph).length > 0 && (
+              <p className="mt-2 text-[11px] text-mono-tech text-ink-muted" data-testid="dag-branches">
+                Conditional branches: {conditionalBranches(manifest.data.graph).join(" · ")}
+              </p>
+            )}
+          </section>
+
+          {/* Agent cards */}
+          <section className="space-y-4">
+            {agents.map((a) => (
+              <AgentMetaCard key={a.id} agent={a} windowLabel={winLabel} />
+            ))}
+          </section>
+        </>
+      )}
 
       {/* MCP tool surface */}
-      <MCPSection />
+      {mcp.data && <MCPSection tools={mcp.data.tools} endpoint={mcp.data.endpoint} spec={mcp.data.spec_version} />}
+      {mcp.error && <p className="mt-6 text-xs text-ink-muted">MCP tool list unavailable: {mcp.error}</p>}
     </div>
   );
 }
 
 // =============================================================================
+
 // MCP server card
 // =============================================================================
 
-function MCPSection() {
+function MCPSection({ tools, endpoint, spec }: { tools: McpTool[]; endpoint: string; spec: string }) {
   return (
     <section className="mt-6 bg-surface-raised border border-surface-border rounded-2xl overflow-hidden">
       <div className="px-5 py-3 border-b border-surface-border flex items-center justify-between">
@@ -360,7 +194,7 @@ function MCPSection() {
             MCP tool surface
           </h3>
           <span className="text-[10px] text-compact text-ink-muted hidden md:inline">
-            Model Context Protocol · JSON-RPC 2.0 · spec 2024-11-05
+            Model Context Protocol · JSON-RPC 2.0 · spec {spec}
           </span>
         </div>
         <a
@@ -385,10 +219,10 @@ function MCPSection() {
               TriZetto AI Gateway
             </span>{" "}
             (announced at AWS re:Invent 2025, IND210 — "MCP-compliant agent
-            control") can discover and invoke these 5
+            control") can discover and invoke these {tools.length}
             tools without bespoke integration. Endpoint:{" "}
             <code className="text-mono-tech text-[11px] px-1 py-0.5 rounded bg-surface-panel">
-              POST /mcp
+              POST {endpoint}
             </code>
             .
           </div>
@@ -396,7 +230,7 @@ function MCPSection() {
       </div>
 
       <div className="divide-y divide-surface-border">
-        {MCP_TOOLS.map((t) => (
+        {tools.map((t) => (
           <div key={t.name} className="px-5 py-3 flex items-start gap-4">
             <code className="text-[12px] text-mono-tech text-accent-cyan font-medium shrink-0 w-36">
               {t.name}
@@ -404,7 +238,7 @@ function MCPSection() {
             <div className="flex-1 min-w-0">
               <p className="text-xs text-ink-body leading-snug">{t.description}</p>
               <div className="mt-1 flex flex-wrap gap-1">
-                {t.args.map((a) => (
+                {mcpArgs(t).map((a) => (
                   <span
                     key={a.name}
                     className="text-[10px] text-mono-tech text-ink-muted bg-surface-panel border border-surface-border rounded px-1.5 py-0.5"
@@ -444,7 +278,8 @@ function MCPSection() {
 // DAG visual (pure SVG)
 // =============================================================================
 
-function DagVisual({ agents }: { agents: AgentMeta[] }) {
+function DagVisual({ agents, graph }: { agents: AgentView[]; graph: PipelineGraph | null }) {
+  const conditionalInto = new Set((graph?.edges ?? []).filter((e) => e.conditional).map((e) => e.target));
   const nodeY = 50;
   const nodeWidth = 120;
   const nodeHeight = 56;
@@ -463,7 +298,7 @@ function DagVisual({ agents }: { agents: AgentMeta[] }) {
         {agents.slice(0, -1).map((_, i) => {
           const x1 = (i + 1) * (nodeWidth + gap) - gap + 20;
           const x2 = x1 + gap;
-          const isConditional = i === agents.length - 2; // edge into Appeals
+          const isConditional = conditionalInto.has(agents[i + 1].id);
           return (
             <g key={i}>
               <line
@@ -490,7 +325,7 @@ function DagVisual({ agents }: { agents: AgentMeta[] }) {
                   fontSize={9}
                   fontFamily="monospace"
                 >
-                  if DENY
+                  conditional
                 </text>
               )}
             </g>
@@ -505,14 +340,18 @@ function DagVisual({ agents }: { agents: AgentMeta[] }) {
               ? "rgb(var(--accent-brand) / 0.15)"
               : a.state === "error"
                 ? "rgb(var(--accent-red) / 0.15)"
-                : "rgb(var(--accent-green) / 0.15)";
+                : a.state === "idle"
+                  ? "rgb(var(--surface-panel) / 0.6)"
+                  : "rgb(var(--accent-green) / 0.15)";
           const stroke =
             a.state === "running"
               ? "rgb(var(--accent-brand))"
               : a.state === "error"
                 ? "rgb(var(--accent-red))"
-                : "rgb(var(--accent-green))";
-          const isAppeals = i === agents.length - 1;
+                : a.state === "idle"
+                  ? "rgb(var(--ink-faint))"
+                  : "rgb(var(--accent-green))";
+          const isAppeals = conditionalInto.has(a.id);
           return (
             <g key={a.id}>
               <rect
@@ -614,7 +453,7 @@ interface ContractResult {
   checks: ContractCheck[];
 }
 
-function AgentMetaCard({ agent }: { agent: AgentMeta }) {
+function AgentMetaCard({ agent, windowLabel }: { agent: AgentView; windowLabel: string }) {
   const [runsOpen, setRunsOpen] = useState(false);
   const [runs, setRuns] = useState<AgentRun[] | null>(null);
   const [runsLoading, setRunsLoading] = useState(false);
@@ -698,16 +537,11 @@ function AgentMetaCard({ agent }: { agent: AgentMeta }) {
           <span className="text-[10px] text-compact text-ink-muted">
             {STATE_LABEL[agent.state]}
           </span>
-          {agent.conditional && (
-            <span className="text-[10px] text-mono-tech text-accent-amber bg-accent-amber/10 px-1.5 py-0.5 rounded">
-              conditional · {agent.conditional}
-            </span>
-          )}
         </div>
         <div className="flex items-center gap-3 text-[11px] text-mono-tech text-ink-muted">
           <span className="flex items-center gap-1">
             <Cpu size={11} />
-            {agent.model}
+            {agent.models.length ? agent.models.join(" + ") : "deterministic"}
           </span>
         </div>
       </div>
@@ -751,7 +585,7 @@ function AgentMetaCard({ agent }: { agent: AgentMeta }) {
               View prompt
             </button>
             <span className="text-[10px] text-mono-tech text-ink-faint truncate">
-              {agent.prompt_path}
+              {agent.llm_backed ? "LLM-backed" : "deterministic"}
             </span>
           </div>
 
@@ -775,9 +609,8 @@ function AgentMetaCard({ agent }: { agent: AgentMeta }) {
               </span>
             )}
             {!contractResult && !contractRunning && !contractError && (
-              <span className="text-[10px] text-mono-tech text-accent-green flex items-center gap-1">
-                <CheckCircle2 size={10} />
-                last passed 2h ago
+              <span data-testid="contract-not-run" className="text-[10px] text-mono-tech text-ink-faint">
+                contract test not run yet
               </span>
             )}
             {contractError && (
@@ -804,6 +637,11 @@ function AgentMetaCard({ agent }: { agent: AgentMeta }) {
                     {s.name}
                   </code>
                   <span className="text-ink-muted">— {s.role}</span>
+                  {s.metrics && (
+                    <span className="ml-auto text-[10px] text-mono-tech text-ink-faint whitespace-nowrap">
+                      {s.metrics.invocations} runs · {formatMs(s.metrics.p50_ms)}
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>
@@ -813,15 +651,23 @@ function AgentMetaCard({ agent }: { agent: AgentMeta }) {
         {/* Right: 24h stats */}
         <div className="p-5">
           <div className="text-[10px] text-compact text-ink-muted mb-3">
-            Live stats — last 24h
+            Live stats — last {windowLabel}
           </div>
           <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-            <Stat label="Invocations" value={agent.invocations_24h.toLocaleString()} />
-            <Stat label="Success" value={`${agent.success_pct.toFixed(1)}%`} accent={agent.success_pct === 100 ? "green" : agent.success_pct > 99 ? "amber" : "red"} />
-            <Stat label="p50 latency" value={formatMs(agent.p50_ms)} icon={Clock} />
-            <Stat label="p95 latency" value={formatMs(agent.p95_ms)} icon={Clock} />
-            <Stat label="Mean tokens" value={`${agent.mean_input_tokens} / ${agent.mean_output_tokens}`} mono />
-            <Stat label="Cost / 24h" value={`$${agent.cost_24h_usd.toFixed(2)}`} icon={DollarSign} accent="cyan" />
+            <Stat label="Invocations" value={agent.metrics ? agent.metrics.invocations.toLocaleString() : "—"} />
+            <Stat
+              label="Success"
+              value={agent.metrics?.success_pct != null ? `${agent.metrics.success_pct.toFixed(1)}%` : "—"}
+              accent={agent.metrics?.success_pct == null ? undefined : agent.metrics.success_pct === 100 ? "green" : agent.metrics.success_pct >= 90 ? "amber" : "red"}
+            />
+            <Stat label="p50 latency" value={formatMs(agent.metrics?.p50_ms ?? null)} icon={Clock} />
+            <Stat label="p95 latency" value={formatMs(agent.metrics?.p95_ms ?? null)} icon={Clock} />
+            <Stat
+              label="Mean tokens (in / out)"
+              value={agent.metrics?.mean_input_tokens != null ? `${agent.metrics.mean_input_tokens} / ${agent.metrics.mean_output_tokens ?? "—"}` : "—"}
+              mono
+            />
+            <Stat label={`Est. cost / ${windowLabel}`} value={agent.metrics ? `$${agent.metrics.cost_usd.toFixed(2)}` : "—"} icon={DollarSign} accent="cyan" />
           </div>
           <button
             type="button"
@@ -901,7 +747,7 @@ function AgentMetaCard({ agent }: { agent: AgentMeta }) {
                   {agent.display} — system prompt
                 </div>
                 <div className="text-[10px] text-mono-tech text-ink-faint truncate">
-                  {prompt?.prompt_path ?? agent.prompt_path}
+                  {prompt?.prompt_path ?? `prompts/${agent.id}`}
                   {prompt?.line_count && (
                     <span className="ml-2">· {prompt.line_count} lines · {prompt.byte_size.toLocaleString()} B</span>
                   )}
@@ -931,7 +777,7 @@ function AgentMetaCard({ agent }: { agent: AgentMeta }) {
               {promptLoading && (
                 <div className="text-sm text-ink-muted flex items-center gap-2">
                   <Loader2 size={14} className="animate-spin" />
-                  Loading {agent.prompt_path}…
+                  Loading prompt for {agent.id}…
                 </div>
               )}
               {promptError && (

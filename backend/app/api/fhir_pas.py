@@ -27,6 +27,7 @@ References:
   - https://github.com/HL7-DaVinci/prior-auth
   - https://healthit.gov/blog/interoperability/enhancing-healthcare-interoperability-launching-the-davinci-prior-authorization-support-pas-test-kit/
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -46,6 +47,7 @@ router = APIRouter(prefix="/fhir", tags=["fhir-pas"])
 # Request / response models (Da Vinci PAS-shaped, intentionally permissive)
 # =============================================================================
 
+
 class FHIRBundle(BaseModel):
     """Permissive Bundle wrapper. We don't validate the full IG profile here —
     that's Inferno PAS Test Kit's job — but we do ensure the shape is parseable.
@@ -62,6 +64,7 @@ class FHIRBundle(BaseModel):
 # =============================================================================
 # Claim → ClinicalSnapshot extraction (lightweight; for the stub demo)
 # =============================================================================
+
 
 def _entries(bundle: dict[str, Any]) -> list[dict[str, Any]]:
     return [e.get("resource", {}) for e in bundle.get("entry", [])]
@@ -175,6 +178,7 @@ async def claim_submit(
     submitted_at = submitted_dt.isoformat()
 
     import json as _json
+
     job_id = uuid4()
     job_payload = {
         "fhir_bundle": payload,
@@ -319,7 +323,10 @@ async def claim_submit(
 
 def _add_days(iso_ts: str, days: int) -> str:
     from datetime import timedelta
-    return (datetime.fromisoformat(iso_ts.replace("Z", "+00:00")) + timedelta(days=days)).isoformat()
+
+    return (
+        datetime.fromisoformat(iso_ts.replace("Z", "+00:00")) + timedelta(days=days)
+    ).isoformat()
 
 
 # =============================================================================

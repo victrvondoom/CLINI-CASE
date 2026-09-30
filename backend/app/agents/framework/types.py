@@ -11,6 +11,7 @@ Every cross-cutting concern (tracing, budget, retries, grader) writes into
 these structures so the audit trail is rich enough to reconstruct any
 decision and prove HIPAA + CMS-0057-F compliance.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -56,7 +57,7 @@ class Cost(BaseModel):
             merged[k] = merged.get(k, 0.0) + v
         return Cost(usd=self.usd + other.usd, breakdown=merged)
 
-    def __ge__(self, other: float) -> bool:  # type: ignore[override]
+    def __ge__(self, other: float) -> bool:
         return self.usd >= other
 
 
@@ -66,12 +67,12 @@ class Cost(BaseModel):
 
 
 class SpanKind(str, Enum):
-    AGENT = "agent"           # parent agent invocation
-    SUB_AGENT = "sub_agent"   # child agent invocation
-    TOOL_CALL = "tool_call"   # tool/function call
-    LLM_CALL = "llm_call"     # raw LLM completion call
-    GUARDRAIL = "guardrail"   # input/output guardrail check
-    GRADER = "grader"         # self-evaluation pass
+    AGENT = "agent"  # parent agent invocation
+    SUB_AGENT = "sub_agent"  # child agent invocation
+    TOOL_CALL = "tool_call"  # tool/function call
+    LLM_CALL = "llm_call"  # raw LLM completion call
+    GUARDRAIL = "guardrail"  # input/output guardrail check
+    GRADER = "grader"  # self-evaluation pass
 
 
 class SpanStatus(str, Enum):
@@ -105,11 +106,13 @@ class AgentTrace(BaseModel):
     children: list[AgentTrace] = Field(default_factory=list)
 
     def add_event(self, name: str, **attrs: Any) -> None:
-        self.events.append({
-            "name": name,
-            "ts": datetime.now(UTC).isoformat(),
-            **attrs,
-        })
+        self.events.append(
+            {
+                "name": name,
+                "ts": datetime.now(UTC).isoformat(),
+                **attrs,
+            }
+        )
 
     def finalize(self, status: SpanStatus = SpanStatus.OK) -> None:
         self.finished_at = datetime.now(UTC)

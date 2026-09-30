@@ -29,6 +29,7 @@ POST   /policies/trash/{policy_key:path}/restore → restore from trash
 DELETE /policies/trash/{policy_key:path}/purge   → permanent delete
 GET    /policies/upload/status/{job_id}          → poll Bedrock KB ingestion job
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -76,8 +77,9 @@ _LOCAL_TRASH = _LOCAL_ROOT / ".trash"
 # Response shapes                                                              #
 # --------------------------------------------------------------------------- #
 
+
 class PolicySummary(BaseModel):
-    policy_key: str         # filename only — safe to use as URL path segment
+    policy_key: str  # filename only — safe to use as URL path segment
     title: str
     payer_id: str
     policy_id: str | None = None
@@ -91,8 +93,8 @@ class PolicySummary(BaseModel):
 
 class PolicyListResponse(BaseModel):
     n: int
-    backend: str             # "s3" | "local"
-    bucket: str | None       # S3 bucket name when backend == s3
+    backend: str  # "s3" | "local"
+    bucket: str | None  # S3 bucket name when backend == s3
     policies: list[PolicySummary]
 
 
@@ -103,15 +105,15 @@ class PolicyUploadResponse(BaseModel):
     ingestion_job_id: str | None
     status: str
     kb_id: str | None
-    backend: str             # "s3" | "local"
+    backend: str  # "s3" | "local"
     message: str
     demo_mode: bool = False
 
 
 class PolicyMutationResponse(BaseModel):
     policy_key: str
-    action: str              # "deleted" | "restored" | "purged"
-    new_location: str        # "trash" | "active" | "purged"
+    action: str  # "deleted" | "restored" | "purged"
+    new_location: str  # "trash" | "active" | "purged"
     ingestion_job_id: str | None = None
     backend: str
     message: str
@@ -119,7 +121,7 @@ class PolicyMutationResponse(BaseModel):
 
 class IngestionStatusResponse(BaseModel):
     job_id: str
-    status: str              # STARTING | IN_PROGRESS | COMPLETE | FAILED
+    status: str  # STARTING | IN_PROGRESS | COMPLETE | FAILED
     statistics: dict[str, Any] = {}
     kb_id: str
 
@@ -127,6 +129,7 @@ class IngestionStatusResponse(BaseModel):
 # --------------------------------------------------------------------------- #
 # Backend selector                                                             #
 # --------------------------------------------------------------------------- #
+
 
 def _backend_kind() -> str:
     return "s3" if settings.POLICIES_S3_BUCKET else "local"
@@ -148,6 +151,7 @@ def _now() -> str:
 # --------------------------------------------------------------------------- #
 # S3-backed implementation                                                     #
 # --------------------------------------------------------------------------- #
+
 
 def _s3():
     return boto3.client("s3", region_name=settings.AWS_REGION)
@@ -190,7 +194,12 @@ def _parse_metadata_body(body: bytes) -> dict[str, Any]:
 def _s3_upload(bucket: str, key: str, body: bytes, content_type: str, metadata_body: bytes) -> None:
     s3 = _s3()
     s3.put_object(Bucket=bucket, Key=key, Body=body, ContentType=content_type)
-    s3.put_object(Bucket=bucket, Key=f"{key}.metadata.json", Body=metadata_body, ContentType="application/json")
+    s3.put_object(
+        Bucket=bucket,
+        Key=f"{key}.metadata.json",
+        Body=metadata_body,
+        ContentType="application/json",
+    )
 
 
 def _s3_list(bucket: str, prefix: str) -> list[PolicySummary]:
@@ -236,7 +245,9 @@ def _s3_list(bucket: str, prefix: str) -> list[PolicySummary]:
     return results
 
 
-def _s3_move(bucket: str, src_key: str, dst_key: str, *, mutate_metadata: dict[str, Any] | None = None) -> None:
+def _s3_move(
+    bucket: str, src_key: str, dst_key: str, *, mutate_metadata: dict[str, Any] | None = None
+) -> None:
     """Copy + delete = move. Also moves the .metadata.json sidecar; optionally
     rewrites metadata attributes (e.g. setting trashed_at)."""
     s3 = _s3()
@@ -294,6 +305,7 @@ def _start_ingestion_safe() -> str | None:
 # Local-disk implementation                                                    #
 # --------------------------------------------------------------------------- #
 
+
 def _local_ensure_dirs() -> None:
     _LOCAL_ACTIVE.mkdir(parents=True, exist_ok=True)
     _LOCAL_TRASH.mkdir(parents=True, exist_ok=True)
@@ -340,7 +352,9 @@ def _local_list(root: Path) -> list[PolicySummary]:
     return out
 
 
-def _local_move(src_root: Path, dst_root: Path, key: str, *, mutate_metadata: dict[str, Any] | None = None) -> None:
+def _local_move(
+    src_root: Path, dst_root: Path, key: str, *, mutate_metadata: dict[str, Any] | None = None
+) -> None:
     _local_ensure_dirs()
     src = src_root / key
     dst = dst_root / key
@@ -378,6 +392,7 @@ def _local_purge(root: Path, key: str) -> None:
 # Endpoints                                                                    #
 # --------------------------------------------------------------------------- #
 
+
 @router.post(
     "/upload",
     response_model=PolicyUploadResponse,
@@ -391,12 +406,14 @@ async def upload_policy(
 ) -> PolicyUploadResponse:
     if file.content_type not in _ACCEPTED_MIME:
         raise HTTPException(
-            400, f"Unsupported type '{file.content_type}'. Accepted: PDF, DOCX, PNG, JPEG, WebP, TXT.",
+            400,
+            f"Unsupported type '{file.content_type}'. Accepted: PDF, DOCX, PNG, JPEG, WebP, TXT.",
         )
     content = await file.read()
     if len(content) > _MAX_BYTES:
         raise HTTPException(
-            400, f"File too large: {len(content) / 1024 / 1024:.1f} MB exceeds 8 MB cap.",
+            400,
+            f"File too large: {len(content) / 1024 / 1024:.1f} MB exceeds 8 MB cap.",
         )
 
     safe_name = _safe_key(file.filename or "policy.pdf")
@@ -417,8 +434,12 @@ async def upload_policy(
         s3_key = f"{_ACTIVE_PREFIX}{safe_name}"
         try:
             await asyncio.to_thread(
-                _s3_upload, settings.POLICIES_S3_BUCKET, s3_key, content,
-                file.content_type or "application/octet-stream", metadata_body,
+                _s3_upload,
+                settings.POLICIES_S3_BUCKET,
+                s3_key,
+                content,
+                file.content_type or "application/octet-stream",
+                metadata_body,
             )
         except (BotoCoreError, ClientError) as exc:
             raise HTTPException(502, f"S3 upload failed: {exc}") from exc
@@ -434,7 +455,11 @@ async def upload_policy(
             backend="s3",
             message=(
                 f"Policy '{title}' uploaded to S3"
-                + (f" · Bedrock KB sync job {ingestion_job_id}" if ingestion_job_id else " · KB sync skipped (BEDROCK_KB_ID unset)")
+                + (
+                    f" · Bedrock KB sync job {ingestion_job_id}"
+                    if ingestion_job_id
+                    else " · KB sync skipped (BEDROCK_KB_ID unset)"
+                )
             ),
             demo_mode=False,
         )
@@ -466,7 +491,9 @@ async def list_policies(user: dict[str, Any] = Depends(get_current_user)) -> Pol
     backend = _backend_kind()
     if backend == "s3":
         try:
-            policies = await asyncio.to_thread(_s3_list, settings.POLICIES_S3_BUCKET, _ACTIVE_PREFIX)
+            policies = await asyncio.to_thread(
+                _s3_list, settings.POLICIES_S3_BUCKET, _ACTIVE_PREFIX
+            )
         except (BotoCoreError, ClientError) as exc:
             raise HTTPException(502, f"S3 list failed: {exc}") from exc
         return PolicyListResponse(
@@ -520,7 +547,10 @@ async def restore_policy(
         dst = f"{_ACTIVE_PREFIX}{key}"
         try:
             await asyncio.to_thread(
-                _s3_move, settings.POLICIES_S3_BUCKET, src, dst,
+                _s3_move,
+                settings.POLICIES_S3_BUCKET,
+                src,
+                dst,
                 mutate_metadata={"trashed_at": None, "trashed_by": None, "restored_at": _now()},
             )
         except ClientError as exc:
@@ -530,19 +560,28 @@ async def restore_policy(
             raise HTTPException(502, f"S3 move failed: {exc}") from exc
         ingestion_job_id = await asyncio.to_thread(_start_ingestion_safe)
         return PolicyMutationResponse(
-            policy_key=key, action="restored", new_location="active",
-            ingestion_job_id=ingestion_job_id, backend="s3",
+            policy_key=key,
+            action="restored",
+            new_location="active",
+            ingestion_job_id=ingestion_job_id,
+            backend="s3",
             message=f"Restored to s3://{settings.POLICIES_S3_BUCKET}/{dst}"
-                    + (f" · KB re-sync job {ingestion_job_id}" if ingestion_job_id else ""),
+            + (f" · KB re-sync job {ingestion_job_id}" if ingestion_job_id else ""),
         )
 
     await asyncio.to_thread(
-        _local_move, _LOCAL_TRASH, _LOCAL_ACTIVE, key,
+        _local_move,
+        _LOCAL_TRASH,
+        _LOCAL_ACTIVE,
+        key,
         mutate_metadata={"trashed_at": None, "trashed_by": None, "restored_at": _now()},
     )
     return PolicyMutationResponse(
-        policy_key=key, action="restored", new_location="active",
-        ingestion_job_id=None, backend="local",
+        policy_key=key,
+        action="restored",
+        new_location="active",
+        ingestion_job_id=None,
+        backend="local",
         message=f"Restored to {(_LOCAL_ACTIVE / key).resolve()}",
     )
 
@@ -567,15 +606,21 @@ async def purge_policy(
         except ClientError as exc:
             raise HTTPException(502, f"S3 delete failed: {exc}") from exc
         return PolicyMutationResponse(
-            policy_key=key, action="purged", new_location="purged",
-            ingestion_job_id=None, backend="s3",
+            policy_key=key,
+            action="purged",
+            new_location="purged",
+            ingestion_job_id=None,
+            backend="s3",
             message=f"Permanently deleted s3://{settings.POLICIES_S3_BUCKET}/{_TRASH_PREFIX}{key}",
         )
 
     await asyncio.to_thread(_local_purge, _LOCAL_TRASH, key)
     return PolicyMutationResponse(
-        policy_key=key, action="purged", new_location="purged",
-        ingestion_job_id=None, backend="local",
+        policy_key=key,
+        action="purged",
+        new_location="purged",
+        ingestion_job_id=None,
+        backend="local",
         message=f"Permanently deleted {(_LOCAL_TRASH / key).resolve()}",
     )
 
@@ -603,8 +648,14 @@ async def delete_policy(
         dst = f"{_TRASH_PREFIX}{key}"
         try:
             await asyncio.to_thread(
-                _s3_move, settings.POLICIES_S3_BUCKET, src, dst,
-                mutate_metadata={"trashed_at": trashed_at, "trashed_by": user.get("email", "unknown")},
+                _s3_move,
+                settings.POLICIES_S3_BUCKET,
+                src,
+                dst,
+                mutate_metadata={
+                    "trashed_at": trashed_at,
+                    "trashed_by": user.get("email", "unknown"),
+                },
             )
         except ClientError as exc:
             code = exc.response.get("Error", {}).get("Code")
@@ -613,19 +664,28 @@ async def delete_policy(
             raise HTTPException(502, f"S3 move failed: {exc}") from exc
         ingestion_job_id = await asyncio.to_thread(_start_ingestion_safe)
         return PolicyMutationResponse(
-            policy_key=key, action="deleted", new_location="trash",
-            ingestion_job_id=ingestion_job_id, backend="s3",
+            policy_key=key,
+            action="deleted",
+            new_location="trash",
+            ingestion_job_id=ingestion_job_id,
+            backend="s3",
             message=f"Moved to s3://{settings.POLICIES_S3_BUCKET}/{dst}"
-                    + (f" · KB re-sync job {ingestion_job_id}" if ingestion_job_id else ""),
+            + (f" · KB re-sync job {ingestion_job_id}" if ingestion_job_id else ""),
         )
 
     await asyncio.to_thread(
-        _local_move, _LOCAL_ACTIVE, _LOCAL_TRASH, key,
+        _local_move,
+        _LOCAL_ACTIVE,
+        _LOCAL_TRASH,
+        key,
         mutate_metadata={"trashed_at": trashed_at, "trashed_by": user.get("email", "unknown")},
     )
     return PolicyMutationResponse(
-        policy_key=key, action="deleted", new_location="trash",
-        ingestion_job_id=None, backend="local",
+        policy_key=key,
+        action="deleted",
+        new_location="trash",
+        ingestion_job_id=None,
+        backend="local",
         message=f"Moved to {(_LOCAL_TRASH / key).resolve()}",
     )
 

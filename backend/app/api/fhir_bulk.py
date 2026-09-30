@@ -16,6 +16,7 @@ Today (round-13) we ship the API surface + a minimal in-process exporter
 that streams `cases` + `decisions` + `agent_runs` for the calling tenant.
 A real export workflow lands in round-14 (Glue job + S3 NDJSON output).
 """
+
 from __future__ import annotations
 
 import json
@@ -78,7 +79,9 @@ async def export_kickoff(
         try:
             since_dt = datetime.fromisoformat(_since.replace("Z", "+00:00"))
         except ValueError as e:
-            raise HTTPException(status_code=400, detail="invalid _since format; expected ISO-8601") from e
+            raise HTTPException(
+                status_code=400, detail="invalid _since format; expected ISO-8601"
+            ) from e
 
     await db.execute(
         """
@@ -139,9 +142,9 @@ async def export_status(
         if isinstance(manifest, str):
             manifest = json.loads(manifest)
         response.status_code = 200
-        response.headers["Expires"] = (
-            datetime.now(UTC) + timedelta(hours=24)
-        ).strftime("%a, %d %b %Y %H:%M:%S GMT")
+        response.headers["Expires"] = (datetime.now(UTC) + timedelta(hours=24)).strftime(
+            "%a, %d %b %Y %H:%M:%S GMT"
+        )
         return manifest
 
     if row["status"] == "failed":
@@ -215,7 +218,8 @@ async def _run_export(job_id: str) -> None:
            SET status='completed', output_manifest=$1::jsonb, completed_at=NOW()
          WHERE job_id=$2
         """,
-        json.dumps(manifest), job_id,
+        json.dumps(manifest),
+        job_id,
     )
 
 
@@ -246,12 +250,17 @@ async def _ndjson_stream(*, organization_id: str, resource_type: str):
             organization_id,
         )
         for r in rows:
-            yield json.dumps({
-                "resourceType": "Coverage",
-                "id": f"coverage-{r['payer_id']}",
-                "status": "active",
-                "payor": [{"identifier": {"value": r["payer_id"]}}],
-            }) + "\n"
+            yield (
+                json.dumps(
+                    {
+                        "resourceType": "Coverage",
+                        "id": f"coverage-{r['payer_id']}",
+                        "status": "active",
+                        "payor": [{"identifier": {"value": r["payer_id"]}}],
+                    }
+                )
+                + "\n"
+            )
     else:
         # Empty stream for unsupported resources
         return

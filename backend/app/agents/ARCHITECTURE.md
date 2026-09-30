@@ -50,7 +50,7 @@ is wrong. File a fix.
                                        │
                                        ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│  Layer 3: 21 sub-agents (3 per parent)                                      │
+│  Layer 3: 22 sub-agents (3 per parent, 4 for policy_retriever)               │
 │                                                                             │
 │  Each sub-agent is a single file at parent/sub_agents/<name>.py.            │
 │  Each declares: name, parent, role, description, input_schema,              │

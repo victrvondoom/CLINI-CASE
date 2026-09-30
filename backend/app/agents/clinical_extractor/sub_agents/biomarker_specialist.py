@@ -4,6 +4,7 @@ LLM-backed (Haiku). Extracts a focused, treatment-relevant set of high-stakes
 oncology biomarkers (HER2, EGFR, BRCA1/2, MSI, PD-L1, ALK, ROS1, BRAF, ECOG,
 LVEF) from FHIR + redacted physician note.
 """
+
 from __future__ import annotations
 
 import json
@@ -24,13 +25,14 @@ from app.privacy.boundary import prepare_fhir, screen_text
 
 _PROMPT = (
     Path(__file__).resolve().parents[3]
-    / "prompts" / "clinical_extractor" / "sub_agents" / "biomarker_specialist.txt"
+    / "prompts"
+    / "clinical_extractor"
+    / "sub_agents"
+    / "biomarker_specialist.txt"
 ).read_text(encoding="utf-8")
 
 
-class BiomarkerSpecialistAgent(
-    Agent[BiomarkerSpecialistInput, BiomarkerSpecialistOutput]
-):
+class BiomarkerSpecialistAgent(Agent[BiomarkerSpecialistInput, BiomarkerSpecialistOutput]):
     name: ClassVar[str] = "biomarker_specialist"
     parent: ClassVar[str] = "clinical_extractor"
     role: ClassVar[str] = "biomarker_extraction"

@@ -1,6 +1,7 @@
 """Pure-function JWT + password helpers. No FastAPI imports here so this
 module is safely usable from scripts / tests.
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta

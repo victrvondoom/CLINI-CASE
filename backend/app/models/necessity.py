@@ -2,6 +2,7 @@
 
 Source of truth: PROPOSAL.md §9.3.
 """
+
 from __future__ import annotations
 
 from typing import Literal
@@ -19,13 +20,13 @@ class CriterionAssessment(BaseModel):
     supporting_evidence: list[str]  # excerpts from ClinicalSnapshot
     missing_evidence: str | None = None  # what would resolve an ambiguity
     confidence: float = Field(..., ge=0.0, le=1.0, allow_inf_nan=False)
-    rationale: str                  # one or two sentences
+    rationale: str  # one or two sentences
 
 
 class NecessityAssessment(BaseModel):
     criteria: list[CriterionAssessment] = Field(..., min_length=1)
     overall_confidence: float = Field(..., ge=0.0, le=1.0, allow_inf_nan=False)
-    summary: str                    # 2-3 sentences plain English
+    summary: str  # 2-3 sentences plain English
 
     @model_validator(mode="after")
     def bound_overall_confidence(self) -> NecessityAssessment:

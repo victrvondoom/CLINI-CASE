@@ -1,10 +1,11 @@
 """Business value API (IMPACT-3).
 
-  GET /api/v1/business-value/case/{case_id}        — per-case ROI
-  GET /api/v1/business-value/org                    — org direct-savings rollup
-  GET /api/v1/business-value/star-impact            — projected Star Ratings $$
-  GET /api/v1/business-value/provider-abrasion      — provider-abrasion reduction
+GET /api/v1/business-value/case/{case_id}        — per-case ROI
+GET /api/v1/business-value/org                    — org direct-savings rollup
+GET /api/v1/business-value/star-impact            — projected Star Ratings $$
+GET /api/v1/business-value/provider-abrasion      — provider-abrasion reduction
 """
+
 from __future__ import annotations
 
 from datetime import UTC
@@ -19,6 +20,7 @@ from app.business_value import (
     projected_star_impact,
     provider_abrasion_score,
 )
+from app.business_value.roi import MANUAL_PA_COST_USD, MANUAL_PA_MINUTES
 
 router = APIRouter(prefix="/business-value", tags=["business-value"])
 
@@ -42,6 +44,7 @@ async def org_value(
     user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
     from datetime import datetime
+
     try:
         rollup = await org_value_rollup(user["organization_id"])
         return rollup.__dict__
@@ -50,18 +53,32 @@ async def org_value(
         return {
             "organization_id": user["organization_id"],
             "asof_iso": datetime.now(UTC).isoformat(),
-            "cases_total": 0, "cases_decided": 0,
+            "cases_total": 0,
+            "cases_decided": 0,
             "verdict_breakdown": {},
-            "direct_savings_mtd_usd": 0, "direct_savings_annual_projection_usd": 0,
-            "avg_decision_seconds": None, "avg_speedup_factor": None,
-            "citations": [], "db_unavailable": True,
+            "direct_savings_mtd_usd": 0,
+            "direct_savings_annual_projection_usd": 0,
+            "avg_decision_seconds": None,
+            "avg_speedup_factor": None,
+            "citations": [],
+            "daily_cases_7d": [0] * 7,
+            "avg_decision_change_pct": None,
+            "assumptions": {
+                "manual_pa_cost_usd": MANUAL_PA_COST_USD,
+                "manual_pa_minutes": MANUAL_PA_MINUTES,
+            },
+            "db_unavailable": True,
         }
 
 
 @router.get("/star-impact")
 async def star_impact(
-    member_count: int = Query(default=100_000, ge=0, description="Org's MA member count for the projection."),
-    current_star: float = Query(default=3.98, ge=0.0, le=5.0, description="Current MA Star Rating assumption."),
+    member_count: int = Query(
+        default=100_000, ge=0, description="Org's MA member count for the projection."
+    ),
+    current_star: float = Query(
+        default=3.98, ge=0.0, le=5.0, description="Current MA Star Rating assumption."
+    ),
     user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
     proj = await projected_star_impact(

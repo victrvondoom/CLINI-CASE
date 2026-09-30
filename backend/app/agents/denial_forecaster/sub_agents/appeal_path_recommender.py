@@ -4,6 +4,7 @@ LLM-backed (Haiku). Recommends the best appeal angle (enum) + KFF-baseline-
 calibrated overturn probability when denial_probability ≥ 0.35; otherwise
 returns strategy=None with a skipped_reason.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -21,13 +22,14 @@ from app.agents.framework import (
 
 _PROMPT = (
     Path(__file__).resolve().parents[3]
-    / "prompts" / "denial_forecaster" / "sub_agents" / "appeal_path_recommender.txt"
+    / "prompts"
+    / "denial_forecaster"
+    / "sub_agents"
+    / "appeal_path_recommender.txt"
 ).read_text(encoding="utf-8")
 
 
-class AppealPathRecommenderAgent(
-    Agent[AppealPathRecommenderInput, AppealPathRecommenderOutput]
-):
+class AppealPathRecommenderAgent(Agent[AppealPathRecommenderInput, AppealPathRecommenderOutput]):
     name: ClassVar[str] = "appeal_path_recommender"
     parent: ClassVar[str] = "denial_forecaster"
     role: ClassVar[str] = "appeal_strategy_selection"

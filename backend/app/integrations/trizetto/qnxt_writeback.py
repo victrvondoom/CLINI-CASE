@@ -13,6 +13,7 @@ event types differ:
 Like the Facets builder, we DO NOT call QNXT here — the gateway client
 fan-out makes the real network call.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -24,7 +25,9 @@ from pydantic import BaseModel, Field
 
 class QNXTProvider(BaseModel):
     rendering_npi: str = Field(..., description="10-digit NPI of the rendering oncologist.")
-    tin: str | None = Field(None, description="Taxpayer ID. Required only for institutional billing.")
+    tin: str | None = Field(
+        None, description="Taxpayer ID. Required only for institutional billing."
+    )
     facility_npi: str | None = None
 
 
@@ -33,7 +36,9 @@ class QNXTClinCaseProvenance(BaseModel):
 
     determination_engine: str = Field(default="ClinCase/0.1.0")
     bedrock_model_id: str
-    confidence_pct: int = Field(..., ge=0, le=100, description="Confidence as integer percent for QNXT's UI.")
+    confidence_pct: int = Field(
+        ..., ge=0, le=100, description="Confidence as integer percent for QNXT's UI."
+    )
     case_id: str
     run_id: str
     decision_hash: str = Field(..., description="SHA-256 of the determination — tamper-evident.")
@@ -43,7 +48,9 @@ class QNXTClinCaseProvenance(BaseModel):
 class QNXTDecisionEvent(BaseModel):
     schema_name: str = Field(default="qnxt_case_event")
     schema_version: str = Field(default="v2")
-    event_type: str = Field(..., description="AUTHORIZATION_DETERMINED | AUTHORIZATION_PENDED | AUTHORIZATION_DENIED")
+    event_type: str = Field(
+        ..., description="AUTHORIZATION_DETERMINED | AUTHORIZATION_PENDED | AUTHORIZATION_DENIED"
+    )
     auth_id: str = Field(..., description="QNXT auth_id; we mint by namespacing case_id.")
     member_id: str
     payer_id: str
@@ -80,9 +87,7 @@ _VERDICT_TO_DISPOSITION = {
 
 
 def _hash_decision(verdict: str, rationale: str, citations: list[str], model_id: str) -> str:
-    return hashlib.sha256(
-        f"{verdict}|{rationale}|{citations}|{model_id}".encode()
-    ).hexdigest()
+    return hashlib.sha256(f"{verdict}|{rationale}|{citations}|{model_id}".encode()).hexdigest()
 
 
 def build_qnxt_event(
@@ -122,7 +127,9 @@ def build_qnxt_event(
         cms_disposition=_VERDICT_TO_DISPOSITION.get(verdict, "REFERRED"),
         rationale=rationale,
         citations=citations,
-        cpt_or_jcode=requested_treatment.get("j_code") or requested_treatment.get("cpt_code") or "UNKNOWN",
+        cpt_or_jcode=requested_treatment.get("j_code")
+        or requested_treatment.get("cpt_code")
+        or "UNKNOWN",
         units=requested_treatment.get("requested_units"),
         rendering_provider=QNXTProvider(
             rendering_npi=rendering_npi,

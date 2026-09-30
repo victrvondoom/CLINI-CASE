@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Per-case economics strip: cost, latency, tokens, vs. human-baseline savings.
  *
  * A re:Invent 2025 IND210 talk ("TriZetto AI Gateway on AWS
@@ -21,6 +21,7 @@ import {
 import { useEffect, useState } from "react";
 
 import { api } from "../lib/api";
+import type { CaseROI } from "../lib/api";
 import type { AgentRun } from "../lib/types";
 
 interface Props {
@@ -28,13 +29,19 @@ interface Props {
   refreshKey?: number;
 }
 
-const COST_PER_M_INPUT  = 3.0;  // USD per million tokens
-const COST_PER_M_OUTPUT = 15.0;
-const HUMAN_HOURLY = 32.0;       // USD, oncology PA coordinator fully-loaded
-const HUMAN_MINUTES_PER_PA = 11; // AMA Prior Auth survey 2025 baseline
+type Pricing = Record<string, { in: number; out: number }>;
+
+/** Price one run by its model family (haiku vs sonnet) using the backend's price table. */
+export function runCostUsd(r: { model_id: string | null; input_tokens: number | null; output_tokens: number | null }, pricing: Pricing): number {
+  const family = r.model_id && r.model_id.toLowerCase().includes("haiku") ? "haiku" : "sonnet";
+  const p = pricing[family];
+  if (!p) return 0;
+  return ((r.input_tokens ?? 0) * p.in + (r.output_tokens ?? 0) * p.out) / 1e6;
+}
 
 export function CaseEconomicsStrip({ caseId, refreshKey = 0 }: Props) {
   const [runs, setRuns] = useState<AgentRun[] | null>(null);
+  const [roi, setRoi] = useState<CaseROI | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -42,20 +49,24 @@ export function CaseEconomicsStrip({ caseId, refreshKey = 0 }: Props) {
       .getAudit(caseId)
       .then((d) => setRuns(d.agent_runs))
       .catch((e) => setError(String(e)));
+    // the manual baseline + price table come from the backend so every page quotes the same numbers
+    api.getCaseValue(caseId).then(setRoi).catch(() => setRoi(null));
   }, [caseId, refreshKey]);
 
   if (error || !runs || runs.length === 0) return null;
+  const pricing = roi?.token_pricing_usd_per_m;
 
   const totalIn  = runs.reduce((s, r) => s + (r.input_tokens  ?? 0), 0);
   const totalOut = runs.reduce((s, r) => s + (r.output_tokens ?? 0), 0);
-  const cost = (totalIn * COST_PER_M_INPUT) / 1e6 + (totalOut * COST_PER_M_OUTPUT) / 1e6;
+  const cost = pricing ? runs.reduce((s, r) => s + runCostUsd(r, pricing), 0) : null;
   const latencyMs = runs.reduce((s, r) => s + (r.latency_ms ?? 0), 0);
   const latencySec = latencyMs / 1000;
 
-  // Savings vs human baseline
-  const humanCostUSD = (HUMAN_MINUTES_PER_PA / 60) * HUMAN_HOURLY;
-  const dollarsSaved = humanCostUSD - cost;
-  const minutesSaved = HUMAN_MINUTES_PER_PA - latencySec / 60;
+  // Savings vs the backend's manual-PA baseline (same numbers as the Dashboard and /roi)
+  const manualCost = roi?.manual_cost_usd ?? null;
+  const manualMinutes = roi?.manual_minutes ?? null;
+  const dollarsSaved = manualCost != null && cost != null ? manualCost - cost : null;
+  const minutesSaved = manualMinutes != null ? manualMinutes - latencySec / 60 : null;
 
   return (
     <div className="bg-surface-raised border border-surface-border rounded-2xl overflow-hidden">
@@ -65,7 +76,7 @@ export function CaseEconomicsStrip({ caseId, refreshKey = 0 }: Props) {
           Case economics
         </h3>
         <span className="text-[10px] text-compact text-ink-muted">
-          Bedrock Sonnet 4.6 · live agent_traces
+          live agent_runs
         </span>
       </div>
 
@@ -73,7 +84,7 @@ export function CaseEconomicsStrip({ caseId, refreshKey = 0 }: Props) {
         <Cell
           icon={<Coins size={14} className="text-accent-cyan" />}
           label="LLM cost"
-          value={`$${cost.toFixed(4)}`}
+          value={cost != null ? `$${cost.toFixed(4)}` : "—"}
           sub={`${totalIn.toLocaleString()} in · ${totalOut.toLocaleString()} out`}
         />
         <Cell
@@ -95,16 +106,16 @@ export function CaseEconomicsStrip({ caseId, refreshKey = 0 }: Props) {
         <Cell
           icon={<TrendingUp size={14} className="text-accent-green" />}
           label="vs human PA"
-          value={`$${dollarsSaved.toFixed(2)} saved`}
-          sub={`${minutesSaved.toFixed(0)} min faster than the AMA-2025 manual baseline`}
+          value={dollarsSaved != null ? `$${dollarsSaved.toFixed(2)} saved` : "—"}
+          sub={minutesSaved != null ? `${minutesSaved.toFixed(0)} min faster than the ${manualMinutes}-min manual baseline` : "baseline unavailable"}
           valueClass="text-accent-green"
         />
       </div>
 
       <div className="px-5 py-2 bg-surface-panel/40 border-t border-surface-border text-[10px] text-mono-tech text-ink-muted">
         unit-economics formula:{" "}
-        <code>(in_tokens × $3 + out_tokens × $15) / 1M</code> &nbsp;·&nbsp;{" "}
-        baseline: AMA 2025 PA survey · 11 min @ $32/hr fully-loaded
+        <code>Σ per run (in_tokens × in-price + out_tokens × out-price) / 1M, by model family</code> &nbsp;·&nbsp;{" "}
+        baseline: {manualCost != null ? `$${manualCost.toLocaleString()} / ${manualMinutes} min per manual PA` : "unavailable"}
       </div>
     </div>
   );

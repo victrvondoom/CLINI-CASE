@@ -34,6 +34,8 @@ const AquaTrends = lazy(() => import("./routes/AquaTrends"));
 const Agents = lazy(() => import("./routes/Agents"));
 import App from "./App";
 const BulkImport = lazy(() => import("./routes/BulkImport"));
+const CardioEvaluation = lazy(() => import("./routes/CardioEvaluation"));
+const CardioTwin = lazy(() => import("./routes/CardioTwin"));
 const CaseDetail = lazy(() => import("./routes/CaseDetail"));
 const Cases = lazy(() => import("./routes/Cases"));
 const Cohorts = lazy(() => import("./routes/Cohorts"));
@@ -104,6 +106,10 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             <Route path="/twin/demo/:tab" element={<TwinPatient demo />} />
             <Route path="/twin/:patientId/classic" element={<TwinDashboard />} />
             <Route path="/twin/:patientId/:tab?" element={<TwinPatient />} />
+
+            {/* CardioTwin — cardiovascular risk visualisation & vessel-level prediction (additive) */}
+            <Route path="/cardiotwin" element={<CardioTwin />} />
+            <Route path="/cardiotwin/evaluation" element={<CardioEvaluation />} />
 
             <Route path="/policies" element={<Policies />} />
             <Route path="/onco" element={<OncologyStack />} />

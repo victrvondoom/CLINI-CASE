@@ -31,11 +31,13 @@ Topology:
                                                        v
                                                       END
 """
+
 from __future__ import annotations
 
 from typing import Any, Literal
 
 from langgraph.graph import END, StateGraph
+from langgraph.graph.state import CompiledStateGraph
 
 from app.agents import (
     appeals_drafter_node,
@@ -90,11 +92,7 @@ async def review_gate_node(state: ClinCaseState) -> dict[str, Any]:
     and (if DENY) runs the Appeals Drafter out-of-graph.
     """
     threshold = getattr(settings, "HITL_CONFIDENCE_THRESHOLD", DEFAULT_HITL_THRESHOLD)
-    overall = (
-        state.necessity_assessment.overall_confidence
-        if state.necessity_assessment
-        else 0.0
-    )
+    overall = state.necessity_assessment.overall_confidence if state.necessity_assessment else 0.0
     return {
         "paused_for_review": True,
         "pause_reason": (
@@ -105,7 +103,7 @@ async def review_gate_node(state: ClinCaseState) -> dict[str, Any]:
     }
 
 
-def build_partial_graph():
+def build_partial_graph() -> CompiledStateGraph:
     """3-agent DAG. Used by POST /cases/{id}/run-partial."""
     g = StateGraph(ClinCaseState)
     g.add_node("clinical_extractor", clinical_extractor_node)
@@ -120,7 +118,7 @@ def build_partial_graph():
     return g.compile()
 
 
-def build_full_graph():
+def build_full_graph() -> CompiledStateGraph:
     """Full 7-agent DAG with three conditional edges. See module docstring.
 
     Edges:

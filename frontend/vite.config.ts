@@ -12,6 +12,12 @@ export default defineConfig({
         changeOrigin: true,
         ws: false,
       },
+      // MCP tool server (JSON-RPC + GET /mcp/manifest) lives outside /api
+      "/mcp": {
+        target: "http://localhost:8000",
+        changeOrigin: true,
+        ws: false,
+      },
     },
   },
 });

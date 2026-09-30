@@ -1,4 +1,5 @@
 """Schemas for the denial_forecaster package — orchestrator + sub-agents."""
+
 from __future__ import annotations
 
 from pydantic import BaseModel, Field
@@ -18,6 +19,7 @@ from app.models.forecast import (
 # =============================================================================
 # Orchestrator I/O — parent agent contract
 # =============================================================================
+
 
 class DenialForecasterInput(BaseModel):
     snapshot: ClinicalSnapshot

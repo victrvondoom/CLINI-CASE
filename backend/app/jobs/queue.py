@@ -37,6 +37,7 @@ A janitor task reaps jobs whose heartbeat is stale ( > 2 * heartbeat_interval ).
 Stale jobs get requeued (status='queued', attempts incremented) up to max_attempts,
 after which they go to status='dead'.
 """
+
 from __future__ import annotations
 
 import json
@@ -116,8 +117,16 @@ def _row_to_job(row: dict[str, Any]) -> Job:
         organization_id=row["organization_id"],
         job_type=row["job_type"],
         status=row["status"],
-        payload=json.loads(row["payload_json"]) if isinstance(row["payload_json"], str) else row["payload_json"],
-        result=(json.loads(row["result_json"]) if isinstance(row["result_json"], str) else row["result_json"]) if row.get("result_json") else None,
+        payload=json.loads(row["payload_json"])
+        if isinstance(row["payload_json"], str)
+        else row["payload_json"],
+        result=(
+            json.loads(row["result_json"])
+            if isinstance(row["result_json"], str)
+            else row["result_json"]
+        )
+        if row.get("result_json")
+        else None,
         error=row.get("error_text"),
         attempts=row["attempts"],
         max_attempts=row["max_attempts"],
@@ -181,7 +190,8 @@ async def get_job(job_id: uuid.UUID) -> Job | None:
 async def list_jobs_for_case(case_id: str, limit: int = 20) -> list[Job]:
     rows = await db.fetch(
         "SELECT * FROM case_jobs WHERE case_id = $1 ORDER BY created_at DESC LIMIT $2",
-        case_id, limit,
+        case_id,
+        limit,
     )
     return [_row_to_job(dict(r)) for r in rows]
 
@@ -218,7 +228,8 @@ async def claim_next(*, worker_id: str) -> Job | None:
                        claimed_at=now(), claimed_by=$2, heartbeat_at=now()
                    WHERE id = $1
                    RETURNING *""",
-            job_id, worker_id,
+            job_id,
+            worker_id,
         )
         return _row_to_job(dict(updated))
 
@@ -228,7 +239,9 @@ async def heartbeat(job_id: uuid.UUID, *, worker_id: str, attempt: int) -> bool:
     result = await db.execute(
         """UPDATE case_jobs SET heartbeat_at = now()
            WHERE id = $1 AND status = 'running' AND claimed_by = $2 AND attempts = $3""",
-        job_id, worker_id, attempt,
+        job_id,
+        worker_id,
+        attempt,
     )
     return result == "UPDATE 1"
 
@@ -266,7 +279,10 @@ async def mark_error(
             """UPDATE case_jobs
                SET status='dead', error_text=$2, finished_at=now()
                WHERE id = $1 AND status='running' AND claimed_by=$3 AND attempts=$4""",
-            job_id, error, worker_id, attempt,
+            job_id,
+            error,
+            worker_id,
+            attempt,
         )
         return updated == "UPDATE 1"
     # Retryable error: bounce back to queued unless we've exhausted attempts
@@ -285,7 +301,10 @@ async def mark_error(
                claimed_by = NULL,
                heartbeat_at = NULL
            WHERE id = $1 AND status='running' AND claimed_by=$3 AND attempts=$4""",
-        job_id, error, worker_id, attempt,
+        job_id,
+        error,
+        worker_id,
+        attempt,
     )
     return updated == "UPDATE 1"
 
@@ -322,9 +341,7 @@ async def reap_stale(*, stale_after_seconds: int = 120) -> int:
 
 async def queue_depth() -> dict[str, int]:
     """Return {status: count} for the queue. Powers the /metrics endpoint."""
-    rows = await db.fetch(
-        "SELECT status, COUNT(*) AS n FROM case_jobs GROUP BY status"
-    )
+    rows = await db.fetch("SELECT status, COUNT(*) AS n FROM case_jobs GROUP BY status")
     out = {"queued": 0, "running": 0, "done": 0, "error": 0, "dead": 0}
     for r in rows:
         out[r["status"]] = r["n"]

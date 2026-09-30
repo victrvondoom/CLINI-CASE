@@ -22,6 +22,7 @@ transactional outbox (`app/events/outbox.py`, CloudEvents type
 configured. Without a database the bridge is skipped and the event records
 `bridged: false` — nothing pretends to have been published.
 """
+
 from __future__ import annotations
 
 import threading
@@ -39,11 +40,21 @@ from app.oncotwin.observability import METRICS
 log = structlog.get_logger()
 
 EVENT_TYPES = {
-    "WearableObservationReceived": "data", "FHIRObservationCreated": "data", "LabResultCreated": "data",
-    "SymptomReported": "data", "TreatmentEventRecorded": "data",
-    "TwinEvaluated": "twin", "TwinStateChanged": "twin", "RiskUpdated": "twin", "ChangePointDetected": "twin",
-    "DataQualityIssueDetected": "twin", "EarlyWarningGenerated": "twin", "SafetyGateBlocked": "twin",
-    "ClinicianReviewed": "hitl", "InterventionRecorded": "hitl", "HandoffCreated": "hitl",
+    "WearableObservationReceived": "data",
+    "FHIRObservationCreated": "data",
+    "LabResultCreated": "data",
+    "SymptomReported": "data",
+    "TreatmentEventRecorded": "data",
+    "TwinEvaluated": "twin",
+    "TwinStateChanged": "twin",
+    "RiskUpdated": "twin",
+    "ChangePointDetected": "twin",
+    "DataQualityIssueDetected": "twin",
+    "EarlyWarningGenerated": "twin",
+    "SafetyGateBlocked": "twin",
+    "ClinicianReviewed": "hitl",
+    "InterventionRecorded": "hitl",
+    "HandoffCreated": "hitl",
     "ModelDriftDetected": "mlops",
 }
 LOG_SIZE = 2000
@@ -68,16 +79,34 @@ class TwinEventBus:
         """`prefix` is an event type or a category ('data', 'twin', 'hitl', 'mlops') or '*'."""
         self._subs.append((prefix, handler))
 
-    def publish(self, event_type: str, *, patient_id: str | None, payload: dict[str, Any],
-                twin_day: int | None = None, source: str = "oncotwin") -> dict[str, Any]:
+    def publish(
+        self,
+        event_type: str,
+        *,
+        patient_id: str | None,
+        payload: dict[str, Any],
+        twin_day: int | None = None,
+        source: str = "oncotwin",
+    ) -> dict[str, Any]:
         if event_type not in EVENT_TYPES:
             raise ValueError(f"unknown event type {event_type!r}")
         with self._lock:
             self.seq += 1
-            ev = {"id": str(uuid.uuid4()), "seq": self.seq, "type": event_type, "category": EVENT_TYPES[event_type],
-                  "cloudevent_type": f"oncotwin.{event_type}.v1", "organization_id": self.organization_id,
-                  "patient_id": patient_id, "twin_day": twin_day, "source": source, "at": _now(),
-                  "payload": payload, "bridged": None, "handled_by": []}
+            ev = {
+                "id": str(uuid.uuid4()),
+                "seq": self.seq,
+                "type": event_type,
+                "category": EVENT_TYPES[event_type],
+                "cloudevent_type": f"oncotwin.{event_type}.v1",
+                "organization_id": self.organization_id,
+                "patient_id": patient_id,
+                "twin_day": twin_day,
+                "source": source,
+                "at": _now(),
+                "payload": payload,
+                "bridged": None,
+                "handled_by": [],
+            }
             self.log.append(ev)
             self.pending_outbox.append(ev)
         METRICS.inc("oncotwin_events_published_total", type=event_type)
@@ -93,12 +122,20 @@ class TwinEventBus:
                 METRICS.inc("oncotwin_events_handled_total", type=event_type, status="error")
                 log.warning("oncotwin.event.handler_failed", type=event_type, error=str(e)[:200])
             finally:
-                METRICS.observe_ms("oncotwin_event_handler", (time.perf_counter() - t0) * 1000.0, type=event_type)
+                METRICS.observe_ms(
+                    "oncotwin_event_handler", (time.perf_counter() - t0) * 1000.0, type=event_type
+                )
         return ev
 
-    def recent(self, limit: int = 200, patient_id: str | None = None, category: str | None = None) -> list[dict[str, Any]]:
-        rows = [e for e in self.log if (patient_id is None or e["patient_id"] == patient_id)
-                and (category is None or e["category"] == category)]
+    def recent(
+        self, limit: int = 200, patient_id: str | None = None, category: str | None = None
+    ) -> list[dict[str, Any]]:
+        rows = [
+            e
+            for e in self.log
+            if (patient_id is None or e["patient_id"] == patient_id)
+            and (category is None or e["category"] == category)
+        ]
         return rows[-limit:][::-1]
 
     async def flush_outbox(self) -> dict[str, int]:
@@ -116,10 +153,17 @@ class TwinEventBus:
             return {"bridged": 0, "skipped": len(batch)}
         for ev in batch:
             try:
-                await emit_event(DomainEvent(
-                    event_type=ev["cloudevent_type"], organization_id=self.organization_id,
-                    aggregate_type="oncotwin_patient", aggregate_id=ev["patient_id"] or "oncotwin",
-                    payload={k: ev[k] for k in ("id", "seq", "type", "twin_day", "at", "payload")}))
+                await emit_event(
+                    DomainEvent(
+                        event_type=ev["cloudevent_type"],
+                        organization_id=self.organization_id,
+                        aggregate_type="oncotwin_patient",
+                        aggregate_id=ev["patient_id"] or "oncotwin",
+                        payload={
+                            k: ev[k] for k in ("id", "seq", "type", "twin_day", "at", "payload")
+                        },
+                    )
+                )
                 ev["bridged"] = True
                 ok += 1
             except Exception as e:  # noqa: BLE001 — DB-less deployments keep the in-process log only
@@ -135,13 +179,22 @@ class TwinEventBus:
         by_type: dict[str, int] = {}
         for e in self.log:
             by_type[e["type"]] = by_type.get(e["type"], 0) + 1
-        return {"events_in_log": len(self.log), "sequence": self.seq, "by_type": by_type,
-                "bridged_to_outbox": sum(1 for e in self.log if e["bridged"]),
-                "not_bridged": sum(1 for e in self.log if e["bridged"] is False),
-                "pending_bridge": len(self.pending_outbox), "subscribers": [p for p, _ in self._subs]}
+        return {
+            "events_in_log": len(self.log),
+            "sequence": self.seq,
+            "by_type": by_type,
+            "bridged_to_outbox": sum(1 for e in self.log if e["bridged"]),
+            "not_bridged": sum(1 for e in self.log if e["bridged"] is False),
+            "pending_bridge": len(self.pending_outbox),
+            "subscribers": [p for p, _ in self._subs],
+        }
 
 
 def data_event_for(category: str) -> str:
     """Map an observation's signal category to its data-event type."""
-    return {"lab": "LabResultCreated", "patient_reported": "SymptomReported", "wearable": "WearableObservationReceived",
-            "home_device": "WearableObservationReceived"}.get(category, "FHIRObservationCreated")
+    return {
+        "lab": "LabResultCreated",
+        "patient_reported": "SymptomReported",
+        "wearable": "WearableObservationReceived",
+        "home_device": "WearableObservationReceived",
+    }.get(category, "FHIRObservationCreated")

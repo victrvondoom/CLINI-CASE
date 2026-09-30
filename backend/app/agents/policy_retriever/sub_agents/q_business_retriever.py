@@ -16,6 +16,7 @@ ClinCase's policy_retriever orchestrator routes between them based on
 `settings.USE_AMAZON_Q`. From the rest of the DAG's perspective the swap is
 invisible — both produce the same `KeywordFilterOutput` shape.
 """
+
 from __future__ import annotations
 
 from typing import ClassVar

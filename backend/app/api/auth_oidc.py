@@ -1,9 +1,10 @@
 """OIDC SSO endpoints.
 
-  GET  /api/v1/auth/oidc/login     → redirects browser to IdP authorize_url
-  GET  /api/v1/auth/oidc/callback  → exchanges code, mints ClinCase JWT, redirects to UI
-  GET  /api/v1/auth/oidc/status    → unauth-readable; reports whether OIDC is configured
+GET  /api/v1/auth/oidc/login     → redirects browser to IdP authorize_url
+GET  /api/v1/auth/oidc/callback  → exchanges code, mints ClinCase JWT, redirects to UI
+GET  /api/v1/auth/oidc/status    → unauth-readable; reports whether OIDC is configured
 """
+
 from __future__ import annotations
 
 import contextlib

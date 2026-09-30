@@ -23,6 +23,7 @@ Hook order (FastAPI lifespan):
     4. (per-agent invocation)    ← AgentSpan in framework/agent.py wraps the lifecycle
     5. (per-bedrock call)         ← GenAIGatewaySpan in llm/gateway.py wraps InvokeModel
 """
+
 from __future__ import annotations
 
 import os
@@ -85,27 +86,33 @@ def setup_otel(*, service_name: str = "clincase", service_version: str = "0.1.0"
         log.warning(
             "otel.deps_missing",
             hint="pip install 'opentelemetry-api opentelemetry-sdk "
-                 "opentelemetry-exporter-otlp-proto-http "
-                 "opentelemetry-instrumentation-fastapi'",
+            "opentelemetry-exporter-otlp-proto-http "
+            "opentelemetry-instrumentation-fastapi'",
         )
         return
 
-    resource = Resource.create({
-        "service.name": service_name,
-        "service.version": service_version,
-        "service.namespace": "clincase",
-        "deployment.environment": os.getenv("DEPLOYMENT_ENV", "dev"),
-    })
+    resource = Resource.create(
+        {
+            "service.name": service_name,
+            "service.version": service_version,
+            "service.namespace": "clincase",
+            "deployment.environment": os.getenv("DEPLOYMENT_ENV", "dev"),
+        }
+    )
     provider = TracerProvider(resource=resource)
     exporter = OTLPSpanExporter()  # picks up OTEL_EXPORTER_OTLP_ENDPOINT from env
     provider.add_span_processor(BatchSpanProcessor(exporter))
     trace.set_tracer_provider(provider)
 
     # W3C Trace Context + Baggage — the cross-service correlation standard
-    set_global_textmap(CompositePropagator([
-        TraceContextTextMapPropagator(),
-        W3CBaggagePropagator(),
-    ]))
+    set_global_textmap(
+        CompositePropagator(
+            [
+                TraceContextTextMapPropagator(),
+                W3CBaggagePropagator(),
+            ]
+        )
+    )
 
     _tracer = trace.get_tracer(service_name, service_version)
     _initialized = True
@@ -118,10 +125,13 @@ def instrument_fastapi(app: Any) -> None:
         return
     try:
         from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
         FastAPIInstrumentor.instrument_app(app, excluded_urls="healthz,metrics")
         log.info("otel.fastapi.instrumented")
     except ImportError:
-        log.warning("otel.fastapi.deps_missing", hint="pip install opentelemetry-instrumentation-fastapi")
+        log.warning(
+            "otel.fastapi.deps_missing", hint="pip install opentelemetry-instrumentation-fastapi"
+        )
 
 
 @contextmanager
@@ -191,7 +201,8 @@ class _NoOpSpan:
     def record_exception(self, *args: Any, **kwargs: Any) -> None: ...
 
     @property
-    def is_recording(self) -> bool: return False
+    def is_recording(self) -> bool:
+        return False
 
 
 # =============================================================================
@@ -205,6 +216,7 @@ def get_current_trace_id() -> str | None:
         return None
     try:
         from opentelemetry import trace
+
         span = trace.get_current_span()
         ctx = span.get_span_context()
         if ctx.trace_id == 0:
@@ -224,6 +236,7 @@ def inject_traceparent_into_headers(headers: dict[str, str]) -> dict[str, str]:
         return headers
     try:
         from opentelemetry.propagate import inject
+
         out = dict(headers)
         inject(out)
         return out

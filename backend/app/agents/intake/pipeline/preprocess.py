@@ -12,6 +12,7 @@ Industry-grade hardening:
 If any check fails, the stage sets `short_circuit=True` with a reason —
 the orchestrator routes directly to assemble + HITL.
 """
+
 from __future__ import annotations
 
 import io
@@ -28,15 +29,20 @@ from app.agents.intake.pipeline.base import IntakeContext, IntakeStage
 # Magic bytes for the document types we accept. First 8 bytes is enough
 # to disambiguate every common image format we care about.
 _MAGIC_SIGNATURES: dict[str, list[bytes]] = {
-    "image/png":     [b"\x89PNG\r\n\x1a\n"],
-    "image/jpeg":    [b"\xff\xd8\xff\xe0", b"\xff\xd8\xff\xe1", b"\xff\xd8\xff\xdb", b"\xff\xd8\xff\xee"],
-    "image/webp":    [b"RIFF"],   # plus "WEBP" at offset 8 — checked separately
+    "image/png": [b"\x89PNG\r\n\x1a\n"],
+    "image/jpeg": [
+        b"\xff\xd8\xff\xe0",
+        b"\xff\xd8\xff\xe1",
+        b"\xff\xd8\xff\xdb",
+        b"\xff\xd8\xff\xee",
+    ],
+    "image/webp": [b"RIFF"],  # plus "WEBP" at offset 8 — checked separately
     "application/pdf": [b"%PDF-"],
 }
 
 # Dimension safety thresholds
-_MIN_DIMENSION = 200      # pixels — anything smaller is suspect
-_MAX_DIMENSION = 12000    # pixels — anything larger likely a decompression bomb
+_MIN_DIMENSION = 200  # pixels — anything smaller is suspect
+_MAX_DIMENSION = 12000  # pixels — anything larger likely a decompression bomb
 _MAX_PIXELS = 50_000_000  # 50 megapixels — generous but bounded
 
 
@@ -120,9 +126,7 @@ class PreprocessStage(IntakeStage):
                 return
             if w > _MAX_DIMENSION or h > _MAX_DIMENSION or (w * h) > _MAX_PIXELS:
                 ctx.short_circuit = True
-                ctx.short_circuit_reason = (
-                    f"Image dimensions exceed safety thresholds: {w}x{h}."
-                )
+                ctx.short_circuit_reason = f"Image dimensions exceed safety thresholds: {w}x{h}."
                 ctx.risk_flags.append(SOFT_FLAG_INTAKE_FAILED)
                 return
 

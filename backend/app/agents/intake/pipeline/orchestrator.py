@@ -7,6 +7,7 @@ swap a stage, edit `_STAGES` here.
 Per-stage timing accumulates into `ctx.timings_ms` and lands in the
 IntakeResult.audit.stage_timings_ms — observable in the audit ledger.
 """
+
 from __future__ import annotations
 
 import logging
@@ -65,11 +66,14 @@ async def run_intake_pipeline(doc: IntakeDocument, *, tenant_id: str | None = No
         try:
             await stage.run(ctx)
         except Exception as e:  # noqa: BLE001
-            log.exception("intake.stage.crashed", extra={
-                "stage": stage.name,
-                "error": str(e)[:200],
-                "sha256_prefix": ctx.sha256[:12],
-            })
+            log.exception(
+                "intake.stage.crashed",
+                extra={
+                    "stage": stage.name,
+                    "error": str(e)[:200],
+                    "sha256_prefix": ctx.sha256[:12],
+                },
+            )
             ctx.risk_flags.append(SOFT_FLAG_INTAKE_FAILED)
             ctx.short_circuit = True
             ctx.short_circuit_reason = (
@@ -84,6 +88,7 @@ async def run_intake_pipeline(doc: IntakeDocument, *, tenant_id: str | None = No
         # Defensive — should never happen because AssembleStage runs even on short-circuit.
         # If it does, manufacture a HITL result so the API never returns nothing.
         from app.agents.intake.pipeline.assemble import AssembleStage as _A
+
         await _A().run(ctx)
         result = ctx.payload["assemble.intake_result"]
     return result

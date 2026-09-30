@@ -7,6 +7,7 @@ Verifies that:
   - POST /mcp with method=tools/call invokes policy_lookup and returns content.
   - Unknown methods return JSON-RPC error code -32601.
 """
+
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
@@ -19,9 +20,7 @@ from app.main import app
 
 @pytest.fixture
 async def client() -> AsyncIterator[AsyncClient]:
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://testserver"
-    ) as c:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as c:
         yield c
 
 
@@ -31,13 +30,15 @@ async def test_manifest_lists_all_five_tools(client: AsyncClient) -> None:
     assert r.status_code == 200
     body = r.json()
     tool_names = sorted(t["name"] for t in body["tools"])
-    assert tool_names == sorted([
-        "policy_lookup",
-        "clinical_extract",
-        "decision_check",
-        "appeal_draft",
-        "audit_query",
-    ])
+    assert tool_names == sorted(
+        [
+            "policy_lookup",
+            "clinical_extract",
+            "decision_check",
+            "appeal_draft",
+            "audit_query",
+        ]
+    )
     # Must advertise TriZetto compatibility
     compat = " ".join(body.get("client_compatibility", []))
     assert "TriZetto" in compat
@@ -131,9 +132,7 @@ async def test_unknown_method(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_ping(client: AsyncClient) -> None:
-    r = await client.post(
-        "/mcp", json={"jsonrpc": "2.0", "id": "ping1", "method": "ping"}
-    )
+    r = await client.post("/mcp", json={"jsonrpc": "2.0", "id": "ping1", "method": "ping"})
     body = r.json()
     assert body["result"] == {}
     assert body["id"] == "ping1"

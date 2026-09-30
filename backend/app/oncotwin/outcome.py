@@ -17,6 +17,7 @@ In the synthetic cohort the outcome is materialised as a FHIR Encounter
 Training labels are derived ONLY from those Encounter onsets, never from
 the simulator's latent state.
 """
+
 from __future__ import annotations
 
 OUTCOME_ID = "OT-ACUTE-7"
@@ -46,10 +47,22 @@ OUTCOME_DEFINITION = {
 # ICD-10-CM codes used on synthetic qualifying Encounters. A real deployment
 # must map to the full OP-35 code set published by CMS.
 QUALIFYING_CONDITIONS: dict[str, dict[str, str]] = {
-    "febrile_neutropenia": {"icd10": "D70.1", "display": "Agranulocytosis secondary to cancer chemotherapy (febrile neutropenia)", "op35": "neutropenia / fever"},
-    "sepsis":              {"icd10": "A41.9", "display": "Sepsis, unspecified organism", "op35": "sepsis"},
-    "pneumonia":           {"icd10": "J18.9", "display": "Pneumonia, unspecified organism", "op35": "pneumonia"},
-    "dehydration":         {"icd10": "E86.0", "display": "Dehydration", "op35": "dehydration"},
-    "diarrhea":            {"icd10": "R19.7", "display": "Diarrhea, unspecified", "op35": "diarrhea"},
-    "nausea_vomiting":     {"icd10": "R11.2", "display": "Nausea with vomiting, unspecified", "op35": "nausea / emesis"},
+    "febrile_neutropenia": {
+        "icd10": "D70.1",
+        "display": "Agranulocytosis secondary to cancer chemotherapy (febrile neutropenia)",
+        "op35": "neutropenia / fever",
+    },
+    "sepsis": {"icd10": "A41.9", "display": "Sepsis, unspecified organism", "op35": "sepsis"},
+    "pneumonia": {
+        "icd10": "J18.9",
+        "display": "Pneumonia, unspecified organism",
+        "op35": "pneumonia",
+    },
+    "dehydration": {"icd10": "E86.0", "display": "Dehydration", "op35": "dehydration"},
+    "diarrhea": {"icd10": "R19.7", "display": "Diarrhea, unspecified", "op35": "diarrhea"},
+    "nausea_vomiting": {
+        "icd10": "R11.2",
+        "display": "Nausea with vomiting, unspecified",
+        "op35": "nausea / emesis",
+    },
 }

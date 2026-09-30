@@ -1,4 +1,5 @@
 """Synthetic simulator: determinism, archetype behaviour, and past-data invariance."""
+
 from __future__ import annotations
 
 import copy
@@ -11,16 +12,18 @@ from app.oncotwin.simulator.patients import InfectionSeed, simulate
 def test_simulation_is_deterministic():
     a = simulate(DEMO_SCRIPTS["ot-001"])
     b = simulate(DEMO_SCRIPTS["ot-001"])
-    assert [(o.id, o.value) for o in a.record.observations] == [(o.id, o.value) for o in b.record.observations]
+    assert [(o.id, o.value) for o in a.record.observations] == [
+        (o.id, o.value) for o in b.record.observations
+    ]
     assert a.truth.event_onsets == b.truth.event_onsets
 
 
 def test_archetypes_follow_their_stories(demo_sims):
     onsets = {pid: [e["condition"] for e in s.truth.event_onsets] for pid, s in demo_sims.items()}
-    assert onsets["ot-001"] == []                              # recovery: intervention averts admission
-    assert onsets["ot-002"] == ["dehydration"]                 # gradual deterioration
-    assert onsets["ot-003"] == ["febrile_neutropenia"]         # sudden deterioration
-    assert onsets["ot-004"] == []                              # stable
+    assert onsets["ot-001"] == []  # recovery: intervention averts admission
+    assert onsets["ot-002"] == ["dehydration"]  # gradual deterioration
+    assert onsets["ot-003"] == ["febrile_neutropenia"]  # sudden deterioration
+    assert onsets["ot-004"] == []  # stable
 
 
 def test_intervention_is_what_averts_the_recovery_patients_admission():
@@ -40,7 +43,9 @@ def test_changing_the_future_never_changes_the_past():
         return [(o.id, o.value) for o in rec.observations if o.day < 40]
 
     assert past(a) == past(b)
-    assert [(o.id, o.value) for o in a.observations if o.day >= 42] != [(o.id, o.value) for o in b.observations if o.day >= 42]
+    assert [(o.id, o.value) for o in a.observations if o.day >= 42] != [
+        (o.id, o.value) for o in b.observations if o.day >= 42
+    ]
 
 
 def test_every_demo_patient_is_labelled_synthetic(demo_sims):

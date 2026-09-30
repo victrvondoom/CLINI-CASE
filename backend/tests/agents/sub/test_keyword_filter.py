@@ -1,4 +1,5 @@
 """Contract tests for keyword_filter DeterministicSubAgent."""
+
 from __future__ import annotations
 
 from app.agents.policy_retriever.schemas import KeywordFilterInput

@@ -12,6 +12,7 @@ Ledger entries are written through to Postgres (`oncotwin_audit`) whenever a
 database is configured, following ClinCase's fail-soft bootstrap pattern; the
 in-process copy remains authoritative for the running demo.
 """
+
 from __future__ import annotations
 
 import copy
@@ -51,6 +52,7 @@ CREATE INDEX IF NOT EXISTS idx_oncotwin_audit_patient ON oncotwin_audit(organiza
 
 async def ensure_schema() -> None:
     from app.db import db
+
     await db.execute(SCHEMA_SQL)
 
 
@@ -73,12 +75,20 @@ class AuditLedger:
         self._tip_loaded = False
         self._lock = threading.Lock()
 
-    def append(self, kind: str, *, patient_id: str | None, actor: str, payload: dict[str, Any]) -> dict[str, Any]:
+    def append(
+        self, kind: str, *, patient_id: str | None, actor: str, payload: dict[str, Any]
+    ) -> dict[str, Any]:
         with self._lock:
             body = {
-                "id": f"otl_{uuid.uuid4().hex[:16]}", "seq": len(self.entries) + 1, "kind": kind,
-                "organization_id": self.organization_id, "patient_id": patient_id, "actor": actor,
-                "created_at": _now(), "payload": payload, "prev_hash": self.tip,
+                "id": f"otl_{uuid.uuid4().hex[:16]}",
+                "seq": len(self.entries) + 1,
+                "kind": kind,
+                "organization_id": self.organization_id,
+                "patient_id": patient_id,
+                "actor": actor,
+                "created_at": _now(),
+                "payload": payload,
+                "prev_hash": self.tip,
             }
             entry = {**body, "hash": _entry_hash(body)}
             self.entries.append(entry)
@@ -91,9 +101,19 @@ class AuditLedger:
         for i, e in enumerate(rows):
             body = {k: v for k, v in e.items() if k not in ("hash", "persisted")}
             if e["prev_hash"] != prev or _entry_hash(body) != e["hash"]:
-                return {"valid": False, "entries": len(rows), "broken_at_seq": e["seq"], "broken_index": i}
+                return {
+                    "valid": False,
+                    "entries": len(rows),
+                    "broken_at_seq": e["seq"],
+                    "broken_index": i,
+                }
             prev = e["hash"]
-        return {"valid": True, "entries": len(rows), "tip": prev, "genesis": rows[0]["prev_hash"] if rows else self.genesis}
+        return {
+            "valid": True,
+            "entries": len(rows),
+            "tip": prev,
+            "genesis": rows[0]["prev_hash"] if rows else self.genesis,
+        }
 
     async def load_tip(self) -> None:
         """Continue the chain from the last persisted entry for this org (if a DB is configured)."""
@@ -102,6 +122,7 @@ class AuditLedger:
         self._tip_loaded = True
         try:
             from app.db import db
+
             row = await db.fetchrow(
                 "SELECT hash FROM oncotwin_audit WHERE organization_id = $1 ORDER BY created_at DESC, seq DESC LIMIT 1",
                 self.organization_id,
@@ -114,13 +135,21 @@ class AuditLedger:
     async def persist(self, entry: dict[str, Any]) -> None:
         try:
             from app.db import db
+
             await db.execute(
                 """INSERT INTO oncotwin_audit (id, organization_id, seq, kind, patient_id, actor, created_at,
                                                payload, prev_hash, hash)
                    VALUES ($1,$2,$3,$4,$5,$6,$7::timestamptz,$8::jsonb,$9,$10) ON CONFLICT (id) DO NOTHING""",
-                entry["id"], entry["organization_id"], entry["seq"], entry["kind"], entry["patient_id"],
-                entry["actor"], datetime.fromisoformat(entry["created_at"].replace("Z", "+00:00")),
-                json.dumps(entry["payload"], default=str), entry["prev_hash"], entry["hash"],
+                entry["id"],
+                entry["organization_id"],
+                entry["seq"],
+                entry["kind"],
+                entry["patient_id"],
+                entry["actor"],
+                datetime.fromisoformat(entry["created_at"].replace("Z", "+00:00")),
+                json.dumps(entry["payload"], default=str),
+                entry["prev_hash"],
+                entry["hash"],
             )
             entry["persisted"] = True
         except Exception as e:  # noqa: BLE001 — fail-soft, like ClinCase's outbox/saga bootstraps
@@ -180,10 +209,14 @@ class OrgTwinStore:
         self.handoffs: list[dict[str, Any]] = []
         self.ledger = AuditLedger(organization_id)
         self.bus = TwinEventBus(organization_id)
-        self.dirty: dict[str, list[dict[str, Any]]] = {}      # patient → data events awaiting a twin update
-        self.predictions: list[dict[str, Any]] = []           # MLOps prediction log (ground truth resolved later)
-        self.agent_runs: deque = deque(maxlen=200)            # twin-graph traces (per-agent status + latency)
-        self.llm_traces: list[dict[str, Any]] = []            # explanation-agent LLM calls (no patient text)
+        self.dirty: dict[
+            str, list[dict[str, Any]]
+        ] = {}  # patient → data events awaiting a twin update
+        self.predictions: list[
+            dict[str, Any]
+        ] = []  # MLOps prediction log (ground truth resolved later)
+        self.agent_runs: deque = deque(maxlen=200)  # twin-graph traces (per-agent status + latency)
+        self.llm_traces: list[dict[str, Any]] = []  # explanation-agent LLM calls (no patient text)
         self.drift_cache: tuple[tuple, dict[str, Any]] | None = None
         self.stress_runs: deque = deque(maxlen=20)
         self.bus.subscribe("data", self._on_data_event)
@@ -198,7 +231,9 @@ class OrgTwinStore:
     def _seed(self) -> None:
         for pid, script in DEMO_SCRIPTS.items():
             s = copy.deepcopy(script)
-            self.patients[pid] = PatientState(script=s, sim=simulate(s), live_day=DEMO_START_DAY[pid])
+            self.patients[pid] = PatientState(
+                script=s, sim=simulate(s), live_day=DEMO_START_DAY[pid]
+            )
 
     def patient(self, pid: str) -> PatientState:
         if pid not in self.patients:

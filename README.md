@@ -139,7 +139,7 @@ flowchart TB
     end
 
     subgraph ORCH["Layer 2 - Orchestration"]
-        LG["LangGraph DAG (7 agents - 21 sub-agents - conditional edges)"]
+        LG["LangGraph DAG (7 agents - 22 sub-agents - conditional edges)"]
         QUEUE["Postgres job queue + HITL reviewer gate"]
     end
 
@@ -321,6 +321,16 @@ OncoTwin is an **add-on layer**. The 7-agent pipeline, its endpoints, FHIR handl
 Full details, including limitations, are in [docs/ONCOTWIN.md](docs/ONCOTWIN.md). In the app, go to **Digital twin** in the sidebar (`/twin`).
 
 ---
+
+## 🫀 CardioTwin: vessel-level cardiovascular risk
+
+CardioTwin estimates the probability of angiographic CAD and of stenosis in the LAD, LCX and RCA from clinical,
+ECG, laboratory and echo features, and shows them on an interactive schematic 3D heart at `/cardiotwin`.
+It is deliberately honest about what a 303-patient tabular dataset can support: probabilities are calibrated and
+drawn with their uncertainty, an out-of-cohort profile triggers a warning instead of false confidence, every
+explanation and what-if is an exact re-evaluation of an integrity-checked model, and the view never claims to show
+*where* a lesion is. **Decision support / educational only — not a substitute for diagnostic imaging.**
+Reproduce with `make cardio.train` and `make cardio.test`; full write-up in [`docs/CARDIOTWIN.md`](docs/CARDIOTWIN.md).
 
 ## 🌍 Beyond oncology
 

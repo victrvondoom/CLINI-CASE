@@ -15,6 +15,7 @@ and shouldn't have to import IntakeContext or the stage classes. Future
 refactors (adding a stage, swapping orchestrator implementation) can
 land without breaking any caller.
 """
+
 from __future__ import annotations
 
 from app.agents.intake.pipeline import run_intake_pipeline

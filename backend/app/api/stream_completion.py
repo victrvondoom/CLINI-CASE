@@ -29,6 +29,7 @@ Already gated by:
   • Per-Bedrock-model circuit breaker
   • Per-tenant 24h quota (TenantPolicy)
 """
+
 from __future__ import annotations
 
 import json
@@ -69,9 +70,9 @@ async def _sse_iter(stream: AsyncIterator[str]) -> AsyncIterator[bytes]:
             payload = json.dumps({"delta": delta})
             yield f"data: {payload}\n\n".encode()
             chunks_emitted += 1
-        yield (
-            "data: " + json.dumps({"event": "done", "chunks": chunks_emitted}) + "\n\n"
-        ).encode("utf-8")
+        yield ("data: " + json.dumps({"event": "done", "chunks": chunks_emitted}) + "\n\n").encode(
+            "utf-8"
+        )
     except Exception as e:  # noqa: BLE001
         log.warning("stream_completion.error", error=str(e))
         err = json.dumps({"event": "error", "message": str(e)[:200]})

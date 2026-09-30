@@ -1,4 +1,5 @@
 """Decision Composer sub-agents — public surface."""
+
 from app.agents.decision_composer.sub_agents.citation_linker import (
     CitationLinkerAgent,
     citation_linker,

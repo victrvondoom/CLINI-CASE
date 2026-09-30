@@ -5,6 +5,7 @@ caller's organisation. Clinician decisions (accept / dismiss / investigate,
 hand-off to ClinCase, demo reset) require the reviewer or admin role, the
 same roles ClinCase uses for its HITL resume endpoint.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -58,7 +59,7 @@ async def _persist(store: OrgTwinStore, entries: list[dict[str, Any] | None]) ->
     for e in entries:
         if e is not None:
             await store.ledger.persist(e)
-    await store.bus.flush_outbox()      # forward queued twin events to ClinCase's outbox (fail-soft)
+    await store.bus.flush_outbox()  # forward queued twin events to ClinCase's outbox (fail-soft)
 
 
 def _actor(user: dict[str, Any]) -> str:
@@ -87,26 +88,34 @@ def _model_or_503():
 @router.get("/overview")
 async def overview(store: OrgTwinStore = Depends(org_store)) -> dict[str, Any]:
     model = _model_or_503()
-    return clean({
-        "name": "OncoTwin",
-        "tagline": ("We don't just store a patient's history. We continuously model how the patient's health is "
-                    "changing, detect deviations from their personal baseline, simulate possible trajectories, and "
-                    "give clinicians transparent decision support."),
-        "oncotwin_version": ONCOTWIN_VERSION,
-        "outcome": OUTCOME_DEFINITION,
-        "model": model.version_info(),
-        "headline_metrics": {
-            "data": model.artifact["metrics"]["data"],
-            "day_level": model.artifact["metrics"]["day_level"],
-            "event_level": model.artifact["metrics"]["event_level"],
-            "comparators": model.artifact["comparators"],
-        },
-        "patients": len(store.patients),
-        "open_alerts": sum(1 for a in store.alerts.values() if a["status"] in ("open", "investigating")),
-        "ledger": store.ledger.verify(),
-        "decision_support_notice": ("Clinical decision support only — not a diagnosis, not a treatment decision, "
-                                    "not a medical device. All demo patients are synthetic."),
-    })
+    return clean(
+        {
+            "name": "OncoTwin",
+            "tagline": (
+                "We don't just store a patient's history. We continuously model how the patient's health is "
+                "changing, detect deviations from their personal baseline, simulate possible trajectories, and "
+                "give clinicians transparent decision support."
+            ),
+            "oncotwin_version": ONCOTWIN_VERSION,
+            "outcome": OUTCOME_DEFINITION,
+            "model": model.version_info(),
+            "headline_metrics": {
+                "data": model.artifact["metrics"]["data"],
+                "day_level": model.artifact["metrics"]["day_level"],
+                "event_level": model.artifact["metrics"]["event_level"],
+                "comparators": model.artifact["comparators"],
+            },
+            "patients": len(store.patients),
+            "open_alerts": sum(
+                1 for a in store.alerts.values() if a["status"] in ("open", "investigating")
+            ),
+            "ledger": store.ledger.verify(),
+            "decision_support_notice": (
+                "Clinical decision support only — not a diagnosis, not a treatment decision, "
+                "not a medical device. All demo patients are synthetic."
+            ),
+        }
+    )
 
 
 @router.get("/outcome")
@@ -121,8 +130,10 @@ async def model_card(_: dict[str, Any] = Depends(get_current_user)) -> dict[str,
 
 @router.get("/signals")
 async def signals(_: dict[str, Any] = Depends(get_current_user)) -> dict[str, Any]:
-    return {"signals": signal_catalog(),
-            "note": "Mapping adapters for HealthKit / Health Connect-shaped samples; no live vendor connection is shipped."}
+    return {
+        "signals": signal_catalog(),
+        "note": "Mapping adapters for HealthKit / Health Connect-shaped samples; no live vendor connection is shipped.",
+    }
 
 
 @router.get("/agents/manifest")
@@ -143,16 +154,24 @@ async def scenario_catalog(_: dict[str, Any] = Depends(get_current_user)) -> dic
 @router.get("/patients")
 async def list_patients(store: OrgTwinStore = Depends(org_store)) -> dict[str, Any]:
     _model_or_503()
-    rows = await asyncio.to_thread(lambda: [runtime.patient_summary(store, pid) for pid in store.patients])
+    rows = await asyncio.to_thread(
+        lambda: [runtime.patient_summary(store, pid) for pid in store.patients]
+    )
     return clean({"patients": rows, "synthetic": True})
 
 
 @router.get("/patients/{pid}")
-async def patient_dashboard(pid: str, as_of_day: int | None = Query(default=None, ge=1),
-                            simulate: bool = True, store: OrgTwinStore = Depends(org_store)) -> dict[str, Any]:
+async def patient_dashboard(
+    pid: str,
+    as_of_day: int | None = Query(default=None, ge=1),
+    simulate: bool = True,
+    store: OrgTwinStore = Depends(org_store),
+) -> dict[str, Any]:
     _patient_or_404(store, pid)
     _model_or_503()
-    return clean(await asyncio.to_thread(runtime.dashboard, store, pid, as_of_day, simulate=simulate))
+    return clean(
+        await asyncio.to_thread(runtime.dashboard, store, pid, as_of_day, simulate=simulate)
+    )
 
 
 @router.get("/patients/{pid}/replay")
@@ -162,15 +181,22 @@ async def patient_replay(pid: str, store: OrgTwinStore = Depends(org_store)) -> 
 
 
 @router.get("/patients/{pid}/timeline")
-async def patient_timeline(pid: str, as_of_day: int | None = Query(default=None, ge=1),
-                           store: OrgTwinStore = Depends(org_store)) -> dict[str, Any]:
+async def patient_timeline(
+    pid: str,
+    as_of_day: int | None = Query(default=None, ge=1),
+    store: OrgTwinStore = Depends(org_store),
+) -> dict[str, Any]:
     _patient_or_404(store, pid)
     return clean(await asyncio.to_thread(runtime.timeline, store, pid, as_of_day))
 
 
 @router.get("/patients/{pid}/fhir")
-async def patient_fhir(pid: str, as_of_day: int | None = Query(default=None, ge=1), include_daily: bool = True,
-                       store: OrgTwinStore = Depends(org_store)) -> dict[str, Any]:
+async def patient_fhir(
+    pid: str,
+    as_of_day: int | None = Query(default=None, ge=1),
+    include_daily: bool = True,
+    store: OrgTwinStore = Depends(org_store),
+) -> dict[str, Any]:
     st = _patient_or_404(store, pid)
     day = min(as_of_day or st.live_day, st.live_day)
     return clean(build_bundle(st.record(), day, include_daily=include_daily))
@@ -178,22 +204,44 @@ async def patient_fhir(pid: str, as_of_day: int | None = Query(default=None, ge=
 
 class SimulateRequest(BaseModel):
     as_of_day: int | None = Field(default=None, ge=1)
-    scenarios: list[Literal["current", "early_intervention", "improved_recovery",
-                            "reduced_adherence", "regimen_change"]] | None = None
+    scenarios: (
+        list[
+            Literal[
+                "current",
+                "early_intervention",
+                "improved_recovery",
+                "reduced_adherence",
+                "regimen_change",
+            ]
+        ]
+        | None
+    ) = None
 
 
 @router.post("/patients/{pid}/simulate")
-async def patient_simulate(pid: str, req: SimulateRequest, store: OrgTwinStore = Depends(org_store)) -> dict[str, Any]:
+async def patient_simulate(
+    pid: str, req: SimulateRequest, store: OrgTwinStore = Depends(org_store)
+) -> dict[str, Any]:
     st = _patient_or_404(store, pid)
     model = _model_or_503()
 
     def run() -> dict[str, Any]:
         hist = runtime.history_for(st)
         day = min(req.as_of_day or st.live_day, st.live_day)
-        comp = compute_twin(st.record(), day, history=[h for h in hist if h["day"] <= day],
-                            simulate=list(req.scenarios or SCENARIOS), model=model)
-        return {"as_of_day": day, "current_risk": comp.prediction["risk"], "tier": comp.prediction["tier"],
-                "card": twin_card(comp), "simulation": comp.simulation}
+        comp = compute_twin(
+            st.record(),
+            day,
+            history=[h for h in hist if h["day"] <= day],
+            simulate=list(req.scenarios or SCENARIOS),
+            model=model,
+        )
+        return {
+            "as_of_day": day,
+            "current_risk": comp.prediction["risk"],
+            "tier": comp.prediction["tier"],
+            "card": twin_card(comp),
+            "simulation": comp.simulation,
+        }
 
     return clean(await asyncio.to_thread(run))
 
@@ -203,8 +251,12 @@ class AdvanceRequest(BaseModel):
 
 
 @router.post("/patients/{pid}/advance")
-async def patient_advance(pid: str, req: AdvanceRequest, user: dict[str, Any] = Depends(get_current_user),
-                          store: OrgTwinStore = Depends(org_store)) -> dict[str, Any]:
+async def patient_advance(
+    pid: str,
+    req: AdvanceRequest,
+    user: dict[str, Any] = Depends(get_current_user),
+    store: OrgTwinStore = Depends(org_store),
+) -> dict[str, Any]:
     _patient_or_404(store, pid)
     _model_or_503()
     res = await asyncio.to_thread(runtime.advance, store, pid, req.days, actor=_actor(user))
@@ -213,14 +265,25 @@ async def patient_advance(pid: str, req: AdvanceRequest, user: dict[str, Any] = 
 
 
 @router.post("/patients/{pid}/evaluate")
-async def patient_evaluate(pid: str, user: dict[str, Any] = Depends(get_current_user),
-                           store: OrgTwinStore = Depends(org_store)) -> dict[str, Any]:
+async def patient_evaluate(
+    pid: str,
+    user: dict[str, Any] = Depends(get_current_user),
+    store: OrgTwinStore = Depends(org_store),
+) -> dict[str, Any]:
     _patient_or_404(store, pid)
     _model_or_503()
-    res = await asyncio.to_thread(runtime.commit_evaluation, store, pid, actor=_actor(user),
-                                  trigger="manual evaluation", force_simulation=True)
+    res = await asyncio.to_thread(
+        runtime.commit_evaluation,
+        store,
+        pid,
+        actor=_actor(user),
+        trigger="manual evaluation",
+        force_simulation=True,
+    )
     await _persist(store, [res["evaluation"], res["alert_entry"]])
-    return clean({k: res[k] for k in ("evaluation", "alert", "agent_trace", "tier", "risk", "as_of_day")})
+    return clean(
+        {k: res[k] for k in ("evaluation", "alert", "agent_trace", "tier", "risk", "as_of_day")}
+    )
 
 
 class InjectRequest(BaseModel):
@@ -228,8 +291,12 @@ class InjectRequest(BaseModel):
 
 
 @router.post("/patients/{pid}/inject")
-async def patient_inject(pid: str, req: InjectRequest, user: dict[str, Any] = Depends(get_current_user),
-                         store: OrgTwinStore = Depends(org_store)) -> dict[str, Any]:
+async def patient_inject(
+    pid: str,
+    req: InjectRequest,
+    user: dict[str, Any] = Depends(get_current_user),
+    store: OrgTwinStore = Depends(org_store),
+) -> dict[str, Any]:
     _patient_or_404(store, pid)
     try:
         res = await asyncio.to_thread(runtime.inject, store, pid, req.kind, actor=_actor(user))
@@ -245,8 +312,12 @@ class IngestRequest(BaseModel):
 
 
 @router.post("/patients/{pid}/observations")
-async def patient_ingest(pid: str, req: IngestRequest, user: dict[str, Any] = Depends(get_current_user),
-                         store: OrgTwinStore = Depends(org_store)) -> dict[str, Any]:
+async def patient_ingest(
+    pid: str,
+    req: IngestRequest,
+    user: dict[str, Any] = Depends(get_current_user),
+    store: OrgTwinStore = Depends(org_store),
+) -> dict[str, Any]:
     _patient_or_404(store, pid)
     res = await asyncio.to_thread(runtime.ingest, store, pid, req.model_dump(), actor=_actor(user))
     await _persist(store, [res["entry"], *res.pop("extra_entries", [])])
@@ -259,10 +330,17 @@ async def patient_ingest(pid: str, req: IngestRequest, user: dict[str, Any] = De
 
 
 @router.get("/alerts")
-async def list_alerts(patient_id: str | None = None, status: str | None = None,
-                      store: OrgTwinStore = Depends(org_store)) -> dict[str, Any]:
-    rows = [runtime.alert_summary(a) for a in store.alerts.values()
-            if (patient_id is None or a["patient_id"] == patient_id) and (status is None or a["status"] == status)]
+async def list_alerts(
+    patient_id: str | None = None,
+    status: str | None = None,
+    store: OrgTwinStore = Depends(org_store),
+) -> dict[str, Any]:
+    rows = [
+        runtime.alert_summary(a)
+        for a in store.alerts.values()
+        if (patient_id is None or a["patient_id"] == patient_id)
+        and (status is None or a["status"] == status)
+    ]
     rows.sort(key=lambda a: a["created_at"], reverse=True)
     return clean({"alerts": rows})
 
@@ -289,8 +367,12 @@ class AlertActionRequest(BaseModel):
 
 
 @router.post("/alerts/{alert_id}/action")
-async def alert_action(alert_id: str, req: AlertActionRequest, user: dict[str, Any] = Depends(Clinician),
-                       store: OrgTwinStore = Depends(org_store)) -> dict[str, Any]:
+async def alert_action(
+    alert_id: str,
+    req: AlertActionRequest,
+    user: dict[str, Any] = Depends(Clinician),
+    store: OrgTwinStore = Depends(org_store),
+) -> dict[str, Any]:
     try:
         res = runtime.act_on_alert(store, alert_id, req.action, req.note, user)
     except KeyError as e:
@@ -315,8 +397,12 @@ class HandoffRequest(BaseModel):
 
 
 @router.post("/alerts/{alert_id}/handoff")
-async def alert_handoff(alert_id: str, req: HandoffRequest, user: dict[str, Any] = Depends(Clinician),
-                        store: OrgTwinStore = Depends(org_store)) -> dict[str, Any]:
+async def alert_handoff(
+    alert_id: str,
+    req: HandoffRequest,
+    user: dict[str, Any] = Depends(Clinician),
+    store: OrgTwinStore = Depends(org_store),
+) -> dict[str, Any]:
     override = req.requested_treatment.model_dump() if req.requested_treatment else None
     try:
         res = await runtime.handoff(store, alert_id, user, override)
@@ -334,15 +420,26 @@ async def alert_handoff(alert_id: str, req: HandoffRequest, user: dict[str, Any]
 
 
 @router.get("/audit")
-async def audit(patient_id: str | None = None, limit: int = Query(default=200, ge=1, le=2000),
-                store: OrgTwinStore = Depends(org_store)) -> dict[str, Any]:
+async def audit(
+    patient_id: str | None = None,
+    limit: int = Query(default=200, ge=1, le=2000),
+    store: OrgTwinStore = Depends(org_store),
+) -> dict[str, Any]:
     return clean(runtime.audit(store, patient_id, limit))
 
 
 @router.post("/demo/reset")
-async def demo_reset(user: dict[str, Any] = Depends(Clinician), store: OrgTwinStore = Depends(org_store)) -> dict[str, Any]:
+async def demo_reset(
+    user: dict[str, Any] = Depends(Clinician), store: OrgTwinStore = Depends(org_store)
+) -> dict[str, Any]:
     await asyncio.to_thread(store.reset)
-    entry = store.ledger.append("demo_reset", patient_id=None, actor=_actor(user), payload={
-        "notice": "Demo patients, twin clocks and alerts reset to their seeded state. The audit ledger is NOT reset."})
+    entry = store.ledger.append(
+        "demo_reset",
+        patient_id=None,
+        actor=_actor(user),
+        payload={
+            "notice": "Demo patients, twin clocks and alerts reset to their seeded state. The audit ledger is NOT reset."
+        },
+    )
     await _persist(store, [entry])
     return clean({"reset": True, "entry": entry})

@@ -1,4 +1,5 @@
-﻿"""Adversarial, offline regressions for model-to-decision safety boundaries."""
+"""Adversarial, offline regressions for model-to-decision safety boundaries."""
+
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
@@ -46,7 +47,9 @@ def match(status="MET", index=0):
 
 
 def calibrate(scores, overall=0.99):
-    return ConfidenceCalibratorOutput(confidences=scores, overall_confidence=overall, summary="summary")
+    return ConfidenceCalibratorOutput(
+        confidences=scores, overall_confidence=overall, summary="summary"
+    )
 
 
 def assessment(status="MET", confidence=0.95):
@@ -55,7 +58,9 @@ def assessment(status="MET", confidence=0.95):
 
 def snapshot():
     return ClinicalSnapshot(
-        primary_diagnosis=Diagnosis(icd10_code="C50", description="test", source_resource_id="condition-1"),
+        primary_diagnosis=Diagnosis(
+            icd10_code="C50", description="test", source_resource_id="condition-1"
+        ),
         requested_treatment=RequestedTreatment(name="test treatment"),
         performance_status="1",
         free_text_summary="summary",
@@ -63,7 +68,14 @@ def snapshot():
 
 
 def excerpt():
-    return PolicyExcerpt(payer_id="payer", policy_id="0048", policy_title="title", section_heading="Eligibility", excerpt_text="criterion", relevance_score=1)
+    return PolicyExcerpt(
+        payer_id="payer",
+        policy_id="0048",
+        policy_title="title",
+        section_heading="Eligibility",
+        excerpt_text="criterion",
+        relevance_score=1,
+    )
 
 
 @pytest.mark.parametrize("scores", [[0.99], [0.99, 0.99, 0.99]])
@@ -86,9 +98,13 @@ def test_invalid_calibration_and_canonical_scores_rejected(score):
     with pytest.raises(ValidationError):
         calibrate([score])
     with pytest.raises(ValidationError):
-        CriterionAssessment.model_validate({**assessment().criteria[0].model_dump(), "confidence": score})
+        CriterionAssessment.model_validate(
+            {**assessment().criteria[0].model_dump(), "confidence": score}
+        )
     with pytest.raises(ValidationError):
-        NecessityAssessment.model_validate({**assessment().model_dump(), "overall_confidence": score})
+        NecessityAssessment.model_validate(
+            {**assessment().model_dump(), "overall_confidence": score}
+        )
 
 
 def test_empty_assessment_and_missing_criterion_fail_closed():
@@ -103,7 +119,10 @@ def test_inflated_aggregate_cannot_bypass_review(status):
     result = assessment(status, confidence=0.2)
     assert result.overall_confidence == 0.2
     assert derive_verdict(result) == "REFER"
-    assert evaluate_verdict(VerdictSynthesizerInput(assessment=result)).trace.triggered_rule == "low_overall_confidence"
+    assert (
+        evaluate_verdict(VerdictSynthesizerInput(assessment=result)).trace.triggered_rule
+        == "low_overall_confidence"
+    )
 
 
 def test_lower_aggregate_preserved():
@@ -114,38 +133,72 @@ def test_lower_aggregate_preserved():
 @pytest.mark.parametrize("confidence", [0, 0.749, 0.75, 1])
 def test_legacy_and_production_verdict_share_rule(status, confidence):
     result = assessment(status, confidence)
-    assert derive_verdict(result) == evaluate_verdict(VerdictSynthesizerInput(assessment=result)).verdict
+    assert (
+        derive_verdict(result)
+        == evaluate_verdict(VerdictSynthesizerInput(assessment=result)).verdict
+    )
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("criteria", [
-    [AtomicCriterion(text="criterion", policy_excerpt_index=1)],
-    [AtomicCriterion(text="criterion", policy_excerpt_index=0), AtomicCriterion(text=" CRITERION ", policy_excerpt_index=0)],
-    [AtomicCriterion(text="  ", policy_excerpt_index=0)],
-])
+@pytest.mark.parametrize(
+    "criteria",
+    [
+        [AtomicCriterion(text="criterion", policy_excerpt_index=1)],
+        [
+            AtomicCriterion(text="criterion", policy_excerpt_index=0),
+            AtomicCriterion(text=" CRITERION ", policy_excerpt_index=0),
+        ],
+        [AtomicCriterion(text="  ", policy_excerpt_index=0)],
+    ],
+)
 async def test_invalid_splitter_sources_fail_before_evidence_calls(monkeypatch, criteria):
-    monkeypatch.setattr(type(criterion_splitter), "invoke", AsyncMock(return_value=SimpleNamespace(output=CriterionSplitterOutput(atomic_criteria=criteria))))
+    monkeypatch.setattr(
+        type(criterion_splitter),
+        "invoke",
+        AsyncMock(
+            return_value=SimpleNamespace(output=CriterionSplitterOutput(atomic_criteria=criteria))
+        ),
+    )
     evidence = AsyncMock()
     monkeypatch.setattr(type(evidence_matcher), "invoke", evidence)
     with pytest.raises(ValueError):
-        await necessity_reasoner._execute_deterministic(NecessityReasonerInput(snapshot=snapshot(), excerpts=[excerpt()]), None)
+        await necessity_reasoner._execute_deterministic(
+            NecessityReasonerInput(snapshot=snapshot(), excerpts=[excerpt()]), None
+        )
     evidence.assert_not_awaited()
 
 
 def citation_input():
-    return CitationLinkerInput(rationale="claim", assessment=assessment(), excerpts=[excerpt()], snapshot=snapshot())
+    return CitationLinkerInput(
+        rationale="claim", assessment=assessment(), excerpts=[excerpt()], snapshot=snapshot()
+    )
 
 
 def citation_output(pointer, kind="clinical", coverage=True):
-    return CitationLinkerOutput(citations=[{"text": "claim", "pointer": pointer, "kind": kind}], every_claim_has_pointer=coverage)
+    return CitationLinkerOutput(
+        citations=[{"text": "claim", "pointer": pointer, "kind": kind}],
+        every_claim_has_pointer=coverage,
+    )
 
 
-@pytest.mark.parametrize("pointer", ["condition-1", "primary_diagnosis.description", "performance_status"])
+@pytest.mark.parametrize(
+    "pointer", ["condition-1", "primary_diagnosis.description", "performance_status"]
+)
 def test_supplied_clinical_pointers_resolve(pointer):
     validate_citation_provenance(citation_input(), citation_output(pointer))
 
 
-@pytest.mark.parametrize("pointer,kind", [("invented-observation", "clinical"), ("biomarkers[0]", "clinical"), ("policy_excerpts[1]", "policy"), ("FDA imaginary label", "fda_label"), ("payer 10048 Eligibility", "policy"), ("", "policy")])
+@pytest.mark.parametrize(
+    "pointer,kind",
+    [
+        ("invented-observation", "clinical"),
+        ("biomarkers[0]", "clinical"),
+        ("policy_excerpts[1]", "policy"),
+        ("FDA imaginary label", "fda_label"),
+        ("payer 10048 Eligibility", "policy"),
+        ("", "policy"),
+    ],
+)
 def test_invented_citation_sources_rejected(pointer, kind):
     with pytest.raises(ValueError):
         validate_citation_provenance(citation_input(), citation_output(pointer, kind))
@@ -158,20 +211,29 @@ def test_supplied_policy_pointers_resolve(pointer):
 
 def test_linker_incomplete_coverage_rejected():
     with pytest.raises(ValueError, match="incomplete claim coverage"):
-        validate_citation_provenance(citation_input(), citation_output("condition-1", coverage=False))
+        validate_citation_provenance(
+            citation_input(), citation_output("condition-1", coverage=False)
+        )
 
 
 def test_linker_must_explicitly_attest_claim_coverage():
     with pytest.raises(ValidationError):
-        CitationLinkerOutput(citations=[{
-            "text": "claim", "pointer": "condition-1", "kind": "clinical",
-        }])
+        CitationLinkerOutput(
+            citations=[
+                {
+                    "text": "claim",
+                    "pointer": "condition-1",
+                    "kind": "clinical",
+                }
+            ]
+        )
 
 
 def test_composer_rejects_out_of_range_assessment_source():
     result = calibrate([0.99]).to_assessment([match(index=1)])
     with pytest.raises(ValidationError, match="unavailable policy excerpt"):
         DecisionComposerInput(snapshot=snapshot(), excerpts=[excerpt()], assessment=result)
+
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("valid", [True, False])
@@ -184,10 +246,32 @@ async def test_composer_checks_provenance_before_emitting_decision(monkeypatch, 
     )
     from app.agents.decision_composer.schemas import RationaleWriterOutput
 
-    monkeypatch.setattr(type(verdict_synthesizer), "invoke", AsyncMock(return_value=SimpleNamespace(output=evaluate_verdict(VerdictSynthesizerInput(assessment=assessment())))))
-    monkeypatch.setattr(type(rationale_writer), "invoke", AsyncMock(return_value=SimpleNamespace(output=RationaleWriterOutput(rationale="claim"))))
-    monkeypatch.setattr(type(citation_linker), "invoke", AsyncMock(return_value=SimpleNamespace(output=citation_output("condition-1" if valid else "invented"))))
-    request = DecisionComposerInput(snapshot=snapshot(), excerpts=[excerpt()], assessment=assessment())
+    monkeypatch.setattr(
+        type(verdict_synthesizer),
+        "invoke",
+        AsyncMock(
+            return_value=SimpleNamespace(
+                output=evaluate_verdict(VerdictSynthesizerInput(assessment=assessment()))
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        type(rationale_writer),
+        "invoke",
+        AsyncMock(return_value=SimpleNamespace(output=RationaleWriterOutput(rationale="claim"))),
+    )
+    monkeypatch.setattr(
+        type(citation_linker),
+        "invoke",
+        AsyncMock(
+            return_value=SimpleNamespace(
+                output=citation_output("condition-1" if valid else "invented")
+            )
+        ),
+    )
+    request = DecisionComposerInput(
+        snapshot=snapshot(), excerpts=[excerpt()], assessment=assessment()
+    )
     if valid:
         result = await decision_composer._execute_deterministic(request, None)
         assert result.decision.verdict == "APPROVE"

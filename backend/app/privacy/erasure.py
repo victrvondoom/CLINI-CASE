@@ -22,6 +22,7 @@ erasure. We document this conflict + reconcile via tokenization.
 
 Pairs with: ops/architecture/RIGHT_TO_ERASURE.md
 """
+
 from __future__ import annotations
 
 import secrets
@@ -66,10 +67,10 @@ async def ensure_schema() -> None:
 @dataclass(frozen=True)
 class ErasureRequest:
     organization_id: str
-    subject_initials: str   # PII-minimized identifier; we never store full name
+    subject_initials: str  # PII-minimized identifier; we never store full name
     requested_by: str
-    reason: str             # 'gdpr_art_17' | 'hipaa_amendment' | 'other'
-    legal_basis: str        # 'consent_withdrawn' | 'no_longer_necessary' | ...
+    reason: str  # 'gdpr_art_17' | 'hipaa_amendment' | 'other'
+    legal_basis: str  # 'consent_withdrawn' | 'no_longer_necessary' | ...
 
 
 @dataclass(frozen=True)
@@ -176,6 +177,7 @@ async def list_for_org(*, organization_id: str, limit: int = 100) -> list[dict[s
          ORDER BY soft_deleted_at DESC
          LIMIT $2
         """,
-        organization_id, limit,
+        organization_id,
+        limit,
     )
     return [dict(r) for r in rows]

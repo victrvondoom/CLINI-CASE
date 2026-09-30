@@ -3,6 +3,7 @@
 LLM-backed (Haiku). Up to 3 ranked payer denial rationales with policy-section
 pointers. Empty list when denial_probability < 0.15.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -20,7 +21,10 @@ from app.agents.framework import (
 
 _PROMPT = (
     Path(__file__).resolve().parents[3]
-    / "prompts" / "denial_forecaster" / "sub_agents" / "reason_predictor.txt"
+    / "prompts"
+    / "denial_forecaster"
+    / "sub_agents"
+    / "reason_predictor.txt"
 ).read_text(encoding="utf-8")
 
 

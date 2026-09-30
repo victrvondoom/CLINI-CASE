@@ -11,6 +11,7 @@ Events emitted by `app.observability.trace.trace_agent` and
   - agent_error:    {agent_name, error, ts}
   - done:           {ts}
 """
+
 from __future__ import annotations
 
 import asyncio

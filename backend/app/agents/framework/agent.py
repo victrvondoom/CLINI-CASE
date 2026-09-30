@@ -23,13 +23,14 @@ unifies the framework.
 Agents are STATELESS class instances; per-invocation state lives on the
 AgentContext.WorkingMemory and the AgentTrace.
 """
+
 from __future__ import annotations
 
 import time
 import uuid
 from abc import ABC
 from datetime import UTC, datetime
-from typing import Any, ClassVar, Generic, TypeVar
+from typing import Any, ClassVar, Generic, TypeVar, cast
 
 from pydantic import BaseModel
 
@@ -139,7 +140,7 @@ class Agent(ABC, Generic[I, O]):
     #   • The output is consumed for time-sensitive analytics where stale = wrong.
     # Most extractive / matching / classification agents are good cache citizens.
     cache_enabled: ClassVar[bool] = True
-    cache_ttl_seconds: ClassVar[int] = 60 * 60   # 1 hour default per-row TTL
+    cache_ttl_seconds: ClassVar[int] = 60 * 60  # 1 hour default per-row TTL
 
     # --- Per-agent performance budget (industry-grade scale-up) ---
     # Per-agent p95 latency budget in milliseconds. Breaches surface as
@@ -219,10 +220,15 @@ class Agent(ABC, Generic[I, O]):
         started_at = datetime.now(UTC)
         started_ts = time.time()
 
-        # Validate input
-        if not isinstance(input, self.input_schema):
-            input = self.input_schema.model_validate(  # type: ignore[assignment]
-                input if isinstance(input, dict) else input.model_dump()
+        # Validate input (the check is bound to a name so the isinstance does
+        # not narrow `input` away from `I` for the rest of the method)
+        input_is_valid = isinstance(input, self.input_schema)
+        if not input_is_valid:
+            input = cast(
+                I,
+                self.input_schema.model_validate(
+                    input if isinstance(input, dict) else input.model_dump()
+                ),
             )
 
         # Open the agent's span
@@ -235,7 +241,9 @@ class Agent(ABC, Generic[I, O]):
                 "agent_class": type(self).__name__,
                 "input_schema": self.input_schema.__name__,
                 "output_schema": self.output_schema.__name__,
-                "primary_model_size": self.primary_model.size if self.primary_model else "deterministic",
+                "primary_model_size": self.primary_model.size
+                if self.primary_model
+                else "deterministic",
                 "max_iterations": self.max_iterations,
                 "quality_threshold": self.quality_threshold,
             },
@@ -272,12 +280,14 @@ class Agent(ABC, Generic[I, O]):
         # agent invocation. Every Bedrock call inside this scope carries
         # the org_id + case_id + agent_name into llm_invocations and the
         # tenant-policy enforcement.
-        gateway_token = set_call_context(GatewayCallContext(
-            organization_id=ctx.organization_id,
-            case_id=ctx.case_id,
-            agent_name=self.qualified_name,
-            request_id=getattr(ctx, "request_id", None),
-        ))
+        gateway_token = set_call_context(
+            GatewayCallContext(
+                organization_id=ctx.organization_id,
+                case_id=ctx.case_id,
+                agent_name=self.qualified_name,
+                request_id=getattr(ctx, "request_id", None),
+            )
+        )
 
         try:
             # ----- 0. Deterministic response cache (SCALE-9) -----
@@ -303,7 +313,7 @@ class Agent(ABC, Generic[I, O]):
                     span.add_event("cache_lookup_failed", error=str(cache_err)[:200])
                     cache_key = None
                     hit = None
-                if hit is not None:
+                if hit is not None and cache_key is not None:
                     output = self.output_schema.model_validate(hit.output_json)  # type: ignore[assignment]
                     tokens = TokenUsage(
                         input_tokens=hit.input_tokens,
@@ -322,7 +332,9 @@ class Agent(ABC, Generic[I, O]):
             # ----- 1. Input guardrails (skipped on cache hit) -----
             if not served_from_cache:
                 for gr in self.input_guardrails:
-                    gr_result = await gr.check(input, agent_name=self.qualified_name, case_id=ctx.case_id)
+                    gr_result = await gr.check(
+                        input, agent_name=self.qualified_name, case_id=ctx.case_id
+                    )
                     span.add_event(
                         "input_guardrail",
                         guardrail=gr.name,
@@ -331,8 +343,11 @@ class Agent(ABC, Generic[I, O]):
                     )
                     if gr_result.decision == GuardrailDecision.BLOCK:
                         raise InputBlockedError(gr.name, gr_result.reason)
-                    if gr_result.decision == GuardrailDecision.MASK and gr_result.masked_payload is not None:
-                        input = gr_result.masked_payload  # type: ignore[assignment]
+                    if (
+                        gr_result.decision == GuardrailDecision.MASK
+                        and gr_result.masked_payload is not None
+                    ):
+                        input = cast(I, gr_result.masked_payload)
 
             # ----- 2/3. Plan + Act (with retry-on-failure loop) -----
             # Skipped entirely on cache hit — output is already populated.
@@ -458,7 +473,10 @@ class Agent(ABC, Generic[I, O]):
                         decision=gr_result.decision.value,
                         reason=gr_result.reason,
                     )
-                    if gr_result.decision == GuardrailDecision.RETRY and attempt < self.max_iterations:
+                    if (
+                        gr_result.decision == GuardrailDecision.RETRY
+                        and attempt < self.max_iterations
+                    ):
                         grader_feedback = f"[{gr.name}] {gr_result.reason}"
                         retries += 1
                         blocked = True
@@ -496,9 +514,7 @@ class Agent(ABC, Generic[I, O]):
                         input_tokens=grader_usage["input_tokens"],
                         output_tokens=grader_usage["output_tokens"],
                     )
-                    cost = cost + Cost(
-                        usd=g_cost, breakdown={"haiku-grader": g_cost}
-                    )
+                    cost = cost + Cost(usd=g_cost, breakdown={"haiku-grader": g_cost})
                     tokens = tokens + TokenUsage(
                         input_tokens=grader_usage["input_tokens"],
                         output_tokens=grader_usage["output_tokens"],
@@ -560,7 +576,12 @@ class Agent(ABC, Generic[I, O]):
                     "perf_budget_breach",
                     latency_ms=latency_ms,
                     budget_ms=self.p95_latency_budget_ms,
-                    overage_pct=round(100 * (latency_ms - self.p95_latency_budget_ms) / self.p95_latency_budget_ms, 1),
+                    overage_pct=round(
+                        100
+                        * (latency_ms - self.p95_latency_budget_ms)
+                        / self.p95_latency_budget_ms,
+                        1,
+                    ),
                 )
 
             # Audit precision: when a cache hit served the result, attribute
@@ -568,7 +589,11 @@ class Agent(ABC, Generic[I, O]):
             # output (not the *current* agent's primary model — which may have
             # changed between the original run and now). The `cache_hit` span
             # event additionally records the age and prior-hit count.
-            effective_model_id = cached_model_id if served_from_cache and cached_model_id else self._final_model_id_for_db()
+            effective_model_id = (
+                cached_model_id
+                if served_from_cache and cached_model_id
+                else self._final_model_id_for_db()
+            )
 
             await ctx.trace_sink.close_span_ok(
                 span_handle,
@@ -605,8 +630,10 @@ class Agent(ABC, Generic[I, O]):
         except Exception as e:
             latency_ms = int((time.time() - started_ts) * 1000)
             span.finalize(
-                SpanStatus.BUDGET_EXCEEDED if isinstance(e, BudgetExceededError)
-                else SpanStatus.GUARDRAIL_BLOCKED if isinstance(e, InputBlockedError | OutputBlockedError)
+                SpanStatus.BUDGET_EXCEEDED
+                if isinstance(e, BudgetExceededError)
+                else SpanStatus.GUARDRAIL_BLOCKED
+                if isinstance(e, InputBlockedError | OutputBlockedError)
                 else SpanStatus.ERROR
             )
             # The trace sink owns DB persistence + SSE publish for the
@@ -660,11 +687,13 @@ class Agent(ABC, Generic[I, O]):
             "is_llm_backed": self.primary_model is not None,
             "primary_model": (
                 {"size": self.primary_model.size, "role": self.primary_model.role}
-                if self.primary_model else None
+                if self.primary_model
+                else None
             ),
             "fallback_model": (
                 {"size": self.fallback_model.size, "role": self.fallback_model.role}
-                if self.fallback_model else None
+                if self.fallback_model
+                else None
             ),
             "input_guardrails": [g.manifest_entry() for g in self.input_guardrails],
             "output_guardrails": [g.manifest_entry() for g in self.output_guardrails],
@@ -700,6 +729,5 @@ class AgentExhaustedError(RuntimeError):
         self.attempts = attempts
         self.last_error = last_error
         super().__init__(
-            f"AgentExhaustedError[{agent}]: {attempts} attempts; "
-            f"last_error={last_error!r}"
+            f"AgentExhaustedError[{agent}]: {attempts} attempts; " f"last_error={last_error!r}"
         )

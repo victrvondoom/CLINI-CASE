@@ -4,6 +4,7 @@ LLM-backed (Sonnet). Produces a ~600-word formal appeal letter (5-paragraph
 structure) plus AppealArgument JSON entries for payer-API submission.
 quality_threshold=0.80 because letter quality drives overturn rate.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -19,7 +20,10 @@ from app.agents.framework import (
 
 _PROMPT = (
     Path(__file__).resolve().parents[3]
-    / "prompts" / "appeals_drafter" / "sub_agents" / "letter_composer.txt"
+    / "prompts"
+    / "appeals_drafter"
+    / "sub_agents"
+    / "letter_composer.txt"
 ).read_text(encoding="utf-8")
 
 

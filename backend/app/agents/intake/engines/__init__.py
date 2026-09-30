@@ -12,6 +12,7 @@ Built-in engines:
 Add a new engine by subclassing `OCREngine` and registering with
 `registry.register(...)`. The pipeline never imports concrete engines.
 """
+
 from app.agents.intake.engines.base import EngineCapabilities, OCREngine
 from app.agents.intake.engines.registry import (
     ENGINE_REGISTRY,

@@ -3,6 +3,7 @@
 Deterministic. Pure-Python Flesch-Kincaid grade calculator + banned-phrase
 substitution. Enforces ≤7th-grade reading level on patient-facing copy.
 """
+
 from __future__ import annotations
 
 import re
@@ -16,10 +17,10 @@ from app.agents.patient_communicator.schemas import (
 
 _BANNED: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"\bwe regret to inform you\b", re.I), "Your insurance has said no for now"),
-    (re.compile(r"\bthe system\b",                re.I), "your insurance company"),
-    (re.compile(r"\bthe AI\b",                    re.I), "the review"),
-    (re.compile(r"\bthe payer\b",                 re.I), "your insurance company"),
-    (re.compile(r"\brequesting provider\b",       re.I), "your doctor"),
+    (re.compile(r"\bthe system\b", re.I), "your insurance company"),
+    (re.compile(r"\bthe AI\b", re.I), "the review"),
+    (re.compile(r"\bthe payer\b", re.I), "your insurance company"),
+    (re.compile(r"\brequesting provider\b", re.I), "your doctor"),
 ]
 
 
@@ -48,9 +49,7 @@ def _flesch_kincaid_grade(text: str) -> float:
     return 0.39 * (n_words / sentences) + 11.8 * (n_syl / n_words) - 15.59
 
 
-class ReadingLevelTunerAgent(
-    Agent[ReadingLevelTunerInput, ReadingLevelTunerOutput]
-):
+class ReadingLevelTunerAgent(Agent[ReadingLevelTunerInput, ReadingLevelTunerOutput]):
     name: ClassVar[str] = "reading_level_tuner"
     parent: ClassVar[str] = "patient_communicator"
     role: ClassVar[str] = "reading_level_enforcement"

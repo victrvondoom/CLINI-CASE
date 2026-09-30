@@ -8,6 +8,7 @@ engine and append `engine-fallback-used` to risk_flags.
 If ALL engines fail, the stage short-circuits with `intake-failed` and
 the assemble stage emits a HITL-routed empty result.
 """
+
 from __future__ import annotations
 
 import time
@@ -53,11 +54,13 @@ class ExtractStage(IntakeStage):
                 )
                 ctx.payload["extract.ocr"] = ocr
                 ctx.payload["extract.engine_used"] = engine.name
-                attempts.append({
-                    "engine": engine.name,
-                    "ok": True,
-                    "elapsed_ms": int((time.monotonic() - t0) * 1000),
-                })
+                attempts.append(
+                    {
+                        "engine": engine.name,
+                        "ok": True,
+                        "elapsed_ms": int((time.monotonic() - t0) * 1000),
+                    }
+                )
                 if i > 0:
                     # We had to fall back — flag it for downstream observability.
                     ctx.risk_flags.append(SOFT_FLAG_ENGINE_FALLBACK)
@@ -65,13 +68,15 @@ class ExtractStage(IntakeStage):
                 return
             except (EngineUnavailableError, EngineTimeoutError, EngineQuotaExceededError) as e:
                 last_error = e
-                attempts.append({
-                    "engine": engine.name,
-                    "ok": False,
-                    "error_code": e.code,
-                    "error_message": e.message[:160],
-                    "elapsed_ms": int((time.monotonic() - t0) * 1000),
-                })
+                attempts.append(
+                    {
+                        "engine": engine.name,
+                        "ok": False,
+                        "error_code": e.code,
+                        "error_message": e.message[:160],
+                        "elapsed_ms": int((time.monotonic() - t0) * 1000),
+                    }
+                )
                 continue
 
         # All engines failed — graceful HITL routing

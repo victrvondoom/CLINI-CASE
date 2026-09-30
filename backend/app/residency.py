@@ -15,6 +15,7 @@ Gold-tier customers' security questionnaires literally check this:
 "Does the system reject a write that crosses the declared data residency
 boundary?" Today the answer is yes — see `_assert_region_match()`.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -36,7 +37,9 @@ class ResidencyViolationError(Exception):
     process — closing the gap between "policy stated" and "policy enforced."
     """
 
-    def __init__(self, *, organization_id: str, declared_region: str, attempted_region: str, resource: str) -> None:
+    def __init__(
+        self, *, organization_id: str, declared_region: str, attempted_region: str, resource: str
+    ) -> None:
         self.organization_id = organization_id
         self.declared_region = declared_region
         self.attempted_region = attempted_region
@@ -51,7 +54,7 @@ class ResidencyViolationError(Exception):
 class TenantResidency:
     organization_id: str
     data_region: str
-    tier: str   # bronze | silver | gold
+    tier: str  # bronze | silver | gold
 
 
 # =============================================================================
@@ -103,7 +106,7 @@ def region_appropriate_model_id(*, base_model_id: str, target_region: str) -> st
     # strip any current region prefix
     for prefix in set(_REGION_MODEL_PREFIX.values()):
         if base_model_id.startswith(prefix):
-            return target_prefix + base_model_id[len(prefix):]
+            return target_prefix + base_model_id[len(prefix) :]
     # No known prefix: prepend target
     return target_prefix + base_model_id
 
@@ -153,7 +156,9 @@ async def assert_residency(*, organization_id: str, attempted_region: str, resou
         )
 
 
-def assert_region_match_sync(*, organization_id: str, declared_region: str, attempted_region: str, resource: str) -> None:
+def assert_region_match_sync(
+    *, organization_id: str, declared_region: str, attempted_region: str, resource: str
+) -> None:
     """Sync variant for places where `await get_tenant_residency` already happened."""
     if declared_region != attempted_region:
         raise ResidencyViolationError(

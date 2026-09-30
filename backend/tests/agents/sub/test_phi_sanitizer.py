@@ -1,4 +1,5 @@
 """Contract tests for phi_sanitizer DeterministicSubAgent."""
+
 from __future__ import annotations
 
 from app.agents.clinical_extractor.schemas import PHISanitizerInput

@@ -8,6 +8,7 @@ The submit endpoint is idempotent in spirit but not in storage — duplicate
 calls produce duplicate Gateway records (for visibility). The mock inbox
 shows the last 100 envelopes.
 """
+
 from __future__ import annotations
 
 import json
@@ -89,7 +90,8 @@ async def submit_to_gateway(
         """SELECT id, payer_id, patient_initials, requested_treatment_name,
                   requested_j_code, fhir_bundle, organization_id
            FROM cases WHERE id = $1 AND organization_id = $2""",
-        req.case_id, user["organization_id"],
+        req.case_id,
+        user["organization_id"],
     )
     if case is None:
         raise HTTPException(status_code=404, detail=f"Case {req.case_id} not found")
@@ -132,7 +134,9 @@ async def submit_to_gateway(
         "j_code": case["requested_j_code"],
     }
     decision_run_id = str(uuid.uuid4())
-    primary_model_id = (last_run and last_run["model_id"]) or "apac.anthropic.claude-sonnet-4-6-20251022-v1:0"
+    primary_model_id = (
+        last_run and last_run["model_id"]
+    ) or "apac.anthropic.claude-sonnet-4-6-20251022-v1:0"
     confidence = float(decision["confidence"] or 0.0)
     triggered_hitl = confidence < 0.75
 
@@ -146,6 +150,7 @@ async def submit_to_gateway(
     # conservative static set that's true for every persisted decision.
     try:
         from app.compliance.cms_0057f import clauses_satisfied_for_case
+
         cms_clauses = await clauses_satisfied_for_case(req.case_id)
     except Exception:  # noqa: BLE001 — avoid blocking submit on optional module
         cms_clauses = ["§ IV.A", "§ IV.B.1", "§ IV.D"]
@@ -215,8 +220,12 @@ async def mock_inbox(
     one tenant cannot see another's submissions."""
     org = user["organization_id"]
     items = [
-        item for item in get_mock_inbox()
-        if (item.get("envelope", {}).get("params", {}).get("arguments", {}).get("organization_id") == org)
+        item
+        for item in get_mock_inbox()
+        if (
+            item.get("envelope", {}).get("params", {}).get("arguments", {}).get("organization_id")
+            == org
+        )
     ]
     return {
         "is_mock": True,

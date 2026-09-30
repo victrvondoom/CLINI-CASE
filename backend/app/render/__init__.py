@@ -8,6 +8,7 @@ Modules:
   appeal_pdf  — render the AppealDraft (from Appeals Drafter agent) into a
                 payer-ready business letter PDF. ReportLab Platypus.
 """
+
 from app.render.appeal_pdf import render_appeal_pdf
 
 __all__ = ["render_appeal_pdf"]

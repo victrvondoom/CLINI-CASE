@@ -12,6 +12,7 @@ Role model mirrors ClinCase's:
     the demonstration dataset — the same roles that gate ClinCase's clinical
     HITL resume endpoint.
 """
+
 from __future__ import annotations
 
 from typing import Any, Literal
@@ -107,9 +108,7 @@ async def aquahealth_meta() -> dict[str, Any]:
             "interoperability": mapping.STANDARDS_NOTE,
         },
         "statuses": service.status_catalog(),
-        "presence_values": [
-            {"value": p.value, "informative": p.is_informative} for p in Presence
-        ],
+        "presence_values": [{"value": p.value, "informative": p.is_informative} for p in Presence],
         "data_sources": [s.value for s in DataSource],
         "verification_states": [v.value for v in VerificationState],
     }
@@ -162,16 +161,25 @@ async def form_schema() -> dict[str, Any]:
         "measurements": [
             {"code": "ph", "label": "pH", "unit": "", "min": 0, "max": 14},
             {
-                "code": "water_temperature_c", "label": "Water temperature",
-                "unit": "C", "min": -5, "max": 60,
+                "code": "water_temperature_c",
+                "label": "Water temperature",
+                "unit": "C",
+                "min": -5,
+                "max": 60,
             },
             {
-                "code": "turbidity_ntu", "label": "Turbidity",
-                "unit": "NTU", "min": 0, "max": 5000,
+                "code": "turbidity_ntu",
+                "label": "Turbidity",
+                "unit": "NTU",
+                "min": 0,
+                "max": 5000,
             },
             {
-                "code": "dissolved_oxygen_mgl", "label": "Dissolved oxygen",
-                "unit": "mg/L", "min": 0, "max": 25,
+                "code": "dissolved_oxygen_mgl",
+                "label": "Dissolved oxygen",
+                "unit": "mg/L",
+                "min": 0,
+                "max": 25,
             },
         ],
         "measurement_note": (
@@ -179,7 +187,13 @@ async def form_schema() -> dict[str, Any]:
             "readings is still a complete and useful contribution."
         ),
         "waterbody_kinds": [
-            "stream", "river", "lake", "pond", "canal", "wetland", "other",
+            "stream",
+            "river",
+            "lake",
+            "pond",
+            "canal",
+            "wetland",
+            "other",
         ],
     }
 
@@ -268,18 +282,20 @@ async def waterbodies(
     for w in st.waterbodies():
         rows = st.observations(waterbody_id=w.id)
         latest = rows[0] if rows else None
-        out.append({
-            "id": w.id,
-            "name": w.name,
-            "kind": w.kind,
-            "locality": w.locality,
-            "latitude": w.location.latitude if w.location else None,
-            "longitude": w.location.longitude if w.location else None,
-            "is_demo": w.is_demo,
-            "observation_count": len(rows),
-            "latest_status": latest.effective_status.value if latest else None,
-            "latest_observed_at": latest.observed_at.isoformat() if latest else None,
-        })
+        out.append(
+            {
+                "id": w.id,
+                "name": w.name,
+                "kind": w.kind,
+                "locality": w.locality,
+                "latitude": w.location.latitude if w.location else None,
+                "longitude": w.location.longitude if w.location else None,
+                "is_demo": w.is_demo,
+                "observation_count": len(rows),
+                "latest_status": latest.effective_status.value if latest else None,
+                "latest_observed_at": latest.observed_at.isoformat() if latest else None,
+            }
+        )
     return {"waterbodies": out, "total": len(out)}
 
 
@@ -393,9 +409,7 @@ async def review_queue(
         EcosystemStatus.INSUFFICIENT_DATA: 3,
         EcosystemStatus.HEALTHY_SIGNAL: 4,
     }
-    rows.sort(
-        key=lambda o: (severity.get(o.effective_status, 9), -o.observed_at.timestamp())
-    )
+    rows.sort(key=lambda o: (severity.get(o.effective_status, 9), -o.observed_at.timestamp()))
 
     return {
         "total": len(rows),

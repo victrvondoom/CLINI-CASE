@@ -10,6 +10,7 @@ The reason_predictor and appeal_path_recommender are gated by the
 probability — empty / skipped when the predicted denial probability is below
 their respective thresholds (0.15 and 0.35).
 """
+
 from __future__ import annotations
 
 from typing import ClassVar
@@ -116,6 +117,3 @@ class DenialForecasterAgent(Agent[DenialForecasterInput, DenialForecasterOutput]
 
 
 denial_forecaster = DenialForecasterAgent()
-
-
-

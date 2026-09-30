@@ -8,6 +8,7 @@ Orchestrator on the production framework. Composes 3 sub-agents:
 
 Each emits its own row in `agent_runs` named `decision_composer.<sub_name>`.
 """
+
 from __future__ import annotations
 
 from typing import ClassVar
@@ -102,6 +103,3 @@ class DecisionComposerAgent(Agent[DecisionComposerInput, DecisionComposerOutput]
 
 
 decision_composer = DecisionComposerAgent()
-
-
-

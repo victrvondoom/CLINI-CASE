@@ -1,4 +1,5 @@
 """Schemas for the patient_communicator package — orchestrator + sub-agents."""
+
 from __future__ import annotations
 
 from typing import Literal
@@ -11,6 +12,7 @@ from app.models.communication import PatientCommunication, PatientNextStep
 # =============================================================================
 # Orchestrator I/O — parent agent contract
 # =============================================================================
+
 
 class PatientCommunicatorInput(BaseModel):
     snapshot: ClinicalSnapshot
