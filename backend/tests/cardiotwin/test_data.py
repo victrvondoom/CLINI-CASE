@@ -31,6 +31,14 @@ def test_dataset_is_the_pinned_one(model):
     assert file_sha256(DATASET_CSV) == model.artifact["dataset"]["csv_sha256"]
 
 
+def test_dataset_hash_is_stable_across_csv_line_endings(tmp_path):
+    lf = tmp_path / "dataset.csv"
+    crlf = tmp_path / "dataset-crlf.csv"
+    lf.write_bytes(b"a,b\n1,2\n")
+    crlf.write_bytes(b"a,b\r\n1,2\r\n")
+    assert file_sha256(lf) == file_sha256(crlf)
+
+
 def test_target_validation_and_prevalence(df):
     for t in TARGET_ORDER:
         y = target_vector(df, t)

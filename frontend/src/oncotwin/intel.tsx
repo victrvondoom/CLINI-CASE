@@ -8,8 +8,8 @@
  * weight, never by hue alone. Every number shown comes from the API — nothing is typed in.
  */
 import clsx from "clsx";
-import { ChevronDown, ChevronRight, CircleDot, Loader2, Play, ShieldCheck, ShieldX } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { ChevronDown, ChevronRight, CircleDot, Loader2, Minus, Play, Plus, RotateCcw, ShieldCheck, ShieldX } from "lucide-react";
+import { useEffect, useMemo, useState, type PointerEvent as ReactPointerEvent } from "react";
 
 import { ot } from "./api";
 import { Legend, TimeChart } from "./charts";
@@ -470,7 +470,7 @@ const EDGE_STYLE: Record<GEdge["kind"], { dash?: string; width: number; opacity:
 };
 const NODE_W = 150;
 
-export function StateGraph({ graph }: { graph: Graph }) {
+export function StateGraphLegacy({ graph }: { graph: Graph }) {
   const [sel, setSel] = useState<string | null>(null);
   const [kinds, setKinds] = useState<Record<string, boolean>>({ clinical: true, temporal: true, data: false, model: true });
   const W = 980;
@@ -547,6 +547,120 @@ export function StateGraph({ graph }: { graph: Graph }) {
 }
 
 // =============================================================================
+const GRAPH_NODE_W = 196;
+const GRAPH_NODE_H = 54;
+const GRAPH_WIDTH = 1240;
+type GraphPoint = { x: number; y: number };
+
+function getGraphLayout(graph: Graph): Record<string, GraphPoint> {
+  const columns = [["clinical"], ["treatment", "intervention"], ["wearable", "home", "symptom", "lab"], ["physiology", "changepoint"], ["risk", "outcome"]];
+  const step = (GRAPH_WIDTH - GRAPH_NODE_W - 32) / (columns.length - 1);
+  const result: Record<string, GraphPoint> = {};
+  const assigned = new Set<string>();
+  columns.forEach((groups, column) => graph.nodes.filter((n) => groups.includes(n.group)).forEach((n, row) => {
+    result[n.id] = { x: 16 + column * step, y: 18 + row * 68 };
+    assigned.add(n.id);
+  }));
+  graph.nodes.filter((n) => !assigned.has(n.id)).forEach((n, row) => { result[n.id] = { x: 16 + 2 * step, y: 18 + row * 68 }; });
+  return result;
+}
+
+function graphValue(value: Json): string {
+  if (value == null) return "—";
+  if (["string", "number", "boolean"].includes(typeof value)) return String(value);
+  const summary = JSON.stringify(value);
+  return summary.length > 72 ? `${summary.slice(0, 69)}…` : summary;
+}
+
+export function StateGraph({ graph }: { graph: Graph }) {
+  const defaults = useMemo(() => getGraphLayout(graph), [graph]);
+  const firstSelection = graph.nodes.find((n) => n.group === "risk")?.id ?? graph.nodes[0]?.id ?? null;
+  const [positions, setPositions] = useState(defaults);
+  const [selected, setSelected] = useState<string | null>(firstSelection);
+  const [zoom, setZoom] = useState(1);
+  const [search, setSearch] = useState("");
+  const [kinds, setKinds] = useState<Record<string, boolean>>({ clinical: true, temporal: true, data: false, model: true });
+  useEffect(() => { setPositions(defaults); setSelected(firstSelection); setZoom(1); }, [defaults, firstSelection]);
+  const pos = { ...defaults, ...positions };
+  const height = Math.max(280, ...Object.values(pos).map((p) => p.y + GRAPH_NODE_H + 18));
+  const node = graph.nodes.find((n) => n.id === selected);
+  const matching = new Set(graph.nodes.filter((n) => `${n.label} ${n.status} ${n.group}`.toLowerCase().includes(search.trim().toLowerCase())).map((n) => n.id));
+  const connected = new Set(selected ? graph.edges.filter((e) => e.source === selected || e.target === selected).flatMap((e) => [e.source, e.target]) : []);
+  const byId = (id: string) => graph.nodes.find((n) => n.id === id);
+  const drag = (event: ReactPointerEvent<SVGGElement>, id: string) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    const svg = event.currentTarget.ownerSVGElement;
+    if (!svg) return;
+    const move = (e: PointerEvent) => {
+      const matrix = svg.getScreenCTM();
+      if (!matrix) return;
+      const point = svg.createSVGPoint(); point.x = e.clientX; point.y = e.clientY;
+      const local = point.matrixTransform(matrix.inverse());
+      setPositions((current) => ({ ...current, [id]: { x: Math.max(0, Math.min(GRAPH_WIDTH - GRAPH_NODE_W, local.x - GRAPH_NODE_W / 2)), y: Math.max(0, Math.min(height - GRAPH_NODE_H, local.y - GRAPH_NODE_H / 2)) } }));
+    };
+    const stop = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", stop); window.removeEventListener("pointercancel", stop); };
+    window.addEventListener("pointermove", move); window.addEventListener("pointerup", stop, { once: true }); window.addEventListener("pointercancel", stop, { once: true });
+  };
+  const edgeStyle: Record<GEdge["kind"], { dash?: string; width: number; opacity: number }> = {
+    clinical: { width: 1.5, opacity: 0.75 }, temporal: { dash: "1.5 3", width: 1.4, opacity: 0.7 }, data: { width: 1, opacity: 0.4 }, model: { dash: "6 3", width: 1.5, opacity: 0.8 },
+  };
+  const counts = { facts: graph.nodes.filter((n) => n.basis !== "model").length, estimates: graph.nodes.filter((n) => n.basis === "model").length, attention: graph.nodes.filter((n) => n.severity !== "normal").length };
+  return <div className="space-y-3">
+    <div className="grid gap-2 sm:grid-cols-3" aria-label="Graph summary">
+      {[ ["Recorded inputs & findings", counts.facts], ["Model-derived estimates", counts.estimates], ["Marked for attention", counts.attention] ].map(([label, count]) => <div key={label} className="rounded-md border border-surface-border bg-surface-bg px-3 py-2"><div className="text-[10px] uppercase tracking-wide text-ink-muted">{label}</div><div className="text-lg font-semibold nums-tabular">{count}</div></div>)}
+    </div>
+    <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="min-w-0">
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <label className="flex items-center gap-2 text-[11px] text-ink-muted">Find a fact or estimate <input className={`${INPUT} w-48`} type="search" placeholder="Try ‘risk’, ‘lab’…" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search graph nodes" /></label>
+          <div className="flex items-center gap-1" aria-label="Graph zoom controls">
+            <button className={BTN} type="button" aria-label="Zoom out" onClick={() => setZoom((z) => Math.max(.65, +(z - .1).toFixed(2)))}><Minus size={14} /></button>
+            <span className="min-w-12 text-center text-[11px] nums-tabular" aria-live="polite">{Math.round(zoom * 100)}%</span>
+            <button className={BTN} type="button" aria-label="Zoom in" onClick={() => setZoom((z) => Math.min(1.5, +(z + .1).toFixed(2)))}><Plus size={14} /></button>
+            <button className={BTN} type="button" aria-label="Reset graph layout" onClick={() => { setPositions(defaults); setZoom(1); }}><RotateCcw size={14} /><span className="hidden sm:inline">Reset</span></button>
+          </div>
+        </div>
+        <div className="mb-2 flex flex-wrap gap-3 text-[11px]">
+          {(Object.keys(edgeStyle) as GEdge["kind"][]).map((kind) => <label key={kind} className="inline-flex cursor-pointer items-center gap-1.5"><input type="checkbox" checked={kinds[kind]} onChange={(e) => setKinds((s) => ({ ...s, [kind]: e.target.checked }))} /><svg width="24" height="8" aria-hidden className="text-ink-primary"><line x1="0" x2="24" y1="4" y2="4" stroke="currentColor" strokeWidth={edgeStyle[kind].width} strokeDasharray={edgeStyle[kind].dash} /></svg>{kind} ({graph.counts[kind] ?? 0}): <span className="text-ink-muted">{graph.edge_kinds[kind]}</span></label>)}
+        </div>
+        <div className="overflow-auto rounded-lg border border-surface-border bg-surface-bg" style={{ maxHeight: 600 }}>
+          <svg width={GRAPH_WIDTH * zoom} height={height * zoom} viewBox={`0 0 ${GRAPH_WIDTH} ${height}`} role="img" aria-label="Interactive patient state graph. Drag nodes to rearrange; select a node to inspect evidence." className="block min-w-[900px] touch-none text-ink-primary">
+            <defs><marker id="ot-graph-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7" fill="currentColor" /></marker></defs>
+            {graph.edges.filter((e) => kinds[e.kind] && pos[e.source] && pos[e.target]).map((e, i, visibleEdges) => {
+              const a = pos[e.source], b = pos[e.target], style = edgeStyle[e.kind];
+              const incoming = visibleEdges.filter((edge) => edge.target === e.target);
+              const outgoing = visibleEdges.filter((edge) => edge.source === e.source);
+              const targetOffset = incoming.length > 1 ? 7 + incoming.indexOf(e) * (GRAPH_NODE_H - 14) / (incoming.length - 1) : GRAPH_NODE_H / 2;
+              const sourceOffset = outgoing.length > 1 ? 7 + outgoing.indexOf(e) * (GRAPH_NODE_H - 14) / (outgoing.length - 1) : GRAPH_NODE_H / 2;
+              const x1 = a.x + GRAPH_NODE_W, y1 = a.y + sourceOffset, x2 = b.x, y2 = b.y + targetOffset;
+              const d = x2 <= x1 ? `M${a.x + GRAPH_NODE_W / 2},${a.y + GRAPH_NODE_H} C${a.x + GRAPH_NODE_W / 2},${a.y + GRAPH_NODE_H + 28} ${b.x + GRAPH_NODE_W / 2},${b.y + GRAPH_NODE_H + 28} ${b.x + GRAPH_NODE_W / 2},${b.y + GRAPH_NODE_H}` : `M${x1},${y1} C${(x1 + x2) / 2},${y1} ${(x1 + x2) / 2},${y2} ${x2},${y2}`;
+              const active = selected != null && (e.source === selected || e.target === selected);
+              return <path key={i} d={d} fill="none" stroke="currentColor" strokeWidth={active ? style.width + 1 : style.width} strokeDasharray={style.dash} markerEnd="url(#ot-graph-arrow)" opacity={search && !matching.has(e.source) && !matching.has(e.target) ? .04 : selected ? active ? .95 : .1 : style.opacity}><title>{`${e.kind}: ${byId(e.source)?.label ?? e.source} → ${byId(e.target)?.label ?? e.target} (${e.label})`}</title></path>;
+            })}
+            {graph.nodes.filter((n) => pos[n.id]).map((n) => { const p = pos[n.id]; const dim = (selected != null && selected !== n.id && !connected.has(n.id)) || (Boolean(search) && !matching.has(n.id)); return <g key={n.id} transform={`translate(${p.x},${p.y})`} onPointerDown={(e) => drag(e, n.id)} onClick={() => setSelected(n.id)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelected(n.id); } }} tabIndex={0} role="button" aria-pressed={selected === n.id} aria-label={`${n.label}: ${n.status}. Drag to rearrange.`} className="cursor-grab active:cursor-grabbing focus:outline-none" opacity={dim ? .5 : 1}>
+              <rect width={GRAPH_NODE_W} height={GRAPH_NODE_H} rx="7" fill="rgb(var(--surface-raised))" stroke="currentColor" strokeWidth={selected === n.id ? 2.5 : n.severity === "alert" ? 2 : 1} strokeDasharray={n.basis === "model" ? "4 2" : undefined} />
+              <text x="11" y="20" fontSize="12" className="fill-ink-primary" fontWeight={n.severity !== "normal" ? 700 : 600}>{n.label.length > 28 ? `${n.label.slice(0, 27)}…` : n.label}</text>
+              <text x="11" y="40" fontSize="10.5" className="fill-ink-muted">{n.status.length > 34 ? `${n.status.slice(0, 33)}…` : n.status}</text><title>{`${n.label}: ${n.status}. ${n.basis === "model" ? "Model-derived estimate" : "Recorded or computed clinical information"}. Drag to rearrange.`}</title>
+            </g>; })}
+          </svg>
+        </div>
+        <Note><span className="inline-flex items-center gap-1"><CircleDot size={12} /> Drag cards to arrange your view; select one to trace its evidence. Layout changes stay local and do not edit the clinical record. Reset restores the default layout.</span><br />{graph.note} A dashed node border marks a model-derived estimate; a solid border marks a recorded fact or measurement.</Note>
+      </div>
+      <aside className="rounded-lg border border-surface-border bg-surface-bg p-3 text-[11.5px] xl:sticky xl:top-2 xl:max-h-[600px] xl:overflow-y-auto" aria-live="polite">
+        {!node ? <div className="text-ink-muted">Select a node to inspect its evidence and relationships.</div> : <div className="space-y-3">
+          <section><div className="text-[10px] uppercase tracking-wide text-ink-muted">Selected · {node.group.replace(/_/g, " ")}</div><div className="mt-1 flex items-start gap-2"><SevMark s={node.severity} /><div><h3 className="text-sm font-semibold text-ink-primary">{node.label}</h3><div className="mt-1">{node.status}</div></div></div>
+            <div className="mt-2 rounded-md border border-surface-border px-2.5 py-2"><div className="font-medium">How to read this</div><p className="mt-1 text-ink-muted">{node.basis === "model" ? "Model-derived estimate or association; not a recorded clinical fact and does not establish causation." : node.basis === "computed" ? "Computed from recorded inputs. Inspect linked evidence and method before interpreting it." : "Recorded clinical information or a measurement. Check its source and timing below."}</p><div className="mt-1 text-ink-muted">Basis: <span className="text-ink-body">{node.basis}</span> · Severity: <span className="text-ink-body">{node.severity}</span></div></div>
+          </section>
+          {Object.keys(node.detail ?? {}).length > 0 && <section><h4 className="text-[10px] uppercase tracking-wide text-ink-muted">Details</h4><dl className="mt-1 space-y-1">{Object.entries(node.detail).slice(0, 12).map(([key, value]) => <div key={key} className="flex justify-between gap-3 border-b border-surface-border/60 pb-1"><dt className="capitalize text-ink-muted">{key.replace(/_/g, " ")}</dt><dd className="break-all text-right">{graphValue(value)}</dd></div>)}</dl></section>}
+          <section><h4 className="text-[10px] uppercase tracking-wide text-ink-muted">What is connected ({graph.edges.filter((e) => e.source === node.id || e.target === node.id).length})</h4>{graph.edges.filter((e) => e.source === node.id || e.target === node.id).length === 0 ? <p className="mt-1 text-ink-muted">No linked relationships in this view.</p> : <ul className="mt-1 space-y-1">{graph.edges.filter((e) => e.source === node.id || e.target === node.id).slice(0, 16).map((e, i) => { const other = e.source === node.id ? e.target : e.source; return <li key={`${e.kind}-${other}-${i}`}><button type="button" className="w-full rounded border border-transparent p-1 text-left hover:border-surface-border hover:bg-surface-raised focus:outline-none focus:ring-2 focus:ring-accent-brand" onClick={() => setSelected(other)}><span className="font-medium">{e.source === node.id ? "To" : "From"} {byId(other)?.label ?? other}</span><span className="block text-ink-muted"><Chip>{e.kind}</Chip> {e.label}</span></button></li>; })}</ul>}</section>
+          <section><h4 className="text-[10px] uppercase tracking-wide text-ink-muted">Evidence & provenance</h4>{node.evidence.length === 0 ? <p className="mt-1 text-ink-muted">No direct evidence reference attached; this may be computed or model output.</p> : node.evidence.map((ev: Json, i: number) => { const refs = ev.ids ?? ev.features ?? (ev.code ? [ev.code] : []); return <div key={i} className="mt-1 rounded border border-surface-border px-2 py-1.5"><div className="font-medium">{ev.type ?? "Evidence"}</div>{refs.length > 0 && <div className="mt-0.5 break-all text-[10px] text-ink-muted">{refs.slice(0, 8).join(", ")}</div>}</div>; })}</section>
+        </div>}
+      </aside>
+    </div>
+  </div>;
+}
+
 // What-if builder, counterfactual twin, intervention recorder
 // =============================================================================
 

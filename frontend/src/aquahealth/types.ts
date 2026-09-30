@@ -375,6 +375,14 @@ export interface AquaMeta {
   parent_product: string;
   summary: string;
   case_type: string;
+  submission: {
+    primary_track: string;
+    supporting_track?: string;
+    tagline: string;
+    assessment_method: "deterministic_rule_based_agents";
+    human_decision_authority: boolean;
+    evaluation_endpoint: string;
+  };
   disclaimers: {
     status: string;
     ai: string;
@@ -397,6 +405,38 @@ export interface AgentManifest {
     description: string;
     uses_llm: boolean;
   }>;
+}
+
+export interface Track3EvaluationCase {
+  case_id: string;
+  title: string;
+  category: string;
+  expected_status: EcosystemStatus;
+  predicted_status: EcosystemStatus;
+  confidence: Confidence;
+  status_reason: string;
+  expected_validation_issue: boolean;
+  validation_issue_detected: boolean;
+  validation_finding: string;
+  passed: boolean;
+}
+
+export interface Track3Evaluation {
+  benchmark: string;
+  version: string;
+  generated_from: string;
+  synthetic: boolean;
+  case_count: number;
+  metrics: {
+    exact_status_accuracy: number;
+    concern_detection_recall: number;
+    insufficient_data_abstention_rate: number;
+    validation_check_accuracy: number;
+    false_healthy_on_insufficient_count: number;
+  };
+  counts: Record<string, number>;
+  limitations: string[];
+  cases: Track3EvaluationCase[];
 }
 
 /** Request body for creating an observation. */

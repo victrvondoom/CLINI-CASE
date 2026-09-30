@@ -15,6 +15,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { useAuth } from "../components/AuthContext";
+import { ExposureContext } from "../onehealth/ContextPanel";
 import { VitalsMonitor } from "../components/VitalsMonitor";
 import { ot } from "../oncotwin/api";
 import {
@@ -207,6 +208,7 @@ export default function TwinPatient({ demo = false }: { demo?: boolean }) {
         </div>
       </header>
 
+      {tab === "evidence" && <ExposureContext patientId={pid} />}
       <div className="text-[11px] px-3 py-1.5 rounded-md border border-dashed border-surface-border-hi text-ink-body">
         {intel.synthetic_notice} Clinical decision support only: every alert requires clinician review, and nothing here is a diagnosis.
       </div>

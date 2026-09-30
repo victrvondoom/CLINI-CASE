@@ -21,6 +21,7 @@ import { PHIRedactionReceipt } from "../components/PHIRedactionReceipt";
 import { ReasoningTracePanel } from "../components/ReasoningTracePanel";
 import { TrizettoSubmitPanel } from "../components/TrizettoSubmitPanel";
 import { api } from "../lib/api";
+import { ExposureContext } from "../onehealth/ContextPanel";
 import { openTraceStream, type StreamHandle } from "../lib/sse";
 import type { Citation, RunResult, TraceEvent } from "../lib/types";
 
@@ -102,6 +103,7 @@ export default function CaseDetail() {
       </div>
 
       {/* Top row: case header + Run button */}
+      {caseInfo && <ExposureContext caseId={caseId} />}
       <div className="bg-surface-raised border border-surface-border rounded-2xl p-5 mb-5 flex items-center justify-between gap-4 flex-wrap">
         <div className="min-w-0">
           <div className="text-[10px] text-compact text-ink-muted mb-1.5">

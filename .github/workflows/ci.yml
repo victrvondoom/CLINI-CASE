@@ -10,6 +10,8 @@
 #   5. readme-anchors — verify the README has all core product sections
 #   6. oncotwin       — OncoTwin tests + one-command synthetic journey + red-team stress test
 #
+#   7. aquahealth     — Track 3 tests + reproducible safety-evaluation artifact
+#
 # Production-grade workflows (multi-region Terraform plan, cosign signing,
 # Trivy/Semgrep/Checkov, k6 load tests, EKS deploy) are kept under
 # .github/workflows/*.yml as workflow_dispatch-only — see security.yml,
@@ -260,4 +262,41 @@ jobs:
         with:
           name: oncotwin-journey
           path: backend/.cache/oncotwin/demo
+          retention-days: 14
+
+  # ===========================================================================
+  # 7. AquaHealth — Track 3 explainability, abstention and HITL safety checks.
+  #    The report is synthetic software-regression evidence, not an ecological
+  #    validation study.
+  # ===========================================================================
+  aquahealth:
+    name: AquaHealth · Track 3 safety evaluation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+
+      - name: Install backend
+        working-directory: backend
+        run: pip install -e ".[dev]"
+
+      - name: AquaHealth tests
+        working-directory: backend
+        run: pytest tests/aquahealth -q
+
+      - name: Generate Track 3 evaluation report
+        working-directory: backend
+        run: python -m app.aquahealth.evaluation > aquahealth-track3-evaluation.json
+
+      - name: Upload Track 3 evaluation report
+        uses: actions/upload-artifact@v4
+        with:
+          name: aquahealth-track3-evaluation
+          path: backend/aquahealth-track3-evaluation.json
           retention-days: 14

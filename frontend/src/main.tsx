@@ -24,6 +24,8 @@ import { AuthProvider } from "./components/AuthContext";
 import { RequireAuth } from "./components/RequireAuth";
 const AquaCommunity = lazy(() => import("./routes/AquaCommunity"));
 const AquaDashboard = lazy(() => import("./routes/AquaDashboard"));
+const AquaEvaluation = lazy(() => import("./routes/AquaEvaluation"));
+const OneHealth = lazy(() => import("./routes/OneHealth"));
 const AquaMap = lazy(() => import("./routes/AquaMap"));
 const AquaObservationDetail = lazy(() => import("./routes/AquaObservationDetail"));
 const AquaObservationNew = lazy(() => import("./routes/AquaObservationNew"));
@@ -142,6 +144,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             {/* AquaHealth — OneAquaHealth freshwater module (additive).
                 Existing ClinCase routes above are unchanged. */}
             <Route path="/aquahealth" element={<AquaDashboard />} />
+            <Route path="/onehealth" element={<OneHealth />} />
             <Route path="/aquahealth/observations" element={<AquaObservations />} />
             <Route path="/aquahealth/observations/new" element={<AquaObservationNew />} />
             <Route path="/aquahealth/observations/:observationId" element={<AquaObservationDetail />} />
@@ -149,6 +152,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             <Route path="/aquahealth/trends" element={<AquaTrends />} />
             <Route path="/aquahealth/one-health" element={<AquaOneHealth />} />
             <Route path="/aquahealth/community" element={<AquaCommunity />} />
+            <Route path="/aquahealth/evaluation" element={<AquaEvaluation />} />
             <Route
               path="/aquahealth/review"
               element={

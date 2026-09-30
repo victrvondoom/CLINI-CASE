@@ -34,10 +34,37 @@
 > [!IMPORTANT]
 > **This README describes running code, not mockups.** Every agent, endpoint and table named here exists in this repository and runs locally. Where a feature is a stub or a design path rather than finished, this document says so.
 
+> [!TIP]
+> **OneAquaHealth IEEE Global Hackathon — primary Track 7: Digital Health Standards.**
+> Start with [ClinCase One Health: from water evidence to clinical action](docs/ONEHEALTH_TRACK7.md)
+> and the `/onehealth` evidence workbench. Track 3 is the supporting environmental-assessment layer.
+> All existing ClinCase, OncoTwin, CardioTwin and AquaHealth capabilities remain available.
+
+### ClinCase One Health — the integrated hackathon journey
+
+Citizen freshwater observation → laboratory evidence → consented exposure history →
+human clinical review → environmental investigation and retesting.
+
+The new **Track 7 workbench** connects evidence across the existing modules with native FHIR
+Location, Specimen, Observation, Patient, Consent, QuestionnaireResponse, Task and Provenance
+resources. It includes a pinned OAH draft mapping, selected constraint checks, native-field
+round-trip checks, a missing-evidence challenge and a staged import that never auto-trusts
+external consent or verification. Reviewer identities come from authentication; optimistic
+version checks prevent lost decisions. PostgreSQL writes are atomic; database-less operation
+is explicitly limited to volatile synthetic demonstration records.
+
+**Scope:** arsenic laboratory evidence and documented drinking-water pathways, not cancer or
+cardiovascular diagnosis from stream photos. Existing clinical prediction scores are unchanged.
+The OAH guide is a draft; selected checks are not full HL7 R4 profile/terminology validation.
+The team reports that the existing platform and this integration were built during the hackathon;
+the submission guide distinguishes modules by purpose, not by pre-event reuse.
+
 ---
 
 ## Contents
 
+- [ClinCase One Health — primary OneAquaHealth Track 7](docs/ONEHEALTH_TRACK7.md)
+- [AquaHealth Sentinel — supporting OneAquaHealth Track 3](docs/AQUAHEALTH_TRACK3.md)
 - [Why ClinCase](#-why-clincase)
 - [What it does](#-what-it-does)
 - [Try the four reference cases](#-try-the-four-reference-cases)

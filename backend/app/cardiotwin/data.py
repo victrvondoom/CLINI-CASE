@@ -40,7 +40,13 @@ class DatasetError(ValueError):
 
 
 def file_sha256(path: Path) -> str:
-    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+    content = Path(path).read_bytes()
+    # Git may check text files out with CRLF on Windows. Hash CSVs by their
+    # canonical LF representation so the pinned dataset identity is stable
+    # across platforms while still detecting any data/content change.
+    if Path(path).suffix.lower() == ".csv":
+        content = content.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    return hashlib.sha256(content).hexdigest()
 
 
 def load_dataset(path: Path | None = None) -> Any:

@@ -20,7 +20,9 @@ Every doc in this repo, with one-line purpose. Use this as the table of contents
 
 | Doc | Purpose |
 |---|---|
+| [`docs/ONEHEALTH_TRACK7.md`](./ONEHEALTH_TRACK7.md) | Primary submission: exposure evidence, clinical context, pinned draft FHIR exchange, demo and validation boundaries |
 | [`docs/ONCOTWIN.md`](./ONCOTWIN.md) | OncoTwin patient digital twin: capabilities, measured results, limitations, API |
+| [`docs/AQUAHEALTH_TRACK3.md`](./AQUAHEALTH_TRACK3.md) | AquaHealth Sentinel: OneAquaHealth Track 3 submission, demo path, evaluation and limitations |
 
 ## Architecture
 

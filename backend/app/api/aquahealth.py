@@ -20,7 +20,7 @@ from typing import Any, Literal
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.aquahealth import demo as demo_data
-from app.aquahealth import service, store
+from app.aquahealth import evaluation, service, store
 from app.aquahealth.agents.env_agents import aquahealth_manifest
 from app.aquahealth.fhir import mapping
 from app.aquahealth.models import (
@@ -45,7 +45,7 @@ router = APIRouter(prefix="/aquahealth", tags=["aquahealth"])
 
 Reviewer = require_role("reviewer", "admin")
 
-MODULE_VERSION = "0.1.0"
+MODULE_VERSION = "0.3.0"
 
 
 async def org_store(
@@ -92,10 +92,18 @@ async def aquahealth_meta() -> dict[str, Any]:
         "version": MODULE_VERSION,
         "parent_product": "ClinCase",
         "summary": (
-            "Urban freshwater ecosystem monitoring and One Health intelligence, "
-            "added to ClinCase for the IEEE OneAquaHealth challenge."
+            "Citizen freshwater evidence connected to exposure review and clinical context "
+            "through traceable, human-verified FHIR exchange."
         ),
         "case_type": "ENVIRONMENTAL_OBSERVATION",
+        "submission": {
+            "primary_track": "Track 7 — Digital Health Standards",
+            "supporting_track": "Track 3 — AI-Supported Assessment",
+            "tagline": "From water evidence to clinical action.",
+            "assessment_method": "deterministic_rule_based_agents",
+            "human_decision_authority": True,
+            "evaluation_endpoint": "/api/v1/aquahealth/evaluation",
+        },
         "disclaimers": {
             "status": (
                 "Ecosystem status is a Prototype Ecosystem Observation Status, "
@@ -208,6 +216,14 @@ async def agents_manifest(
     own clinical agents unchanged.
     """
     return aquahealth_manifest()
+
+
+@router.get("/evaluation")
+async def track3_evaluation(
+    _user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Run the transparent Track 3 safety benchmark against production logic."""
+    return evaluation.run_benchmark()
 
 
 # =============================================================================

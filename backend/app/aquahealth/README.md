@@ -34,8 +34,9 @@ framework, and neither can break the other.
 | `app/aquahealth/store.py` | In-process store + fail-soft Postgres write-through |
 | `app/aquahealth/demo.py` | Labelled synthetic dataset |
 | `app/aquahealth/fhir/mapping.py` | Prototype + FHIR R4 export |
-| `app/api/aquahealth.py` | 19 routes under `/api/v1/aquahealth` |
-| `tests/aquahealth/` | 25 tests |
+| `app/aquahealth/evaluation.py` | Versioned synthetic Track 3 benchmark executed against production rules |
+| `app/api/aquahealth.py` | 20 routes under `/api/v1/aquahealth` |
+| `tests/aquahealth/` | 27 tests |
 
 **Existing files modified — 59 added lines, 0 removed:**
 
@@ -106,8 +107,8 @@ two agent-name sets stay disjoint.
 
 ### 7. The FHIR export does not overclaim
 
-Environmental water observations have no official HL7 FHIR profile. The export
-is therefore *structurally valid FHIR R4 carrying AquaHealth-defined codes* —
+The OneAquaHealth draft IG defines environmental profiles. This legacy export
+is a *prototype FHIR-shaped representation carrying AquaHealth-defined codes* —
 useful because any FHIR client can parse and route it, while a receiver must
 still map the codes. Every payload says exactly that in `meta.tag`. The flat
 `aquahealth.prototype.v1` shape is labelled "not a standard".
@@ -153,6 +154,14 @@ DB-less mode ClinCase already supports.
 | 7 — Digital Health Standards | FHIR R4 Bundle/Observation export, code catalogue, honest labelling |
 
 ---
+
+The primary submission is now **Track 7 — Digital Health Standards**, implemented
+by the additive `app.onehealth` layer and documented in `docs/ONEHEALTH_TRACK7.md`.
+**Track 3 — AI-Supported Assessment** remains the supporting track. The
+`/aquahealth/evaluation` surface runs a versioned set of synthetic boundary
+cases through the production assessment functions and reports abstention,
+concern-detection, validation and false-reassurance metrics. These are software
+behaviour checks, not claims of ecological or public-health validation.
 
 ## Running it
 

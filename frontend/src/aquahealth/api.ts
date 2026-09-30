@@ -18,6 +18,7 @@ import type {
   ReviewQueue,
   ReviewStatus,
   TrendsResponse,
+  Track3Evaluation,
   WaterbodyRow,
 } from "./types";
 
@@ -82,6 +83,8 @@ export const aqua = {
   formSchema: () => request<FormSchema>("/form-schema"),
 
   agentManifest: () => request<AgentManifest>("/agents/manifest"),
+
+  evaluation: () => request<Track3Evaluation>("/evaluation"),
 
   overview: () => request<DashboardOverview>("/overview"),
 

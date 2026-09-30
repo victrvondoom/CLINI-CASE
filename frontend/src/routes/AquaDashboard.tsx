@@ -12,14 +12,17 @@ import {
   Database,
   Droplets,
   Fish,
+  FlaskConical,
   Gauge,
   Leaf,
   Plus,
   Recycle,
+  RefreshCw,
+  ShieldCheck,
   Users,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { aqua } from "../aquahealth/api";
@@ -42,6 +45,7 @@ import type {
   ObservationSummary,
 } from "../aquahealth/types";
 import { useAuth } from "../components/AuthContext";
+import { onehealth, type EnvironmentalTask } from "../onehealth/api";
 
 const STATUS_ORDER: EcosystemStatus[] = [
   "critical_signal",
@@ -129,6 +133,12 @@ export default function AquaDashboard() {
       />
 
       <div className="space-y-6">
+        <Link to="/onehealth" className="block rounded-2xl border border-accent-cyan/40 bg-accent-cyan/10 p-5 hover:bg-accent-cyan/15">
+          <div className="text-[10px] text-accent-cyan tracking-widest">PRIMARY TRACK 7 · DIGITAL HEALTH STANDARDS</div>
+          <h2 className="text-lg text-ink-primary mt-1">From water evidence to clinical action →</h2>
+          <p className="text-xs text-ink-muted mt-2">Open the exposure workbench: laboratory provenance, consented patient context, human review and FHIR exchange. Track 3 remains the supporting assessment layer.</p>
+        </Link>
+        <EnvironmentalFollowup />
         <PrototypeNotice />
 
         {error && <ErrorNote message={error} />}
@@ -359,6 +369,12 @@ export default function AquaDashboard() {
                     title="Community"
                     detail="Participation, contributions and badges."
                   />
+                  <LinkPanel
+                    to="/aquahealth/evaluation"
+                    icon={<FlaskConical size={15} />}
+                    title="Track 3 safety evaluation"
+                    detail="Live boundary-case metrics for abstention, validation and concern detection."
+                  />
                 </div>
 
                 {/* Recent */}
@@ -418,6 +434,84 @@ export default function AquaDashboard() {
         )}
       </div>
     </div>
+  );
+}
+
+function EnvironmentalFollowup() {
+  const { user } = useAuth();
+  const canReview = user?.role === "reviewer" || user?.role === "admin";
+  const [tasks, setTasks] = useState<EnvironmentalTask[]>([]);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const sequence = useRef(0);
+  const load = useCallback(async (manual = false) => {
+    const generation = ++sequence.current;
+    if (manual) setRefreshing(true);
+    try {
+      const response = await onehealth.environmentalTasks();
+      if (generation !== sequence.current) return;
+      setTasks(response.tasks);
+      setError("");
+    } catch (e) {
+      if (generation === sequence.current) {
+        setTasks([]);
+        setError(e instanceof Error ? e.message : "Environmental follow-up is unavailable");
+      }
+    } finally {
+      if (generation === sequence.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    }
+  }, []);
+  useEffect(() => {
+    void load();
+    const timer = window.setInterval(() => void load(), 30_000);
+    const onFocus = () => void load();
+    window.addEventListener("focus", onFocus);
+    return () => {
+      sequence.current++;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [load]);
+  const open = tasks.filter((task) => task.status !== "completed");
+  return (
+    <section className="rounded-2xl border border-surface-border bg-surface-raised p-5" aria-label="Environmental follow-up loop">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <ShieldCheck size={15} className="text-accent-cyan" aria-hidden="true" />
+          <h2 className="text-sm text-ink-primary">Environmental follow-up loop</h2>
+          <span className="text-[10px] text-ink-muted">
+            {loading ? "Loading status…" : error ? "Status unavailable" : `${open.length} open / ${tasks.length} total`}
+          </span>
+        </div>
+        <button type="button" onClick={() => void load(true)} disabled={refreshing} className="inline-flex items-center gap-1.5 rounded-md border border-surface-border px-2.5 py-1.5 text-xs text-ink-body disabled:opacity-50">
+          <RefreshCw size={12} className={refreshing ? "animate-spin" : ""} aria-hidden="true" /> Refresh
+        </button>
+      </div>
+      <p className="mt-2 text-xs text-ink-muted">Investigation and retest progress returns here from the Track 7 evidence workbench. Patient identifiers and clinical details are not shown.</p>
+      {loading && <p role="status" className="mt-3 text-xs text-ink-muted">Loading follow-up tasks…</p>}
+      {error && <p role="alert" className="mt-3 text-xs text-accent-amber">Follow-up task feed unavailable: {error}</p>}
+      {!loading && !error && tasks.length === 0 && <p className="mt-3 text-xs text-ink-muted">No environmental follow-up tasks have been created yet.</p>}
+      {tasks.length > 0 && (
+        <ul className="mt-3 space-y-2">
+          {tasks.map((task) => (
+            <li key={task.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-surface-border p-3 text-xs">
+              <div>
+                <Link to={`/aquahealth/observations/${encodeURIComponent(task.observation_id)}`} className="text-ink-primary underline decoration-surface-border hover:text-accent-cyan">{task.waterbody_name}</Link>
+                <p className="mt-1 text-ink-muted">{task.action} · {task.synthetic ? "Synthetic demonstration" : "Recorded evidence"}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={task.status === "completed" ? "text-accent-green" : task.status === "in_progress" ? "text-accent-cyan" : "text-accent-amber"}>{task.status.replaceAll("_", " ")}</span>
+                {canReview && <Link to={`/onehealth?record=${encodeURIComponent(task.id)}`} className="text-accent-cyan underline">Open workflow →</Link>}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 

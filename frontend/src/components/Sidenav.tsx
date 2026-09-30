@@ -101,14 +101,16 @@ const SECTIONS: NavSection[] = [
     ],
   },
   {
-    label: "AquaHealth",
+    label: "One Health · Track 7",
     items: [
+      { label: "Evidence workbench", href: "/onehealth", icon: ShieldCheck, chip: "TRACK 7", reviewerOrAdmin: true },
       { label: "Overview",        href: "/aquahealth",                  icon: Droplets,   chip: "AQUA", end: true },
       { label: "New observation", href: "/aquahealth/observations/new", icon: Sprout },
       { label: "Observations",    href: "/aquahealth/observations",     icon: FolderOpen, end: true },
       { label: "Map",             href: "/aquahealth/map",              icon: Map },
       { label: "Trends",          href: "/aquahealth/trends",           icon: TrendingUp },
       { label: "One Health",      href: "/aquahealth/one-health",       icon: Fish },
+      { label: "Safety evaluation", href: "/aquahealth/evaluation",   icon: FlaskConical, chip: "TRACK 3" },
       { label: "Review queue",    href: "/aquahealth/review",           icon: UserCheck, reviewerOrAdmin: true },
       { label: "Community",       href: "/aquahealth/community",        icon: Users },
     ],

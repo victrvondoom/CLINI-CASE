@@ -5,7 +5,8 @@
  */
 import { Activity, ArrowRight } from "lucide-react";
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
+import { ExposureContext } from "../onehealth/ContextPanel";
 
 import { cardio } from "../cardiotwin/api";
 import { PatientPanel } from "../cardiotwin/PatientPanel";
@@ -36,6 +37,7 @@ import { pct } from "../cardiotwin/vesselMapping";
 const HeartViewer = lazy(() => import("../cardiotwin/HeartViewer"));
 
 export default function CardioTwin() {
+  const [searchParams] = useSearchParams();
   const [catalog, setCatalog] = useState<FeatureCatalog | null>(null);
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [scenarioNote, setScenarioNote] = useState("");
@@ -146,6 +148,8 @@ export default function CardioTwin() {
         </div>
         <SafetyBanner />
       </header>
+
+      <ExposureContext exposureId={searchParams.get("exposure") ?? undefined} independentCardio />
 
       {err && (
         <div role="alert" data-testid="cardiotwin-error" className="rounded-lg border border-accent-red/50 bg-accent-red/10 px-3 py-2 text-[12.5px]">

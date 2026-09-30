@@ -187,6 +187,13 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
     await _bootstrap_optional("aquahealth_schema", _aquahealth)
 
+    async def _onehealth():
+        from app.onehealth.repository import ensure_schema
+
+        await ensure_schema()
+
+    await _bootstrap_optional("onehealth_schema", _onehealth)
+
     # Redis SSE pub/sub — in-process is the safe fallback for single-replica.
     # Multi-replica deploys MUST set REDIS_URL or live SSE traces fan-out
     # asymmetrically. We log loudly when this fails because in production
@@ -416,6 +423,9 @@ from app.api import (  # noqa: E402
     oncotwin_intel as oncotwin_intel_api,
 )
 from app.api import (  # noqa: E402
+    onehealth as onehealth_api,
+)
+from app.api import (  # noqa: E402
     ops as ops_api,
 )
 from app.api import (  # noqa: E402
@@ -515,6 +525,8 @@ app.include_router(case_compare_api.router, prefix="/api/v1")
 # AquaHealth — OneAquaHealth freshwater ecosystem module (additive; own tables,
 # own agents, own routes. ClinCase's clinical workflow is unchanged).
 app.include_router(aquahealth_api.router, prefix="/api/v1")
+
+app.include_router(onehealth_api.router, prefix="/api/v1")
 # fhir_bulk router carries its own /fhir prefix
 app.include_router(fhir_bulk_api.router)
 

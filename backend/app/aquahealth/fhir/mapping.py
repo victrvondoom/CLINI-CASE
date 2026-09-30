@@ -11,8 +11,8 @@ completeness of either:
      standard `Observation` fields (status, category, code, effective,
      component, valueQuantity) with UCUM units.
 
-On point 2, the caveat that matters: environmental water observations have no
-official HL7 FHIR profile, and the codes below are AquaHealth's own
+On point 2, the caveat that matters: the OneAquaHealth draft IG now defines
+environmental profiles, but this legacy export has not adopted them. Its codes are AquaHealth's own
 CodeSystem-style identifiers under an example URI, not LOINC or SNOMED
 concepts. So this is *valid FHIR R4 structure carrying non-standard codes* —
 useful because any FHIR client can parse, store and route it, while a receiver

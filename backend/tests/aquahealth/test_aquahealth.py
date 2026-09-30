@@ -16,7 +16,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from app.aquahealth import assess, demo, service, store
+from app.aquahealth import assess, demo, evaluation, service, store
 from app.aquahealth.fhir import mapping
 from app.aquahealth.models import (
     Biodiversity,
@@ -560,6 +560,35 @@ async def test_prototype_export_omits_unanswered_fields():
 
 
 # =============================================================================
+# Track 3 safety evaluation
+# =============================================================================
+
+
+def test_track3_benchmark_runs_production_logic_and_is_fail_closed():
+    report = evaluation.run_benchmark()
+
+    assert report["synthetic"] is True
+    assert report["case_count"] >= 12
+    assert report["generated_from"] == "production assessment functions"
+    assert report["metrics"]["exact_status_accuracy"] == 1.0
+    assert report["metrics"]["concern_detection_recall"] == 1.0
+    assert report["metrics"]["insufficient_data_abstention_rate"] == 1.0
+    assert report["metrics"]["validation_check_accuracy"] == 1.0
+    assert report["metrics"]["false_healthy_on_insufficient_count"] == 0
+    assert all(case["passed"] for case in report["cases"])
+
+
+def test_track3_benchmark_discloses_scope_and_limitations():
+    report = evaluation.run_benchmark()
+
+    limitations = " ".join(report["limitations"]).lower()
+    assert "synthetic" in limitations
+    assert "not ecological validity" in limitations
+    assert "expert" in limitations
+    assert "public-health" in limitations
+
+
+# =============================================================================
 # Coexistence with ClinCase
 # =============================================================================
 
@@ -588,6 +617,7 @@ def test_aquahealth_routes_do_not_shadow_clincase_routes():
     aqua = [p for p in paths if "/aquahealth" in p]
     assert aqua, "AquaHealth routes should be mounted"
     assert all(p.startswith("/api/v1/aquahealth") for p in aqua)
+    assert "/api/v1/aquahealth/evaluation" in aqua
 
     # The ClinCase surfaces AquaHealth must not disturb.
     for required in ("/api/v1/cases", "/api/v1/agents/manifest", "/api/v1/auth/login"):
