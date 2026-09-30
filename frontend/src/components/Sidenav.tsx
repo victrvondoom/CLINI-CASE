@@ -92,6 +92,13 @@ const SECTIONS: NavSection[] = [
     ],
   },
   {
+    label: "Cardio twin",
+    items: [
+      { label: "Vessel risk",  href: "/cardiotwin",            icon: HeartPulse,   chip: "CAD", end: true },
+      { label: "Evaluation",   href: "/cardiotwin/evaluation", icon: FlaskConical, chip: "METHODS" },
+    ],
+  },
+  {
     label: "AquaHealth",
     items: [
       { label: "Overview",        href: "/aquahealth",                  icon: Droplets,   chip: "AQUA", end: true },

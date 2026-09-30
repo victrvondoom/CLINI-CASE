@@ -362,6 +362,9 @@ from app.api import (  # noqa: E402
     business_value as business_value_api,
 )
 from app.api import (  # noqa: E402
+    cardiotwin as cardiotwin_api,
+)
+from app.api import (  # noqa: E402
     compliance as compliance_api,
 )
 from app.api import (  # noqa: E402
@@ -492,6 +495,7 @@ app.include_router(oncology_stack.router, prefix="/api/v1")
 # OncoTwin — dynamic digital-twin layer (additive; hands off into the cases API above)
 app.include_router(oncotwin_api.router, prefix="/api/v1")
 app.include_router(oncotwin_intel_api.router, prefix="/api/v1")  # OncoTwin 2.0 (additive)
+app.include_router(cardiotwin_api.router, prefix="/api/v1")  # CardioTwin (additive)
 # AquaHealth — OneAquaHealth freshwater ecosystem module (additive; own tables,
 # own agents, own routes. ClinCase's clinical workflow is unchanged).
 app.include_router(aquahealth_api.router, prefix="/api/v1")

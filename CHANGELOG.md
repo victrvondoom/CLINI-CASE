@@ -10,6 +10,7 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## [Unreleased]
 
 ### Added
+- **CardioTwin**, a cardiovascular subsystem: calibrated, uncertainty-annotated estimates of overall CAD and of LAD / LCX / RCA stenosis from clinical features (Extension of the Z-Alizadeh Sani dataset, UCI 411, CC BY 4.0), a schematic interactive 3D coronary view driven by a tested probability→visual mapping, exact per-vessel attribution, a model-sensitivity simulator, representativeness warnings, a model-trust/provenance panel and an evaluation page. Leakage-guarded (all four label columns excluded from every model), nested repeated-CV evaluation, deterministic artifact with SHA-256. Route `/cardiotwin`, API `/api/v1/cardiotwin`. See [`docs/CARDIOTWIN.md`](docs/CARDIOTWIN.md).
 - **OncoTwin**, a patient digital twin layered on top of the prior-auth pipeline: living twin state, personalised baselines, multimodal fusion, change-point and trajectory intelligence, what-if simulation, twin memory and a clinician-gated handoff into ClinCase. See [`docs/ONCOTWIN.md`](docs/ONCOTWIN.md).
 - OncoTwin CI job: tests, the one-command synthetic journey and the red-team stress test.
 

@@ -15,6 +15,7 @@ from starlette.middleware.gzip import GZipMiddleware
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 ONCOTWIN_PREFIX = "/api/v1/oncotwin/"
+CARDIOTWIN_PREFIX = "/api/v1/cardiotwin/"  # CardioTwin evaluation payloads are similarly sized
 
 
 class OncoTwinGZipMiddleware:
@@ -23,7 +24,9 @@ class OncoTwinGZipMiddleware:
         self.gzip = GZipMiddleware(app, minimum_size=minimum_size)
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] == "http" and scope["path"].startswith(ONCOTWIN_PREFIX):
+        if scope["type"] == "http" and scope["path"].startswith(
+            (ONCOTWIN_PREFIX, CARDIOTWIN_PREFIX)
+        ):
             await self.gzip(scope, receive, send)
         else:
             await self.app(scope, receive, send)
