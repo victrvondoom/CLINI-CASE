@@ -195,6 +195,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
     await _bootstrap_optional("aquahealth_schema", _aquahealth)
 
+
     async def _onehealth():
         from app.onehealth.repository import ensure_schema
 
