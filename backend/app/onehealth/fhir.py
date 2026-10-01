@@ -649,7 +649,7 @@ def validate(bundle: dict[str, Any]) -> dict[str, Any]:
             ) != selected["patient"]:
                 raise ValueError("Clinical task and interview review state disagree")
     except Exception as exc:  # noqa: BLE001 - return a bounded OperationOutcome, never model internals
-        issues.append(str(exc)[:500])
+        issues.append("Validation failed due to an internal consistency error")
     return {
         "valid": not issues,
         "sha256": digest(bundle),
