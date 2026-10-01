@@ -20,6 +20,27 @@ export interface Job {
   };
   id: string;
   version: number;
+  exposure_id?: string | null;
+  exposure_version?: number | null;
+  mapping_mode?: string;
+  trust_states?: string[];
+  passport_integrity?: {
+    valid: boolean;
+    status: string;
+    revision_count?: number;
+    head?: string;
+  };
+  loss_report?: {
+    counts: Record<string, number>;
+    fields: { source_field: string; target: string | null; status: string }[];
+    scope: string;
+  };
+  terminology?: {
+    system: string | null;
+    code: string;
+    status: string;
+    external_mapping_verified: boolean;
+  }[];
   source: {
     source_system: string;
     original_record_id: string;

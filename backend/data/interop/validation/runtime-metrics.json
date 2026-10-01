@@ -1,0 +1,42 @@
+{
+  "correlation_id": "ig-9cec8d3e91ed4e21b3391f3260db9437",
+  "retest_gateway_id": "ig-4d6958aaf5bc478ab66455fe0ccb4a65",
+  "receiver_mode": "HTTP network",
+  "ai_status": "deterministic_offline; no model called",
+  "valid_package_metrics": {
+    "fields_detected": 13,
+    "fields_mapped": 12,
+    "mappings_requiring_review": 0,
+    "resources_generated": 10,
+    "checks_passed": 3,
+    "checks_failed": 0
+  },
+  "failure_metrics": {
+    "fields_detected": 13,
+    "fields_mapped": 12,
+    "mappings_requiring_review": 0,
+    "resources_generated": 10,
+    "checks_passed": 0,
+    "checks_failed": 1
+  },
+  "roundtrip_fields_preserved": 13,
+  "resources_acknowledged": 10,
+  "lab_return_status": "delivered",
+  "roundtrip_sample_preserved": true,
+  "broken_bundle_rejected_by_receiver": true,
+  "passport_integrity": {
+    "status": "CHAIN_VALID",
+    "valid": true,
+    "revision_count": 21,
+    "head": "01cbe592d62497507e57cbfff0ff5a9fa72bcf3d96cc6a2edf8cf65fe1fd83ba"
+  },
+  "passport_offline_verified": true,
+  "bound_exposure_id": "oh-f6ed9af482edb27c0611",
+  "retest_id": "oh-0482c047fb9c4e119227",
+  "retest_change_ug_l": -10.2,
+  "retest_exchange_status": "delivered",
+  "mapping_mode": "Deterministic reference path",
+  "retest_events": 4,
+  "run_date": "2026-10-01",
+  "synthetic": true
+}

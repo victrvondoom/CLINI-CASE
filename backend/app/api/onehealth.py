@@ -11,9 +11,10 @@ from pydantic import Field
 from app.api.aquahealth import org_store
 from app.aquahealth import service as aqua_service
 from app.aquahealth.models import ObservationCreate
+from app.aquahealth.store import OrgAquaStore
 from app.auth import get_current_user, require_role
 from app.db import db
-from app.onehealth import evidence, fhir, repository
+from app.onehealth import evidence, fhir, passport, repository
 from app.onehealth.models import (
     Attestation,
     AuditEvent,
@@ -23,6 +24,7 @@ from app.onehealth.models import (
     FollowupRequest,
     LabSample,
     LinkRequest,
+    RetestRequest,
     ReviewRequest,
     StrictModel,
     now,
@@ -32,15 +34,18 @@ router = APIRouter(prefix="/onehealth", tags=["onehealth-track7"])
 reviewer = require_role("reviewer", "admin")
 
 
-def event(record: ExposureRecord, user: dict, action: str, note: str) -> None:
+def event(record: ExposureRecord, user: dict[str, Any], action: str, note: str) -> None:
     record.audit.append(AuditEvent(action=action, actor_id=str(user["id"]), note=note))
 
 
-def view(record: ExposureRecord) -> dict:
+def view(record: ExposureRecord) -> dict[str, Any]:
     return {
         **record.model_dump(mode="json", exclude={"incoming_bundle"}),
         "assessment": evidence.assess(record),
         "ablation": evidence.ablation(record),
+        "epistemic_ceiling": evidence.ceiling(record),
+        "trust_states": evidence.trust_states(record),
+        "passport_integrity": passport.verify(record.model_dump(mode="json")),
         "source_bundle_sha256": fhir.digest(record.incoming_bundle)
         if record.incoming_bundle
         else None,
@@ -48,14 +53,14 @@ def view(record: ExposureRecord) -> dict:
     }
 
 
-async def current(record_id: str, user: dict, version: int) -> ExposureRecord:
+async def current(record_id: str, user: dict[str, Any], version: int) -> ExposureRecord:
     record = await repository.get(user["organization_id"], record_id)
     if record.version != version:
         raise HTTPException(409, "Record changed; reload before retrying")
     return record
 
 
-def patient(org: str, patient_id: str):
+def patient(org: str, patient_id: str) -> Any:
     from app.oncotwin.store import get_store
 
     try:
@@ -65,7 +70,7 @@ def patient(org: str, patient_id: str):
 
 
 @router.get("/meta")
-async def meta() -> dict:
+async def meta() -> dict[str, Any]:
     return {
         "product": "ClinCase One Health",
         "primary_track": "Track 7 — Digital Health Standards",
@@ -83,7 +88,7 @@ async def meta() -> dict:
 
 
 @router.get("/patients")
-async def patients(user: dict = Depends(reviewer)) -> dict:
+async def patients(user: dict[str, Any] = Depends(reviewer)) -> dict[str, Any]:
     from app.oncotwin.store import get_store
 
     return {
@@ -102,8 +107,8 @@ async def patients(user: dict = Depends(reviewer)) -> dict:
 async def records(
     patient_id: str | None = Query(None, max_length=80),
     case_id: str | None = Query(None, max_length=100),
-    user: dict = Depends(reviewer),
-) -> dict:
+    user: dict[str, Any] = Depends(reviewer),
+) -> dict[str, Any]:
     rows = await repository.list_records(user["organization_id"])
     if patient_id:
         patient(user["organization_id"], patient_id)
@@ -122,8 +127,10 @@ async def records(
 
 @router.post("/exposures", status_code=201)
 async def create(
-    payload: ExposureCreate, user: dict = Depends(reviewer), st=Depends(org_store)
-) -> dict:
+    payload: ExposureCreate,
+    user: dict[str, Any] = Depends(reviewer),
+    st: OrgAquaStore = Depends(org_store),
+) -> dict[str, Any]:
     obs = st.observation(payload.observation_id)
     if not obs:
         raise HTTPException(404, "Source observation not found in this organisation")
@@ -140,12 +147,14 @@ async def create(
 
 
 @router.get("/exposures/{record_id}")
-async def detail(record_id: str, user: dict = Depends(reviewer)) -> dict:
+async def detail(record_id: str, user: dict[str, Any] = Depends(reviewer)) -> dict[str, Any]:
     return view(await repository.get(user["organization_id"], record_id))
 
 
 @router.post("/exposures/{record_id}/verify")
-async def verify(record_id: str, payload: Attestation, user: dict = Depends(reviewer)) -> dict:
+async def verify(
+    record_id: str, payload: Attestation, user: dict[str, Any] = Depends(reviewer)
+) -> dict[str, Any]:
     record = await current(record_id, user, payload.expected_version)
     record.lab_verified = True
     event(record, user, "laboratory_verified", payload.note)
@@ -153,7 +162,9 @@ async def verify(record_id: str, payload: Attestation, user: dict = Depends(revi
 
 
 @router.post("/exposures/{record_id}/link")
-async def link(record_id: str, payload: LinkRequest, user: dict = Depends(reviewer)) -> dict:
+async def link(
+    record_id: str, payload: LinkRequest, user: dict[str, Any] = Depends(reviewer)
+) -> dict[str, Any]:
     record = await current(record_id, user, payload.expected_version)
     h = payload.history
     if not h.consent_recorded:
@@ -180,7 +191,9 @@ async def link(record_id: str, payload: LinkRequest, user: dict = Depends(review
 
 
 @router.post("/exposures/{record_id}/review")
-async def review(record_id: str, payload: ReviewRequest, user: dict = Depends(reviewer)) -> dict:
+async def review(
+    record_id: str, payload: ReviewRequest, user: dict[str, Any] = Depends(reviewer)
+) -> dict[str, Any]:
     record = await current(record_id, user, payload.expected_version)
     if payload.decision == "reviewed" and not evidence.assess(record)["eligible_for_review"]:
         raise HTTPException(409, "Evidence gates are incomplete; request more information instead")
@@ -192,7 +205,9 @@ async def review(record_id: str, payload: ReviewRequest, user: dict = Depends(re
 
 
 @router.post("/exposures/{record_id}/withdraw-consent")
-async def withdraw(record_id: str, payload: Attestation, user: dict = Depends(reviewer)) -> dict:
+async def withdraw(
+    record_id: str, payload: Attestation, user: dict[str, Any] = Depends(reviewer)
+) -> dict[str, Any]:
     record = await current(record_id, user, payload.expected_version)
     if not record.history:
         raise HTTPException(409, "No patient consent has been recorded")
@@ -200,13 +215,33 @@ async def withdraw(record_id: str, payload: Attestation, user: dict = Depends(re
     record.case_id = None
     record.review = "pending"
     event(record, user, "consent_withdrawn", payload.note)
-    return view(await repository.save(record, payload.expected_version))
+    record = await repository.save(record, payload.expected_version)
+    from app.interop import adapter
+    from app.interop import repository as jobs
+
+    for job in await jobs.bound_jobs(record.organization_id, record.id):
+        for transfer in job.transfers:
+            if transfer["status"] == "delivered":
+                try:
+                    await adapter.withdraw(record.organization_id, transfer["correlation_id"])
+                    event(record, user, "receiver_visibility_withdrawn", transfer["correlation_id"])
+                except Exception:
+                    event(
+                        record,
+                        user,
+                        "receiver_withdrawal_failed",
+                        "Local sharing blocked; remote withdrawal notification failed for "
+                        + transfer["correlation_id"],
+                    )
+    if record.audit[-1].action != "consent_withdrawn":
+        record = await repository.save(record, record.version)
+    return view(record)
 
 
 @router.post("/exposures/{record_id}/case-link")
 async def case_link(
-    record_id: str, payload: CaseLinkRequest, user: dict = Depends(reviewer)
-) -> dict:
+    record_id: str, payload: CaseLinkRequest, user: dict[str, Any] = Depends(reviewer)
+) -> dict[str, Any]:
     record = await current(record_id, user, payload.expected_version)
     if evidence.assess(record)["state"] != "reviewed_exposure_context":
         raise HTTPException(
@@ -233,8 +268,8 @@ async def case_link(
 
 @router.get("/case-candidates")
 async def case_candidates(
-    limit: int = Query(100, ge=1, le=200), user: dict = Depends(reviewer)
-) -> dict:
+    limit: int = Query(100, ge=1, le=200), user: dict[str, Any] = Depends(reviewer)
+) -> dict[str, Any]:
     """List same-tenant cases for an explicit reviewer-attested connection."""
     if repository.mode() != "postgresql":
         return {
@@ -264,7 +299,7 @@ async def case_candidates(
 
 
 @router.get("/environmental-tasks")
-async def environmental_tasks(user: dict = Depends(get_current_user)) -> dict:
+async def environmental_tasks(user: dict[str, Any] = Depends(get_current_user)) -> dict[str, Any]:
     # Deliberate allowlist: never expose patient IDs, consent, clinical status or free text.
     rows = await repository.list_records(user["organization_id"])
     return {
@@ -284,8 +319,8 @@ async def environmental_tasks(user: dict = Depends(get_current_user)) -> dict:
 
 @router.post("/exposures/{record_id}/followup")
 async def followup(
-    record_id: str, payload: FollowupRequest, user: dict = Depends(reviewer)
-) -> dict:
+    record_id: str, payload: FollowupRequest, user: dict[str, Any] = Depends(reviewer)
+) -> dict[str, Any]:
     record = await current(record_id, user, payload.expected_version)
     record.followup_status = payload.status
     record.followup_evidence_reference = payload.evidence_reference or None
@@ -294,7 +329,7 @@ async def followup(
 
 
 @router.get("/exposures/{record_id}/fhir")
-async def export(record_id: str, user: dict = Depends(reviewer)) -> dict:
+async def export(record_id: str, user: dict[str, Any] = Depends(reviewer)) -> dict[str, Any]:
     record = await repository.get(user["organization_id"], record_id)
     if record.consent_withdrawn:
         raise HTTPException(409, "Clinical exchange disabled after consent withdrawal")
@@ -310,6 +345,141 @@ async def export(record_id: str, user: dict = Depends(reviewer)) -> dict:
     return {"bundle": bundle, "validation": result}
 
 
+@router.get("/exposures/{record_id}/journey")
+async def journey(record_id: str, user: dict[str, Any] = Depends(reviewer)) -> dict[str, Any]:
+    record = await repository.get(user["organization_id"], record_id)
+    consent = bool(
+        record.history and record.history.consent_recorded and not record.consent_withdrawn
+    )
+    connections = [
+        {
+            "capability": "AquaHealth citizen observation",
+            "href": "/aquahealth/observations/" + record.observation_id,
+            "binding": record.observation_id,
+        },
+        {
+            "capability": "One Health evidence review",
+            "href": "/onehealth?record=" + record.id,
+            "binding": record.id,
+        },
+        {
+            "capability": "FHIR/OAH gateway",
+            "href": "/interop" + ("?job=" + record.gateway_job_id if record.gateway_job_id else ""),
+            "binding": record.gateway_job_id,
+        },
+        {
+            "capability": "OncoTwin patient context",
+            "href": "/twin/" + record.history.patient_id + "/evidence"
+            if consent and record.history
+            else None,
+            "binding": record.history.patient_id if consent and record.history else None,
+        },
+        {
+            "capability": "CardioTwin independent scenario context",
+            "href": "/cardiotwin?exposure=" + record.id if consent else None,
+            "binding": "Independent scenario; no patient matching or score adjustment",
+        },
+        {
+            "capability": "ClinCase authorization context",
+            "href": "/cases/" + record.case_id if consent and record.case_id else None,
+            "binding": record.case_id if consent else None,
+        },
+    ]
+    comparison = None
+    if record.retest_of:
+        previous = await repository.get(user["organization_id"], record.retest_of)
+        comparable = (
+            record.sample.analyte == previous.sample.analyte
+            and record.sample.kind == previous.sample.kind
+            and record.sample.location_name == previous.sample.location_name
+            and record.sample.qualifier == previous.sample.qualifier == "eq"
+        )
+        comparison = {
+            "previous_record_id": previous.id,
+            "previous_sample": previous.sample.model_dump(mode="json"),
+            "current_sample": record.sample.model_dump(mode="json"),
+            "comparable": comparable,
+            "change_ug_l": evidence.assess(record)["concentration_ug_l"]
+            - evidence.assess(previous)["concentration_ug_l"]
+            if comparable
+            else None,
+            "meaning": "Measurement comparison only; retest verification and review are independent. Different methods/sites or qualifiers require reviewer interpretation.",
+        }
+    return {
+        "record": view(record),
+        "connections": connections,
+        "retest_comparison": comparison,
+        "consent_status": "WITHDRAWN"
+        if record.consent_withdrawn
+        else "ACTIVE"
+        if consent
+        else "NOT_ESTABLISHED",
+    }
+
+
+@router.post("/exposures/{record_id}/retest", status_code=201)
+async def retest(
+    record_id: str, payload: RetestRequest, user: dict[str, Any] = Depends(reviewer)
+) -> dict[str, Any]:
+    record = await current(record_id, user, payload.expected_version)
+    if record.successor_id:
+        raise HTTPException(409, "A successor already exists; open that record for another retest")
+    if record.consent_withdrawn:
+        raise HTTPException(409, "Withdrawn consent cannot be inherited by a retest")
+    if (
+        payload.sample.sample_id == record.sample.sample_id
+        or payload.sample.collected_at <= record.sample.collected_at
+    ):
+        raise HTTPException(422, "Retest requires a new sample identity and later collection time")
+    successor = ExposureRecord(
+        organization_id=record.organization_id,
+        observation_id=record.observation_id,
+        waterbody_id=record.waterbody_id,
+        waterbody_name=record.waterbody_name,
+        synthetic=record.synthetic,
+        sample=payload.sample,
+        history=None,  # New sample needs an explicit consent/pathway attestation; parent retains history.
+        retest_of=record.id,
+    )
+    record.successor_id = successor.id
+    record.followup_status = "completed"
+    record.followup_evidence_reference = payload.sample.report_reference
+    event(
+        record,
+        user,
+        "retest_received",
+        "Environmental task closed by new sample " + successor.id + "; " + payload.note,
+    )
+    event(
+        successor,
+        user,
+        "retest_created",
+        "Retest of " + record.id + "; verification and clinical review reset; " + payload.note,
+    )
+    _, saved = await repository.save_retest(record, successor, payload.expected_version)
+    return view(saved)
+
+
+@router.get("/exposures/{record_id}/passport")
+async def export_passport(
+    record_id: str, user: dict[str, Any] = Depends(reviewer)
+) -> dict[str, Any]:
+    record = await repository.get(user["organization_id"], record_id)
+    if record.consent_withdrawn:
+        raise HTTPException(
+            409,
+            "Passport export disabled after consent withdrawal; historical audit remains accessible",
+        )
+    bundle = fhir.export(record)
+    return passport.portable(
+        record.model_dump(mode="json"),
+        bundle=bundle,
+        validation=fhir.validate(bundle),
+        evidence=evidence.assess(record),
+        ceiling=evidence.ceiling(record),
+    )
+
+
 class ExchangeRequest(StrictModel):
     bundle: dict[str, Any]
 
@@ -319,7 +489,9 @@ class ImportRequest(ExchangeRequest):
 
 
 @router.post("/exchange/validate")
-async def validate_exchange(payload: ExchangeRequest, _user: dict = Depends(reviewer)) -> dict:
+async def validate_exchange(
+    payload: ExchangeRequest, _user: dict[str, Any] = Depends(reviewer)
+) -> dict[str, Any]:
     result = fhir.validate(payload.bundle)
     return {
         **result,
@@ -330,8 +502,10 @@ async def validate_exchange(payload: ExchangeRequest, _user: dict = Depends(revi
 
 @router.post("/exchange/import", status_code=201)
 async def import_exchange(
-    payload: ImportRequest, user: dict = Depends(reviewer), st=Depends(org_store)
-) -> dict:
+    payload: ImportRequest,
+    user: dict[str, Any] = Depends(reviewer),
+    st: OrgAquaStore = Depends(org_store),
+) -> dict[str, Any]:
     result = fhir.validate(payload.bundle)
     if not result["valid"]:
         raise HTTPException(422, result["operation_outcome"])
@@ -363,7 +537,9 @@ async def import_exchange(
 
 
 @router.post("/demo", status_code=201)
-async def demo(user: dict = Depends(reviewer), st=Depends(org_store)) -> dict:
+async def demo(
+    user: dict[str, Any] = Depends(reviewer), st: OrgAquaStore = Depends(org_store)
+) -> dict[str, Any]:
     # No pre-approved findings: users perform every trust transition in the UI.
     time = now()
     obs = await aqua_service.create_observation(

@@ -90,14 +90,20 @@ export function LabForm({
             >
               {o.is_demo ? "DEMO · " : ""}
               {o.reference} · {o.waterbody_name}
-              {persistence !== "postgresql" && !o.is_demo ? " · PostgreSQL required" : ""}
+              {persistence !== "postgresql" && !o.is_demo
+                ? " · PostgreSQL required"
+                : ""}
             </option>
           ))}
         </select>
       </Field>
       {persistence !== "postgresql" && (
         <p className="text-xs text-accent-amber" role="status">
-          This workspace is in volatile demo mode. Only synthetic observations can be linked until PostgreSQL persistence is available.
+          {persistence === "sqlite_synthetic_demo_only"
+            ? "Durable synthetic demo storage."
+            : "This workspace is in volatile demo mode."}{" "}
+          Only synthetic observations can be linked until PostgreSQL persistence
+          is available.
         </p>
       )}
       <div className="grid sm:grid-cols-2 gap-3">
@@ -174,7 +180,10 @@ export function LabForm({
         </p>
       )}
       <button
-        disabled={busy || !observations.some((o) => persistence === "postgresql" || o.is_demo)}
+        disabled={
+          busy ||
+          !observations.some((o) => persistence === "postgresql" || o.is_demo)
+        }
         className={BUTTON}
       >
         Save unverified laboratory evidence

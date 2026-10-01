@@ -33,3 +33,18 @@ async def exchange(
         )
         response.raise_for_status()
         return cast(dict[str, Any], response.json())
+
+
+async def withdraw(org: str, correlation: str) -> dict[str, Any]:
+    async with httpx.AsyncClient(
+        base_url=settings.INTEROP_RECEIVER_URL or "http://independent-receiver",
+        transport=None if settings.INTEROP_RECEIVER_URL else httpx.ASGITransport(app=app),
+        timeout=10,
+        headers={
+            "X-Tenant": org,
+            "X-Receiver-Token": settings.INTEROP_RECEIVER_TOKEN or LOCAL_TOKEN,
+        },
+    ) as client:
+        response = await client.post("/exchanges/" + correlation + "/withdraw")
+        response.raise_for_status()
+        return cast(dict[str, Any], response.json())

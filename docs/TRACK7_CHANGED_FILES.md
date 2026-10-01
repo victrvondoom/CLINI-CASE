@@ -1,0 +1,63 @@
+# Track 7 hardening file inventory
+
+The previous gateway commit is `0f8be4f`. This phase adds passport persistence, unified journey/retest APIs and UI, receiver withdrawal/rejection, adapter interfaces, tests and documentation. Archive moves preserve every tracked legacy file.
+
+- `.env.example`
+- `Makefile`
+- `README.md`
+- `archive/README.md`
+- `backend/app/api/auth.py`
+- `backend/app/api/interop.py`
+- `backend/app/api/onehealth.py`
+- `backend/app/config.py`
+- `backend/app/interop/adapter.py`
+- `backend/app/interop/adapters.py`
+- `backend/app/interop/models.py`
+- `backend/app/interop/receiver.py`
+- `backend/app/interop/repository.py`
+- `backend/app/interop/service.py`
+- `backend/app/main.py`
+- `backend/app/onehealth/demo_store.py`
+- `backend/app/onehealth/evidence.py`
+- `backend/app/onehealth/fhir.py`
+- `backend/app/onehealth/models.py`
+- `backend/app/onehealth/passport.py`
+- `backend/app/onehealth/repository.py`
+- `backend/data/interop/validation/hl7-r4-outcome.json`
+- `backend/data/interop/validation/runtime-metrics.json`
+- `backend/data/interop/validation/summary.json`
+- `backend/scripts/interop_demo.py`
+- `backend/scripts/track7_demo.py`
+- `backend/scripts/verify_passport.py`
+- `backend/tests/interop/test_hardening.py`
+- `docs/DEMO_RUNBOOK.md`
+- `docs/EPISTEMIC_CEILING.md`
+- `docs/EVIDENCE_PASSPORT.md`
+- `docs/HACKATHON_BUILD_SCOPE.md`
+- `docs/JUDGE_ACCESS.md`
+- `docs/OAH_CONFORMANCE.md`
+- `docs/ONEHEALTH_TRACK7.md`
+- `docs/SCALABILITY.md`
+- `docs/TRACK7_HARDENING_PLAN.md`
+- `docs/TRACK7_MANUAL_CHECKLIST.md`
+- `docs/TRACK7_SELF_AUDIT.md`
+- `frontend/index.html`
+- `frontend/src/components/ActivityTicker.tsx`
+- `frontend/src/components/AppShell.tsx`
+- `frontend/src/components/Sidenav.tsx`
+- `frontend/src/components/TopBar.tsx`
+- `frontend/src/interop/api.ts`
+- `frontend/src/main.tsx`
+- `frontend/src/onehealth/Forms.tsx`
+- `frontend/src/onehealth/Journey.tsx`
+- `frontend/src/onehealth/api.ts`
+- `frontend/src/routes/Interop.tsx`
+- `frontend/src/routes/Login.tsx`
+- `frontend/src/routes/OneHealth.tsx`
+- `frontend/src/routes/Track7Overview.tsx`
+- `frontend/tests/evidence-journey.test.tsx`
+- `frontend/tests/reviewer-page.test.tsx`
+- `start-demo.ps1`
+- `start-track7.ps1`
+
+See `git show --stat` on the hardening commit for exact additions, modifications and renames.

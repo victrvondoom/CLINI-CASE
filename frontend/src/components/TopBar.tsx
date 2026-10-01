@@ -36,9 +36,10 @@ import { useLive } from "../lib/useLive";
 
 interface Props {
   onOpenSearch: () => void;
+  oneHealth?: boolean;
 }
 
-export function TopBar({ onOpenSearch }: Props) {
+export function TopBar({ onOpenSearch, oneHealth = false }: Props) {
   const { theme, toggle } = useTheme();
   const [scrolled, setScrolled] = useState(false);
 
@@ -59,7 +60,7 @@ export function TopBar({ onOpenSearch }: Props) {
     >
       <div className="h-14 flex items-center justify-between px-3 sm:px-4 lg:px-5 gap-2 sm:gap-3">
         <Link
-          to="/dashboard"
+          to={oneHealth ? "/onehealth" : "/dashboard"}
           className="flex items-center gap-2 sm:gap-3 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-brand rounded-md min-w-0 lg:w-[228px] lg:shrink-0"
           aria-label="ClinCase home"
         >
@@ -76,7 +77,7 @@ export function TopBar({ onOpenSearch }: Props) {
               ClinCase<span className="text-accent-cyan">.</span>
             </div>
             <div className="text-compact hidden sm:block text-[9px] text-ink-muted">
-              Clinical AI Platform
+              {oneHealth ? "One Health evidence workspace" : "Clinical AI Platform"}
             </div>
           </div>
         </Link>

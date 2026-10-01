@@ -88,6 +88,10 @@ def discover(j: Job) -> None:
         fields = payload
     if len(fields) > 80:
         raise HTTPException(422, "Maximum 80 source fields")
+    if any(not isinstance(k, str) or len(k) > 120 or any(ord(c) < 32 for c in k) for k in fields):
+        raise HTTPException(
+            422, "Source field names must be printable text of at most 120 characters"
+        )
     j.fields = fields
     event(j, "schema_discovered", "schema-analyst", fields_detected=len(fields))
 
@@ -172,6 +176,8 @@ async def analyze(j: Job, use_ai: bool) -> None:
         except Exception as exc:
             j.ai_status = "model_failed; unresolved fields require manual review"
             reason = "Provider failure or invalid typed mapping output"
+            if type(exc).__name__ == "AuthenticationError":
+                reason = "Configured provider rejected credentials; manual review remains available"
             if settings.GENAI_GATEWAY_ENABLED and db._pool is None:
                 reason = (
                     "Existing governed AI gateway requires PostgreSQL for quota and audit checks"
@@ -286,6 +292,24 @@ def normalize(j: Job) -> ExposureRecord:
 
 
 def validate(bundle: dict[str, Any]) -> dict[str, Any]:
+    if len(json.dumps(bundle)) > 500_000:
+        return {
+            "valid": False,
+            "sha256": fhir.digest(bundle),
+            "standards": fhir.STANDARDS,
+            "operation_outcome": {
+                "resourceType": "OperationOutcome",
+                "issue": [
+                    {
+                        "severity": "error",
+                        "code": "too-long",
+                        "diagnostics": "Bundle exceeds 500 KB exchange limit",
+                    }
+                ],
+            },
+            "roundtrip": None,
+            "checks": [{"name": "package size", "passed": False}],
+        }
     result = fhir.validate(bundle)
     base_valid = result["valid"]
     extra = []
@@ -359,3 +383,86 @@ def assessment(bundle: dict[str, Any]) -> dict[str, Any]:
         record.history.consent_recorded = False
     # Receiver never accepts foreign lab verification or review as local approval.
     return evidence.assess(record)
+
+
+def loss_report(j: Job) -> dict[str, Any]:
+    """Compare actual source values with decoded values, including excluded fields."""
+    decoded = fhir.read_evidence(j.bundle)["sample"] if j.bundle else {}
+    rows = []
+    for name, value in j.fields.items():
+        mapping = next((m for m in j.mappings if m.source_field == name), None)
+        status = "requires_review"
+        if mapping is None and j.ai_status.startswith("normalized_application_record") and j.bundle:
+            received = decoded.get(name)
+            if name == "waterbody_name":
+                received = next(
+                    (
+                        e["resource"].get("name")
+                        for e in j.bundle["entry"]
+                        if e["resource"].get("id") == "waterbody"
+                    ),
+                    None,
+                )
+            status = (
+                "preserved"
+                if received == value
+                else "normalized"
+                if received is not None
+                else "lost_from_exchange"
+            )
+        if mapping and mapping.decision == "rejected":
+            status = "lost_from_exchange"
+        elif mapping and mapping.decision == "accepted" and j.bundle:
+            target = mapping.target
+            if target == "waterbody_name":
+                received = next(
+                    (
+                        e["resource"].get("name")
+                        for e in j.bundle["entry"]
+                        if e["resource"].get("id") == "waterbody"
+                    ),
+                    None,
+                )
+            else:
+                received = decoded.get(target)
+            status = (
+                "preserved"
+                if received == value
+                else "normalized"
+                if received is not None
+                else "lost_from_exchange"
+            )
+        rows.append(
+            {
+                "source_field": name,
+                "target": mapping.target if mapping else None,
+                "status": status,
+                "original_retained": True,
+            }
+        )
+    return {
+        "fields": rows,
+        "counts": {
+            status: sum(r["status"] == status for r in rows)
+            for status in ["preserved", "normalized", "lost_from_exchange", "requires_review"]
+        },
+        "scope": "Original source retained in scoped passport; excluded fields are not in the FHIR payload. Counts compare source fields, not model accuracy.",
+    }
+
+
+def trust_states(j: Job) -> list[str]:
+    states = ["RAW", "IMPORTED"]
+    if j.fields:
+        states.append("PARSED")
+    if j.mappings:
+        states.append("MAPPED")
+    if j.mappings and all(m.decision != "pending" for m in j.mappings):
+        states.append("HUMAN_CONFIRMED")
+    if (
+        j.validation
+        and j.validation["valid"]
+        and j.bundle
+        and j.validation["sha256"] == fhir.digest(j.bundle)
+    ):
+        states.append("VALIDATED")
+    return states

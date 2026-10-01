@@ -1,13 +1,18 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../components/AuthContext";
 import { BUTTON, INPUT } from "../onehealth/Forms";
 import { interop, type Job, type Mapping } from "../interop/api";
+import { downloadPassport } from "../onehealth/Journey";
 const CARD = "rounded-2xl border border-surface-border bg-surface-raised p-5";
 const json = (v: unknown) => JSON.stringify(v, null, 2);
 
 export default function Interop() {
   const { user } = useAuth();
+  const [query] = useSearchParams();
+  const jobParam = query.get("job");
+  const [expert, setExpert] = useState(false);
+  const [integrity, setIntegrity] = useState("");
   const [job, setJob] = useState<Job | null>(null);
   const [source, setSource] = useState("");
   const [format, setFormat] = useState("json");
@@ -24,6 +29,25 @@ export default function Interop() {
   const [useAI, setUseAI] = useState(false);
   const [resume, setResume] = useState("");
   const canReview = user?.role === "reviewer" || user?.role === "admin";
+  useEffect(() => {
+    let active = true;
+    if (canReview && jobParam) {
+      interop<Job>(`/jobs/${encodeURIComponent(jobParam)}`)
+        .then((j) => {
+          if (!active) return;
+          setJob(j);
+          setSource(json(j.source.payload));
+          setBundle(j.bundle ? json(j.bundle) : "");
+          setCheckedBundle(j.validation && j.bundle ? json(j.bundle) : "");
+        })
+        .catch((e) => {
+          if (active) setError(String(e));
+        });
+    }
+    return () => {
+      active = false;
+    };
+  }, [canReview, jobParam]);
   useEffect(() => {
     if (canReview)
       interop<{ targets: Record<string, string>; receiver_mode: string }>(
@@ -85,8 +109,32 @@ export default function Interop() {
           provenance, consent or review state.
         </p>
         <Link className="text-accent-cyan underline" to="/onehealth">
-          Existing One Health evidence workbench
+          One Health evidence journey
         </Link>
+        <div
+          className="mt-4 flex gap-3"
+          role="group"
+          aria-label="Workbench mode"
+        >
+          <button
+            className={BUTTON}
+            aria-pressed={!expert}
+            onClick={() => setExpert(false)}
+          >
+            Simple mode
+          </button>
+          <button
+            className={BUTTON}
+            aria-pressed={expert}
+            onClick={() => setExpert(true)}
+          >
+            Expert mode
+          </button>
+        </div>
+        <p className="text-sm mt-3">
+          Import data → understand data → confirm meaning → validate → send →
+          verify receiver → evidence passport.
+        </p>
       </header>
       <div
         className={`${CARD} flex flex-wrap gap-4 justify-between`}
@@ -94,7 +142,7 @@ export default function Interop() {
       >
         {[
           "SYSTEM A",
-          "AI MAPPING",
+          useAI ? "AI MAPPING" : "REFERENCE MAPPING",
           "HUMAN REVIEW",
           "FHIR/OAH",
           "VALIDATION",
@@ -194,12 +242,23 @@ export default function Interop() {
             Synthetic data
           </label>
         </div>
-        <textarea
-          aria-label="Source data"
-          className={`${INPUT} w-full font-mono h-52`}
-          value={source}
-          onChange={(e) => setSource(e.target.value)}
-        />
+        {source && !expert && (
+          <p className="my-3 text-sm">
+            Source package loaded from {system}. Review its schema below; expand
+            Source data for the original payload.
+          </p>
+        )}
+        <details open={expert}>
+          <summary className="cursor-pointer text-accent-cyan">
+            Source data / JSON or CSV
+          </summary>
+          <textarea
+            aria-label="Source data"
+            className={`${INPUT} w-full font-mono h-52`}
+            value={source}
+            onChange={(e) => setSource(e.target.value)}
+          />
+        </details>
         {button(
           "Import source package",
           () =>
@@ -247,6 +306,12 @@ export default function Interop() {
                   ),
               )}
             </div>
+            <p className="text-accent-cyan">
+              {job.mapping_mode ??
+                (useAI
+                  ? "AI-assisted mapping requested"
+                  : "Deterministic reference mapping")}
+            </p>
             <p>{job.ai_status}</p>
             <p>
               Missing required mapped fields:{" "}
@@ -320,12 +385,17 @@ export default function Interop() {
                   job.mappings.some((m) => m.decision === "pending"),
               )}
             </div>
-            <textarea
-              aria-label="Editable FHIR bundle"
-              className={`${INPUT} w-full h-80 font-mono text-xs`}
-              value={bundle}
-              onChange={(e) => setBundle(e.target.value)}
-            />
+            <details open={expert}>
+              <summary className="cursor-pointer text-accent-cyan my-3">
+                Advanced FHIR / editable Bundle
+              </summary>
+              <textarea
+                aria-label="Editable FHIR bundle"
+                className={`${INPUT} w-full h-80 font-mono text-xs`}
+                value={bundle}
+                onChange={(e) => setBundle(e.target.value)}
+              />
+            </details>
             <p className="text-sm">
               Only semantically justified resources are generated. Mapping
               review never verifies a laboratory result or creates patient
@@ -377,6 +447,26 @@ export default function Interop() {
                 },
                 !job.bundle,
               )}
+              {button(
+                "Break the exchange at receiver",
+                () =>
+                  void run(async () => {
+                    const broken = JSON.parse(json(job.bundle));
+                    const o = broken.entry.find(
+                      (e: { resource: { resourceType: string } }) =>
+                        e.resource.resourceType === "Observation",
+                    ).resource;
+                    o.valueQuantity.code = "ppm";
+                    o.valueQuantity.unit = "ppm";
+                    setBundle(json(broken));
+                    setCheckedBundle(json(broken));
+                    return interop<Job>("/challenge-receiver", {
+                      ...command(),
+                      bundle: broken,
+                    });
+                  }),
+                !job.bundle,
+              )}
             </div>
             {job.validation && bundle === checkedBundle && (
               <>
@@ -389,13 +479,13 @@ export default function Interop() {
                     ? "VALIDATION PASSED"
                     : "VALIDATION FAILED"}
                 </strong>
-                <p className="text-xs break-all">
+                <p className="text-xs break-all" hidden={!expert}>
                   SHA-256: {job.validation.sha256}
                 </p>
                 {job.validation.operation_outcome.issue.map((i, n) => (
                   <p key={n}>{i.diagnostics}</p>
                 ))}
-                {job.validation.roundtrip && (
+                {expert && job.validation.roundtrip && (
                   <pre className="text-xs overflow-auto">
                     {json(job.validation.roundtrip)}
                   </pre>
@@ -434,9 +524,14 @@ export default function Interop() {
                       {t.acknowledgement.resources_acknowledged} resources
                       acknowledged
                     </p>
-                    <pre className="text-xs max-h-64 overflow-auto">
-                      {json(t.acknowledgement.representation)}
-                    </pre>
+                    <details open={expert}>
+                      <summary className="cursor-pointer text-accent-cyan">
+                        Receiver representation
+                      </summary>
+                      <pre className="text-xs max-h-64 overflow-auto">
+                        {json(t.acknowledgement.representation)}
+                      </pre>
+                    </details>
                   </>
                 )}
               </div>
@@ -463,6 +558,12 @@ export default function Interop() {
               )}
             </div>
             {returned !== null && (
+              <p role="status">
+                Return exchange acknowledged by Lab A. Inspect the receipt in
+                Expert mode.
+              </p>
+            )}
+            {returned !== null && expert && (
               <pre className="text-xs max-h-72 overflow-auto">
                 {json(returned)}
               </pre>
@@ -484,6 +585,89 @@ export default function Interop() {
               <p className="text-sm mt-3">{job.assessment.notice}</p>
             </section>
           )}
+          <section className={CARD}>
+            <h2 className="text-xl">
+              Evidence Passport / continue the journey
+            </h2>
+            <p className="my-3">
+              {job.passport_integrity?.status ?? "No revision manifest loaded"}{" "}
+              · {job.passport_integrity?.revision_count ?? 0} persisted
+              revisions
+            </p>
+            <p className="text-xs mb-3">{job.trust_states?.join(" → ")}</p>
+            <div className="flex gap-3 flex-wrap">
+              {button("Verify passport integrity", () => {
+                setBusy(true);
+                setError("");
+                interop<{ status: string }>(
+                  `/passport/${job.id}/verify-integrity`,
+                  {},
+                )
+                  .then((r) => setIntegrity(r.status))
+                  .catch((e) => setError(String(e)))
+                  .finally(() => setBusy(false));
+              })}
+              {button(
+                "Export Evidence Passport",
+                () => {
+                  setBusy(true);
+                  setError("");
+                  interop<unknown>(`/passport/${job.id}/export`)
+                    .then((r) => downloadPassport(r, job.id))
+                    .catch((e) => setError(String(e)))
+                    .finally(() => setBusy(false));
+                },
+                !job.bundle,
+              )}
+              {!job.exposure_id &&
+                button(
+                  "Connect to citizen and clinical review",
+                  () =>
+                    void run(() => interop<Job>("/bind-evidence", command())),
+                  !job.bundle,
+                )}
+              {job.exposure_id && (
+                <Link
+                  className={BUTTON}
+                  to={`/onehealth?record=${encodeURIComponent(job.exposure_id)}`}
+                >
+                  Continue verification, consent, review and retest
+                </Link>
+              )}
+            </div>
+            {integrity && (
+              <p role="status" className="mt-3">
+                {integrity}
+              </p>
+            )}
+            {job.loss_report && (
+              <div className="mt-4">
+                <h3>Measured source-field loss report</h3>
+                <div className="flex flex-wrap gap-4 text-sm my-2">
+                  {Object.entries(job.loss_report.counts).map(
+                    ([name, count]) => (
+                      <span key={name}>
+                        {name.replaceAll("_", " ")}: {count}
+                      </span>
+                    ),
+                  )}
+                </div>
+                <p className="text-xs text-ink-muted">
+                  {job.loss_report.scope}
+                </p>
+                {expert && (
+                  <pre className="text-xs overflow-auto">
+                    {json(job.loss_report.fields)}
+                  </pre>
+                )}
+              </div>
+            )}
+            {expert && (
+              <pre className="text-xs overflow-auto mt-3">
+                {json(job.terminology)}
+              </pre>
+            )}
+          </section>
           <section className={CARD}>
             <h2 className="text-xl">8 | Provenance / Audit</h2>
             <p className="text-xs break-all my-3">

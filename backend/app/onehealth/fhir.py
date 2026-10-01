@@ -37,18 +37,18 @@ def digest(value: Any) -> str:
     ).hexdigest()
 
 
-def coding(code: str) -> dict:
+def coding(code: str) -> dict[str, Any]:
     return {"coding": [{"system": SYSTEM, "code": code}]}
 
 
-def _ref(kind: str, rid: str) -> dict:
+def _ref(kind: str, rid: str) -> dict[str, Any]:
     return {"reference": f"{kind}/{rid}"}
 
 
-def export(record: ExposureRecord) -> dict:
+def export(record: ExposureRecord) -> dict[str, Any]:
     r = record
     s = r.sample
-    resources: list[dict] = [
+    resources: list[dict[str, Any]] = [
         {
             "resourceType": "Location",
             "id": "waterbody",
@@ -241,14 +241,14 @@ def export(record: ExposureRecord) -> dict:
     }
 
 
-def _resources(bundle: dict) -> dict[str, dict]:
+def _resources(bundle: dict[str, Any]) -> dict[str, dict[str, Any]]:
     return {
         f"{e['resource']['resourceType']}/{e['resource']['id']}": e["resource"]
         for e in bundle["entry"]
     }
 
 
-def read_evidence(bundle: dict) -> dict:
+def read_evidence(bundle: dict[str, Any]) -> dict[str, Any]:
     """Decode native lab and questionnaire fields. Never return local trust state."""
     resources = _resources(bundle)
     o = resources["Observation/lab-result"]
@@ -301,7 +301,7 @@ def read_evidence(bundle: dict) -> dict:
     }
 
 
-def validate(bundle: dict) -> dict:
+def validate(bundle: dict[str, Any]) -> dict[str, Any]:
     issues: list[str] = []
     try:
         if len(json.dumps(bundle)) > 500_000:

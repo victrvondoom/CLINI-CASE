@@ -3,7 +3,7 @@
 from typing import Any, Literal
 from uuid import uuid4
 
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 from app.onehealth.models import StrictModel, now
 
@@ -26,6 +26,7 @@ TARGETS = {
 
 
 class Source(StrictModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=False, allow_inf_nan=False)
     source_system: str = Field(min_length=1, max_length=100)
     original_record_id: str = Field(min_length=1, max_length=120)
     format: Literal["json", "csv", "fhir"] = "json"
@@ -73,6 +74,9 @@ class Job(StrictModel):
     validation: dict[str, Any] | None = None
     transfers: list[dict[str, Any]] = Field(default_factory=list)
     events: list[Event] = Field(default_factory=list)
+    exposure_id: str | None = None
+    exposure_version: int | None = None
+    passport: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class Command(StrictModel):

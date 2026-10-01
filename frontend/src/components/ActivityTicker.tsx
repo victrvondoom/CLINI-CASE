@@ -29,9 +29,10 @@ const TONE_TEXT: Record<Tone, string> = {
 
 const REFRESH_MS = 60_000;
 
-export function ActivityTicker() {
+export function ActivityTicker({ oneHealth = false }: { oneHealth?: boolean }) {
   const { data, error, loading } = useLive(fetchSnapshot, [], REFRESH_MS);
-  const items = buildTickerItems(data ?? EMPTY_SNAPSHOT);
+  const snapshot = data ?? EMPTY_SNAPSHOT;
+  const items = buildTickerItems(oneHealth ? { ...EMPTY_SNAPSHOT, health: snapshot.health } : snapshot);
   const degraded = !!data && !!data.health && data.health.status !== "ok";
   // Duplicate so the marquee loop is seamless.
   const all = items.length ? [...items, ...items] : [];

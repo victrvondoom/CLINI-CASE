@@ -30,6 +30,7 @@ export function AppShell() {
   const location = useLocation();
   const navigate = useNavigate();
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const oneHealth = location.pathname === "/onehealth" || location.pathname === "/interop" || location.pathname.startsWith("/aquahealth");
   const showFab = !_SUPPRESS_FAB_ROUTES.has(location.pathname);
 
   const openPalette = useCallback(() => setPaletteOpen(true), []);
@@ -65,8 +66,8 @@ export function AppShell() {
   return (
     <div className="min-h-screen bg-surface-bg text-ink-body">
       <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:z-[100] focus:top-2 focus:left-2 focus:bg-surface-raised focus:p-3">Skip to content</a>
-      <ActivityTicker />
-      <TopBar onOpenSearch={openPalette} />
+      <ActivityTicker oneHealth={oneHealth} />
+      <TopBar onOpenSearch={openPalette} oneHealth={oneHealth} />
 
       {/* Compensate for fixed ticker (28px on sm+) + topbar (56px) = 84px */}
       <div className="pt-14 sm:pt-[84px] flex">

@@ -27,12 +27,12 @@ function Wait-For([string]$what, [int]$seconds, [scriptblock]$check) {
 
 function Start-Window([string]$title, [string]$dir, [string]$command) {
     $ps = "`$host.UI.RawUI.WindowTitle='$title'; Set-Location '$dir'; $command"
-    Start-Process powershell -ArgumentList "-NoExit -NoProfile -Command $ps" -WindowStyle Minimized
+    Start-Process powershell -ArgumentList "-NoExit -NoProfile -Command $ps" -WindowStyle Hidden
 }
 
 try {
     if (-not (Test-Docker)) {
-        Start-Process "C:\Program Files\Docker\Docker\Docker Desktop.exe"
+        Start-Process "C:\Program Files\Docker\Docker\Docker Desktop.exe" -WindowStyle Hidden
         Wait-For "Docker Desktop" 180 { Test-Docker }
     }
 
@@ -55,7 +55,7 @@ try {
     Start-Process "${frontendRoot}login"
     Write-Host ""
     Write-Host "ClinCase is running at ${frontendRoot}login"
-    Write-Host "Click a demo account to sign in (password: clincase2026)."
+    Write-Host "Use your configured account password. For a private generated Track 7 account, run start-track7.ps1."
 } catch {
     Write-Host ""
     Write-Host "Startup failed: $_" -ForegroundColor Red

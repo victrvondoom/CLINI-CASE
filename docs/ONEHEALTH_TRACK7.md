@@ -45,31 +45,13 @@ a complete water-safety certificate. Stream/source-water samples do not receive 
 Results below a reporting limit are not treated as exact values. Total arsenic is not silently
 converted to inorganic-arsenic dose. No personal cancer-risk calculator is implemented.
 
-## Four-minute demo script
+## Unified demo and closed loop
 
-1. **0:00–0:30 — problem:** open `/onehealth`; explain the water-to-clinical evidence gap and select
-   **Start synthetic journey**. The citizen observation and lab result are clearly synthetic.
-2. **0:30–1:15 — trust:** inspect the report and evidence gates. Add a reviewer note and verify the
-   laboratory report. Select a synthetic patient, enter a synthetic consent reference, document
-   drinking-water use and treatment. Choose dates spanning the sample collection. Save history.
-3. **1:15–2:00 — human authority:** record clinical review. Open OncoTwin's evidence tab and the
-   CardioTwin context panel. CAD inputs remain an independent scenario, not auto-matched to the
-   exposure patient. Existing model probabilities are unchanged.
-4. **2:00–2:45 — interoperability:** export/check the FHIR collection. Inspect native resources,
-   the pinned draft contract, SHA-256 digest and sample/history round-trip checks. Change a unit
-   code to `ppm`; validation must reject it. Re-export before proceeding.
-5. **2:45–3:20 — adversarial evidence:** open Evidence challenge. Each missing dependency withholds
-   clinical eligibility. Explain why a nearby address or a stream photo is insufficient.
-6. **3:20–4:00 — close the loop:** record investigation/retest follow-up. Stage a FHIR import;
-   the new record remains unverified and unlinked until local consent is recorded. Demonstrate
-   consent withdrawal on the original: patient-context queries exclude it and clinical export
-   is blocked. Previously downloaded files cannot be recalled by this prototype.
+Use [DEMO_RUNBOOK.md](DEMO_RUNBOOK.md). `/onehealth` leads the submission; `/interop` demonstrates the standards boundary. The homepage and navigation present a single evidence journey while preserving all platform routes and calculations.
 
-ClinCase case linking requires a running clinical database and an existing case in the same
-organisation. The workbench loads candidates dynamically and requires explicit reviewer
-attestation of patient identity; the current ClinCase case schema has no shared machine-readable
-patient identifier, so the application cannot independently prove that identity match. Linking
-is disabled in the volatile DB-less demo and must not be presented as a live payer submission.
+New retests are separate immutable samples linked to their predecessor. Saving a retest atomically closes the original environmental Task and creates a successor with verification/review reset and no inherited exposure history. The reviewer must freshly verify the report and attest consent/pathway context. The journey computes comparable measurement change; it does not infer health improvement.
+
+ClinCase case linking still requires an existing same-organization case and explicit identity attestation. OncoTwin and CardioTwin connections are evidence context; their models and clinical conclusions are unchanged.
 
 ## FHIR contract and validation boundaries
 
@@ -299,3 +281,29 @@ Run the authenticated network demo from `backend` with
 `.venv/Scripts/python.exe scripts/interop_demo.py`; `--ai` requests the real provider and
 `--fixtures` regenerates the labelled valid/broken bundle fixtures. The script honors existing
 HTTP rate-limit retry headers. AI success and offline success are reported separately.
+
+## Final hardening additions (Oct 1)
+
+```mermaid
+flowchart TD
+  A[System A: synthetic JSON / CSV / FHIR] --> B[Schema discovery and governed semantic suggestions]
+  B --> C[Authenticated human mapping decisions]
+  C --> D[Existing OAH / FHIR generation]
+  D --> E[Contract validation, consent, provenance and round-trip]
+  E --> F[System B: independent HTTP receiver, separate storage]
+  F --> G[Return FHIR exchange and lab representation]
+  G --> E
+  E --> H[OneHealth six gates and epistemic ceiling]
+  H --> I[AquaHealth observation and consented clinical context]
+  I --> J[New verified retest closes original Task]
+  J --> D
+  E --> P[Persisted, offline-verifiable Evidence Passport]
+```
+
+The existing gateway foundations are reused, not replaced. Newly hardened capabilities include persisted hash-chained transformation manifests, portable offline verification, computed trust states/ceiling, explicit gateway-to-evidence binding, withdrawal notices to the independent receiver, real receiver rejection challenges, measured loss reports, adapters, atomic retest succession and the unified front door. Every ambiguous mapping needs a human decision; imported trust is never silently adopted. Live AI uses typed allowlisted suggestions through the existing governed abstraction, with credential failure visible.
+
+Additional APIs under `/api/v1`: `onehealth/exposures/{id}/journey`, `.../{id}/retest`, `.../{id}/passport`; `interop/bind-evidence`, `interop/from-evidence`, `interop/passport/{id}/verify-integrity`, `interop/passport/{id}/export`, `interop/challenge-receiver`. Existing import, map, approve/reject, generation, validation, transfer, receiver, return and event APIs remain. Receiver withdrawal is an authenticated explicit HTTP boundary.
+
+PostgreSQL remains the clinical persistence layer; passport writes share record transactions and optimistic versions. Optional SQLite persistence is restricted to synthetic development evidence. The receiving service stores payloads separately and does not call application state. Withdrawal blocks future exports/returns and receiver reads, but cannot recall previously downloaded copies. Hash chains are not digital signatures, and replacing an entire unanchored chain is outside their integrity guarantee.
+
+[Evidence Passport](EVIDENCE_PASSPORT.md), [ceiling](EPISTEMIC_CEILING.md), [conformance](OAH_CONFORMANCE.md), [verification](TRACK7_HARDENING_VERIFICATION.md), [dated build scope](HACKATHON_BUILD_SCOPE.md), [manual checklist](TRACK7_MANUAL_CHECKLIST.md). AI assistance and reused platform history are disclosed; no eligibility or judge score is invented.
