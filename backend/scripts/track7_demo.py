@@ -70,7 +70,10 @@ async def main(args) -> None:
     from interop_demo import demo
 
     CACHE.mkdir(parents=True, exist_ok=True)
-    for port in (args.api_port, args.receiver_port, args.frontend_port):
+    ports = (args.api_port, args.receiver_port)
+    if not args.network_only:
+        ports += (args.frontend_port,)
+    for port in ports:
         available(port)
     password = secrets.token_urlsafe(24)
     email = "track7-" + secrets.token_hex(6) + "@clincase.health"
@@ -169,34 +172,35 @@ async def main(args) -> None:
             # Seed a unique reviewer instead of changing passwords of any existing account.
             await seed_user(dsn, email, password)
         print("Gateway and independent receiver ready.", flush=True)
-        npm = shutil.which("npm.cmd" if os.name == "nt" else "npm")
-        if not npm:
-            raise RuntimeError("Node/npm required; install Node 20+ and run npm ci in frontend")
-        if not (ROOT / "frontend/node_modules").exists():
-            await asyncio.to_thread(
-                subprocess.run,
-                [npm, "ci"],
-                cwd=ROOT / "frontend",
-                env=env,
-                check=True,
-                creationflags=flags,
+        if not args.network_only:
+            npm = shutil.which("npm.cmd" if os.name == "nt" else "npm")
+            if not npm:
+                raise RuntimeError("Node/npm required; install Node 20+ and run npm ci in frontend")
+            if not (ROOT / "frontend/node_modules").exists():
+                await asyncio.to_thread(
+                    subprocess.run,
+                    [npm, "ci"],
+                    cwd=ROOT / "frontend",
+                    env=env,
+                    check=True,
+                    creationflags=flags,
+                )
+            ui = start(
+                [
+                    npm,
+                    "run",
+                    "dev",
+                    "--",
+                    "--host",
+                    "127.0.0.1",
+                    "--port",
+                    str(args.frontend_port),
+                    "--strictPort",
+                ],
+                ROOT / "frontend",
+                "frontend",
             )
-        ui = start(
-            [
-                npm,
-                "run",
-                "dev",
-                "--",
-                "--host",
-                "127.0.0.1",
-                "--port",
-                str(args.frontend_port),
-                "--strictPort",
-            ],
-            ROOT / "frontend",
-            "frontend",
-        )
-        await wait_url(frontend, ui)
+            await wait_url(frontend, ui)
         print(
             "Track 7 services ready: PostgreSQL"
             if not args.sqlite
@@ -231,6 +235,7 @@ if __name__ == "__main__":
     parser.add_argument("--ai", action="store_true")
     parser.add_argument("--open", action="store_true")
     parser.add_argument("--keep-running", action="store_true")
+    parser.add_argument("--network-only", action="store_true", help="Skip the frontend process")
     parser.add_argument("--api-port", type=int, default=8000)
     parser.add_argument("--receiver-port", type=int, default=8091)
     parser.add_argument("--frontend-port", type=int, default=5173)

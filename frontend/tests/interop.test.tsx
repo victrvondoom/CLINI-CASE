@@ -211,7 +211,9 @@ describe("Track 7 interoperability workbench", () => {
     fireEvent.click(
       screen.getByRole("button", { name: "Run validation failure" }),
     );
-    expect(await screen.findByText("VALIDATION FAILED")).toBeTruthy();
+    expect(
+      await screen.findByText("VALIDATION FAILED — TRANSFER BLOCKED"),
+    ).toBeTruthy();
     expect(screen.getByText("Unsupported unit ppm")).toBeTruthy();
     const sent = vi.mocked(interop).mock.calls.find(([p]) => p === "/validate");
     expect(JSON.stringify(sent?.[1])).toContain("ppm");

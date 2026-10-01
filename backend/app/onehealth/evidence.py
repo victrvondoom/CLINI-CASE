@@ -78,7 +78,7 @@ def assess(record: ExposureRecord) -> dict[str, Any]:
         "clinical_context": {
             "oncology": "Long-term inorganic arsenic ingestion is linked to skin, bladder and lung cancers; this record does not establish cause or diagnosis.",
             "cardiovascular": "Long-term inorganic arsenic ingestion is associated with cardiovascular disease; exposure is not an input to the existing CAD classifier.",
-            "speciation": "Total arsenic is not a measurement of inorganic arsenic dose. No cancer-risk calculator is applied.",
+            "speciation": "Total arsenic and dissolved arsenic do not establish inorganic arsenic speciation or dose. No cancer-risk calculator is applied.",
         },
         "notice": NOTICE,
     }

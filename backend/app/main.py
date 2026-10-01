@@ -360,6 +360,7 @@ from app.api import (  # noqa: E402
     auth,
     cases,
     demo,
+    fhir_interop,
     fhir_pas,
     healthz,
     llm_ping,
@@ -557,6 +558,7 @@ app.include_router(fhir_bulk_api.router)
 # Da Vinci PAS / CMS-0057-F § IV.A endpoint mounted at root /fhir/* (no /api/v1 prefix)
 # so it matches the Da Vinci PAS Implementation Guide URL convention.
 app.include_router(fhir_pas.router)
+app.include_router(fhir_interop.router)
 
 # MCP server (JSON-RPC 2.0 over HTTP) at /mcp — TriZetto AI Gateway-compatible.
 app.include_router(mcp_router)

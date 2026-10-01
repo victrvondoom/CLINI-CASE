@@ -1,0 +1,67 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: clincase
+      POSTGRES_PASSWORD: ${TRACK7_POSTGRES_PASSWORD:?Set TRACK7_POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: clincase
+    ports:
+      - "127.0.0.1:15432:5432"
+    volumes:
+      - track7-postgres:/var/lib/postgresql/data
+      - ./backend/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U clincase -d clincase"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://clincase:${TRACK7_POSTGRES_PASSWORD}@postgres:5432/clincase
+      REDIS_URL: ""
+      CORS_ORIGINS: http://localhost:5173
+      INTEROP_RECEIVER_URL: http://receiver:8091
+      INTEROP_RECEIVER_TOKEN: ${INTEROP_RECEIVER_TOKEN:?Set INTEROP_RECEIVER_TOKEN in .env}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      receiver:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8000:8000"
+
+  receiver:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: ["uvicorn", "app.interop.receiver:app", "--host", "0.0.0.0", "--port", "8091"]
+    environment:
+      INTEROP_RECEIVER_DB: /data/receipts.sqlite
+      INTEROP_RECEIVER_TOKEN: ${INTEROP_RECEIVER_TOKEN:?Set INTEROP_RECEIVER_TOKEN in .env}
+    volumes:
+      - track7-receiver:/data
+    expose:
+      - "8091"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8091/docs"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    depends_on:
+      - api
+    ports:
+      - "127.0.0.1:5173:5173"
+
+volumes:
+  track7-postgres:
+  track7-receiver:

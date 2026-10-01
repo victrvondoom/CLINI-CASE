@@ -61,6 +61,12 @@ async def demo(args):
         client.headers["Authorization"] = "Bearer " + response.json()["access_token"]
         meta = await client.get("/api/v1/interop/meta")
         meta.raise_for_status()
+        receiver_mode = meta.json()["receiver_mode"]
+        if receiver_mode != "HTTP network":
+            raise RuntimeError(
+                "Network demo requires the independent receiver over HTTP; "
+                f"backend reported {receiver_mode!r}"
+            )
         j = None
         latencies = []
 
@@ -103,6 +109,8 @@ async def demo(args):
         )
         j = returned["job"]
         assert returned["lab_acknowledgement"]["status"] == "delivered"
+        assert returned["roundtrip"]["status"] == "passed"
+        assert returned["roundtrip"]["resource_ids_reassigned"] is True
         assert returned["lab_representation"]["sample"] == j["normalized"]
         valid_metrics = j["metrics"]
         initial_id = j["id"]
@@ -214,11 +222,14 @@ async def demo(args):
         results = {
             "correlation_id": initial_id,
             "retest_gateway_id": j["id"],
-            "receiver_mode": meta.json()["receiver_mode"],
+            "receiver_mode": receiver_mode,
             "ai_status": initial_ai_status,
             "valid_package_metrics": valid_metrics,
             "failure_metrics": failure_metrics,
             "roundtrip_fields_preserved": returned["validation"]["roundtrip"]["fields_preserved"],
+            "roundtrip_fields_total": returned["validation"]["roundtrip"]["fields_total"],
+            "roundtrip_status": returned["roundtrip"]["status"],
+            "resource_ids_reassigned": returned["roundtrip"]["resource_ids_reassigned"],
             "resources_acknowledged": acknowledged,
             "lab_return_status": returned["lab_acknowledgement"]["status"],
             "roundtrip_sample_preserved": returned["lab_representation"]["sample"]

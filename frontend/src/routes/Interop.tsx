@@ -18,6 +18,7 @@ export default function Interop() {
   const [format, setFormat] = useState("json");
   const [system, setSystem] = useState("Synthetic Environmental Lab A");
   const [recordId, setRecordId] = useState("SYN-AS-001");
+  const [demoVariant, setDemoVariant] = useState("dissolved");
   const [synthetic, setSynthetic] = useState(true);
   const [bundle, setBundle] = useState("");
   const [checkedBundle, setCheckedBundle] = useState("");
@@ -95,6 +96,19 @@ export default function Interop() {
       {label}
     </button>
   );
+  const delivered = Boolean(job?.transfers.some((t) => t.status === "delivered"));
+  const roundTripPassed = job?.validation?.roundtrip?.status === "passed";
+  const journey = [
+    ["System A", Boolean(job)],
+    ["Semantic discovery", Boolean(job?.mappings.length)],
+    ["Human approval", Boolean(job?.mappings.length && job.mappings.every((m) => m.decision !== "pending"))],
+    ["OAH / FHIR", Boolean(job?.bundle)],
+    ["Standards validation", Boolean(job?.validation?.valid)],
+    ["Independent System B", delivered],
+    ["Acknowledgement", Boolean(job?.transfers.some((t) => t.acknowledgement))],
+    ["FHIR return", returned !== null],
+    ["Round-trip proof", Boolean(roundTripPassed)],
+  ] as const;
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6 text-ink-primary">
       <header>
@@ -136,21 +150,13 @@ export default function Interop() {
           verify receiver → evidence passport.
         </p>
       </header>
-      <div
-        className={`${CARD} flex flex-wrap gap-4 justify-between`}
-        aria-label="Interoperability pipeline"
-      >
-        {[
-          "SYSTEM A",
-          useAI ? "AI MAPPING" : "REFERENCE MAPPING",
-          "HUMAN REVIEW",
-          "FHIR/OAH",
-          "VALIDATION",
-          "SYSTEM B",
-        ].map((s, i) => (
-          <span key={s}>
-            {i > 0 && "-> "}
-            {s}
+      <div className={`${CARD} flex flex-wrap gap-3`} aria-label="Interoperability pipeline">
+        {journey.map(([stage, complete], i) => (
+          <span key={stage} className="text-sm" aria-current={complete ? "step" : undefined}>
+            {i > 0 && <span className="text-ink-muted mx-2">→</span>}
+            <span className={complete ? "text-green-400" : "text-ink-muted"}>
+              {complete ? "✓" : "○"} {stage}
+            </span>
           </span>
         ))}
       </div>
@@ -168,11 +174,23 @@ export default function Interop() {
         </div>
       )}
       <div className="flex flex-wrap gap-3">
+        <label className="text-sm">
+          Semantic example
+          <select
+            aria-label="Semantic example"
+            className={INPUT}
+            value={demoVariant}
+            onChange={(e) => setDemoVariant(e.target.value)}
+          >
+            <option value="dissolved">arsenic_dissolved | preserve explicit qualifier</option>
+            <option value="ambiguous">arsenic | speciation unknown</option>
+          </select>
+        </label>
         {button(
           "Start Track 7 Interoperability Demo",
           () =>
             void run(async () => {
-              const j = await interop<Job>("/demo", {});
+              const j = await interop<Job>(`/demo?variant=${demoVariant}`, {});
               setSource(json(j.source.payload));
               setReturned(null);
               return j;
@@ -321,6 +339,21 @@ export default function Interop() {
               Ambiguous or unresolved fields:{" "}
               {job.schema?.ambiguities.join(", ") || "None"}
             </p>
+            <div className="mt-4 rounded-xl border border-amber-400/40 bg-amber-400/5 p-4">
+              <h3 className="font-semibold text-amber-300">Semantic safety gate</h3>
+              <p className="text-sm mt-1">
+                {job.semantic_firewall?.ai_authority ??
+                  "AI may suggest allowlisted targets. It cannot choose chemical concepts, assign terminology, or approve a mapping."}
+              </p>
+              <p className="text-sm mt-1">
+                {job.semantic_firewall?.ai_input ??
+                  "The optional model sees field names and allowed targets only; measurements and patient context stay out of its prompt."}
+              </p>
+              {(job.semantic_firewall?.blocked_inferences ?? [
+                "A generic arsenic field cannot distinguish total from inorganic arsenic.",
+                "Dissolved arsenic does not establish inorganic speciation.",
+              ]).map((item) => <p className="text-xs mt-2" key={item}>Blocked inference · {item}</p>)}
+            </div>
           </section>
           <section className={CARD}>
             <h2 className="text-xl mb-3">3 | Human Review</h2>
@@ -351,6 +384,7 @@ export default function Interop() {
                     <MappingRow
                       key={`${m.source_field}-${job.mapping_version}`}
                       mapping={m}
+                      sourceValue={job.fields[m.source_field]}
                       targets={targets}
                       busy={busy}
                       decide={(decision, target, concept) =>
@@ -477,7 +511,7 @@ export default function Interop() {
                 >
                   {job.validation.valid
                     ? "VALIDATION PASSED"
-                    : "VALIDATION FAILED"}
+                    : "VALIDATION FAILED — TRANSFER BLOCKED"}
                 </strong>
                 <p className="text-xs break-all" hidden={!expert}>
                   SHA-256: {job.validation.sha256}
@@ -546,6 +580,13 @@ export default function Interop() {
                     job: Job;
                     lab_representation: unknown;
                     returned_bundle: unknown;
+                    roundtrip: {
+                      status: string;
+                      fields_preserved: number;
+                      fields_total: number;
+                      resource_ids_reassigned: boolean;
+                      fields: { field: string; preserved: boolean }[];
+                    };
                   }>("/return", command())
                     .then((r) => {
                       setJob(r.job);
@@ -559,9 +600,25 @@ export default function Interop() {
             </div>
             {returned !== null && (
               <p role="status">
-                Return exchange acknowledged by Lab A. Inspect the receipt in
-                Expert mode.
+                System B returned FHIR to Lab A. Resource IDs were reassigned; the gateway checked meaning field by field.
               </p>
+            )}
+            {returned !== null && job.validation?.roundtrip?.status === "passed" && (
+              <div className="mt-4 rounded-xl border border-green-500/40 bg-green-500/5 p-4" role="status">
+                <strong className="text-green-400">ROUND-TRIP INTEROPERABILITY: PASS</strong>
+                <p>
+                  {job.validation.roundtrip.fields_preserved}/{job.validation.roundtrip.fields_total} semantic fields preserved · all resource IDs changed · Lab A acknowledged the returned exchange.
+                </p>
+                {job.validation.roundtrip.fields && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {job.validation.roundtrip.fields.map((field) => (
+                      <span key={field.field} className="rounded-full border border-surface-border px-2 py-1 text-xs">
+                        {field.preserved ? "✓" : "×"} {field.field.replaceAll("_", " ")}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
             {returned !== null && expert && (
               <pre className="text-xs max-h-72 overflow-auto">
@@ -693,11 +750,13 @@ export default function Interop() {
 }
 function MappingRow({
   mapping: m,
+  sourceValue,
   targets,
   busy,
   decide,
 }: {
   mapping: Mapping;
+  sourceValue: unknown;
   targets: Record<string, string>;
   busy: boolean;
   decide: (
@@ -712,6 +771,7 @@ function MappingRow({
     <tr className="border-t border-surface-border">
       <td className="p-2">
         {m.source_field}
+        <p className="text-xs">Source value: {String(sourceValue ?? "—")}</p>
         <p className="text-xs text-ink-muted">{m.reason}</p>
       </td>
       <td className="p-2">
@@ -736,11 +796,16 @@ function MappingRow({
             onChange={(e) => setConcept(e.target.value)}
           >
             <option value="">Confirm local concept</option>
-            <option value="total_arsenic">Total arsenic | local code</option>
+            <option value="total_arsenic">Total arsenic | local text concept; no OAH code</option>
             <option value="inorganic_arsenic">
-              Inorganic arsenic | local code
+              Inorganic arsenic | local text concept; no OAH code
             </option>
           </select>
+        )}
+        {m.source_field.trim().toLowerCase().replaceAll(" ", "_") === "arsenic_dissolved" && (
+          <p className="text-xs text-amber-300 mt-1">
+            Exact OAH concept: arsenic-dissolved. The source qualifier is retained; this does not mean inorganic arsenic.
+          </p>
         )}
       </td>
       <td className="p-2">

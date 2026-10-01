@@ -14,15 +14,72 @@ This starts PostgreSQL, the application, an independent HTTP receiver with separ
 
 `./start-track7.ps1 -SQLite` uses durable, tenant-scoped synthetic evidence storage when Docker is unavailable; it is not a replacement clinical database. `-AI` enables real semantic suggestions through the existing governed provider and requires a working local provider credential. Deterministic mapping is labelled as rules, not AI inference. Python equivalent: `backend/.venv/Scripts/python.exe backend/scripts/track7_demo.py --keep-running --open` (run from the root).
 
-## Four-minute story
+For a repeatable network-only run without Docker or a frontend process, use
+`python backend/scripts/track7_network_demo.py`. It starts CLINI-CASE and System B as separate local
+processes, transfers and returns the generated Bundle over HTTP, and exits only after semantic
+round-trip assertions pass.
 
-1. Open `/onehealth`: show the unified evidence journey and six evidence gates. A photograph cannot establish arsenic concentration or a person's exposure.
-2. Open `/interop`, select **Start Track 7 Interoperability Demo**. Inspect the synthetic non-FHIR JSON, discovered fields and explicit deterministic/AI/unresolved labels. Accept or reject every field; ambiguous mappings require human decisions.
-3. Generate the FHIR/OAH bundle. Show measured validation, round-trip fields and the persisted Evidence Passport. Clinical consent and verification are never inherited automatically from an import.
-4. Transfer to the independent receiver. Show the actual acknowledgement and returned lab representation. Receiver reads its received bundle, not CLINI-CASE application state.
-5. Run the local validation failure and the receiver rejection challenge. `ppm` violates the supported quantity contract; an actual HTTP rejection is recorded. Restore/regenerate the valid bundle before transfer.
-6. Bind reviewed mappings to evidence; verify the synthetic lab report, record patient consent and pathway context, and review eligibility. The journey shows OncoTwin/CardioTwin/ClinCase context without changing their scores or authorization conclusions.
-7. Record a new retest sample (18.2 to 8 ug/L in the automated story). The old sample remains immutable, its environmental task closes, the successor requires fresh verification and consent history. Export the successor and show its delivered receipt and passport.
+## Five-minute story
+
+| Time | Show |
+|---|---|
+| 0:00–0:25 | Open `/interop`. Environmental sensors, citizen observations, labs and health systems use different schemas and vocabularies. The gateway decides which mappings are supported before data crosses the boundary. |
+| 0:25–0:55 | Select **arsenic | speciation unknown**, start the synthetic System A import and show schema discovery. Explain that the optional model gets field names and an allowlist only. |
+| 0:55–1:45 | At the semantic safety gate, show `arsenic → value` does not establish `total_arsenic` or `inorganic_arsenic`. Human approval is required; model suggestions cannot set the analyte or approve the mapping. Optionally switch to **arsenic_dissolved** to show its source qualifier stays dissolved and does not become inorganic. |
+| 1:45–2:15 | Generate the OAH/FHIR R4 collection Bundle. Show the FHIR API's `/fhir/metadata` CapabilityStatement and the selected validation result. The API stores collection Bundles; it does not execute transactions. |
+| 2:15–3:05 | Change the quantity unit to `ppm`. Validation returns an OperationOutcome and transfer stays blocked. Restore `ug/L`, validate again, and transfer to the separate System B receiver. |
+| 3:05–3:55 | Show the receiver acknowledgement and System B's new resource IDs. Return its FHIR Bundle to Lab A. The gateway compares sample fields, site, source identity, exposure history and provenance; IDs and package hashes differ, while semantic checks pass. |
+| 3:55–4:40 | Open the Evidence Passport. Show reviewer, mapping revision, validation, transfer, acknowledgement, returned bundle hash and the round-trip field results. State that hashes show integrity against the retained chain, not a lab signature or proof of causation. |
+| 4:40–5:00 | Architecture: the local demo runs with a local database and independent receiver. Containers can run on Kubernetes; EKS is optional and no cloud deployment is claimed. Bedrock is an optional model adapter. |
+
+Optional continuation: bind the reviewed mapping to the synthetic AquaHealth observation; verify the synthetic lab report, record consent and pathway context, then create a retest. The original stays immutable and the successor requires fresh verification and consent. The comparison is a measurement change, not a clinical outcome.
+
+### FHIR API quick reference
+
+- `GET /fhir/metadata` — FHIR R4 CapabilityStatement; this route is public metadata.
+- `POST /fhir/Bundle` — authenticated create for a validated collection Bundle, with `Content-Type: application/fhir+json`.
+- `GET /fhir/Bundle/{id}` — authenticated tenant-scoped read.
+- `POST /fhir/Bundle/$validate` — authenticated validation OperationOutcome. Invalid content still returns HTTP 200 as required by the FHIR operation contract.
+- `POST /fhir/$validate` remains a local convenience alias; it is not advertised as a system-level FHIR operation.
+
+The application checks are pinned, partial OAH checks, not full HL7 profile or terminology validation. An earlier core-only result (0 errors, 22 warnings and 7 informational messages) used a different saved fixture with the OAH package and terminology service absent; it is not evidence for the current bundle. This workstation currently lacks Java/the validator JAR and the pinned draft package archive. See [`track7/VALIDATION.md`](track7/VALIDATION.md) for the precise status and reproducible steps; no full OAH validation is claimed.
+
+## Optional container and Kubernetes showcase
+
+The normal demo launcher above is the shortest path. For the container showcase, copy `.env.example` to `.env` only if `.env` does not already exist, then start a fresh PowerShell session and provide throwaway local secrets. Do not replace or publish an existing `.env`:
+
+```powershell
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+$env:TRACK7_POSTGRES_PASSWORD = [guid]::NewGuid().ToString('N') + [guid]::NewGuid().ToString('N')
+$env:INTEROP_RECEIVER_TOKEN = [guid]::NewGuid().ToString('N') + [guid]::NewGuid().ToString('N')
+docker compose -f docker-compose.track7.yml up --build
+```
+
+Open `http://localhost:5173`. The API, PostgreSQL and independent receiver are available on localhost ports 8000, 15432 and the internal-only 8091 service, respectively. Stop with Ctrl+C; `docker compose -f docker-compose.track7.yml down` removes the containers but preserves the named demo data volumes. This local stack is not a production deployment.
+
+For a local kind cluster, build and load the same images, create the two setup resources referenced by the manifest, then apply it. The sample uses one replica per service and local cluster storage; it is a deployment-portability showcase, not production hardening or EKS evidence.
+
+```powershell
+kind create cluster --name clincase
+kubectl create namespace clincase-demo --dry-run=client -o yaml | kubectl apply -f -
+$env:TRACK7_POSTGRES_PASSWORD = [guid]::NewGuid().ToString('N') + [guid]::NewGuid().ToString('N')
+$env:INTEROP_RECEIVER_TOKEN = [guid]::NewGuid().ToString('N') + [guid]::NewGuid().ToString('N')
+$env:JWT_SECRET = [guid]::NewGuid().ToString('N') + [guid]::NewGuid().ToString('N')
+$databaseUrl = "postgresql://clincase:$($env:TRACK7_POSTGRES_PASSWORD)@postgres:5432/clincase"
+kubectl -n clincase-demo create secret generic clincase-track7-demo-secrets `
+  --from-literal=POSTGRES_PASSWORD=$env:TRACK7_POSTGRES_PASSWORD `
+  --from-literal=DATABASE_URL=$databaseUrl `
+  --from-literal=JWT_SECRET=$env:JWT_SECRET `
+  --from-literal=INTEROP_RECEIVER_TOKEN=$env:INTEROP_RECEIVER_TOKEN
+kubectl -n clincase-demo create configmap clincase-track7-demo-schema --from-file=01-schema.sql=backend/db/schema.sql
+docker build -t clincase-api:demo ./backend
+docker build -t clincase-web:demo ./frontend
+kind load docker-image clincase-api:demo clincase-web:demo --name clincase
+kubectl apply -f ops/kind/track7-demo.yaml
+kubectl -n clincase-demo port-forward svc/frontend 5173:5173
+```
+
+The kind database and receiver use cluster-local storage. Delete the cluster when the disposable showcase is no longer needed with `kind delete cluster --name clincase`.
 
 The launcher executes this story through real HTTP requests and saves `runtime-metrics.json`, `evidence-passport.json` and `retest-passport.json` in the ignored cache. An existing ClinCase case can be linked only with explicit same-organization identity attestation; the demo does not fabricate a payer case.
 
@@ -37,12 +94,6 @@ Recomputes every chain hash and artifact digest without the application server. 
 
 ## Official external validation
 
-The tested official HL7 validator is `validator_cli.jar` version **6.10.4**, from the [official release](https://github.com/hapifhir/org.hl7.fhir.core/releases/tag/6.10.4). With Java 21, from `backend`:
-
-```text
-java -jar .cache/track7/validator_cli.jar data/interop/valid-fhir.json -version 4.0.1 -tx n/a -output .cache/track7/hl7-outcome.json
-```
-
-Actual result: **WARNING: 0 errors, 22 warnings, 7 informational messages**. Core R4 loaded; the OAH package and terminology server were not loaded. Unknown draft profiles, unpublished local terminology, missing narratives and disabled terminology checks remain gaps. This is not an OAH certification result. The checked-in outcome/summary under `backend/data/interop/validation` preserves the evidence. On this workstation, TLS inspection required importing the workstation's trusted root into a disposable Java container; certificate verification stayed enabled. Do not disable TLS to reproduce validation.
+No external validation was executed for the current generated Bundle. The earlier checked-in core-only result (validator_cli 6.10.4; 0 errors, 22 warnings and 7 informational messages) used a different fixture, omitted the OAH package, and disabled terminology. It is not a current result. This workstation has no Java runtime or validator JAR, and the pinned draft package archive is not available from the checked package endpoints. See [the dated validation record](track7/VALIDATION.md) for the exact outcome and conditional command; errors and warnings for full OAH validation are unmeasured, not zero.
 
 See [manual checklist](TRACK7_MANUAL_CHECKLIST.md) and [conformance statement](OAH_CONFORMANCE.md).

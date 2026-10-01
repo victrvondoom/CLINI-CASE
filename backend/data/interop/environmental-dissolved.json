@@ -1,0 +1,15 @@
+{
+  "sample_no": "SYN-AS-DISS-001",
+  "sample_location": "SYNTHETIC Adyar River Point 4",
+  "sample_time": "2026-09-28T09:30:00Z",
+  "lab": "SYNTHETIC Water Laboratory A",
+  "arsenic_dissolved": 18.2,
+  "units": "ug/L",
+  "water_source": "SYNTHETIC Adyar River",
+  "kind": "stream",
+  "collector": "SYNTHETIC sampling team",
+  "report_reference": "SYN-AS-DISS-REPORT-001",
+  "method": "SYNTHETIC dissolved fraction screen; not a real assay",
+  "report_time": "2026-09-29T09:30:00Z",
+  "legacy_note": "SYNTHETIC sample; dissolved fraction does not establish chemical speciation or health causation"
+}

@@ -3,7 +3,7 @@
 import csv
 import io
 import json
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import HTTPException
 
@@ -22,6 +22,10 @@ ALIASES = {
     "arsenic": "value",
     "sample_location": "location_name",
     "report_time": "reported_at",
+    "sample_no": "sample_id",
+    "arsenic_dissolved": "value",
+    "total_arsenic": "value",
+    "inorganic_arsenic": "value",
 }
 SUPPORTED = {
     "Location",
@@ -71,15 +75,7 @@ def discover(j: Job) -> None:
         if is_synthetic != j.source.synthetic:
             raise HTTPException(422, "Source synthetic classification disagrees with FHIR package")
         decoded = fhir.read_evidence(payload)
-        fields = {
-            **decoded["sample"],
-            "waterbody_name": next(
-                e["resource"]["name"]
-                for e in payload["entry"]
-                if e["resource"]["resourceType"] == "Location"
-                and e["resource"]["id"] == "waterbody"
-            ),
-        }
+        fields = {**decoded["sample"], "waterbody_name": decoded["waterbody_name"]}
         # Source history is retained, never promoted to local clinical trust.
         j.ai_status = "fhir_native_decode"
     else:
@@ -106,6 +102,14 @@ async def analyze(j: Job, use_ai: bool) -> None:
         target = ALIASES.get(key)
         # 'arsenic' does not establish total vs inorganic speciation.
         ambiguous = key == "arsenic"
+        explicit_concepts: dict[
+            str, Literal["dissolved_arsenic", "total_arsenic", "inorganic_arsenic"]
+        ] = {
+            "arsenic_dissolved": "dissolved_arsenic",
+            "total_arsenic": "total_arsenic",
+            "inorganic_arsenic": "inorganic_arsenic",
+        }
+        explicit_concept = explicit_concepts.get(key)
         j.mappings.append(
             Mapping(
                 source_field=field,
@@ -113,14 +117,26 @@ async def analyze(j: Job, use_ai: bool) -> None:
                 fhir_target=TARGETS.get(target) if target else None,
                 confidence=0.65 if ambiguous else (1 if target else 0),
                 origin="deterministic" if target else "unresolved",
+                concept=explicit_concept,
                 reason="Arsenic speciation requires explicit reviewer confirmation"
                 if ambiguous
                 else (
-                    "Pinned field alias; confirmation required"
-                    if target
-                    else "Unknown field; preserved in original source"
+                    "Source field states this analyte qualifier; local code candidate requires "
+                    "reviewer approval and does not imply another arsenic form"
+                    if explicit_concept
+                    else (
+                        "Pinned field alias; confirmation required"
+                        if target
+                        else "Unknown field; preserved in original source"
+                    )
                 ),
-                terminology_status="local_code" if target == "analyte" else "unresolved",
+                terminology_status=(
+                    "oah_verified_preferred"
+                    if explicit_concept == "dissolved_arsenic"
+                    else "local_concept_only"
+                    if explicit_concept
+                    else "unresolved"
+                ),
             )
         )
     j.ai_status = "deterministic_offline; no model called"
@@ -168,8 +184,10 @@ async def analyze(j: Job, use_ai: bool) -> None:
                         confidence=m.confidence,
                         origin="ai_suggested",
                         reason=m.reason[:500],
-                        concept=m.concept,
-                        terminology_status="local_code" if m.concept else "unresolved",
+                        # AI receives field names and target keys only. It cannot assign
+                        # analyte concepts, speciation, terminology, or review state.
+                        concept=None,
+                        terminology_status="unresolved",
                     )
             j.mappings = list(by_field.values())
             j.ai_status = "model_suggestions_received: " + response.model_id
@@ -221,14 +239,30 @@ def normalize(j: Job) -> ExposureRecord:
             if m.target in sample:
                 raise HTTPException(422, "Duplicate normalized target: " + m.target)
             sample[m.target] = value
-        if m.source_field.strip().lower() == "arsenic":
-            if not m.concept:
+        source_key = m.source_field.strip().lower().replace(" ", "_")
+        source_concept = {
+            "arsenic_dissolved": "dissolved_arsenic",
+            "total_arsenic": "total_arsenic",
+            "inorganic_arsenic": "inorganic_arsenic",
+        }.get(source_key)
+        if source_key == "arsenic" or source_concept:
+            if source_key == "arsenic" and m.concept not in (
+                "total_arsenic",
+                "inorganic_arsenic",
+            ):
                 raise HTTPException(
-                    422, "Confirm total or inorganic arsenic; speciation cannot be inferred"
+                    422,
+                    "Confirm total or inorganic arsenic; dissolved and chemical speciation cannot be inferred",
                 )
-            if "analyte" in sample and sample["analyte"] != m.concept:
+            if source_concept and m.concept != source_concept:
+                raise HTTPException(
+                    422,
+                    "The source field's explicit arsenic qualifier cannot be overridden by a mapping",
+                )
+            concept = source_concept or m.concept
+            if "analyte" in sample and sample["analyte"] != concept:
                 raise HTTPException(422, "Conflicting arsenic concepts")
-            sample["analyte"] = m.concept
+            sample["analyte"] = concept
     if "unit" not in sample:
         raise HTTPException(422, "Missing explicit measurement unit")
     if "analyte" not in sample:
@@ -329,7 +363,7 @@ def validate(bundle: dict[str, Any]) -> dict[str, Any]:
             organization_id="roundtrip",
             observation_id=decoded["source_observation_id"],
             waterbody_id="external",
-            waterbody_name="external",
+            waterbody_name=decoded["waterbody_name"],
             synthetic=True,
             sample=LabSample.model_validate(decoded["sample"]),
             history=ExposureHistory.model_validate(h) if h else None,
@@ -337,13 +371,18 @@ def validate(bundle: dict[str, Any]) -> dict[str, Any]:
         canonical = fhir.read_evidence(fhir.export(record))
         roundtrip = {
             "sample_preserved": canonical["sample"] == decoded["sample"],
+            "waterbody_preserved": canonical["waterbody_name"] == decoded["waterbody_name"],
             "history_preserved": canonical["history"] == h,
             "fields_preserved": sum(
                 canonical["sample"].get(k) == v for k, v in decoded["sample"].items()
             ),
             "fields_total": len(decoded["sample"]),
         }
-        if not roundtrip["sample_preserved"] or not roundtrip["history_preserved"]:
+        if (
+            not roundtrip["sample_preserved"]
+            or not roundtrip["waterbody_preserved"]
+            or not roundtrip["history_preserved"]
+        ):
             extra.append("Native evidence round-trip preservation failed")
     if extra:
         result["valid"] = False
@@ -359,7 +398,11 @@ def validate(bundle: dict[str, Any]) -> dict[str, Any]:
         },
         {
             "name": "native evidence round-trip",
-            "passed": (roundtrip["sample_preserved"] and roundtrip["history_preserved"])
+            "passed": (
+                roundtrip["sample_preserved"]
+                and roundtrip["waterbody_preserved"]
+                and roundtrip["history_preserved"]
+            )
             if roundtrip
             else None,
         },
@@ -387,7 +430,8 @@ def assessment(bundle: dict[str, Any]) -> dict[str, Any]:
 
 def loss_report(j: Job) -> dict[str, Any]:
     """Compare actual source values with decoded values, including excluded fields."""
-    decoded = fhir.read_evidence(j.bundle)["sample"] if j.bundle else {}
+    decoded_evidence = fhir.read_evidence(j.bundle) if j.bundle else {}
+    decoded = decoded_evidence.get("sample", {})
     rows = []
     for name, value in j.fields.items():
         mapping = next((m for m in j.mappings if m.source_field == name), None)
@@ -395,14 +439,7 @@ def loss_report(j: Job) -> dict[str, Any]:
         if mapping is None and j.ai_status.startswith("normalized_application_record") and j.bundle:
             received = decoded.get(name)
             if name == "waterbody_name":
-                received = next(
-                    (
-                        e["resource"].get("name")
-                        for e in j.bundle["entry"]
-                        if e["resource"].get("id") == "waterbody"
-                    ),
-                    None,
-                )
+                received = decoded_evidence.get("waterbody_name")
             status = (
                 "preserved"
                 if received == value
@@ -415,14 +452,7 @@ def loss_report(j: Job) -> dict[str, Any]:
         elif mapping and mapping.decision == "accepted" and j.bundle:
             target = mapping.target
             if target == "waterbody_name":
-                received = next(
-                    (
-                        e["resource"].get("name")
-                        for e in j.bundle["entry"]
-                        if e["resource"].get("id") == "waterbody"
-                    ),
-                    None,
-                )
+                received = decoded_evidence.get("waterbody_name")
             else:
                 received = decoded.get(target)
             status = (
@@ -465,4 +495,16 @@ def trust_states(j: Job) -> list[str]:
         and j.validation["sha256"] == fhir.digest(j.bundle)
     ):
         states.append("VALIDATED")
+    delivered = [t for t in j.transfers if t.get("status") == "delivered"]
+    if delivered:
+        states.append("TRANSMITTED")
+        if delivered[-1].get("acknowledgement"):
+            states.append("ACKNOWLEDGED")
+    if any(event.event_type == "return_exchange_validated" for event in j.events):
+        states.append("RETURNED")
+    if (
+        j.validation
+        and (j.validation.get("roundtrip") or {}).get("status") == "passed"
+    ):
+        states.append("ROUND_TRIP_VERIFIED")
     return states
