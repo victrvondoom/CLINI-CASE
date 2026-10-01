@@ -11,7 +11,7 @@ Snapshot inspected 2026-10-01. Repository: https://github.com/victrvondoom/CLINI
 | 55c4e32 | 2026-09-30 22:33:18 +05:30 | Existing One Health evidence/FHIR workflow |
 | 5de5768 | 2026-10-01 08:49:25 +05:30 | Case Digital Twin / intelligence ID |
 | 0f8be4f | 2026-10-01 09:59:48 +05:30 | Gateway, typed schema mapping, HITL, independent receiver, round-trip, adversarial tests |
-| Current hardening change | 2026-10-01 working session; actual commit recorded by Git | Evidence Passport, persistent revision manifests, offline verifier, unified evidence binding, linked retest, computed ceiling, receiver withdrawal/rejection, measured loss, focused UX, cleanup and reproducible runbook |
+| d019693 | 2026-10-01; exact timestamps recorded by Git | Evidence Passport, persistent revision manifests, offline verifier, unified evidence binding, linked retest, computed ceiling, receiver withdrawal/rejection, measured loss, focused UX, cleanup and reproducible runbook |
 
 Reused at the start of gateway development: authentication/roles, tenant database, clinical pipeline, twin models, AquaHealth observation store, existing One Health FHIR/evidence/review logic and UI primitives. New files/diffs for the gateway are exactly `git show --stat 0f8be4f`; the hardening delta is the next commit's diff. Archived duplicate source and operational scripts retain their Git history. No clinical model is represented as newly invented for Track 7.
 

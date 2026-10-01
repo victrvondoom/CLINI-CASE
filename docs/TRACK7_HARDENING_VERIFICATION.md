@@ -4,6 +4,7 @@ Repository: `victrvondoom/CLINI-CASE`. This report distinguishes tested behavior
 
 | Check | Result |
 |---|---|
+| Complete deterministic backend suite | 522 passed, 1 skipped, 105 live/integration tests deselected |
 | OneHealth + interop tests | 67 passed, including 13 hardening tests |
 | PostgreSQL restart/CAS test | 1 passed, 12 deselected; actual local PostgreSQL |
 | Frontend regression tests | 23 files, 111 tests passed |
