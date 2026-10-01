@@ -393,6 +393,21 @@ def _run_summaries(
     return out
 
 
+def _reconcile_cost(runs: list[dict[str, Any]], gateway: list[dict[str, Any]]) -> dict[str, Any]:
+    est = 0.0
+    for r in runs:
+        pin, pout = price_for(r.get("model_id"))
+        est += (r.get("input_tokens") or 0) * pin / 1e6 + (r.get("output_tokens") or 0) * pout / 1e6
+    audited = sum(float(g.get("cost_usd") or 0) for g in gateway)
+    return {
+        "gateway_audited_usd": round(audited, 6),
+        "framework_estimate_usd": round(est, 6),
+        "gateway_calls": sum(int(g.get("calls") or 0) for g in gateway),
+        "difference_usd": round(audited - est, 6),
+        "note": "both use per-model price tables (duplicated in gateway.py and framework/models.py); a gap means unaudited calls or price drift",
+    }
+
+
 def build_twin(
     *,
     organization_id: str,
@@ -404,6 +419,8 @@ def build_twin(
     actions: list[dict[str, Any]],
     case_runs: list[dict[str, Any]] | None = None,
     appeals: list[dict[str, Any]] | None = None,
+    verifications: list[dict[str, Any]] | None = None,
+    gateway_cost: list[dict[str, Any]] | None = None,
     now: datetime | None = None,
 ) -> dict[str, Any]:
     """Project a case's persisted records into the twin.
@@ -531,6 +548,21 @@ def build_twin(
             "latest_decision_run_id": last_decision.get("run_id") if last_decision else None,
             "appeal_drafted": appeal is not None,
         },
+        "verifications": [
+            {
+                "run_id": v.get("run_id"),
+                "composer_verdict": v["composer_verdict"],
+                "independent_verdict": v["independent_verdict"],
+                "agrees": v["agrees"],
+                "pause_kind": v.get("pause_kind"),
+                "verifier_version": v["verifier_version"],
+                "at": _iso(v["created_at"]),
+            }
+            for v in (verifications or [])
+        ],
+        # Gateway-audited spend (llm_invocations, authoritative for provider calls) next to the
+        # framework's own estimate from agent_runs token counts; a gap means unaudited/direct calls.
+        "cost_reconciliation": _reconcile_cost(runs, gateway_cost or []),
         "integrity": {
             "dangling_citations": dangling,
             "citations_total": len(evidence),
@@ -599,6 +631,18 @@ async def fetch_twin(organization_id: str, case_id: str) -> dict[str, Any] | Non
            FROM reviewer_actions WHERE case_id = $1 ORDER BY id ASC""",
         case_id,
     )
+    verifications = await db.fetch(
+        """SELECT run_id, composer_verdict, independent_verdict, agrees, pause_kind,
+                  verifier_version, created_at
+           FROM decision_verifications WHERE case_id = $1 ORDER BY id ASC""",
+        case_id,
+    )
+    gateway_cost = await db.fetch(
+        """SELECT run_id, COUNT(*) AS calls, COALESCE(SUM(cost_usd), 0) AS cost_usd
+           FROM llm_invocations WHERE case_id = $1 AND organization_id = $2 GROUP BY run_id""",
+        case_id,
+        organization_id,
+    )
     return build_twin(
         organization_id=organization_id,
         case=dict(case),
@@ -609,4 +653,6 @@ async def fetch_twin(organization_id: str, case_id: str) -> dict[str, Any] | Non
         actions=[dict(a) for a in actions],
         case_runs=[dict(r) for r in case_runs],
         appeals=[dict(a) for a in appeals],
+        verifications=[dict(v) for v in verifications],
+        gateway_cost=[dict(g) for g in gateway_cost],
     )

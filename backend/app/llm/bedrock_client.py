@@ -17,6 +17,11 @@ from botocore.config import Config
 
 from app.config import settings
 from app.llm.base import LLMClient, LLMResponse
+from app.llm.errors import (
+    LLMGuardrailBlockedError,
+    guardrail_intervened,
+    map_bedrock_error,
+)
 
 
 class BedrockClient(LLMClient):
@@ -28,6 +33,18 @@ class BedrockClient(LLMClient):
         )
         self._client = boto3.client("bedrock-runtime", config=cfg)
         self._default_model = settings.BEDROCK_MODEL_ID
+
+    def _invoke(self, op: str, **kwargs: Any) -> Any:
+        """Call a Converse operation; map botocore failures to typed LLMErrors."""
+        try:
+            return getattr(self._client, op)(**kwargs)
+        except Exception as exc:  # noqa: BLE001 - re-raised typed
+            raise map_bedrock_error(exc, kwargs.get("modelId")) from exc
+
+    @staticmethod
+    def _check_guardrail(response: dict[str, Any], model: str) -> None:
+        if guardrail_intervened(response):
+            raise LLMGuardrailBlockedError("guardrail intervened", model_id=model)
 
     def _guardrail_kwargs(self) -> dict[str, Any]:
         if not settings.BEDROCK_GUARDRAIL_ID:
@@ -55,7 +72,8 @@ class BedrockClient(LLMClient):
         model = model_id or self._default_model
 
         def _call() -> dict[str, Any]:
-            response: dict[str, Any] = self._client.converse(
+            response: dict[str, Any] = self._invoke(
+                "converse",
                 modelId=model,
                 system=[{"text": system}],
                 messages=[{"role": "user", "content": [{"text": user}]}],
@@ -68,6 +86,7 @@ class BedrockClient(LLMClient):
             return response
 
         response = await asyncio.to_thread(_call)
+        self._check_guardrail(response, model)
         text = response["output"]["message"]["content"][0]["text"]
         usage = response.get("usage", {})
         return LLMResponse(
@@ -107,7 +126,8 @@ class BedrockClient(LLMClient):
             raise ValueError(f"Bedrock vision supports png/jpeg/webp/gif; got {image_format!r}")
 
         def _call() -> dict[str, Any]:
-            response: dict[str, Any] = self._client.converse(
+            response: dict[str, Any] = self._invoke(
+                "converse",
                 modelId=model,
                 system=[{"text": system}],
                 messages=[
@@ -133,6 +153,7 @@ class BedrockClient(LLMClient):
             return response
 
         response = await asyncio.to_thread(_call)
+        self._check_guardrail(response, model)
         text = response["output"]["message"]["content"][0]["text"]
         usage = response.get("usage", {})
         return LLMResponse(
@@ -158,7 +179,8 @@ class BedrockClient(LLMClient):
         model = model_id or self._default_model
 
         def _call() -> Any:
-            return self._client.converse_stream(
+            return self._invoke(
+                "converse_stream",
                 modelId=model,
                 system=[{"text": system}],
                 messages=[{"role": "user", "content": [{"text": user}]}],
@@ -176,4 +198,6 @@ class BedrockClient(LLMClient):
                 if "text" in delta:
                     yield delta["text"]
             elif "messageStop" in event:
+                if event["messageStop"].get("stopReason") == "guardrail_intervened":
+                    raise LLMGuardrailBlockedError("guardrail intervened", model_id=model)
                 return

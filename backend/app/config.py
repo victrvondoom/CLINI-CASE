@@ -160,6 +160,8 @@ class Settings(BaseSettings):
     # end-to-end. In production this is set to 0.75 via env var and
     # low-confidence cases route to the Reviewer queue via review_gate.
     HITL_CONFIDENCE_THRESHOLD: float = 0.0
+    # Independent evidence verifier after the Decision Composer; off by default (no behaviour change).
+    VERIFIER_ENABLED: bool = False
 
     @property
     def cors_origin_list(self) -> list[str]:

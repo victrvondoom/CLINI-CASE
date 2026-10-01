@@ -136,19 +136,16 @@ def resolve_model_id(spec: ModelSpec) -> str | None:
     evidence_matcher, etc.) silently fell through to Sonnet on OpenRouter,
     multiplying observed cost ~3x and inflating latency.
     """
-    if settings.LLM_PROVIDER == "bedrock":
-        if spec.size == "haiku":
-            return settings.BEDROCK_HAIKU_MODEL_ID
-        return settings.BEDROCK_MODEL_ID
-    if settings.LLM_PROVIDER == "openrouter":
-        if spec.size == "haiku":
-            return "anthropic/claude-haiku-4.5"
-        return settings.OPENROUTER_MODEL  # Sonnet by default
-    if settings.LLM_PROVIDER == "anthropic":
-        if spec.size == "haiku":
-            return "claude-haiku-4-5"
-        return settings.ANTHROPIC_MODEL
-    return None
+    from app.llm.registry import ModelRoutingError, route
+
+    if settings.LLM_PROVIDER not in {"bedrock", "openrouter", "anthropic"}:
+        return None
+    try:
+        return route("lite" if spec.size == "haiku" else "standard").model_id
+    except ModelRoutingError:
+        # Unroutable (e.g. entry marked unverified/disabled): refuse loudly via the caller's
+        # allowlist/provider error instead of silently substituting another model.
+        raise
 
 
 # =============================================================================

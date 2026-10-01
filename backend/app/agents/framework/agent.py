@@ -215,7 +215,29 @@ class Agent(ABC, Generic[I, O]):
     # ------------------------------------------------------------------
 
     async def invoke(self, input: I, *, ctx: AgentContext) -> AgentResult[O]:
-        """Execute the full production lifecycle."""
+        """Execute the full production lifecycle inside an OTel agent span (no-op when OTel is off)."""
+        from app.observability.otel import agent_span
+
+        ident = ctx.identity
+        attrs = {
+            "clincase.run_id": ident.run_id if ident else "",
+            "clincase.trace_id": ident.trace_id if ident else "",
+        }
+        with agent_span(
+            f"agent.{self.qualified_name}",
+            organization_id=getattr(ctx, "organization_id", None),
+            case_id=ctx.case_id,
+            agent_name=self.qualified_name,
+            attributes=attrs,
+        ) as otel_span:
+            result = await self._invoke_inner(input, ctx=ctx)
+            try:
+                otel_span.set_attribute("clincase.agent_status", str(getattr(result, "status", "")))
+            except Exception:  # noqa: BLE001 - telemetry must never affect the run
+                pass
+            return result
+
+    async def _invoke_inner(self, input: I, *, ctx: AgentContext) -> AgentResult[O]:
         invocation_id = uuid.uuid4()
         started_at = datetime.now(UTC)
         started_ts = time.time()

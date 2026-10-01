@@ -105,6 +105,38 @@ async def review_gate_node(state: ClinCaseState) -> dict[str, Any]:
     }
 
 
+async def verifier_node(state: ClinCaseState) -> dict[str, Any]:
+    """Independently verify the composed decision; escalate to a human on disagreement/conflict."""
+    from app.verification.verifier import persist, verify
+
+    if state.decision is None:
+        return {}
+    v = verify(state.decision, state.necessity_assessment, state.fhir_bundle)
+    try:
+        await persist(
+            v, case_id=state.case_id, run_id=state.run_id, ciid=state.case_intelligence_id
+        )
+    except Exception:  # noqa: BLE001 - the result is also returned in state; never lose the run over it
+        import structlog
+
+        structlog.get_logger().warning("verification.persist_failed", case_id=state.case_id)
+    if v.pause_kind:
+        return {
+            "paused_for_review": True,
+            "pause_kind": v.pause_kind,
+            "pause_reason": "Independent verification: " + "; ".join(v.issues),
+        }
+    return {}
+
+
+def _route_after_composer(state: ClinCaseState) -> Literal["verifier", "denial_forecaster"]:
+    return "verifier" if getattr(settings, "VERIFIER_ENABLED", False) else "denial_forecaster"
+
+
+def _route_after_verifier(state: ClinCaseState) -> Literal["denial_forecaster", "__end__"]:
+    return "__end__" if state.paused_for_review else "denial_forecaster"
+
+
 async def human_decision_node(state: ClinCaseState) -> dict[str, Any]:
     """First node of the resume graph: the reviewer's verdict becomes the Decision (no LLM, no re-derivation)."""
     from app.review.human import HumanReview, build_human_decision
@@ -195,8 +227,18 @@ def build_full_graph() -> CompiledStateGraph:
         {"decision_composer": "decision_composer", "review_gate": "review_gate"},
     )
 
-    # Decision Composer always feeds the Denial Forecaster
-    g.add_edge("decision_composer", "denial_forecaster")
+    # Decision Composer -> (optional independent verifier) -> Denial Forecaster
+    g.add_node("verifier", verifier_node)
+    g.add_conditional_edges(
+        "decision_composer",
+        _route_after_composer,
+        {"verifier": "verifier", "denial_forecaster": "denial_forecaster"},
+    )
+    g.add_conditional_edges(
+        "verifier",
+        _route_after_verifier,
+        {"denial_forecaster": "denial_forecaster", "__end__": END},
+    )
 
     # Conditional edge — Denial Forecaster -> { Appeals if DENY, else Patient Communicator }
     g.add_conditional_edges(

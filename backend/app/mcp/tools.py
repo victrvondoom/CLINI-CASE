@@ -95,13 +95,13 @@ async def policy_lookup(organization_id: str, payer_id: str, treatment: str) -> 
 async def clinical_extract(organization_id: str, case_id: str) -> dict[str, Any]:
     """Return the structured clinical snapshot extracted by the agent.
 
-    Reads from the persisted agent_traces table; does NOT re-run the LLM
+    Reads from the persisted agent_runs table; does NOT re-run the LLM
     (idempotent, audit-grade). In production this is the cheapest read in
     the system because every case has the snapshot pre-computed.
     """
     await _require_case(organization_id, case_id)
     row = await db.fetchrow(
-        """SELECT output_json FROM agent_traces
+        """SELECT output_json FROM agent_runs
            WHERE case_id = $1 AND agent_name = 'clinical_extractor'
            ORDER BY started_at DESC LIMIT 1""",
         case_id,
@@ -263,8 +263,9 @@ async def audit_query(organization_id: str, case_id: str) -> dict[str, Any]:
     await _require_case(organization_id, case_id)
     rows = await db.fetch(
         """SELECT agent_name, model_id, input_tokens, output_tokens,
-                  started_at, completed_at, latency_ms, status
-           FROM agent_traces
+                  started_at, finished_at AS completed_at, latency_ms,
+                  CASE WHEN error_text IS NULL THEN 'ok' ELSE 'error' END AS status
+           FROM agent_runs
            WHERE case_id = $1
            ORDER BY started_at ASC""",
         case_id,

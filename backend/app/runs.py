@@ -109,6 +109,21 @@ END $$;
 ALTER TABLE IF EXISTS llm_invocations ADD COLUMN IF NOT EXISTS run_id TEXT;
 ALTER TABLE IF EXISTS llm_invocations ADD COLUMN IF NOT EXISTS case_intelligence_id TEXT;
 ALTER TABLE IF EXISTS llm_invocations ADD COLUMN IF NOT EXISTS trace_id TEXT;
+
+CREATE TABLE IF NOT EXISTS decision_verifications (
+    id BIGSERIAL PRIMARY KEY,
+    case_id TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+    run_id TEXT,
+    case_intelligence_id TEXT,
+    verifier_version TEXT NOT NULL,
+    composer_verdict TEXT NOT NULL,
+    independent_verdict TEXT NOT NULL,
+    agrees BOOLEAN NOT NULL,
+    pause_kind TEXT,
+    detail_json JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_decision_verifications_case ON decision_verifications(case_id, created_at DESC);
 """
 
 
