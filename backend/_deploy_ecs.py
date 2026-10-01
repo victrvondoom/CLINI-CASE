@@ -22,16 +22,20 @@ import json
 import os
 import sys
 import time
-from typing import Any
 
 from dotenv import load_dotenv
 
 load_dotenv("../.env")
 
-import boto3
-from botocore.exceptions import ClientError
+# Load .env before importing AWS/deploy helpers so they observe its settings.
+import boto3  # noqa: E402
+from botocore.exceptions import ClientError  # noqa: E402
 
-from _ecs_task_env import build_task_env_and_secrets, execution_role_secret_policy, secret_arns
+from _ecs_task_env import (  # noqa: E402
+    build_task_env_and_secrets,
+    execution_role_secret_policy,
+    secret_arns,
+)
 
 REGION = "us-east-1"
 ACCOUNT = boto3.client("sts").get_caller_identity()["Account"]
@@ -281,7 +285,7 @@ def setup_alb(vpc_id: str, subnet_ids: list[str], alb_sg: str) -> tuple[str, str
 
     # Listener — HTTP :80 -> TG
     listeners = elb.describe_listeners(LoadBalancerArn=alb_arn)["Listeners"]
-    if not any(l["Port"] == 80 for l in listeners):
+    if not any(listener["Port"] == 80 for listener in listeners):
         elb.create_listener(
             LoadBalancerArn=alb_arn,
             Protocol="HTTP",
@@ -439,12 +443,12 @@ def main() -> int:
     )
 
     print()
-    print(f"=" * 60)
+    print("=" * 60)
     print(f"  ALB URL: http://{alb_dns}")
     print(f"  health : http://{alb_dns}/api/v1/healthz")
-    print(f"=" * 60)
+    print("=" * 60)
     print("Backend tasks take 2-5 min to become healthy. Wait, then:")
-    print("  curl http://{}/api/v1/healthz".format(alb_dns))
+    print(f"  curl http://{alb_dns}/api/v1/healthz")
     return 0
 
 

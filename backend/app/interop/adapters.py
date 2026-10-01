@@ -43,13 +43,40 @@ class OAHFHIRAdapter:
 
 class LocalArsenicTerminology:
     def resolve(self, code: str) -> dict[str, Any]:
-        supported = code in {"total_arsenic", "inorganic_arsenic"}
+        if code == "dissolved_arsenic":
+            return {
+                "system": fhir.OAH_CODE_SYSTEM,
+                "code": "arsenic-dissolved",
+                "display": "Arsenic dissolved",
+                "status": "OAH_VERIFIED_PREFERRED",
+                "source": (
+                    f"https://github.com/hl7-eu/oah/tree/{fhir.OAH_COMMIT}/input/fsh"
+                ),
+                "verification_time": None,
+                "external_mapping_verified": True,
+                "value_set": fhir.OAH_INDICATORS_VALUE_SET,
+                "ig_version": "0.1.0-ci-build",
+                "ig_commit": fhir.OAH_COMMIT,
+            }
+        if code in ("total_arsenic", "inorganic_arsenic"):
+            return {
+                "system": None,
+                "code": None,
+                "display": fhir.ANALYTE_LABELS[code],
+                "status": "LOCAL_CONCEPT_ONLY",
+                "source": "CLINI-CASE internal concept; no matching code verified in pinned OAH IG",
+                "verification_time": None,
+                "external_mapping_verified": False,
+                "value_set": fhir.OAH_INDICATORS_VALUE_SET,
+                "ig_version": "0.1.0-ci-build",
+                "ig_commit": fhir.OAH_COMMIT,
+            }
         return {
-            "system": fhir.SYSTEM if supported else None,
-            "code": code,
+            "system": None,
+            "code": None,
             "display": code.replace("_", " "),
-            "status": "LOCAL_CODE" if supported else "UNRESOLVED",
-            "source": fhir.SYSTEM if supported else None,
+            "status": "UNRESOLVED",
+            "source": None,
             "verification_time": None,
             "external_mapping_verified": False,
         }

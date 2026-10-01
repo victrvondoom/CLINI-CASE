@@ -1,8 +1,14 @@
 # CLINI-CASE One Health Interoperability Gateway
 
-An evidence-aware One Health interoperability gateway that converts heterogeneous environmental, laboratory and health observations into validated OAH/FHIR exchanges while preserving provenance, consent and human review.
+CLINI-CASE is a OneAquaHealth Track 7 interoperability gateway.
 
-**OneAquaHealth IEEE Global Hackathon ? Track 7: Digital Health Standards.** Start at `/onehealth`; use `/interop` for the cross-system demonstration. Existing ClinCase, OncoTwin, CardioTwin and AquaHealth functionality remains available through the same application. The previous platform landing page is retained at `/platform`.
+Environmental, laboratory and health systems often use incompatible schemas and terminology. CLINI-CASE discovers source fields, suggests constrained semantic mappings, and requires an authenticated human reviewer to approve them before generating an OAH/FHIR exchange. Application-level validation can block invalid data before transfer.
+
+An independent System B process receives the Bundle over HTTP, validates and stores it, changes resource IDs and references, then returns it for semantic round-trip verification. The Evidence Passport records mapping decisions, validation, transfer acknowledgement, hashes and round-trip results. The Track 7 journey uses synthetic data and does not infer health causation.
+
+The interoperability workflow has no cloud dependency. Docker and kind files are a small optional deployment showcase; AWS and Bedrock remain optional adapters, not prerequisites. Existing oncology, OncoTwin, CardioTwin and AquaHealth functionality remains available through the same application.
+
+**OneAquaHealth IEEE Global Hackathon — Track 7: Digital Health Standards.** Start at `/onehealth`; use `/interop` for the cross-system demonstration. The previous platform landing page is retained at `/platform`.
 
 [![CI](https://github.com/victrvondoom/CLINI-CASE/actions/workflows/ci.yml/badge.svg)](https://github.com/victrvondoom/CLINI-CASE/actions/workflows/ci.yml)
 
@@ -17,7 +23,7 @@ Run `./start-track7.ps1` for the complete synthetic, deterministic reference jou
 - [Evidence Passport](docs/EVIDENCE_PASSPORT.md), [epistemic ceiling](docs/EPISTEMIC_CEILING.md) and [conformance statement](docs/OAH_CONFORMANCE.md)
 - [Verification](docs/TRACK7_HARDENING_VERIFICATION.md), [build scope / AI assistance](docs/HACKATHON_BUILD_SCOPE.md) and [self-audit](docs/TRACK7_SELF_AUDIT.md)
 
-**Validation scope:** FHIR R4-targeted OAH exchange with pinned profile-aware contract checks and round-trip validation. Official core-R4 validation returned 0 errors, 22 warnings and 7 informational messages; OAH package/terminology validation remains incomplete. No HL7 certification is claimed. All demo data is synthetic; no real pilot or clinical-performance claim is made.
+**Validation scope:** FHIR R4-targeted exchange with selected pinned OAH constraints, local contract checks and semantic round-trip tests. A prior core-only validator result (0 errors, 22 warnings and 7 informational messages) used a different fixture and did not load the OAH package or terminology; it is not evidence for the current generated Bundle. Full OAH validation is currently not run because the local Java/validator and immutable guide package are unavailable. No HL7 certification is claimed. See [the validation record](docs/track7/VALIDATION.md). All demo data is synthetic; no real pilot or clinical-performance claim is made.
 
 **License:** [proprietary terms](LICENSE) are unchanged. The owner is credited by the existing license/history. You confirmed authorization exists; judges' signed run/review rights still need documentary verification. See [judge access](docs/JUDGE_ACCESS.md). Public availability alone grants no license.
 
@@ -609,11 +615,24 @@ entity. See [LICENSE](LICENSE) for the complete terms.
 </div>
 
 
-### Track 7: evidence-aware One Health interoperability gateway
+### Track 7: OneAquaHealth interoperability gateway
 
-New `/interop` workbench: synthetic external JSON/CSV -> deterministic or optional governed AI
-mapping -> human confirmation -> existing OAH/FHIR exporter -> validation -> independent HTTP
-receiver -> acknowledgement -> FHIR return to Lab A. Existing `/onehealth`, oncology, OncoTwin,
-CardioTwin and AquaHealth workflows remain intact. See [Track 7 architecture and demo](docs/ONEHEALTH_TRACK7.md#newly-added-one-health-interoperability-gateway).
-This is FHIR R4-targeted OAH exchange with pinned profile-aware contract checks and round-trip
-validation, not HL7 certification.
+Fragmented environmental and health systems send data in incompatible schemas. The `/interop`
+workbench performs schema discovery, constrained deterministic/optional AI mapping, authenticated
+human approval, OAH/FHIR generation, and local validation before transfer. Invalid data is blocked.
+An independent System B process exchanges the Bundle over HTTP, reassigns resource IDs and updates
+references; CLINI-CASE decodes the returned Bundle and compares normalized semantic fields. The
+Evidence Passport records the journey and its evidence.
+
+A generic `arsenic` label never implies chemical speciation. The pinned OAH CI guide supports the
+exact dissolved-arsenic term, while other concepts remain text-only unless source evidence and a
+verified terminology mapping support them. This is custom, partial contract validation—not full
+HL7/OAH profile validation or certification. See the [validation record](docs/track7/VALIDATION.md)
+and [conformance note](docs/track7/CONFORMANCE.md). The existing `/onehealth`, oncology, OncoTwin,
+CardioTwin and AquaHealth workflows remain intact.
+
+Run `python backend/scripts/track7_network_demo.py` for the separate-process HTTP proof. For the
+interactive workbench use `./start-track7.ps1 -SQLite`; the service runs locally with synthetic
+data and no cloud dependency. Docker/kind are optional showcase material; AWS and Bedrock remain
+optional and are not required. The [4:40 interoperability demo script](docs/track7/DEMO_SCRIPT.md)
+reserves only the final 20 seconds for deployment portability.

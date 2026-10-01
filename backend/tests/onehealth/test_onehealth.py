@@ -15,7 +15,14 @@ from app.aquahealth.store import OrgAquaStore
 from app.auth import get_current_user
 from app.db import db
 from app.onehealth import evidence, fhir, repository
-from app.onehealth.models import AuditEvent, ExposureHistory, ExposureRecord, LabSample, now
+from app.onehealth.models import (
+    ANALYTES,
+    AuditEvent,
+    ExposureHistory,
+    ExposureRecord,
+    LabSample,
+    now,
+)
 
 
 @pytest.fixture
@@ -159,6 +166,82 @@ def test_native_fhir_roundtrip_and_pinned_constraints(record):
     assert decoded["sample"] == record.sample.model_dump(mode="json")
     assert decoded["history"] == record.history.model_dump(mode="json")
     assert "organization_id" not in str(bundle)
+
+
+@pytest.mark.parametrize(
+    ("analyte", "expected_code"),
+    [
+        ("total_arsenic", {"text": "Total arsenic"}),
+        ("inorganic_arsenic", {"text": "Inorganic arsenic"}),
+        (
+            "dissolved_arsenic",
+            {
+                "coding": [
+                    {
+                        "system": "http://hl7.eu/fhir/ig/oah/CodeSystem/temporarySystem-oah-eu",
+                        "code": "arsenic-dissolved",
+                        "display": "Arsenic dissolved",
+                    }
+                ],
+                "text": "Arsenic dissolved",
+            },
+        ),
+    ],
+)
+def test_verified_oah_profiles_and_analyte_codings(record, analyte, expected_code):
+    changed = record.model_copy(
+        update={"sample": record.sample.model_copy(update={"analyte": analyte})}
+    )
+    bundle = fhir.export(changed)
+    resources = [entry["resource"] for entry in bundle["entry"]]
+    profiles = {
+        profile
+        for resource in resources
+        for profile in resource.get("meta", {}).get("profile", [])
+    }
+    assert profiles == {
+        "http://hl7.eu/fhir/ig/oah/StructureDefinition/location-oah",
+        "http://hl7.eu/fhir/ig/oah/StructureDefinition/specimen-oah",
+        "http://hl7.eu/fhir/ig/oah/StructureDefinition/observation-indicators-oah",
+    }
+    specimen = next(resource for resource in resources if resource["resourceType"] == "Specimen")
+    assert specimen["type"]["coding"] == [
+        {
+            "system": "http://snomed.info/sct",
+            "code": "11713004",
+            "display": "Water",
+        }
+    ]
+    observation = next(
+        resource for resource in resources if resource["resourceType"] == "Observation"
+    )
+    assert observation["code"] == expected_code
+    assert fhir.read_evidence(bundle)["sample"]["analyte"] == analyte
+    assert fhir.validate(bundle)["valid"]
+
+
+@pytest.mark.parametrize(
+    ("codeable", "expected"),
+    [
+        ({"coding": [{"system": fhir.SYSTEM, "code": "total_arsenic"}]}, "total_arsenic"),
+        ({"coding": [{"system": fhir.SYSTEM, "code": "dissolved_arsenic"}]}, "dissolved_arsenic"),
+        ({"text": "Inorganic arsenic"}, "inorganic_arsenic"),
+    ],
+)
+def test_decode_analyte_reads_legacy_codes_and_local_text(codeable, expected):
+    assert fhir._decode_analyte(codeable) == expected
+
+
+def test_every_analyte_concept_has_a_label():
+    # The decoder indexes ANALYTE_LABELS by every Analyte; a missing label would be a KeyError.
+    assert set(fhir.ANALYTE_LABELS) == set(ANALYTES)
+
+
+@pytest.mark.parametrize("code", [["total_arsenic"], {"code": "total_arsenic"}, None, 1])
+def test_decode_analyte_rejects_non_string_legacy_code_as_value_error(code):
+    # An unhashable code must surface as a contract ValueError, never a TypeError.
+    with pytest.raises(ValueError, match="not supported"):
+        fhir._decode_analyte({"coding": [{"system": fhir.SYSTEM, "code": code}]})
 
 
 @pytest.mark.parametrize(

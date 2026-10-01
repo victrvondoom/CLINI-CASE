@@ -10,7 +10,7 @@ export interface LabSample {
   method: string;
   collected_at: string;
   reported_at: string;
-  analyte: "total_arsenic" | "inorganic_arsenic";
+  analyte: "total_arsenic" | "inorganic_arsenic" | "dissolved_arsenic";
   value: number;
   unit: "ug/L" | "mg/L";
   qualifier: "eq" | "lt";

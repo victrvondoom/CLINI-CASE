@@ -13,6 +13,8 @@ import sys
 def main() -> int:
     sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
 
+    # Imports are grouped by architecture layer, not alphabetically.
+    # isort: off
     from app.main import app
 
     # Layer 1 — Experience Layer (route registry)
@@ -76,9 +78,10 @@ def main() -> int:
         InProcessBackend,  # noqa: F401
         RedisPubSubBackend,  # noqa: F401
     )
+    # isort: on
 
     print("LAYER 1 - EXPERIENCE LAYER")
-    paths = sorted(set(r.path for r in app.routes if hasattr(r, "path")))
+    paths = sorted({r.path for r in app.routes if hasattr(r, "path")})
     print(f"  routes registered:                  {len(paths)}")
     print()
 
@@ -91,7 +94,7 @@ def main() -> int:
         max_latency_ms=600_000,
     )
     res = budget.reserve(estimated_usd=0.05, estimated_input_tokens=1000, estimated_output_tokens=500)
-    print(f"  BudgetTracker.reserve works:        ok")
+    print("  BudgetTracker.reserve works:        ok")
     budget.commit(res, actual_usd=0.04, actual_input_tokens=900, actual_output_tokens=400, model_id="sonnet-test")
     print(f"  BudgetTracker.commit works:         ok (remaining=${budget.remaining_usd:.2f})")
     print()

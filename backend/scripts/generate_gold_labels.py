@@ -37,7 +37,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import asyncpg
@@ -80,7 +80,7 @@ def _gold_for(clincase_verdict: str | None, case_id: str, treatment: str, payer:
         rationale_map = {
             "APPROVE": f"Criteria for {treatment} under {payer} clearly met; second-judge concurs.",
             "DENY": f"Treatment {treatment} not indicated given submitted evidence; second-judge concurs.",
-            "REFER": f"Documentation gap warrants human review per second-judge clinical review.",
+            "REFER": "Documentation gap warrants human review per second-judge clinical review.",
         }
         return (
             clincase_verdict,
@@ -113,14 +113,14 @@ def _gold_for(clincase_verdict: str | None, case_id: str, treatment: str, payer:
         # Gold judge thinks DENY was too harsh — should have been REFER
         return (
             "REFER",
-            f"Second-judge would refer rather than deny outright; the criteria "
-            f"interpretation is debatable.",
+            "Second-judge would refer rather than deny outright; the criteria "
+            "interpretation is debatable.",
             False,
         )
     if clincase_verdict == "APPROVE":
         return (
             "DENY",
-            f"Second-judge identifies a biomarker mismatch that warrants denial.",
+            "Second-judge identifies a biomarker mismatch that warrants denial.",
             False,
         )
     return (clincase_verdict, "Default concurs.", True)
@@ -171,7 +171,7 @@ async def main() -> None:
                 "second-judge oncologist. ~91% target agreement; disagreements "
                 "lean conservative."
             ),
-            "labeled_at": datetime.now(timezone.utc).isoformat(),
+            "labeled_at": datetime.now(UTC).isoformat(),
             "method": "deterministic_clinical_ruleset_v1",
             "n_cases": len(labels),
             "n_agreements": agree_count,

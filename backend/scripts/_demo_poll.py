@@ -1,11 +1,22 @@
 """Poll until case completes (or fails), then dump full results."""
-import asyncio, asyncpg, json, os, time, urllib.request
+import asyncio
+import json
+import os
+import time
+import urllib.request
+
+import asyncpg
 
 os.environ.setdefault('DATABASE_URL', 'postgresql://clincase:clincase@localhost:15432/clincase')
 CASE_ID = "cabeca8945cf"  # freshly seeded rich-FHIR case (round-15 systemic-fix test)
 TIMEOUT_S = 480  # 8 minutes max
 
 API = "http://localhost:8000"
+
+
+def _fetch_json(request: urllib.request.Request) -> dict:
+    with urllib.request.urlopen(request, timeout=30) as response:
+        return json.loads(response.read())
 
 
 async def poll_and_report():
@@ -52,16 +63,16 @@ async def poll_and_report():
     print("=" * 72)
 
     # Now fetch the case detail
-    auth = json.loads(urllib.request.urlopen(urllib.request.Request(
+    auth = await asyncio.to_thread(_fetch_json, urllib.request.Request(
         API + '/api/v1/auth/login',
         data=json.dumps({'email': 'admin@clincase.health', 'password': 'clincase2026'}).encode(),
         headers={'Content-Type': 'application/json'},
-    )).read())
-    H = {'Authorization': f"Bearer {auth['access_token']}"}
+    ))
+    headers = {'Authorization': f"Bearer {auth['access_token']}"}
 
-    detail = json.loads(urllib.request.urlopen(urllib.request.Request(
-        f"{API}/api/v1/cases/{CASE_ID}", headers=H
-    )).read())
+    detail = await asyncio.to_thread(_fetch_json, urllib.request.Request(
+        f"{API}/api/v1/cases/{CASE_ID}", headers=headers
+    ))
 
     print()
     print("=== CASE DETAIL ===")

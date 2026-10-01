@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
-from typing import Any, Literal
+from typing import Any, Literal, get_args
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
+
+Analyte = Literal["total_arsenic", "inorganic_arsenic", "dissolved_arsenic"]
+ANALYTES: tuple[Analyte, ...] = get_args(Analyte)
 
 
 def now() -> datetime:
@@ -27,7 +30,7 @@ class LabSample(StrictModel):
     method: str = Field(min_length=1, max_length=200)
     collected_at: AwareDatetime
     reported_at: AwareDatetime
-    analyte: Literal["total_arsenic", "inorganic_arsenic"] = "total_arsenic"
+    analyte: Analyte = "total_arsenic"
     value: float = Field(ge=0, le=100000)
     unit: Literal["ug/L", "mg/L"] = "ug/L"
     qualifier: Literal["eq", "lt"] = "eq"

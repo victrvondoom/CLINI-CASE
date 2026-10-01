@@ -4,8 +4,8 @@ Hits the running backend on :8000 and verifies every step of the demo
 path.
 """
 import json
-import urllib.request
 import urllib.error
+import urllib.request
 
 API = "http://localhost:8000"
 

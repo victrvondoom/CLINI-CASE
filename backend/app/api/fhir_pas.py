@@ -30,11 +30,12 @@ References:
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel, Field
 
 from app.auth.dependencies import get_current_user
@@ -119,7 +120,8 @@ def _claim_diagnosis(claim: dict[str, Any]) -> str | None:
         return None
     first = diag[0].get("diagnosisCodeableConcept", {})
     coding = (first.get("coding") or [{}])[0]
-    return coding.get("code")
+    code = coding.get("code")
+    return code if isinstance(code, str) else None
 
 
 # =============================================================================
@@ -335,13 +337,13 @@ def _add_days(iso_ts: str, days: int) -> str:
 
 
 @router.get("/metadata", status_code=200)
-async def capability_statement() -> dict[str, Any]:
+async def capability_statement() -> Response:
     """FHIR CapabilityStatement advertising Da Vinci PAS support.
 
     A Da Vinci PAS-conformant client (Inferno PAS Test Kit) inspects this
     document to confirm $submit is supported and the IG profile is declared.
     """
-    return {
+    statement = {
         "resourceType": "CapabilityStatement",
         "status": "active",
         "date": datetime.now(UTC).isoformat(),
@@ -349,8 +351,10 @@ async def capability_statement() -> dict[str, Any]:
         "kind": "instance",
         "implementation": {
             "description": (
-                "ClinCase provider-side prior-authorisation copilot. Partial Da Vinci PAS "
-                "reference implementation; full IG validation and X12 278 conversion are not included."
+                "ClinCase exposes a narrow authenticated FHIR R4 collection-Bundle facade for "
+                "the synthetic One Health exchange contract, alongside a partial Da Vinci PAS "
+                "Claim/$submit reference endpoint. Full OAH/Da Vinci IG validation and X12 278 "
+                "conversion are not included."
             )
         },
         "fhirVersion": "4.0.1",
@@ -358,6 +362,9 @@ async def capability_statement() -> dict[str, Any]:
         "rest": [
             {
                 "mode": "server",
+                "security": {
+                    "description": "Bundle create/read/validate require a ClinCase reviewer/admin bearer JWT."
+                },
                 "resource": [
                     {
                         "type": "Claim",
@@ -370,7 +377,17 @@ async def capability_statement() -> dict[str, Any]:
                                 ),
                             }
                         ],
-                    }
+                    },
+                    {
+                        "type": "Bundle",
+                        "interaction": [{"code": "create"}, {"code": "read"}],
+                        "operation": [
+                            {
+                                "name": "validate",
+                                "definition": "http://hl7.org/fhir/OperationDefinition/Resource-validate",
+                            }
+                        ],
+                    },
                 ],
             }
         ],
@@ -378,3 +395,7 @@ async def capability_statement() -> dict[str, Any]:
             "http://hl7.org/fhir/us/davinci-pas/ImplementationGuide/hl7.fhir.us.davinci-pas|2.1.0"
         ],
     }
+    return Response(
+        content=json.dumps(statement, separators=(",", ":")),
+        media_type="application/fhir+json",
+    )

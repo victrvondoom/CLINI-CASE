@@ -12,7 +12,7 @@ from __future__ import annotations
 import asyncio
 import json
 import random
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import asyncpg
@@ -149,7 +149,7 @@ def make_minimal_fhir_bundle(patient_initial: str, diagnosis: tuple) -> dict:
 def random_timestamp(days_back_min: int, days_back_max: int) -> datetime:
     """Random timestamp in the last N days, with realistic working-hours bias."""
     days_back = random.uniform(days_back_min, days_back_max)
-    base = datetime.now(timezone.utc) - timedelta(days=days_back)
+    base = datetime.now(UTC) - timedelta(days=days_back)
     # Bias toward business hours (9 AM - 5 PM UTC)
     hour = random.choices(
         list(range(24)),
@@ -182,9 +182,9 @@ async def seed():
         appealed_count = 0
         running_count = 0
 
-        for i in range(TARGET_TOTAL):
+        for _ in range(TARGET_TOTAL):
             case_id = f"seed_{uuid4().hex[:10]}"
-            payer = weighted_choice([(p, w) for p, w in PAYER_MIX])
+            payer = weighted_choice(list(PAYER_MIX))
             treatment, j_code = random.choice(TREATMENT_MIX)
             diagnosis = random.choice(DIAGNOSES)
             patient = random.choice(PATIENT_INITIALS)
@@ -265,11 +265,16 @@ async def seed():
                 )
 
             # Update counts
-            if status == "approved": approved_count += 1
-            elif status == "denied": denied_count += 1
-            elif status == "referred": referred_count += 1
-            elif status == "appealed": appealed_count += 1
-            elif status == "running": running_count += 1
+            if status == "approved":
+                approved_count += 1
+            elif status == "denied":
+                denied_count += 1
+            elif status == "referred":
+                referred_count += 1
+            elif status == "appealed":
+                appealed_count += 1
+            elif status == "running":
+                running_count += 1
 
         print(f"Seeded {TARGET_TOTAL} cases under org_demo:")
         print(f"  approved:   {approved_count}")

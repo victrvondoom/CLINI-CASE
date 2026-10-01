@@ -3,9 +3,9 @@ deployed ALB. Mints a JWT via the local backend (which has the seeded users)
 and uses it against the public ALB (which shares the JWT_SECRET)."""
 import json
 import sys
-import time
 
 import requests
+
 sys.stdout.reconfigure(encoding="utf-8")
 
 LOCAL = "http://localhost:8000/api/v1"

@@ -41,14 +41,25 @@ class Mapping(StrictModel):
     confidence: float = Field(default=0, ge=0, le=1)
     origin: Literal["deterministic", "ai_suggested", "unresolved"] = "unresolved"
     decision: Literal["pending", "accepted", "rejected"] = "pending"
-    concept: Literal["total_arsenic", "inorganic_arsenic"] | None = None
-    terminology_status: Literal["local_code", "unresolved"] = "unresolved"
+    concept: Literal["total_arsenic", "inorganic_arsenic", "dissolved_arsenic"] | None = None
+    terminology_status: Literal[
+        "local_code", "unresolved", "local_concept_only", "oah_verified_preferred"
+    ] = "unresolved"
     reason: str = "Unresolved; human mapping required"
     reviewer: str | None = None
 
 
+class MappingSuggestion(StrictModel):
+    """AI may propose a field target; it has no authority to select a chemical concept."""
+
+    source_field: str = Field(min_length=1, max_length=120)
+    target: str | None = None
+    confidence: float = Field(default=0, ge=0, le=1)
+    reason: str = Field(default="", max_length=500)
+
+
 class Suggestions(StrictModel):
-    mappings: list[Mapping] = Field(max_length=80)
+    mappings: list[MappingSuggestion] = Field(max_length=80)
 
 
 class Event(StrictModel):
@@ -91,7 +102,7 @@ class Analyze(Command):
 class Decision(Command):
     source_field: str
     target: str | None = None
-    concept: Literal["total_arsenic", "inorganic_arsenic"] | None = None
+    concept: Literal["total_arsenic", "inorganic_arsenic", "dissolved_arsenic"] | None = None
 
 
 class ValidationRequest(Command):

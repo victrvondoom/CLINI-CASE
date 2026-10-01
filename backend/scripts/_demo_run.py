@@ -1,16 +1,22 @@
 """ASCII-safe end-to-end probe — finds approved case with citations + runs pending case."""
-import json, sys, time, urllib.request, urllib.error
+import json
+import tempfile
+import urllib.error
+import urllib.request
+from pathlib import Path
 
 API = "http://localhost:8000"
-LOG = open(r"C:\Users\ASUS\AppData\Local\Temp\clincase_demo_run.log", "w", encoding="utf-8")
+LOG_PATH = Path(tempfile.gettempdir()) / "clincase_demo_run.log"
+LOG_PATH.write_text("", encoding="utf-8")
 def log(*a):
     msg = " ".join(str(x) for x in a)
-    LOG.write(msg + "\n")
-    LOG.flush()
+    with LOG_PATH.open("a", encoding="utf-8") as f:
+        f.write(msg + "\n")
 
 def post(path, body, headers=None):
     h = {"Content-Type": "application/json"}
-    if headers: h.update(headers)
+    if headers:
+        h.update(headers)
     return json.loads(urllib.request.urlopen(urllib.request.Request(API+path, data=json.dumps(body).encode(), headers=h), timeout=120).read())
 
 def get(path, headers=None):
@@ -84,5 +90,4 @@ arch = get("/api/v1/architecture/layers", H)
 for L in arch.get("layers", []):
     log(f"  {L.get('id'):24s} components={len(L.get('components', []))} endpoints={len(L.get('endpoints') or [])}")
 
-LOG.close()
-print("OK — log written to C:\\Users\\ASUS\\AppData\\Local\\Temp\\clincase_demo_run.log")
+print(f"OK — log written to {LOG_PATH}")

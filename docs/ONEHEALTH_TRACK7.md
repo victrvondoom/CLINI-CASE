@@ -38,6 +38,14 @@ directly addresses interoperability between environmental, citizen and health da
 | Evidence challenge | Remove one dependency on a copy and recompute eligibility; no causal or disease-risk claim |
 | Storage | Atomic JSONB record/audit/task writes with optimistic versions; tenant-scoped reads and updates |
 
+The interoperability workbench is a **semantic firewall**. Deterministic aliases or the optional
+governed model can suggest only an allowlisted source-field target. The model receives field names
+and target keys, not measurements or patient context; it cannot select chemical concepts, assign
+external terminology or approve a mapping. Every field requires a human decision. A plain
+`arsenic` label stays ambiguous until review; `arsenic_dissolved` uses the exact dissolved concept
+verified in the pinned OAH CI guide and never becomes inorganic arsenic by inference. Total and
+inorganic arsenic remain local text concepts because no corresponding OAH code was verified.
+
 Arsenic is the narrow first use case because [WHO](https://www.who.int/news-room/fact-sheets/detail/arsenic)
 documents long-term inorganic-arsenic associations with certain cancers and cardiovascular disease.
 The 10 µg/L WHO value is a **provisional drinking-water guideline**, not a disease threshold or
@@ -62,7 +70,8 @@ ClinCase case linking still requires an existing same-organization case and expl
 - Native specimen/observation/location fields carry the measurement. Typed questionnaire answers
   carry the exposure history; Consent, Task and Provenance describe permission and workflow.
 - Local analyte/workflow codes use the repository namespace; they are not falsely labelled LOINC
-  or SNOMED. Receiving systems must agree mappings. IDs in sample exports are local aliases.
+  or SNOMED. Receiving systems must agree mappings. The decoder resolves supported resource roles
+  by resource type, OAH profile, stable identifier and linked references, not fixed example IDs.
 - The installed `fhir.resources==7.1.0` validates **R4B base shapes**. Additional code checks selected
   pinned OAH R4 constraints, references, units, dates, patient identity and the application contract.
 - This is **not full HL7 R4 profile, terminology or invariant validation**, and not certification.
@@ -71,6 +80,14 @@ ClinCase case linking still requires an existing same-organization case and expl
 - Round-trip checks compare decoded native sample/history fields with the original. Imports archive
   the incoming bundle, but do not inherit its consent, verification, local patient or clinical review.
 - Collection imports never execute FHIR transactions or resolve arbitrary external references.
+- System B deliberately replaces all resource IDs and rewrites internal references on its return.
+  Round-trip proof compares sample fields, waterbody, source identity, exposure history and
+  provenance; resource IDs and package hashes are expected to differ.
+- `GET /fhir/metadata` describes the FHIR R4 facade. It supports authenticated Bundle create/read
+  and Bundle `$validate`; POST `/fhir/Bundle` stores a collection Bundle and does not execute a
+  transaction. POST `/fhir/Bundle/$validate` returns an OperationOutcome with HTTP 200 when the
+  resource is invalid. `/fhir/$validate` is retained as a convenience alias and is not advertised
+  as a standard system-level operation.
 - SHA-256 is content identification, **not a digital signature** or proof a laboratory issued a report.
 
 ## API and architecture
@@ -92,6 +109,11 @@ Frontend: `src/routes/OneHealth.tsx`, `src/onehealth/{api,Forms,ContextPanel}.ts
 | `GET /exposures/{id}/fhir` | Export and native-field round-trip check |
 | `POST /exchange/validate`, `/exchange/import` | Validate/preview and stage unverified evidence |
 | `POST /demo` | New labelled synthetic scenario, never automatically approved |
+
+Standards-facing FHIR R4 endpoints are mounted at the server root: `GET /fhir/metadata`,
+`POST /fhir/Bundle`, `GET /fhir/Bundle/{id}`, and `POST /fhir/Bundle/$validate`. Exchange requests
+use `Content-Type: application/fhir+json`. The API stores and validates this gateway's collection
+Bundle contract; it does not claim a generic FHIR transaction server or full OAH conformance.
 
 No PHI is sent to an LLM or third-party FHIR validator by this feature. It reuses existing bearer
 authentication and organisation IDs. All patient-linked routes require reviewer/admin. Frontend
@@ -171,7 +193,7 @@ flowchart TD
    suggestions** with the existing LLM provider configured. Only field names, the target allowlist
    and the Pydantic schema are sent. Provider errors are visible and never labelled AI success.
 3. Inspect rule/model origin, confidence score, unresolved terminology and suggested FHIR targets.
-   Accept each supported field, explicitly choose **Total arsenic - local code** only because
+   Accept each supported field, explicitly choose **Total arsenic - local text concept** only because
    the synthetic fixture represents that assay, and reject the unsupported legacy note. Unknown
    fields remain in the original source artifact. Edit targets through the field dropdowns.
 4. Generate the reviewed bundle. Existing exporter creates Location, Specimen, Observation,
@@ -217,8 +239,9 @@ The read aliases return the transaction snapshot, including the requested artifa
 require `job_id` and `expected_version`. Approval additionally requires `source_field`, with an
 optional supported `target` and explicit local analyte `concept`. Generation requires every
 mapping to be accepted or rejected; missing required assay metadata fails rather than being
-invented. JSON/CSV currently support one laboratory sample per package and two local arsenic
-analytes, with `ug/L` or `mg/L`; this is intentionally a narrow reliable path.
+invented. JSON/CSV currently support one laboratory sample per package and three internal arsenic
+concepts: dissolved uses its verified OAH code; total/inorganic remain local text because no OAH
+codes were verified. Supported units are `ug/L` and `mg/L`; this is intentionally narrow.
 
 ### Independent receiver and deployment
 
@@ -263,8 +286,9 @@ Unsupported raw fields stay in source storage and are not claimed to be native F
 AI uses the existing governed provider abstraction with tenant/correlation context. Suggestions
 are validated with strict Pydantic contracts and allowlisted targets; all remain pending review.
 Rule confidence is a fixed rule score, model confidence is a model-reported suggestion score,
-and neither is calibrated accuracy. Terminology is transparently local/unresolved; no verified
-LOINC, SNOMED CT, ICD or RxNorm mappings are invented. Consent and provenance are retained
+and neither is calibrated accuracy. Only dissolved arsenic has a verified OAH coding; total and
+inorganic arsenic remain local text concepts without external mappings. No LOINC, ICD or RxNorm
+arsenic mapping is asserted. Consent and provenance are retained
 claims, not digital signatures or independently authenticated external clinical approval.
 
 Synthetic fixtures are in `backend/data/interop`: messy environmental JSON, one-row laboratory

@@ -15,6 +15,7 @@ from app.interop import adapter, receiver, repository, service
 from app.interop.models import Job, Source
 from app.llm.base import LLMResponse
 from app.onehealth import fhir
+from app.onehealth.models import ExposureRecord, LabSample
 
 
 @pytest.fixture(autouse=True)
@@ -39,6 +40,73 @@ async def client():
 
 def source():
     return json.loads((Path(__file__).parents[2] / "data/interop/environmental.json").read_text())
+
+
+def semantic_content(bundle):
+    evidence = fhir.read_evidence(bundle)
+    sample = LabSample.model_validate(evidence["sample"])
+    roles = fhir._exchange_resources(bundle)
+    observation = roles["observation"]
+    specimen = roles["specimen"]
+    site = roles["site"]
+    return {
+        "source_record_identity": evidence["source_observation_id"],
+        "sample": sample.model_dump(mode="json"),
+        "location": site["name"],
+        "waterbody": evidence["waterbody_name"],
+        "laboratory": roles["laboratory"]["name"],
+        "specimen_relationship": {
+            "observation_resolves_specimen": fhir._resolve(
+                roles["index"], observation.get("specimen"), "Specimen"
+            )
+            == specimen,
+            "observation_and_specimen_share_location": fhir._resolve(
+                roles["index"], specimen.get("subject"), "Location"
+            )
+            == site
+            == fhir._resolve(roles["index"], observation.get("subject"), "Location"),
+        },
+        "provenance": sorted(
+            evidence["provenance"],
+            key=lambda row: (row["at"], row["actor_id"], row["action"]),
+        ),
+    }
+
+
+def rename_every_resource_id(bundle):
+    renamed = copy.deepcopy(bundle)
+    identity_map = {}
+    full_url_map = {}
+    for index, entry in enumerate(renamed["entry"]):
+        resource = entry["resource"]
+        old_id = resource["id"]
+        resource_type = resource["resourceType"]
+        new_id = f"renamed-{index:02d}-{resource_type.lower()}"
+        identity_map[f"{resource_type}/{old_id}"] = f"{resource_type}/{new_id}"
+        if entry.get("fullUrl"):
+            full_url_map[entry["fullUrl"]] = (
+                f"https://independent.example/fhir/{resource_type}/{new_id}"
+            )
+        resource["id"] = new_id
+    replacements = {**identity_map, **full_url_map}
+
+    def update_references(value):
+        if isinstance(value, dict):
+            if isinstance(value.get("reference"), str):
+                value["reference"] = replacements.get(value["reference"], value["reference"])
+            for nested in value.values():
+                update_references(nested)
+        elif isinstance(value, list):
+            for nested in value:
+                update_references(nested)
+
+    for entry in renamed["entry"]:
+        if entry.get("fullUrl"):
+            entry["fullUrl"] = full_url_map[entry["fullUrl"]]
+        update_references(entry["resource"])
+    renamed["id"] = "renamed-bundle-id"
+    update_references(renamed)
+    return renamed
 
 
 async def ready(c):
@@ -87,11 +155,124 @@ async def test_golden_path_and_return(client):
     assert r.status_code == 200, r.text
     returned = r.json()
     assert returned["lab_representation"]["sample"] == j["normalized"]
-    assert returned["returned_bundle"] == j["bundle"]
+    assert returned["returned_bundle"] != j["bundle"]
+    assert returned["roundtrip"]["status"] == "passed"
+    assert returned["roundtrip"]["resource_ids_reassigned"]
+    assert all(field["preserved"] for field in returned["roundtrip"]["fields"])
+    assert semantic_content(returned["returned_bundle"]) == semantic_content(j["bundle"])
+    assert semantic_content(j["bundle"])["source_record_identity"] == j["source"][
+        "original_record_id"
+    ]
+    assert all(semantic_content(returned["returned_bundle"])["specimen_relationship"].values())
+    assert returned["roundtrip"]["source_sha256"] != returned["roundtrip"]["returned_sha256"]
+    assert returned["lab_acknowledgement"]["correlation_id"] == j["transfers"][-1][
+        "correlation_id"
+    ]
     assert returned["lab_acknowledgement"]["status"] == "delivered"
     assert all(e["correlation_id"] == j["id"] for e in returned["job"]["events"])
     notes = returned["lab_representation"]["provenance"]
     assert "source_system" in notes[-1]["note"]
+
+
+def test_every_resource_id_can_change_when_references_follow():
+    original = fhir.export(
+        ExposureRecord(
+            organization_id="org-a",
+            observation_id="source-record-42",
+            waterbody_id="lake-7",
+            waterbody_name="Synthetic lake",
+            synthetic=True,
+            sample=LabSample(
+                sample_id="sample-91",
+                location_name="Synthetic site",
+                kind="stream",
+                laboratory="Synthetic lab",
+                collector="Synthetic collector",
+                report_reference="report-91",
+                method="Synthetic method",
+                collected_at="2026-09-27T10:00:00Z",
+                reported_at="2026-09-28T10:00:00Z",
+                value=18.2,
+                analyte="dissolved_arsenic",
+            ),
+        )
+    )
+    received = rename_every_resource_id(original)
+    assert fhir.validate(received)["valid"]
+    assert fhir.read_evidence(received) == fhir.read_evidence(original)
+    assert all(
+        entry["resource"]["id"].startswith("renamed-") for entry in received["entry"]
+    )
+
+
+async def test_generic_arsenic_cannot_be_assigned_dissolved_by_reviewer(client):
+    c, _, _ = client
+    created = await c.post("/interop/demo", json={})
+    job = created.json()
+    analyzed = await c.post(
+        "/interop/analyze-schema",
+        json={"job_id": job["id"], "expected_version": job["version"]},
+    )
+    job = analyzed.json()
+    generic = next(m for m in job["mappings"] if m["source_field"] == "arsenic")
+    assert generic["decision"] == "pending"
+    assert generic["concept"] is None
+    assert generic["source_field"] in job["schema"]["ambiguities"]
+    rejected = await c.post(
+        f"/interop/mappings/{job['id']}/approve",
+        json={
+            "job_id": job["id"],
+            "expected_version": job["version"],
+            "source_field": "arsenic",
+            "concept": "dissolved_arsenic",
+        },
+    )
+    assert rejected.status_code == 422
+    assert (await c.post(
+        "/interop/generate-fhir",
+        json={"job_id": job["id"], "expected_version": job["version"]},
+    )).status_code == 409
+    assert (await c.post(
+        "/interop/transfer",
+        json={"job_id": job["id"], "expected_version": job["version"]},
+    )).status_code == 409
+
+
+async def test_explicit_dissolved_field_uses_verified_oah_coding():
+    payload = json.loads(
+        (Path(__file__).parents[2] / "data/interop/environmental-dissolved.json").read_text()
+    )
+    job = Job(
+        organization_id="org-a",
+        source=Source(
+            source_system="Synthetic Lab",
+            original_record_id="source-dissolved-1",
+            payload=payload,
+            synthetic=True,
+        ),
+    )
+    await service.analyze(job, False)
+    analyte_mapping = next(m for m in job.mappings if m.source_field == "arsenic_dissolved")
+    assert analyte_mapping.concept == "dissolved_arsenic"
+    assert analyte_mapping.terminology_status == "oah_verified_preferred"
+    for mapping in job.mappings:
+        mapping.decision = "accepted" if mapping.target else "rejected"
+        mapping.reviewer = "human-reviewer"
+    record = service.normalize(job)
+    assert isinstance(record, ExposureRecord)
+    observation = next(
+        item["resource"]
+        for item in fhir.export(record)["entry"]
+        if item["resource"]["resourceType"] == "Observation"
+    )
+    assert observation["code"]["coding"] == [
+        {
+            "system": "http://hl7.eu/fhir/ig/oah/CodeSystem/temporarySystem-oah-eu",
+            "code": "arsenic-dissolved",
+            "display": "Arsenic dissolved",
+        }
+    ]
+    assert service.validate(fhir.export(record))["valid"]
 
 
 @pytest.mark.parametrize(
@@ -121,9 +302,12 @@ async def test_broken_contracts(client, failure):
     elif failure == "provenance":
         b["entry"] = [e for e in entries if e["resource"]["resourceType"] != "Provenance"]
     else:
-        o["code"]["coding"][0]["system"] = "http://loinc.org"
+        o["code"] = {"coding": [{"system": "http://loinc.org", "code": "unknown"}]}
     j = await cmd("validate", bundle=b)
     assert not j["validation"]["valid"]
+    assert j["validation"]["operation_outcome"]["resourceType"] == "OperationOutcome"
+    if failure == "unit":
+        assert j["validation"]["operation_outcome"]["issue"][0]["severity"] == "error"
     r = await c.post(
         "/interop/transfer", json={"job_id": j["id"], "expected_version": j["version"]}
     )
@@ -228,6 +412,50 @@ async def test_real_model_adapter_typed_output(monkeypatch):
     assert j.mappings[0].origin == "ai_suggested"
     assert j.mappings[0].decision == "pending"
     assert j.mappings[0].confidence == 0.4
+
+
+async def test_model_cannot_assign_analyte_concept_or_terminology_code(monkeypatch):
+    import app.llm
+
+    class InventingModel:
+        async def complete(self, **kwargs):
+            return LLMResponse(
+                text=json.dumps(
+                    {
+                        "mappings": [
+                            {
+                                "source_field": "arsenic",
+                                "target": "value",
+                                "confidence": 1,
+                                "reason": "Invented speciation",
+                                "concept": "inorganic_arsenic",
+                                "code": "arsenic-inorganic",
+                            }
+                        ]
+                    }
+                ),
+                model_id="malicious-test-model",
+                input_tokens=1,
+                output_tokens=1,
+                stop_reason="end",
+            )
+
+    monkeypatch.setattr(app.llm, "get_llm_client", lambda: InventingModel())
+    job = Job(
+        organization_id="org-a",
+        source=Source(
+            source_system="Synthetic lab",
+            original_record_id="source-generic-arsenic",
+            payload={"arsenic": 18.2},
+            synthetic=True,
+        ),
+    )
+    await service.analyze(job, True)
+    mapping = job.mappings[0]
+    assert job.ai_status.startswith("model_failed")
+    assert mapping.concept is None
+    assert mapping.decision == "pending"
+    assert mapping.terminology_status == "unresolved"
 
 
 async def test_receiver_auth_and_tenant(client):

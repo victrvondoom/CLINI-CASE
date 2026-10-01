@@ -1,0 +1,80 @@
+{
+  "recorded_on": "2026-10-01",
+  "status": "NOT_RUN",
+  "fhir_version": "4.0.1",
+  "oah_ig": {
+    "package": "hl7.eu.fhir.oah#0.1.0-ci-build",
+    "source_commit": "b907cf0869b59d82d9138b3d147fca66f333d911",
+    "publication_status": "draft CI build; not an authorized publication",
+    "immutable_package_sha256": null
+  },
+  "validator": {
+    "name": "official HL7 validator_cli.jar",
+    "version": "6.10.4 (recorded by an earlier core-only run; not installed in this verification)",
+    "java_runtime": "missing",
+    "validator_artifact_present": false
+  },
+  "command_executed": null,
+  "command_template": "python scripts/export_track7_validator_bundle.py; java -jar .cache/track7/validator_cli.jar .cache/track7/oah-validation-bundle.json -version 4.0.1 -ig .cache/track7/hl7.eu.fhir.oah-0.1.0-ci-build.tgz -tx n/a -output .cache/track7/oah-validation-outcome.json",
+  "local_application_validation": {
+    "status": "PASS",
+    "scope": "FHIR R4B base models plus explicit partial OAH and CLINI-CASE contract checks; not full profile validation",
+    "synthetic_bundle_sha256": "547a879a8f0276b500e7ffcf5b14c6add4e9bd7c769ff2ca670a4dd9a58a88f4",
+    "bundle_export_command": "python scripts/export_track7_validator_bundle.py",
+    "tests": {
+      "backend_full_suite_passed": 540,
+      "backend_full_suite_deselected": 105,
+      "onehealth_and_interop_passed": 75,
+      "frontend_passed": 111,
+      "frontend_test_files_passed": 23
+    },
+    "frontend_production_build": "PASS",
+    "ruff_check_app_tests": "PASS",
+    "warnings": [
+      "Starlette reports PendingDeprecationWarning recommending python_multipart; no test failed."
+    ]
+  },
+  "network_interoperability": {
+    "status": "PASS",
+    "command": "python backend/scripts/track7_network_demo.py",
+    "receiver_url": "http://127.0.0.1:8091",
+    "separate_api_and_receiver_processes": true,
+    "http_transfer_and_return": true,
+    "receiver_reassigned_resource_ids_and_rewrote_references": true,
+    "semantic_roundtrip": {
+      "status": "passed",
+      "fields_preserved": 13,
+      "fields_total": 13
+    },
+    "fail_closed_invalid_unit_demo": "PASS"
+  },
+  "external_hl7_oah_validation": {
+    "status": "NOT_RUN",
+    "errors": null,
+    "warnings": null,
+    "information": null,
+    "reason": [
+      "Java runtime and validator JAR are unavailable in the current environment.",
+      "The pinned OAH CI package archive was not available from the checked package and guide endpoints; those requests returned HTTP 404.",
+      "A passing application-level validation is not a substitute for full OAH profile validation."
+    ]
+  },
+  "terminology_validation": {
+    "status": "NOT_RUN",
+    "errors": null,
+    "warnings": null,
+    "reason": "No terminology service was configured; the documented CLI template uses -tx n/a."
+  },
+  "prior_core_only_record": {
+    "path": "backend/data/interop/validation/summary.json",
+    "validator": "official HL7 validator_cli 6.10.4",
+    "status": "WARNING",
+    "errors": 0,
+    "warnings": 22,
+    "information": 7,
+    "applies_to_current_bundle": false,
+    "oah_package_loaded": false,
+    "terminology_enabled": false
+  },
+  "certified": false
+}

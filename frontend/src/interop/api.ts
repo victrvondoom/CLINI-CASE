@@ -23,6 +23,13 @@ export interface Job {
   exposure_id?: string | null;
   exposure_version?: number | null;
   mapping_mode?: string;
+  semantic_firewall?: {
+    status: string;
+    ai_authority: string;
+    ai_input: string;
+    ambiguous_fields: string[];
+    blocked_inferences: string[];
+  };
   trust_states?: string[];
   passport_integrity?: {
     valid: boolean;
@@ -59,7 +66,13 @@ export interface Job {
           fields_total: number;
           sample_preserved: boolean;
           history_preserved?: boolean;
+          waterbody_preserved?: boolean;
           trust_policy?: string;
+          status?: string;
+          resource_ids_reassigned?: boolean;
+          source_sha256?: string;
+          returned_sha256?: string;
+          fields?: { field: string; preserved: boolean }[];
         };
       })
     | null;
@@ -72,7 +85,16 @@ export interface Job {
     error?: string;
     acknowledgement?: {
       resources_acknowledged: number;
+      resource_ids_reassigned?: boolean;
+      returned_sha256?: string;
       representation: unknown;
+    };
+    roundtrip?: {
+      status: string;
+      fields_preserved: number;
+      fields_total: number;
+      resource_ids_reassigned: boolean;
+      fields: { field: string; preserved: boolean }[];
     };
   }[];
   events: {

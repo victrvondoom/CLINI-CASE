@@ -1,0 +1,252 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: clincase-track7-demo
+  namespace: clincase-demo
+data:
+  ENVIRONMENT: dev
+  REDIS_URL: ""
+  CORS_ORIGINS: http://localhost:5173
+  INTEROP_RECEIVER_URL: http://receiver:8091
+  INTEROP_RECEIVER_DB: /data/receipts.sqlite
+  TRACK7_DEMO_DB: ""
+  SEED_ON_BOOT: "false"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: clincase-demo
+spec:
+  selector:
+    app: postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: clincase-demo
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: pgvector/pgvector:pg16
+          env:
+            - name: POSTGRES_USER
+              value: clincase
+            - name: POSTGRES_DB
+              value: clincase
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: clincase-track7-demo-secrets
+                  key: POSTGRES_PASSWORD
+          ports:
+            - name: postgres
+              containerPort: 5432
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U clincase -d clincase"]
+            periodSeconds: 5
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+            - name: schema
+              mountPath: /docker-entrypoint-initdb.d
+              readOnly: true
+      volumes:
+        - name: schema
+          configMap:
+            name: clincase-track7-demo-schema
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: receiver
+  namespace: clincase-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: receiver
+  template:
+    metadata:
+      labels:
+        app: receiver
+    spec:
+      containers:
+        - name: receiver
+          image: clincase-api:demo
+          imagePullPolicy: Never
+          command: ["uvicorn", "app.interop.receiver:app", "--host", "0.0.0.0", "--port", "8091"]
+          env:
+            - name: INTEROP_RECEIVER_DB
+              value: /data/receipts.sqlite
+            - name: INTEROP_RECEIVER_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: clincase-track7-demo-secrets
+                  key: INTEROP_RECEIVER_TOKEN
+          ports:
+            - name: http
+              containerPort: 8091
+          readinessProbe:
+            httpGet:
+              path: /docs
+              port: 8091
+          volumeMounts:
+            - name: receiver-data
+              mountPath: /data
+      volumes:
+        - name: receiver-data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: receiver
+  namespace: clincase-demo
+spec:
+  selector:
+    app: receiver
+  ports:
+    - name: http
+      port: 8091
+      targetPort: 8091
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: clincase-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: pgvector/pgvector:pg16
+          command: ["sh", "-c", "until pg_isready -h postgres -U clincase -d clincase; do sleep 2; done"]
+          env:
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: clincase-track7-demo-secrets
+                  key: POSTGRES_PASSWORD
+      containers:
+        - name: api
+          image: clincase-api:demo
+          imagePullPolicy: Never
+          envFrom:
+            - configMapRef:
+                name: clincase-track7-demo
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: clincase-track7-demo-secrets
+                  key: DATABASE_URL
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: clincase-track7-demo-secrets
+                  key: JWT_SECRET
+            - name: INTEROP_RECEIVER_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: clincase-track7-demo-secrets
+                  key: INTEROP_RECEIVER_TOKEN
+          ports:
+            - name: http
+              containerPort: 8000
+          readinessProbe:
+            httpGet:
+              path: /api/v1/healthz
+              port: 8000
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /api/v1/healthz
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api
+  namespace: clincase-demo
+spec:
+  selector:
+    app: api
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: clincase-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: clincase-web:demo
+          imagePullPolicy: Never
+          ports:
+            - name: http
+              containerPort: 5173
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 5173
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: clincase-demo
+spec:
+  selector:
+    app: frontend
+  ports:
+    - name: http
+      port: 5173
+      targetPort: 5173

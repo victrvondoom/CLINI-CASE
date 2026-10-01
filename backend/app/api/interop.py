@@ -39,7 +39,12 @@ def view(j: Job) -> dict[str, Any]:
         "analyte",
         "waterbody_name",
     }
-    if any(m.source_field.lower() == "arsenic" and m.concept for m in j.mappings):
+    if any(
+        m.source_field.strip().lower().replace(" ", "_")
+        in {"arsenic", "arsenic_dissolved", "total_arsenic", "inorganic_arsenic"}
+        and (m.concept or m.source_field.strip().lower() != "arsenic")
+        for m in j.mappings
+    ):
         mapped.add("analyte")
     data["schema"] = {
         "fields": [{"name": k, "detected_type": type(v).__name__} for k, v in j.fields.items()],
@@ -70,10 +75,29 @@ def view(j: Job) -> dict[str, Any]:
     data["trust_states"] = service.trust_states(j)
     data["passport_integrity"] = passport.verify(j.model_dump(mode="json"))
     data["mapping_mode"] = (
-        "AI-assisted mapping"
+        "AI suggestions; human approval required"
         if j.ai_status.startswith("model_suggestions_received")
         else "Deterministic reference mapping"
     )
+    data["semantic_firewall"] = {
+        "status": "review_required"
+        if any(m.decision == "pending" for m in j.mappings)
+        else "review_complete"
+        if j.mappings
+        else "not_started",
+        "ai_authority": "Suggest allowlisted field targets only; AI cannot assign analyte concepts or approve mappings.",
+        "ai_input": "Source field names and the target allowlist; no measurements or patient context.",
+        "ambiguous_fields": [
+            m.source_field
+            for m in j.mappings
+            if m.source_field.strip().lower() == "arsenic" and not m.concept
+        ],
+        "blocked_inferences": [
+            "A generic arsenic label cannot establish total versus inorganic arsenic.",
+            "Dissolved arsenic does not establish inorganic speciation.",
+            "A human-approved mapping does not verify a laboratory result or establish health causation.",
+        ],
+    }
     data["terminology"] = [
         adapters.LocalArsenicTerminology().resolve(code)
         for code in {m.concept for m in j.mappings if m.concept}
@@ -119,14 +143,18 @@ async def ingest(payload: Source, user: dict[str, Any] = Depends(reviewer)) -> d
 
 
 @router.post("/demo", status_code=201)
-async def demo(user: dict[str, Any] = Depends(reviewer)) -> dict[str, Any]:
+async def demo(
+    variant: Literal["ambiguous", "dissolved"] = "ambiguous",
+    user: dict[str, Any] = Depends(reviewer),
+) -> dict[str, Any]:
+    filename = "environmental-dissolved.json" if variant == "dissolved" else "environmental.json"
     payload = json.loads(
-        (Path(__file__).parents[2] / "data" / "interop" / "environmental.json").read_text()
+        (Path(__file__).parents[2] / "data" / "interop" / filename).read_text()
     )
     return await ingest(
         Source(
             source_system="Synthetic Environmental Lab A",
-            original_record_id="SYN-AS-001",
+            original_record_id="SYN-AS-DISS-001" if variant == "dissolved" else "SYN-AS-001",
             payload=payload,
             synthetic=True,
         ),
@@ -189,9 +217,16 @@ async def decide(
             raise HTTPException(422, "Choose a supported target; unknown fields may be rejected")
         m.target = target
         m.fhir_target = TARGETS[target]
+        if m.source_field.strip().lower().replace(" ", "_") == "arsenic" and payload.concept not in (
+            "total_arsenic",
+            "inorganic_arsenic",
+        ):
+            raise HTTPException(422, "Generic arsenic requires explicit total or inorganic review")
         if payload.concept:
             m.concept = payload.concept
-            m.terminology_status = "local_code"
+            m.terminology_status = adapters.LocalArsenicTerminology().resolve(payload.concept)[
+                "status"
+            ].lower()
         if m.source_field.strip().lower() == "arsenic" and not m.concept:
             raise HTTPException(422, "Explicitly confirm total or inorganic arsenic")
     m.decision = decision
@@ -237,17 +272,22 @@ async def generate(payload: Command, user: dict[str, Any] = Depends(reviewer)) -
         raise HTTPException(409, "Exchange disabled after consent withdrawal")
     if j.exposure_id:
         j.exposure_version = record.version
-    j.normalized = record.sample.model_dump(mode="json")
+    normalized = record.sample.model_dump(mode="json")
+    j.normalized = normalized
     j.bundle = adapters.OAHFHIRAdapter().generate(record)
     j.validation = service.validate(j.bundle)
     decoded = fhir.read_evidence(j.bundle)
-    preserved = [k for k, v in j.normalized.items() if decoded["sample"].get(k) == v]
+    preserved = [k for k, v in normalized.items() if decoded["sample"].get(k) == v]
     j.validation["roundtrip"] = {
         "fields_preserved": len(preserved),
-        "fields_total": len(j.normalized),
-        "sample_preserved": decoded["sample"] == j.normalized,
+        "fields_total": len(normalized),
+        "sample_preserved": decoded["sample"] == normalized,
+        "waterbody_preserved": decoded["waterbody_name"] == record.waterbody_name,
     }
-    if not j.validation["roundtrip"]["sample_preserved"]:
+    if not (
+        j.validation["roundtrip"]["sample_preserved"]
+        and j.validation["roundtrip"]["waterbody_preserved"]
+    ):
         raise HTTPException(422, "Round-trip preservation failed")
     service.event(
         j,
@@ -365,9 +405,62 @@ async def returned(payload: Command, user: dict[str, Any] = Depends(reviewer)) -
     validation = service.validate(received["bundle"])
     if not validation["valid"]:
         raise HTTPException(422, validation)
-    if validation["sha256"] != fhir.digest(j.bundle):
-        raise HTTPException(409, "Returned package does not match the delivered bundle")
+    original = fhir.read_evidence(j.bundle)
     decoded = fhir.read_evidence(received["bundle"])
+    expected_observation_id = j.source.original_record_id
+    if j.exposure_id:
+        expected_observation_id = (await exposures.get(j.organization_id, j.exposure_id)).observation_id
+    semantic_fields = [
+        {
+            "field": key,
+            "preserved": original["sample"].get(key)
+            == decoded["sample"].get(key)
+            == (j.normalized or {}).get(key),
+        }
+        for key in LabSample.model_fields
+    ]
+    semantic_fields.extend(
+        [
+            {
+                "field": "waterbody_name",
+                "preserved": original["waterbody_name"] == decoded["waterbody_name"],
+            },
+            {
+                "field": "source_observation_id",
+                "preserved": original["source_observation_id"]
+                == decoded["source_observation_id"]
+                == expected_observation_id,
+            },
+            {"field": "exposure_history", "preserved": original["history"] == decoded["history"]},
+            {"field": "provenance", "preserved": original["provenance"] == decoded["provenance"]},
+        ]
+    )
+    original_ids = {
+        (entry["resource"]["resourceType"], entry["resource"]["id"])
+        for entry in j.bundle.get("entry", [])
+    }
+    returned_ids = {
+        (entry["resource"]["resourceType"], entry["resource"]["id"])
+        for entry in received["bundle"].get("entry", [])
+    }
+    ids_reassigned = (
+        len(original_ids) == len(returned_ids) == len(j.bundle.get("entry", []))
+        and not original_ids.intersection(returned_ids)
+        and received.get("resource_ids_reassigned") is True
+    )
+    roundtrip = {
+        "status": "passed"
+        if all(field["preserved"] for field in semantic_fields) and ids_reassigned
+        else "failed",
+        "fields": semantic_fields,
+        "fields_preserved": sum(field["preserved"] for field in semantic_fields),
+        "fields_total": len(semantic_fields),
+        "resource_ids_reassigned": ids_reassigned,
+        "source_sha256": fhir.digest(j.bundle),
+        "returned_sha256": validation["sha256"],
+    }
+    if roundtrip["status"] != "passed":
+        raise HTTPException(409, "Returned FHIR failed semantic round-trip verification")
     try:
         lab_ack = await adapter.exchange(
             user["organization_id"], correlation, received["bundle"], destination="lab"
@@ -377,7 +470,7 @@ async def returned(payload: Command, user: dict[str, Any] = Depends(reviewer)) -
     if (
         lab_ack.get("sha256") != validation["sha256"]
         or lab_ack.get("status") != "delivered"
-        or lab_ack.get("correlation_id") != "lab-" + correlation
+        or lab_ack.get("correlation_id") != correlation
         or lab_ack.get("resources_acknowledged") != len(received["bundle"]["entry"])
     ):
         raise HTTPException(502, "Lab A return acknowledgement mismatch")
@@ -386,8 +479,18 @@ async def returned(payload: Command, user: dict[str, Any] = Depends(reviewer)) -
         "return_exchange_validated",
         "external-adapter",
         sha256=validation["sha256"],
-        sample_preserved=decoded["sample"] == j.normalized,
+        sample_preserved=all(field["preserved"] for field in semantic_fields),
+        resource_ids_reassigned=ids_reassigned,
+        source_sha256=roundtrip["source_sha256"],
+        returned_sha256=roundtrip["returned_sha256"],
     )
+    saved_validation = dict(j.validation or {})
+    saved_validation["roundtrip"] = roundtrip
+    j.validation = saved_validation
+    for transfer in reversed(j.transfers):
+        if transfer.get("status") == "delivered" and transfer.get("sha256") == fhir.digest(j.bundle):
+            transfer["roundtrip"] = roundtrip
+            break
     saved = await repository.save(j, j.version)
     return {
         "job": view(saved),
@@ -395,6 +498,7 @@ async def returned(payload: Command, user: dict[str, Any] = Depends(reviewer)) -
         "lab_representation": decoded,
         "receiver_representation": received["representation"],
         "validation": validation,
+        "roundtrip": roundtrip,
         "lab_acknowledgement": lab_ack,
     }
 
