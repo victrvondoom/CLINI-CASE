@@ -26,6 +26,7 @@ AgentContext.WorkingMemory and the AgentTrace.
 
 from __future__ import annotations
 
+import contextlib
 import time
 import uuid
 from abc import ABC
@@ -231,10 +232,8 @@ class Agent(ABC, Generic[I, O]):
             attributes=attrs,
         ) as otel_span:
             result = await self._invoke_inner(input, ctx=ctx)
-            try:
+            with contextlib.suppress(Exception):  # telemetry must never affect the run
                 otel_span.set_attribute("clincase.agent_status", str(getattr(result, "status", "")))
-            except Exception:  # noqa: BLE001 - telemetry must never affect the run
-                pass
             return result
 
     async def _invoke_inner(self, input: I, *, ctx: AgentContext) -> AgentResult[O]:
