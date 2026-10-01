@@ -257,7 +257,10 @@ export default function CaseDetail() {
             <CaseEconomicsStrip caseId={caseId} refreshKey={1} />
           )}
 
-          {result && <CaseTwinPanel caseId={caseId} />}
+          {/* Show the audit twin for any case that has been decided/reviewed, not only after a run in this session. */}
+          {(result || (caseInfo && ["approved", "denied", "referred", "awaiting_review", "failed"].includes(caseInfo.status))) && (
+            <CaseTwinPanel caseId={caseId} />
+          )}
 
           {result && (
             <AuditLogViewer

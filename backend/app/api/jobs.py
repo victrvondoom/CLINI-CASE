@@ -179,6 +179,10 @@ async def run_full_async(
                 status_code=503, detail="Run registry unavailable; the job was not queued."
             ) from exc
         payload["run"] = new_run.to_payload()
+        from app.observability.otel import current_traceparent
+
+        if (tp := current_traceparent()) is not None:
+            payload["traceparent"] = tp
 
     try:
         job = await jq.enqueue(

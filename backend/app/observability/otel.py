@@ -246,3 +246,36 @@ def inject_traceparent_into_headers(headers: dict[str, str]) -> dict[str, str]:
         return out
     except Exception:  # noqa: BLE001
         return headers
+
+
+def current_traceparent() -> str | None:
+    """W3C `traceparent` of the active span (to ride in a queue payload), or None when OTel is off/inactive."""
+    if not is_enabled():
+        return None
+    try:
+        from opentelemetry import propagate
+
+        carrier: dict[str, str] = {}
+        propagate.inject(carrier)
+        return carrier.get("traceparent")
+    except Exception:  # noqa: BLE001 - telemetry must never break the request
+        return None
+
+
+@contextmanager
+def restored_trace_context(traceparent: str | None) -> Iterator[None]:
+    """Run the body as a child of the producer's trace (worker side). No-op without OTel or a traceparent."""
+    if not traceparent or not is_enabled():
+        yield
+        return
+    try:
+        from opentelemetry import context, propagate
+
+        token = context.attach(propagate.extract({"traceparent": traceparent}))
+    except Exception:  # noqa: BLE001
+        yield
+        return
+    try:
+        yield
+    finally:
+        context.detach(token)
