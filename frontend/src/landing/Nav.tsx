@@ -53,6 +53,7 @@ export default function Nav() {
         <a href="#how-it-works" className="aperture-nav-link">How it works</a>
         <a href="#live-status" className="aperture-nav-link">Live status</a>
         <a href="#metrics" className="aperture-nav-link">Metrics</a>
+        <Link to="/interop" className="aperture-nav-link">Interop Gateway - Track 7</Link>
         <Link to="/onehealth" className="aperture-nav-link">One Health · Track 7</Link>
 
         <button

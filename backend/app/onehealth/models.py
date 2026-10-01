@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
@@ -125,4 +125,12 @@ class ExposureRecord(StrictModel):
     case_id: str | None = None
     followup_evidence_reference: str | None = None
     audit: list[AuditEvent] = Field(default_factory=list)
-    incoming_bundle: dict | None = None
+    incoming_bundle: dict[str, Any] | None = None
+    gateway_job_id: str | None = None
+    retest_of: str | None = None
+    successor_id: str | None = None
+    passport: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class RetestRequest(Attestation):
+    sample: LabSample

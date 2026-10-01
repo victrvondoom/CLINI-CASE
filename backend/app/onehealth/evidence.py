@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from typing import Any
 
 from app.onehealth.models import ExposureRecord
 
@@ -13,7 +14,7 @@ NOTICE = (
 )
 
 
-def assess(record: ExposureRecord) -> dict:
+def assess(record: ExposureRecord) -> dict[str, Any]:
     h = record.history
     gates = [
         ("laboratory", "Laboratory evidence verified by a reviewer", record.lab_verified),
@@ -83,7 +84,7 @@ def assess(record: ExposureRecord) -> dict:
     }
 
 
-def ablation(record: ExposureRecord) -> list[dict]:
+def ablation(record: ExposureRecord) -> list[dict[str, Any]]:
     """Remove one evidence dependency at a time on copies; never change stored evidence."""
     rows = []
     for gate in assess(record)["gates"]:
@@ -110,3 +111,56 @@ def ablation(record: ExposureRecord) -> list[dict]:
             }
         )
     return rows
+
+
+def ceiling(record: ExposureRecord) -> dict[str, Any]:
+    """Strongest supported use is computed from the same six gates used for review."""
+    result = assess(record)
+    level = "unverified_laboratory_report"
+    allowed = "A submitted measurement exists; independent laboratory verification is required."
+    if record.lab_verified:
+        level = "verified_sample_context"
+        allowed = "Describe this verified sample at its documented site and time. Historical personal dose is not established."
+    if result["eligible_for_review"]:
+        level = "human_review_eligible"
+        allowed = "All six evidence gates support human review of the documented exposure context."
+    if result["state"] == "reviewed_exposure_context":
+        level = "reviewed_exposure_context"
+        allowed = (
+            "A reviewer has accepted the documented exposure context for consented clinical review."
+        )
+    if record.consent_withdrawn:
+        level = "sharing_withdrawn"
+        allowed = (
+            "Retain historical audit evidence; clinical sharing and new exchanges are blocked."
+        )
+    return {
+        "level": level,
+        "allowed": allowed,
+        "missing_gates": [g["label"] for g in result["gates"] if not g["passed"]],
+        "not_allowed": [
+            "A citizen photo cannot identify arsenic or its concentration.",
+            "Infer cancer, cardiovascular disease, individual disease probability or causality.",
+            "Certify drinking-water safety or infer historical dose from one measurement.",
+            "Treat total arsenic as measured inorganic arsenic dose.",
+        ],
+    }
+
+
+def trust_states(record: ExposureRecord) -> list[str]:
+    states = ["IMPORTED" if record.incoming_bundle else "RAW"]
+    if record.lab_verified:
+        states.append("VERIFIED")
+    if assess(record)["eligible_for_review"]:
+        states.append("CLINICAL_REVIEW_ELIGIBLE")
+    if assess(record)["state"] == "reviewed_exposure_context":
+        states.append("CLINICAL_REVIEWED")
+    if record.followup_status != "completed":
+        states.append("FOLLOWUP_REQUIRED")
+    if record.retest_of:
+        states.append("RETESTED")
+    if record.successor_id:
+        states.append("SUPERSEDED")
+    if record.consent_withdrawn:
+        states.append("WITHDRAWN")
+    return states

@@ -4,8 +4,9 @@
 **Supporting:** Track 3 — AI-Supported Assessment.
 **Entry:** `/onehealth` (reviewer/admin); citizen workflow remains `/aquahealth`.
 
-The team states that the existing platform was also built during the hackathon. This is an
-additive integration, not a replacement project. All existing routes and clinical models remain.
+This Track 7 upgrade adds an interoperability gateway to the existing CLINI-CASE platform.
+It does not claim that the entire repository was created during this hackathon. Existing
+oncology, OncoTwin, CardioTwin, AquaHealth and `/onehealth` workflows remain intact.
 
 ## Problem and intended impact
 
@@ -44,31 +45,13 @@ a complete water-safety certificate. Stream/source-water samples do not receive 
 Results below a reporting limit are not treated as exact values. Total arsenic is not silently
 converted to inorganic-arsenic dose. No personal cancer-risk calculator is implemented.
 
-## Four-minute demo script
+## Unified demo and closed loop
 
-1. **0:00–0:30 — problem:** open `/onehealth`; explain the water-to-clinical evidence gap and select
-   **Start synthetic journey**. The citizen observation and lab result are clearly synthetic.
-2. **0:30–1:15 — trust:** inspect the report and evidence gates. Add a reviewer note and verify the
-   laboratory report. Select a synthetic patient, enter a synthetic consent reference, document
-   drinking-water use and treatment. Choose dates spanning the sample collection. Save history.
-3. **1:15–2:00 — human authority:** record clinical review. Open OncoTwin's evidence tab and the
-   CardioTwin context panel. CAD inputs remain an independent scenario, not auto-matched to the
-   exposure patient. Existing model probabilities are unchanged.
-4. **2:00–2:45 — interoperability:** export/check the FHIR collection. Inspect native resources,
-   the pinned draft contract, SHA-256 digest and sample/history round-trip checks. Change a unit
-   code to `ppm`; validation must reject it. Re-export before proceeding.
-5. **2:45–3:20 — adversarial evidence:** open Evidence challenge. Each missing dependency withholds
-   clinical eligibility. Explain why a nearby address or a stream photo is insufficient.
-6. **3:20–4:00 — close the loop:** record investigation/retest follow-up. Stage a FHIR import;
-   the new record remains unverified and unlinked until local consent is recorded. Demonstrate
-   consent withdrawal on the original: patient-context queries exclude it and clinical export
-   is blocked. Previously downloaded files cannot be recalled by this prototype.
+Use [DEMO_RUNBOOK.md](DEMO_RUNBOOK.md). `/onehealth` leads the submission; `/interop` demonstrates the standards boundary. The homepage and navigation present a single evidence journey while preserving all platform routes and calculations.
 
-ClinCase case linking requires a running clinical database and an existing case in the same
-organisation. The workbench loads candidates dynamically and requires explicit reviewer
-attestation of patient identity; the current ClinCase case schema has no shared machine-readable
-patient identifier, so the application cannot independently prove that identity match. Linking
-is disabled in the volatile DB-less demo and must not be presented as a live payer submission.
+New retests are separate immutable samples linked to their predecessor. Saving a retest atomically closes the original environmental Task and creates a successor with verification/review reset and no inherited exposure history. The reviewer must freshly verify the report and attest consent/pathway context. The journey computes comparable measurement change; it does not infer health improvement.
+
+ClinCase case linking still requires an existing same-organization case and explicit identity attestation. OncoTwin and CardioTwin connections are evidence context; their models and clinical conclusions are unchanged.
 
 ## FHIR contract and validation boundaries
 
@@ -148,3 +131,179 @@ Full R4/OAH terminology validation; institutional lab identity/signatures; a rea
 patient identity reconciliation; retention and remote revocation policy; field-study evaluation;
 clinical validation and regulatory review. Existing real-patient ingestion and clinical-database
 availability determine whether non-synthetic cross-module use is possible.
+
+
+## Newly added: One Health Interoperability Gateway
+
+**Positioning:** An evidence-aware One Health interoperability gateway that converts
+heterogeneous environmental, laboratory and health observations into validated OAH/FHIR
+exchanges while preserving provenance, consent and human review.
+
+The `/interop` route is the new judge-facing workbench. `/onehealth` remains the clinical
+evidence workflow. The new code lives in `backend/app/interop`, `backend/app/api/interop.py`,
+`frontend/src/interop` and `frontend/src/routes/Interop.tsx`; it reuses existing One Health
+FHIR export, validation, decoding, evidence logic and reviewer authorization.
+
+```mermaid
+flowchart TD
+    A[System A: heterogeneous synthetic JSON / CSV / FHIR] --> S[Schema discovery]
+    S --> M[Pinned aliases + optional governed AI semantic suggestions]
+    M --> H[Human mapping review: accept / edit / reject]
+    H --> N[Strict LabSample normalization]
+    N --> F[Existing OAH / FHIR native resource exporter]
+    F --> V[Contract validation + provenance + consent + round trip]
+    V --> HTTP[Explicit HTTP adapter]
+    HTTP --> B[System B: independent receiver ASGI app]
+    B --> DB[Separate tenant-scoped SQLite receipts]
+    B --> ACK[Content hash + resource acknowledgement]
+    B --> R[Return common FHIR package]
+    R --> RV[Gateway validates return]
+    RV --> LAB[System A lab HTTP receiver + native lab representation]
+    V --> E[Six evidence gates: local approval remains pending]
+```
+
+### Continuous golden-path demo
+
+1. Sign in as a reviewer/admin and open `/interop`. Select **Start Track 7 Interoperability Demo**.
+   This imports a clearly synthetic external laboratory record with mixed field names.
+2. Select **Analyze schema and propose mappings**. Offline mode uses deterministic rules and
+   explicitly says that no model was called. To exercise real AI, enable **Request model semantic
+   suggestions** with the existing LLM provider configured. Only field names, the target allowlist
+   and the Pydantic schema are sent. Provider errors are visible and never labelled AI success.
+3. Inspect rule/model origin, confidence score, unresolved terminology and suggested FHIR targets.
+   Accept each supported field, explicitly choose **Total arsenic - local code** only because
+   the synthetic fixture represents that assay, and reject the unsupported legacy note. Unknown
+   fields remain in the original source artifact. Edit targets through the field dropdowns.
+4. Generate the reviewed bundle. Existing exporter creates Location, Specimen, Observation,
+   Organization, PractitionerRole, environmental Task, QuestionnaireResponse and transformation
+   Provenance/actor. No Patient or Consent is invented for a patient-free laboratory record.
+5. Inspect validation, SHA-256 and measured native-field round-trip counts. Transfer to independent
+   Clinical System B. It receives serialized FHIR through HTTP, validates it again, stores its own
+   package and native representation, and acknowledges the exact hash and resource count.
+6. Select **Return FHIR/OAH from System B to Lab A**. The gateway retrieves FHIR through HTTP,
+   validates it and sends it to the lab receiver namespace over HTTP. Both native representations,
+   the returned bundle and the lab acknowledgement are visible.
+7. Select **Run validation failure**. This changes the unit to `ppm`; the validation gate rejects it.
+   Transfer stays disabled. Restore the generated bundle and validate again to recover.
+8. Follow the correlation ID across source receipt, schema discovery, reviewer decisions,
+   transformation, validation, transfer and return. Copy the ID into **Resume transaction** to
+   reload persisted work. In volatile demo mode, jobs disappear when the backend restarts.
+
+The six evidence gates are surfaced after exchange. Laboratory verification remains false at
+an independent receiver and clinical review remains pending. Source consent/history claims are
+retained when processing supported patient-linked FHIR, but never create/overwrite local patient
+records. Use the existing `/onehealth` workflow for local verification, consent and clinical review.
+No environmental measurement changes a cancer authorization, NCCN conclusion, OncoTwin result
+or CardioTwin calculation.
+
+### Additive API surface
+
+All gateway endpoints use `/api/v1/interop` and reviewer/admin authorization:
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/meta` | Supported targets, standards, storage and simulator mode |
+| POST | `/import`, `/simulators/lab/send` | Import one JSON/CSV/supported FHIR source record |
+| POST | `/demo` | Load labelled synthetic laboratory input |
+| POST | `/analyze-schema`, `/map` | Discover fields and propose typed mappings |
+| POST | `/mappings/{job_id}/approve`, `/mappings/{job_id}/reject` | Versioned per-field decisions / edits |
+| POST | `/generate-fhir` | Normalize confirmed source and reuse existing FHIR exporter |
+| POST | `/validate` | Validate editable challenge bundle; approved generated bundle stays separate |
+| POST | `/transfer` | Validate exact hash and deliver/retry through HTTP |
+| POST | `/return` | Receive FHIR from clinical system and deliver it back to lab receiver |
+| GET | `/jobs/{id}`, `/bundle/{id}`, `/events/{id}`, `/transfers/{id}` | Read the scoped transaction snapshot |
+
+The read aliases return the transaction snapshot, including the requested artifact. Mutations
+require `job_id` and `expected_version`. Approval additionally requires `source_field`, with an
+optional supported `target` and explicit local analyte `concept`. Generation requires every
+mapping to be accepted or rejected; missing required assay metadata fails rather than being
+invented. JSON/CSV currently support one laboratory sample per package and two local arsenic
+analytes, with `ug/L` or `mg/L`; this is intentionally a narrow reliable path.
+
+### Independent receiver and deployment
+
+Default demo mode uses an independent ASGI application through `httpx.ASGITransport`: requests
+and responses cross an explicit serialized HTTP boundary, with separate SQLite receipt storage.
+This default is **not a separate network process**. To show a real network boundary, launch from
+`backend` in another terminal:
+
+```powershell
+$env:INTEROP_RECEIVER_TOKEN = '<choose a shared service secret>'
+$env:INTEROP_RECEIVER_DB = 'interop-receiver.sqlite3'
+.venv/Scripts/python.exe -m uvicorn app.interop.receiver:app --host 127.0.0.1 --port 8091
+```
+
+Set the same `INTEROP_RECEIVER_TOKEN` and `INTEROP_RECEIVER_URL=http://127.0.0.1:8091`
+in the gateway process. The receiver exposes `POST /fhir`, `GET /exchanges/{correlation_id}`
+and `POST /lab/fhir`. It uses service authentication plus explicit tenant scope, accepts synthetic
+bundles only, never reads gateway/clinical state, and stores clinical/lab receipts in distinct
+correlation namespaces. Do not reuse it as a real patient system.
+
+Gateway persistence follows existing PostgreSQL patterns: `interop_jobs` contains CAS metadata;
+`interop_artifacts` separates source, discovered fields, mappings, normalized sample, bundle,
+validation, transfer records and audit events. All keys include organization identity and writes
+are transactional. The existing synthetic-only memory fallback applies without PostgreSQL.
+Transfers persist `processing` before delivery, then `delivered`, `rejected` or `failed`; retries
+reuse the correlation ID, and the receiver rejects a changed hash under the same identity.
+A crash after delivery can be recovered by retrying; no background queue or automatic retry
+scheduler is added.
+
+### Validation, terminology and limitations
+
+Wording: **FHIR R4-targeted OAH exchange with pinned profile-aware contract checks and
+round-trip validation.** This is not full HL7 R4 profile/terminology certification. Existing R4B
+base-model checks, selected pinned OAH constraints and local exchange-contract checks remain.
+The gateway adds supported-resource, transformation-provenance and active-consent transfer
+checks; the receiver repeats those checks. Checks cover references, identity duplication, dates,
+UCUM units/codes, patient binding, consent consistency and review-state consistency through
+the reused validator. Runtime counters report executed check groups, not an invented count of
+FHIR invariants. Round-trip counters count normalized sample fields, not every raw source field.
+Unsupported raw fields stay in source storage and are not claimed to be native FHIR mappings.
+
+AI uses the existing governed provider abstraction with tenant/correlation context. Suggestions
+are validated with strict Pydantic contracts and allowlisted targets; all remain pending review.
+Rule confidence is a fixed rule score, model confidence is a model-reported suggestion score,
+and neither is calibrated accuracy. Terminology is transparently local/unresolved; no verified
+LOINC, SNOMED CT, ICD or RxNorm mappings are invented. Consent and provenance are retained
+claims, not digital signatures or independently authenticated external clinical approval.
+
+Synthetic fixtures are in `backend/data/interop`: messy environmental JSON, one-row laboratory
+CSV, valid FHIR bundle and intentionally invalid unit bundle. Deterministic API tests exercise
+the continuous cross-system journey, adversarial validation, typed model suggestions/failure,
+review, privacy, authorization, CAS, receipt idempotency and retry. Live-provider operation
+requires configured credentials and is not required for the deterministic offline demo.
+
+
+The existing governed model gateway requires PostgreSQL for quota enforcement and invocation
+audit writes. With that governance enabled, synthetic memory mode reports AI unavailable;
+it does not bypass the controls. Configure the existing database and provider for live AI.
+Run the authenticated network demo from `backend` with
+`.venv/Scripts/python.exe scripts/interop_demo.py`; `--ai` requests the real provider and
+`--fixtures` regenerates the labelled valid/broken bundle fixtures. The script honors existing
+HTTP rate-limit retry headers. AI success and offline success are reported separately.
+
+## Final hardening additions (Oct 1)
+
+```mermaid
+flowchart TD
+  A[System A: synthetic JSON / CSV / FHIR] --> B[Schema discovery and governed semantic suggestions]
+  B --> C[Authenticated human mapping decisions]
+  C --> D[Existing OAH / FHIR generation]
+  D --> E[Contract validation, consent, provenance and round-trip]
+  E --> F[System B: independent HTTP receiver, separate storage]
+  F --> G[Return FHIR exchange and lab representation]
+  G --> E
+  E --> H[OneHealth six gates and epistemic ceiling]
+  H --> I[AquaHealth observation and consented clinical context]
+  I --> J[New verified retest closes original Task]
+  J --> D
+  E --> P[Persisted, offline-verifiable Evidence Passport]
+```
+
+The existing gateway foundations are reused, not replaced. Newly hardened capabilities include persisted hash-chained transformation manifests, portable offline verification, computed trust states/ceiling, explicit gateway-to-evidence binding, withdrawal notices to the independent receiver, real receiver rejection challenges, measured loss reports, adapters, atomic retest succession and the unified front door. Every ambiguous mapping needs a human decision; imported trust is never silently adopted. Live AI uses typed allowlisted suggestions through the existing governed abstraction, with credential failure visible.
+
+Additional APIs under `/api/v1`: `onehealth/exposures/{id}/journey`, `.../{id}/retest`, `.../{id}/passport`; `interop/bind-evidence`, `interop/from-evidence`, `interop/passport/{id}/verify-integrity`, `interop/passport/{id}/export`, `interop/challenge-receiver`. Existing import, map, approve/reject, generation, validation, transfer, receiver, return and event APIs remain. Receiver withdrawal is an authenticated explicit HTTP boundary.
+
+PostgreSQL remains the clinical persistence layer; passport writes share record transactions and optimistic versions. Optional SQLite persistence is restricted to synthetic development evidence. The receiving service stores payloads separately and does not call application state. Withdrawal blocks future exports/returns and receiver reads, but cannot recall previously downloaded copies. Hash chains are not digital signatures, and replacing an entire unanchored chain is outside their integrity guarantee.
+
+[Evidence Passport](EVIDENCE_PASSPORT.md), [ceiling](EPISTEMIC_CEILING.md), [conformance](OAH_CONFORMANCE.md), [verification](TRACK7_HARDENING_VERIFICATION.md), [dated build scope](HACKATHON_BUILD_SCOPE.md), [manual checklist](TRACK7_MANUAL_CHECKLIST.md). AI assistance and reused platform history are disclosed; no eligibility or judge score is invented.

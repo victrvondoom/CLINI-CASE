@@ -1,65 +1,27 @@
-<div align="center">
+# CLINI-CASE One Health Interoperability Gateway
 
-<img src="frontend/public/clincase-mark.svg" alt="ClinCase" width="96" height="96"/>
+An evidence-aware One Health interoperability gateway that converts heterogeneous environmental, laboratory and health observations into validated OAH/FHIR exchanges while preserving provenance, consent and human review.
 
-# ClinCase
+**OneAquaHealth IEEE Global Hackathon ? Track 7: Digital Health Standards.** Start at `/onehealth`; use `/interop` for the cross-system demonstration. Existing ClinCase, OncoTwin, CardioTwin and AquaHealth functionality remains available through the same application. The previous platform landing page is retained at `/platform`.
 
-### **Approve cancer treatment in minutes, not weeks.**
+[![CI](https://github.com/victrvondoom/CLINI-CASE/actions/workflows/ci.yml/badge.svg)](https://github.com/victrvondoom/CLINI-CASE/actions/workflows/ci.yml)
 
-#### A provider-side, FHIR-native prior-authorization copilot for oncology: seven LangGraph agents read the chart, find the payer's policy, and return a cited verdict. OncoTwin, a patient digital twin, watches between visits.
+Citizen observation ? laboratory evidence ? human mapping review ? FHIR/OAH validation ? independent receiver ? consented clinical context ? new retest ? verified return exchange.
 
-**Built by [vsrupeshkumar](https://github.com/vsrupeshkumar)**
+The flagship story uses a persisted **Evidence Passport**, a computed **epistemic ceiling** and six evidence gates. These connect the existing capabilities into one evidence journey. A stream photo cannot establish arsenic exposure; imported consent and verification are not automatically trusted. Environmental evidence never changes cancer authorization or OncoTwin/CardioTwin model inputs.
 
-<br/>
+Run `./start-track7.ps1` for the complete synthetic, deterministic reference journey. The launcher starts separate application/receiver processes, generates private demo credentials and records actual runtime metrics. Optional `-AI` uses the existing governed provider; the current credential was rejected, so live AI remains unverified.
 
-[![AWS Bedrock](https://img.shields.io/badge/AWS%20Bedrock-Claude%20Sonnet%204.6%20%2B%20Haiku%204.5-ff9900?style=for-the-badge&logo=amazonaws&logoColor=white)](#%EF%B8%8F-tech-stack)
-[![CMS-0057-F](https://img.shields.io/badge/CMS--0057--F-FHIR%20PA%20API%202027-2563eb?style=for-the-badge&logo=hl7&logoColor=white)](#-regulatory-alignment)
-[![LangGraph](https://img.shields.io/badge/LangGraph-7--agent%20DAG-5b21b6?style=for-the-badge)](#-the-7-agent-pipeline)
-[![Proprietary License](https://img.shields.io/badge/License-Proprietary-b91c1c?style=for-the-badge)](LICENSE)
+- [Demo runbook](docs/DEMO_RUNBOOK.md) and [manual items remaining](docs/TRACK7_MANUAL_CHECKLIST.md)
+- [Track 7 architecture and APIs](docs/ONEHEALTH_TRACK7.md)
+- [Evidence Passport](docs/EVIDENCE_PASSPORT.md), [epistemic ceiling](docs/EPISTEMIC_CEILING.md) and [conformance statement](docs/OAH_CONFORMANCE.md)
+- [Verification](docs/TRACK7_HARDENING_VERIFICATION.md), [build scope / AI assistance](docs/HACKATHON_BUILD_SCOPE.md) and [self-audit](docs/TRACK7_SELF_AUDIT.md)
 
-[![FastAPI](https://img.shields.io/badge/FastAPI-Python%203.11-009688?style=flat-square&logo=fastapi&logoColor=white)](#%EF%B8%8F-tech-stack)
-[![React 18](https://img.shields.io/badge/React-18-61dafb?style=flat-square&logo=react&logoColor=black)](#%EF%B8%8F-tech-stack)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178c6?style=flat-square&logo=typescript&logoColor=white)](#%EF%B8%8F-tech-stack)
-[![FHIR R4](https://img.shields.io/badge/FHIR-R4-c8102e?style=flat-square&logo=hl7&logoColor=white)](#-fhir--da-vinci-pas-conformance)
-[![Postgres](https://img.shields.io/badge/Postgres-pgvector-336791?style=flat-square&logo=postgresql&logoColor=white)](#%EF%B8%8F-tech-stack)
+**Validation scope:** FHIR R4-targeted OAH exchange with pinned profile-aware contract checks and round-trip validation. Official core-R4 validation returned 0 errors, 22 warnings and 7 informational messages; OAH package/terminology validation remains incomplete. No HL7 certification is claimed. All demo data is synthetic; no real pilot or clinical-performance claim is made.
 
-</div>
+**License:** [proprietary terms](LICENSE) are unchanged. The owner is credited by the existing license/history. You confirmed authorization exists; judges' signed run/review rights still need documentary verification. See [judge access](docs/JUDGE_ACCESS.md). Public availability alone grants no license.
 
-> [!CAUTION]
-> **Proprietary software — all rights reserved.** Public availability of this repository does not grant permission
-> to use, copy, modify, distribute, deploy, host, or create derivative works from the software. Use is permitted only
-> under prior written authorization in an agreement signed by **vsrupeshkumar** and the authorized person or entity.
-> See [LICENSE](LICENSE) for the complete terms.
-
-> [!IMPORTANT]
-> **This README describes running code, not mockups.** Every agent, endpoint and table named here exists in this repository and runs locally. Where a feature is a stub or a design path rather than finished, this document says so.
-
-> [!TIP]
-> **OneAquaHealth IEEE Global Hackathon — primary Track 7: Digital Health Standards.**
-> Start with [ClinCase One Health: from water evidence to clinical action](docs/ONEHEALTH_TRACK7.md)
-> and the `/onehealth` evidence workbench. Track 3 is the supporting environmental-assessment layer.
-> All existing ClinCase, OncoTwin, CardioTwin and AquaHealth capabilities remain available.
-
-### ClinCase One Health — the integrated hackathon journey
-
-Citizen freshwater observation → laboratory evidence → consented exposure history →
-human clinical review → environmental investigation and retesting.
-
-The new **Track 7 workbench** connects evidence across the existing modules with native FHIR
-Location, Specimen, Observation, Patient, Consent, QuestionnaireResponse, Task and Provenance
-resources. It includes a pinned OAH draft mapping, selected constraint checks, native-field
-round-trip checks, a missing-evidence challenge and a staged import that never auto-trusts
-external consent or verification. Reviewer identities come from authentication; optimistic
-version checks prevent lost decisions. PostgreSQL writes are atomic; database-less operation
-is explicitly limited to volatile synthetic demonstration records.
-
-**Scope:** arsenic laboratory evidence and documented drinking-water pathways, not cancer or
-cardiovascular diagnosis from stream photos. Existing clinical prediction scores are unchanged.
-The OAH guide is a draft; selected checks are not full HL7 R4 profile/terminology validation.
-The team reports that the existing platform and this integration were built during the hackathon;
-the submission guide distinguishes modules by purpose, not by pre-event reuse.
-
----
+The following sections retain the existing platform reference documentation. This hardening phase did not create the entire repository; the dated build-scope document describes reuse and additions accurately.
 
 ## Contents
 
@@ -511,7 +473,7 @@ npm ci
 npm run dev   # http://localhost:5173, proxies /api to :8000
 ```
 
-On first boot, the backend seeds three accounts: an admin, a reviewer and a coordinator. Their addresses are in `backend/app/main.py`. They share the password set by `DEMO_USER_PASSWORD`, which defaults to `clincase2026` outside production. **Change it before you expose the app anywhere.** Sign in, open `/dashboard`, and run a reference case in the **Live Agent Pipeline** console.
+On first boot, the backend seeds three accounts: an admin, a reviewer and a coordinator. Their addresses are in `backend/app/main.py`. They share the password set by `DEMO_USER_PASSWORD`, which has no default. Seeding requires an explicitly configured nonempty development password. The Track 7 launcher generates a private reviewer account; review existing accounts before exposing the app. Sign in, open `/dashboard`, and run a reference case in the **Live Agent Pipeline** console.
 
 > [!NOTE]
 > `docker compose up -d` on its own starts only Postgres and Redis. The `backend` and `frontend` services run with `docker compose --profile full up`. For local development, running them directly gives you hot reload.
@@ -645,3 +607,13 @@ entity. See [LICENSE](LICENSE) for the complete terms.
 `Approve cancer treatment in minutes, not weeks.`
 
 </div>
+
+
+### Track 7: evidence-aware One Health interoperability gateway
+
+New `/interop` workbench: synthetic external JSON/CSV -> deterministic or optional governed AI
+mapping -> human confirmation -> existing OAH/FHIR exporter -> validation -> independent HTTP
+receiver -> acknowledgement -> FHIR return to Lab A. Existing `/onehealth`, oncology, OncoTwin,
+CardioTwin and AquaHealth workflows remain intact. See [Track 7 architecture and demo](docs/ONEHEALTH_TRACK7.md#newly-added-one-health-interoperability-gateway).
+This is FHIR R4-targeted OAH exchange with pinned profile-aware contract checks and round-trip
+validation, not HL7 certification.

@@ -1,0 +1,2 @@
+sample_time,arsenic,units,water_source,lab,sample_id,sample_location,kind,collector,report_reference,method,report_time,legacy_note
+2026-09-28T10:00:00Z,18.2,ug/L,SYNTHETIC Example Lake,SYNTHETIC Example Laboratory,SYN-AS-001,SYNTHETIC household outlet,drinking_water,SYNTHETIC sampling team,SYN-REPORT-001,SYNTHETIC ICP-MS example; not a real assay,2026-09-29T10:00:00Z,SYNTHETIC citizen observation; no disease inference

@@ -26,6 +26,7 @@ import {
   type Validation,
 } from "../onehealth/api";
 import { BUTTON, Field, HistoryForm, INPUT, LabForm } from "../onehealth/Forms";
+import { EvidenceJourney } from "../onehealth/Journey";
 
 const CARD = "rounded-2xl border border-surface-border bg-surface-raised p-5";
 const pretty = (s: string) => s.replaceAll("_", " ");
@@ -82,7 +83,9 @@ function Workbench() {
       setObservations(obs.observations);
     } catch (e) {
       if (generation === seq.current) {
-        setError(e instanceof Error ? e.message : "Failed to load evidence workspace");
+        setError(
+          e instanceof Error ? e.message : "Failed to load evidence workspace",
+        );
       }
       throw e;
     }
@@ -130,7 +133,7 @@ function Workbench() {
               ClinCase One Health
             </h1>
             <p className="text-sm text-ink-body mt-2">
-              From water evidence to clinical action.
+              Evidence-aware One Health interoperability.
             </p>
             <p className="text-xs text-ink-muted mt-2 max-w-2xl">
               One traceable connection across AquaHealth, OncoTwin, CardioTwin
@@ -139,6 +142,9 @@ function Workbench() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Link className={BUTTON} to="/interop">
+              Start Track 7 Interoperability Demo
+            </Link>
             <button
               disabled={busy}
               className={BUTTON}
@@ -158,18 +164,20 @@ function Workbench() {
         </div>
         <div className="mt-5 flex flex-wrap gap-2 text-[10px] text-ink-muted">
           <Chip>FHIR R4 target · pinned OAH draft</Chip>
-          <Chip>Track 3 supporting assessment</Chip>
+          <Chip>Consent, review and evidence travel together</Chip>
           <Chip>
             {meta?.persistence === "postgresql"
               ? "PostgreSQL persistence"
-              : "Demo mode · volatile synthetic data only"}
+              : meta?.persistence === "sqlite_synthetic_demo_only"
+                ? "Durable synthetic demo storage"
+                : "Demo mode · volatile synthetic data only"}
           </Chip>
         </div>
       </header>
       <div className="rounded-xl border border-accent-amber/30 bg-accent-amber/5 p-4 text-xs text-ink-body">
         {meta?.notice ??
           "Exposure decision support only. No cancer or cardiovascular diagnosis is inferred from stream observations."}{" "}
-        {meta?.persistence !== "postgresql" &&
+        {meta?.persistence === "volatile_synthetic_demo_only" &&
           "Demo evidence is lost on server restart. Non-synthetic writes are disabled without PostgreSQL."}
       </div>
       {error && (
@@ -268,6 +276,12 @@ function Workbench() {
             )}
             {selected && (
               <>
+                <EvidenceJourney
+                  key={`${selected.id}-${selected.version}`}
+                  record={selected}
+                  busy={busy}
+                  mutate={mutate}
+                />
                 <div
                   className="flex flex-wrap gap-2"
                   role="group"
@@ -358,20 +372,40 @@ function Connection({
     let active = true;
     setSource(null);
     setSourceError("");
-    aqua.getObservation(r.observation_id)
-      .then((value) => { if (active) setSource(value); })
-      .catch((e) => { if (active) setSourceError(e instanceof Error ? e.message : "Source observation unavailable"); });
-    return () => { active = false; };
+    aqua
+      .getObservation(r.observation_id)
+      .then((value) => {
+        if (active) setSource(value);
+      })
+      .catch((e) => {
+        if (active)
+          setSourceError(
+            e instanceof Error ? e.message : "Source observation unavailable",
+          );
+      });
+    return () => {
+      active = false;
+    };
   }, [r.observation_id]);
   useEffect(() => {
     let active = true;
     setCaseCandidates([]);
     setCaseCandidatesError("");
     if (r.persistence !== "postgresql") return;
-    onehealth.caseCandidates()
-      .then((result) => { if (active) setCaseCandidates(result.cases); })
-      .catch((e) => { if (active) setCaseCandidatesError(e instanceof Error ? e.message : "ClinCase cases unavailable"); });
-    return () => { active = false; };
+    onehealth
+      .caseCandidates()
+      .then((result) => {
+        if (active) setCaseCandidates(result.cases);
+      })
+      .catch((e) => {
+        if (active)
+          setCaseCandidatesError(
+            e instanceof Error ? e.message : "ClinCase cases unavailable",
+          );
+      });
+    return () => {
+      active = false;
+    };
   }, [r.persistence, r.id]);
   const action = (name: string, payload: Record<string, unknown> = {}) =>
     void mutate(() => onehealth.action(r, name, { note, ...payload }));
@@ -403,7 +437,11 @@ function Connection({
               r.assessment.state === "reviewed_exposure_context",
             ],
             ["05 · CLINCASE", "Case linked", !!r.case_id],
-            ["06 · AQUAHEALTH", "Retest completed", r.followup_status === "completed"],
+            [
+              "06 · AQUAHEALTH",
+              "Retest completed",
+              r.followup_status === "completed",
+            ],
           ].map(([label, title, passed]) => (
             <div
               key={String(label)}
@@ -421,21 +459,42 @@ function Connection({
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="text-ink-primary">AquaHealth source record</span>
             {(source || linkedObservation) && (
-              <Link className="text-accent-cyan underline" to={`/aquahealth/observations/${r.observation_id}`}>
+              <Link
+                className="text-accent-cyan underline"
+                to={`/aquahealth/observations/${r.observation_id}`}
+              >
                 Open observation →
               </Link>
             )}
           </div>
-          {source && <p className="mt-2 text-ink-muted">{source.reference} · {source.waterbody_name} · {pretty(source.review_status)} · {pretty(source.verification)}</p>}
-          {!source && linkedObservation && (
+          {source && (
             <p className="mt-2 text-ink-muted">
-              {linkedObservation.reference} · {linkedObservation.waterbody_name} · {pretty(linkedObservation.review_status)} · {pretty(linkedObservation.verification)}
+              {source.reference} · {source.waterbody_name} ·{" "}
+              {pretty(source.review_status)} · {pretty(source.verification)}
             </p>
           )}
-          {sourceError && <p role="status" className="mt-2 text-accent-amber">Source could not be refreshed: {sourceError}</p>}
-          {!source && !sourceError && <p role="status" className="mt-2 text-ink-muted">Refreshing linked source observation…</p>}
+          {!source && linkedObservation && (
+            <p className="mt-2 text-ink-muted">
+              {linkedObservation.reference} · {linkedObservation.waterbody_name}{" "}
+              · {pretty(linkedObservation.review_status)} ·{" "}
+              {pretty(linkedObservation.verification)}
+            </p>
+          )}
+          {sourceError && (
+            <p role="status" className="mt-2 text-accent-amber">
+              Source could not be refreshed: {sourceError}
+            </p>
+          )}
+          {!source && !sourceError && (
+            <p role="status" className="mt-2 text-ink-muted">
+              Refreshing linked source observation…
+            </p>
+          )}
           {!source && sourceError && !linkedObservation && (
-            <p className="mt-2 text-ink-muted">This exposure record cannot currently confirm its linked AquaHealth observation.</p>
+            <p className="mt-2 text-ink-muted">
+              This exposure record cannot currently confirm its linked
+              AquaHealth observation.
+            </p>
           )}
         </div>
       </section>
@@ -473,7 +532,8 @@ function Connection({
             target="_blank"
             className="text-xs text-accent-cyan underline mt-2 inline-block"
           >
-            {r.assessment.reference.name} · {r.assessment.reference.value} {r.assessment.reference.unit}
+            {r.assessment.reference.name} · {r.assessment.reference.value}{" "}
+            {r.assessment.reference.unit}
           </a>
         </Section>
         <Section title="Evidence required for clinical review">
@@ -638,22 +698,32 @@ function Connection({
             Link reviewed evidence to an existing ClinCase case
           </summary>
           <div className="mt-3 space-y-3">
-          <Field label="Existing ClinCase case (same organisation)">
-            <select
+            <Field label="Existing ClinCase case (same organisation)">
+              <select
                 className={INPUT}
                 value={caseId}
-              onChange={(e) => { setCaseId(e.target.value); setSamePatient(false); }}
-              disabled={r.persistence !== "postgresql" || !caseCandidates.length}
-            >
-              <option value="">Select an existing case</option>
-              {caseCandidates.map((candidate) => (
-                <option key={candidate.id} value={candidate.id}>
-                  {candidate.id} · {candidate.patient_initials} · {candidate.treatment} · {candidate.status}
-                </option>
-              ))}
-            </select>
+                onChange={(e) => {
+                  setCaseId(e.target.value);
+                  setSamePatient(false);
+                }}
+                disabled={
+                  r.persistence !== "postgresql" || !caseCandidates.length
+                }
+              >
+                <option value="">Select an existing case</option>
+                {caseCandidates.map((candidate) => (
+                  <option key={candidate.id} value={candidate.id}>
+                    {candidate.id} · {candidate.patient_initials} ·{" "}
+                    {candidate.treatment} · {candidate.status}
+                  </option>
+                ))}
+              </select>
             </Field>
-          {caseCandidatesError && <p role="alert" className="text-xs text-accent-amber">Case list unavailable: {caseCandidatesError}</p>}
+            {caseCandidatesError && (
+              <p role="alert" className="text-xs text-accent-amber">
+                Case list unavailable: {caseCandidatesError}
+              </p>
+            )}
             <label className="text-xs flex gap-2">
               <input
                 type="checkbox"

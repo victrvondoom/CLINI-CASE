@@ -101,10 +101,16 @@ class Settings(BaseSettings):
     # Bootstraps three demo users (admin/reviewer/coordinator) on first
     # startup so the live demo always works. MUST be overridden in
     # staging/production. The model_validator below enforces this.
-    DEMO_USER_PASSWORD: str = "clincase2026"
+    DEMO_USER_PASSWORD: str = ""  # Explicit local configuration; launcher creates a private credential.
 
     # Explicitly opt in only for a local demonstration without a database.
     AUTH_DBLESS_DEMO_ENABLED: bool = False
+
+    # Additive Track 7 simulator; an empty URL uses an independent embedded ASGI app.
+    INTEROP_RECEIVER_URL: str = ""
+    INTEROP_RECEIVER_TOKEN: str = ""
+    INTEROP_RECEIVER_DB: str = ":memory:"
+    TRACK7_DEMO_DB: str = ""  # Explicit durable synthetic-only development storage.
 
     # Raw image/PDF OCR sends visible identifiers to a remote processor.
     # Enable only after the deployment has approved provider data handling.
@@ -188,7 +194,7 @@ class Settings(BaseSettings):
                     f"FATAL: ENVIRONMENT={self.ENVIRONMENT} but JWT_SECRET is "
                     f"{len(self.JWT_SECRET)} chars. Minimum 32 chars required."
                 )
-            if self.DEMO_USER_PASSWORD == "clincase2026":
+            if not self.DEMO_USER_PASSWORD or self.DEMO_USER_PASSWORD == "clincase2026":
                 raise RuntimeError(
                     f"FATAL: ENVIRONMENT={self.ENVIRONMENT} but DEMO_USER_PASSWORD "
                     "is the public demo default. Override via env before booting."

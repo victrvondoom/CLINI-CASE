@@ -216,7 +216,12 @@ async def login(req: LoginRequest) -> TokenResponse:
     # DB-less fallback — only the seeded demo users + the configured demo
     # password are accepted. Anyone else gets a generic 401.
     demo = _DEMO_USERS_DBLESS.get(email)
-    if db_unavailable and demo is not None and req.password == settings.DEMO_USER_PASSWORD:
+    if (
+        db_unavailable
+        and demo is not None
+        and settings.DEMO_USER_PASSWORD
+        and req.password == settings.DEMO_USER_PASSWORD
+    ):
         token = create_access_token(
             user_id=demo["id"],
             organization_id=demo["organization_id"],

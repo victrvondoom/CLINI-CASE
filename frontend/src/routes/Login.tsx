@@ -12,9 +12,17 @@ import { useAuth } from "../components/AuthContext";
 import { useTheme } from "../lib/theme";
 
 const DEMO_ACCOUNTS = [
-  { email: "admin@clincase.health",        password: "clincase2026", role: "Admin",       desc: "Full access" },
-  { email: "reviewer@clincase.health",     password: "clincase2026", role: "Reviewer",    desc: "REFER queue" },
-  { email: "coordinator@clincase.health",  password: "clincase2026", role: "Coordinator", desc: "Create cases" },
+  { email: "admin@clincase.health", role: "Admin", desc: "Full access" },
+  {
+    email: "reviewer@clincase.health",
+    role: "Reviewer",
+    desc: "Evidence review",
+  },
+  {
+    email: "coordinator@clincase.health",
+    role: "Coordinator",
+    desc: "Create observations and cases",
+  },
 ];
 
 export default function Login() {
@@ -22,14 +30,18 @@ export default function Login() {
   const { theme, toggle } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
-  const from = (location.state as { from?: string } | null)?.from ?? "/dashboard";
+  const from =
+    (location.state as { from?: string } | null)?.from ?? "/onehealth";
 
   const [email, setEmail] = useState("admin@clincase.health");
-  const [password, setPassword] = useState("clincase2026");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit(e: React.FormEvent | null, opts?: { email: string; password: string }) {
+  async function handleSubmit(
+    e: React.FormEvent | null,
+    opts?: { email: string; password: string },
+  ) {
     e?.preventDefault();
     setLoading(true);
     setError(null);
@@ -43,10 +55,9 @@ export default function Login() {
     }
   }
 
-  async function loginAs(account: { email: string; password: string }) {
+  async function loginAs(account: { email: string }) {
     setEmail(account.email);
-    setPassword(account.password);
-    await handleSubmit(null, account);
+    if (password) await handleSubmit(null, { email: account.email, password });
   }
 
   return (
@@ -56,14 +67,19 @@ export default function Login() {
         type="button"
         onClick={toggle}
         className="absolute top-4 right-4 z-10 inline-grid place-items-center w-9 h-9 rounded-md border border-surface-border bg-surface-raised text-ink-muted hover:text-ink-primary hover:border-surface-border-hi hover:shadow-[var(--shadow-raise)] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-brand"
-        aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+        aria-label={
+          theme === "dark" ? "Switch to light theme" : "Switch to dark theme"
+        }
         title={theme === "dark" ? "Switch to light" : "Switch to dark"}
       >
         {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
       </button>
 
       {/* ---- Ambient backdrop blobs (turned up to obvious) ---- */}
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 overflow-hidden"
+      >
         <div className="absolute -top-40 -left-40 w-[720px] h-[720px] rounded-full bg-accent-brand/40 blur-[100px] motion-safe:animate-pulse [animation-duration:6s]" />
         <div className="absolute top-32 -right-40 w-[640px] h-[640px] rounded-full bg-accent-cyan/40 blur-[100px] motion-safe:animate-pulse [animation-duration:7s] [animation-delay:1s]" />
         <div className="absolute -bottom-40 left-1/3 w-[560px] h-[560px] rounded-full bg-accent-violet/40 blur-[100px] motion-safe:animate-pulse [animation-duration:8s] [animation-delay:2s]" />
@@ -81,7 +97,11 @@ export default function Login() {
 
       <div className="relative w-full max-w-md">
         {/* ---- Logo + lockup ---- */}
-        <Link to="/" className="flex flex-col items-center gap-3 mb-7 group" aria-label="ClinCase home">
+        <Link
+          to="/"
+          className="flex flex-col items-center gap-3 mb-7 group"
+          aria-label="ClinCase home"
+        >
           <div className="relative">
             {/* Two-layer pulsing halo — unmissable */}
             <div
@@ -101,9 +121,11 @@ export default function Login() {
             />
           </div>
           <div className="text-center">
-            <div className="text-display-primary text-2xl tracking-tight text-ink-primary">ClinCase</div>
+            <div className="text-display-primary text-2xl tracking-tight text-ink-primary">
+              ClinCase
+            </div>
             <div className="text-compact text-[11px] text-ink-muted">
-              Prior Authorisation Copilot
+              One Health evidence workspace
             </div>
           </div>
         </Link>
@@ -114,15 +136,20 @@ export default function Login() {
             Sign in to your workspace
           </h1>
           <p className="text-ui-secondary text-sm text-ink-muted mb-5">
-            Enter your credentials, or use a demo account below.
+            Enter your credentials. The local demo launcher generates a private
+            password; account shortcuts select an address only.
           </p>
 
           <form onSubmit={(e) => handleSubmit(e)} className="space-y-3">
             <div>
-              <label className="text-compact text-[10px] text-ink-muted block mb-1">
+              <label
+                htmlFor="login-email"
+                className="text-compact text-[10px] text-ink-muted block mb-1"
+              >
                 Email
               </label>
               <input
+                id="login-email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -133,10 +160,14 @@ export default function Login() {
               />
             </div>
             <div>
-              <label className="text-compact text-[10px] text-ink-muted block mb-1">
+              <label
+                htmlFor="login-password"
+                className="text-compact text-[10px] text-ink-muted block mb-1"
+              >
                 Password
               </label>
               <input
+                id="login-password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -160,14 +191,18 @@ export default function Login() {
               disabled={loading}
               className="text-ui-primary w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-accent-brand text-ink-invert text-sm shadow-lg shadow-accent-brand/30 hover:shadow-xl hover:shadow-accent-brand/40 hover:-translate-y-px active:translate-y-0 transition-all disabled:opacity-50 disabled:translate-y-0"
             >
-              {loading ? <Loader2 size={14} className="animate-spin" /> : <LogIn size={14} />}
+              {loading ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <LogIn size={14} />
+              )}
               Sign in
             </button>
           </form>
 
           <div className="text-compact my-5 flex items-center gap-3 text-[10px] text-ink-faint">
             <span className="flex-1 h-px bg-surface-border" />
-            Demo accounts · one-click sign-in
+            Demo account addresses · password required
             <span className="flex-1 h-px bg-surface-border" />
           </div>
 
@@ -188,14 +223,20 @@ export default function Login() {
                     {a.role} · {a.desc}
                   </div>
                 </div>
-                <Sparkles size={14} className="text-accent-brand shrink-0 group-hover/account:rotate-12 transition-transform" />
+                <Sparkles
+                  size={14}
+                  className="text-accent-brand shrink-0 group-hover/account:rotate-12 transition-transform"
+                />
               </button>
             ))}
           </div>
 
           <div className="text-ui-secondary mt-5 pt-4 border-t border-surface-border text-center text-xs text-ink-muted">
             Don't have an account?{" "}
-            <Link to="/signup" className="text-accent-brand font-medium hover:underline">
+            <Link
+              to="/signup"
+              className="text-accent-brand font-medium hover:underline"
+            >
               Create one
             </Link>
           </div>
@@ -204,10 +245,13 @@ export default function Login() {
         {/* ---- Compliance footer ---- */}
         <div className="text-micro mt-6 flex items-center justify-center gap-1.5 text-ink-faint">
           <ShieldCheck size={11} className="text-accent-green" />
-          <span>Demo workspace · human review required · no compliance attestation</span>
+          <span>
+            Demo workspace · human review required · no compliance attestation
+          </span>
         </div>
         <div className="text-micro mt-2 text-center text-ink-faint leading-relaxed">
-          7-agent LangGraph DAG · AWS Bedrock · Claude Sonnet 4.6 + Haiku 4.5 · MCP-compatible
+          7-agent LangGraph DAG · AWS Bedrock · Claude Sonnet 4.6 + Haiku 4.5 ·
+          MCP-compatible
         </div>
       </div>
     </div>

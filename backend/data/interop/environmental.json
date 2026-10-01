@@ -1,0 +1,15 @@
+{
+  "sample_time": "2026-09-28T10:00:00Z",
+  "arsenic": 18.2,
+  "units": "ug/L",
+  "water_source": "SYNTHETIC Example Lake",
+  "lab": "SYNTHETIC Example Laboratory",
+  "sample_id": "SYN-AS-001",
+  "sample_location": "SYNTHETIC household outlet",
+  "kind": "drinking_water",
+  "collector": "SYNTHETIC sampling team",
+  "report_reference": "SYN-REPORT-001",
+  "method": "SYNTHETIC ICP-MS example; not a real assay",
+  "report_time": "2026-09-29T10:00:00Z",
+  "legacy_note": "SYNTHETIC citizen observation; no disease inference"
+}

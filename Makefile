@@ -41,6 +41,12 @@ help:
 	@echo "  lint              - run all linters"
 
 # --- backend ---------------------------------------------------------------
+track7.demo:
+	cd backend && python scripts/track7_demo.py --keep-running --open
+
+track7.test:
+	cd backend && pytest tests/onehealth tests/interop
+
 backend.install:
 	cd backend && python -m pip install -e ".[dev]"
 

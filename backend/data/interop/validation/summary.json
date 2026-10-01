@@ -1,0 +1,16 @@
+{
+  "validator": "official HL7 validator_cli 6.10.4",
+  "fhir_version": "4.0.1",
+  "fixture": "data/interop/valid-fhir.json",
+  "fixture_sha256": "f8334b3529ad9b7b11ad2ba585198337b1ea7d29f34ee8b23eefaf65ae06afc0",
+  "status": "WARNING",
+  "counts": {
+    "fatal": 0,
+    "error": 0,
+    "warning": 22,
+    "information": 7
+  },
+  "terminology": "NOT_TESTED (-tx n/a)",
+  "oah_package": "NOT_TESTED; unknown profile warnings",
+  "certified": false
+}

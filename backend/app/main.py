@@ -195,13 +195,19 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
     await _bootstrap_optional("aquahealth_schema", _aquahealth)
 
-
     async def _onehealth():
         from app.onehealth.repository import ensure_schema
 
         await ensure_schema()
 
     await _bootstrap_optional("onehealth_schema", _onehealth)
+
+    async def _interop():
+        from app.interop.repository import ensure_schema
+
+        await ensure_schema()
+
+    await _bootstrap_optional("interop_schema", _interop)
 
     # Redis SSE pub/sub — in-process is the safe fallback for single-replica.
     # Multi-replica deploys MUST set REDIS_URL or live SSE traces fan-out
@@ -233,7 +239,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
             "SELECT id FROM users WHERE email = $1",
             _demo_users[0][1],
         )
-        if existing is None:
+        if existing is None and settings.ENVIRONMENT == "dev" and settings.DEMO_USER_PASSWORD:
             _hashed_demo_password = hash_password(settings.DEMO_USER_PASSWORD)
             for user_id, email, full_name, role in _demo_users:
                 await db.execute(
@@ -417,6 +423,9 @@ from app.api import (  # noqa: E402
     intake as intake_api,
 )
 from app.api import (  # noqa: E402
+    interop as interop_api,
+)
+from app.api import (  # noqa: E402
     jobs as jobs_api,
 )
 from app.api import (  # noqa: E402
@@ -540,6 +549,7 @@ app.include_router(case_twin_api.router, prefix="/api/v1")
 app.include_router(aquahealth_api.router, prefix="/api/v1")
 
 app.include_router(onehealth_api.router, prefix="/api/v1")
+app.include_router(interop_api.router, prefix="/api/v1")
 # fhir_bulk router carries its own /fhir prefix
 app.include_router(fhir_bulk_api.router)
 
