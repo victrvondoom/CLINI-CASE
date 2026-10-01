@@ -12,9 +12,14 @@ import json
 from collections.abc import Callable
 from typing import Any
 
+import structlog
 from fhir.resources.R4B.bundle import Bundle
+from pydantic import ValidationError as ModelValidationError
+from pydantic.v1 import ValidationError as FhirModelValidationError
 
 from app.onehealth.models import ANALYTES, Analyte, ExposureHistory, ExposureRecord, LabSample
+
+log = structlog.get_logger()
 
 OAH_COMMIT = "b907cf0869b59d82d9138b3d147fca66f333d911"
 OAH = "http://hl7.eu/fhir/ig/oah/StructureDefinition/"
@@ -55,6 +60,26 @@ STANDARDS = {
 }
 
 
+STRUCTURE_ISSUE = "Bundle structure does not match the exchange contract"
+
+
+class ContractViolationError(ValueError):
+    """An exchange-contract violation whose message is written for API clients."""
+
+    def __init__(self, public_message: str) -> None:
+        super().__init__(public_message)
+        self.public_message = public_message
+
+
+def _model_issue(exc: ModelValidationError | FhirModelValidationError) -> str:
+    """Summarize model validation by field path and rule, never echoing input values."""
+    details = []
+    for error in exc.errors()[:3]:
+        path = ".".join(str(part) for part in error["loc"])
+        details.append(f"{path}: {error['msg']}" if path else str(error["msg"]))
+    return "Resource does not match the exchange model: " + "; ".join(details)
+
+
 def digest(value: Any) -> str:
     return hashlib.sha256(
         json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode()
@@ -82,12 +107,12 @@ def analyte_concept(concept: str) -> dict[str, Any]:
         # These are supported internal concepts, but the pinned OAH guide has no
         # verified matching code. Text preserves meaning without asserting one.
         return {"text": ANALYTE_LABELS[concept]}
-    raise ValueError("Unsupported analyte concept")
+    raise ContractViolationError("Unsupported analyte concept")
 
 
 def _decode_analyte(codeable: Any) -> Analyte:
     if not isinstance(codeable, dict):
-        raise ValueError("Observation analyte code is missing")
+        raise ContractViolationError("Observation analyte code is missing")
     codings = codeable.get("coding") or []
     if not codings:
         matches = [
@@ -95,9 +120,9 @@ def _decode_analyte(codeable: Any) -> Analyte:
         ]
         if len(matches) == 1 and matches[0] in ("total_arsenic", "inorganic_arsenic"):
             return matches[0]
-        raise ValueError("Analyte has no supported terminology mapping or recognized local text")
+        raise ContractViolationError("Analyte has no supported terminology mapping or recognized local text")
     if len(codings) != 1:
-        raise ValueError("Analyte must have exactly one supported coding")
+        raise ContractViolationError("Analyte must have exactly one supported coding")
     item = codings[0]
     if (
         item.get("system") == OAH_CODE_SYSTEM
@@ -111,7 +136,7 @@ def _decode_analyte(codeable: Any) -> Analyte:
         for concept in ANALYTES:
             if item.get("code") == concept:
                 return concept
-    raise ValueError("Analyte terminology code is not supported by the pinned OAH contract")
+    raise ContractViolationError("Analyte terminology code is not supported by the pinned OAH contract")
 
 
 def _ref(kind: str, rid: str) -> dict[str, Any]:
@@ -348,7 +373,7 @@ def _role_resource(
         if value.get("resourceType") == resource_type and predicate(value)
     ]
     if len(matches) != 1:
-        raise ValueError(f"Expected one unambiguous {role} {resource_type}; found {len(matches)}")
+        raise ContractViolationError(f"Expected one unambiguous {role} {resource_type}; found {len(matches)}")
     return matches[0]
 
 
@@ -365,10 +390,10 @@ def _identifier_role(resource: dict[str, Any], role: str) -> bool:
 
 def _resolve(resources: dict[str, dict[str, Any]], reference: Any, expected: str) -> dict[str, Any]:
     if not isinstance(reference, dict) or not isinstance(reference.get("reference"), str):
-        raise ValueError(f"Missing {expected} reference")
+        raise ContractViolationError(f"Missing {expected} reference")
     resource = resources.get(reference["reference"])
     if not resource or resource.get("resourceType") != expected:
-        raise ValueError(f"Unresolved {expected} reference")
+        raise ContractViolationError(f"Unresolved {expected} reference")
     return resource
 
 
@@ -385,7 +410,7 @@ def _exchange_resources(bundle: dict[str, Any]) -> dict[str, Any]:
     specimen = _resolve(resources, observation.get("specimen"), "Specimen")
     site = _resolve(resources, observation.get("subject"), "Location")
     if site != _resolve(resources, specimen.get("subject"), "Location"):
-        raise ValueError("Observation and Specimen resolve to different sampling locations")
+        raise ContractViolationError("Observation and Specimen resolve to different sampling locations")
     waterbody = _role_resource(
         resources,
         "Location",
@@ -394,7 +419,7 @@ def _exchange_resources(bundle: dict[str, Any]) -> dict[str, Any]:
     )
     performers = observation.get("performer") or []
     if len(performers) != 1:
-        raise ValueError("Expected one laboratory performer")
+        raise ContractViolationError("Expected one laboratory performer")
     laboratory = _resolve(resources, performers[0], "Organization")
     role = _resolve(
         resources,
@@ -478,11 +503,11 @@ def read_evidence(bundle: dict[str, Any]) -> dict[str, Any]:
     answers = {}
     for i in selected["questionnaire"]["item"]:
         if i["linkId"] in answers:
-            raise ValueError("Duplicate questionnaire answer")
+            raise ContractViolationError("Duplicate questionnaire answer")
         if len(i.get("answer", [])) != 1 or len(i["answer"][0]) != 1:
-            raise ValueError("Each exchange-contract question requires one unambiguous answer")
+            raise ContractViolationError("Each exchange-contract question requires one unambiguous answer")
         if not set(i["answer"][0]) <= {"valueString", "valueBoolean"}:
-            raise ValueError("Unsupported questionnaire answer type")
+            raise ContractViolationError("Unsupported questionnaire answer type")
         answers[i["linkId"]] = next(iter(i["answer"][0].values()))
     sample = LabSample(
         sample_id=specimen["identifier"][0]["value"],
@@ -531,36 +556,36 @@ def validate(bundle: dict[str, Any]) -> dict[str, Any]:
     issues: list[str] = []
     try:
         if len(json.dumps(bundle)) > 500_000:
-            raise ValueError("Bundle exceeds 500 KB exchange limit")
+            raise ContractViolationError("Bundle exceeds 500 KB exchange limit")
         Bundle.parse_obj(bundle)
         if bundle.get("type") != "collection":
-            raise ValueError(
+            raise ContractViolationError(
                 "Only collection bundles are accepted; no executable transaction imports"
             )
         if {"system": SYSTEM, "code": CONTRACT} not in bundle.get("meta", {}).get("tag", []):
-            raise ValueError("Unsupported exchange contract")
+            raise ContractViolationError("Unsupported exchange contract")
         demo_tags = [
             t
             for t in bundle["meta"]["tag"]
             if t.get("system") == SYSTEM and t.get("code") in ("synthetic", "non-synthetic")
         ]
         if len(demo_tags) != 1:
-            raise ValueError("Exactly one synthetic/non-synthetic classification is required")
+            raise ContractViolationError("Exactly one synthetic/non-synthetic classification is required")
         identity_resources = {
             f"{e['resource']['resourceType']}/{e['resource']['id']}": e["resource"]
             for e in bundle["entry"]
         }
         if len(identity_resources) != len(bundle["entry"]):
-            raise ValueError("Duplicate resource identity")
+            raise ContractViolationError("Duplicate resource identity")
         resources = _resources(bundle)
         urls = [e["fullUrl"] for e in bundle["entry"] if e.get("fullUrl")]
         if len(urls) != len(set(urls)):
-            raise ValueError("Duplicate fullUrl")
+            raise ContractViolationError("Duplicate fullUrl")
 
         def references(node: Any) -> None:
             if isinstance(node, dict):
                 if "reference" in node and node["reference"] not in resources:
-                    raise ValueError("Unresolved or external resource reference")
+                    raise ContractViolationError("Unresolved or external resource reference")
                 for value in node.values():
                     references(value)
             elif isinstance(node, list):
@@ -571,9 +596,9 @@ def validate(bundle: dict[str, Any]) -> dict[str, Any]:
         selected = _exchange_resources(bundle)
         for loc in (selected["waterbody"], selected["site"]):
             if not loc.get("identifier") or not loc.get("name") or loc.get("mode") != "instance":
-                raise ValueError("OAH Location requires identifier, name and instance mode")
+                raise ContractViolationError("OAH Location requires identifier, name and instance mode")
             if loc.get("position") and not {"longitude", "latitude"} <= loc["position"].keys():
-                raise ValueError("OAH coordinates require latitude and longitude")
+                raise ContractViolationError("OAH coordinates require latitude and longitude")
         obs = selected["observation"]
         if (
             obs.get("status") != "final"
@@ -581,7 +606,7 @@ def validate(bundle: dict[str, Any]) -> dict[str, Any]:
             or not obs.get("effectiveDateTime")
             or _resolve(resources, obs.get("subject"), "Location") != selected["site"]
         ):
-            raise ValueError(
+            raise ContractViolationError(
                 "OAH indicator requires final status, location subject, effective time and performer"
             )
         quantity = obs["valueQuantity"]
@@ -590,7 +615,7 @@ def validate(bundle: dict[str, Any]) -> dict[str, Any]:
             or quantity.get("comparator") not in (None, "<")
             or quantity.get("unit") != quantity.get("code")
         ):
-            raise ValueError("Unsupported or inconsistent quantity units/comparator")
+            raise ContractViolationError("Unsupported or inconsistent quantity units/comparator")
         _decode_analyte(obs.get("code"))
         sp = selected["specimen"]
         if (
@@ -600,11 +625,11 @@ def validate(bundle: dict[str, Any]) -> dict[str, Any]:
             ) != selected["role"]
             or sp["collection"].get("bodySite")
         ):
-            raise ValueError(
+            raise ContractViolationError(
                 "OAH specimen requires location subject and collector role; no bodySite"
             )
         if sp["collection"]["collectedDateTime"] != obs["effectiveDateTime"]:
-            raise ValueError("Sample and observation collection dates differ")
+            raise ContractViolationError("Sample and observation collection dates differ")
         evidence = read_evidence(bundle)
         h = evidence["history"]
         selected = _exchange_resources(bundle)
@@ -615,13 +640,13 @@ def validate(bundle: dict[str, Any]) -> dict[str, Any]:
             or not observation.get("effectiveDateTime")
             or observation.get("subject") is None
         ):
-            raise ValueError(
+            raise ContractViolationError(
                 "OAH indicator requires final status, location subject, effective time and performer"
             )
         if not selected["waterbody"].get("name") or not selected["site"].get("name"):
-            raise ValueError("OAH Location requires identifier, name and profile")
+            raise ContractViolationError("OAH Location requires identifier, name and profile")
         if h and selected["patient"]["identifier"][0]["value"] != h["patient_id"]:
-            raise ValueError("Patient identity mismatch between resources")
+            raise ContractViolationError("Patient identity mismatch between resources")
         if h:
             consent = selected["consent"]
             expected_consent = (
@@ -634,9 +659,9 @@ def validate(bundle: dict[str, Any]) -> dict[str, Any]:
                 or _resolve(resources, consent["patient"], "Patient") != selected["patient"]
                 or consent["sourceAttachment"]["title"] != h["consent_reference"]
             ):
-                raise ValueError("Consent disagrees with the exposure interview")
+                raise ContractViolationError("Consent disagrees with the exposure interview")
             if len(selected["review_tasks"]) != 1:
-                raise ValueError("Expected one clinical review task")
+                raise ContractViolationError("Expected one clinical review task")
             task = selected["review_tasks"][0]
             expected_review = {
                 "pending": "requested",
@@ -647,9 +672,15 @@ def validate(bundle: dict[str, Any]) -> dict[str, Any]:
             if task["status"] != expected_review or _resolve(
                 resources, task["for"], "Patient"
             ) != selected["patient"]:
-                raise ValueError("Clinical task and interview review state disagree")
-    except Exception as exc:  # noqa: BLE001 - return a bounded OperationOutcome, never model internals
-        issues.append("Validation failed due to an internal consistency error")
+                raise ContractViolationError("Clinical task and interview review state disagree")
+    except ContractViolationError as exc:
+        issues.append(exc.public_message[:500])
+    except (ModelValidationError, FhirModelValidationError) as exc:
+        issues.append(_model_issue(exc)[:500])
+    except Exception as exc:  # noqa: BLE001 - never echo parser or runtime internals to clients
+        # Log only the type: messages from e.g. date parsing can contain client data.
+        log.warning("onehealth.fhir_validate_unexpected_error", error_type=type(exc).__name__)
+        issues.append(STRUCTURE_ISSUE)
     return {
         "valid": not issues,
         "sha256": digest(bundle),

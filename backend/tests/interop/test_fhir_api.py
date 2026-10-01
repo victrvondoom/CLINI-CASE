@@ -1,6 +1,7 @@
 """FHIR-facing capability, media-type, tenant-auth and validation contract tests."""
 
 import copy
+import json
 from datetime import timedelta
 
 import httpx
@@ -159,3 +160,41 @@ async def test_bundle_create_read_validate_media_types_and_authentication(client
 def test_pas_diagnosis_code_is_a_string_or_absent(diagnosis, expected):
     # A non-string ICD-10 code must not be interpolated into the queued physician note.
     assert fhir_pas._claim_diagnosis({"diagnosis": diagnosis}) == expected
+
+
+def _observation(bundle):
+    return next(
+        entry["resource"]
+        for entry in bundle["entry"]
+        if entry["resource"]["resourceType"] == "Observation"
+    )
+
+
+def _diagnostics(result):
+    return [issue["diagnostics"] for issue in result["operation_outcome"]["issue"]]
+
+
+def test_validate_summarizes_model_errors_without_echoing_input():
+    model_error = valid_bundle()
+    _observation(model_error)["valueQuantity"]["value"] = -7.25
+    fhir_error = valid_bundle()
+    fhir_error["entry"] = {"unexpected": "shape"}
+
+    for bundle, field in ((model_error, "value"), (fhir_error, "entry")):
+        result = fhir.validate(bundle)
+        assert result["valid"] is False
+        [message] = _diagnostics(result)
+        assert message.startswith("Resource does not match the exchange model: " + field)
+        assert "-7.25" not in message and "input_value" not in message
+        assert "errors.pydantic.dev" not in message
+
+
+def test_validate_never_echoes_unexpected_exception_internals(monkeypatch):
+    def broken_selector(_bundle):
+        raise KeyError("internal_index_name")
+
+    monkeypatch.setattr(fhir, "_exchange_resources", broken_selector)
+    result = fhir.validate(valid_bundle())
+    assert result["valid"] is False
+    assert _diagnostics(result) == [fhir.STRUCTURE_ISSUE]
+    assert "internal_index_name" not in json.dumps(result)
