@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from typing import Any
 
 RUN_TRIGGERS = ("initial", "rerun", "resume")
-RUN_STATUSES = ("queued", "running", "paused", "completed", "failed", "cancelled")
+RUN_STATUSES = ("queued", "running", "paused", "completed", "failed", "cancelled", "superseded")
 
 _CASE_NS = "clincase:case-intelligence:v1"
 

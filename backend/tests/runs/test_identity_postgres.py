@@ -4,115 +4,23 @@ from __future__ import annotations
 
 import asyncio
 import json
-import uuid
 
 import pytest
-from httpx import ASGITransport, AsyncClient
 
 from app.agents.framework.trace_sink import PostgresTraceSink
 from app.api import cases as cases_api
 from app.api import jobs as jobs_api
-from app.auth.jwt_helpers import create_access_token
 from app.db import db
-from app.graph.state import ClinCaseState, get_or_init_agent_context
 from app.identity import case_intelligence_id
 from app.jobs import queue as jq
 from app.llm.base import LLMClient, LLMResponse
 from app.llm.gateway import GatewayCallContext, GenAIGateway, reset_call_context, set_call_context
-from app.main import app
-from app.models import Decision
 from app.runs import list_runs, start_run
 from app.streaming import subscribe, unsubscribe
 from app.workers import case_runner
+from tests.runs.helpers import FakeGraph, _case, _drain, _h, _isolate_queue, _org
 
 pytestmark = [pytest.mark.integration, pytest.mark.postgres]
-
-
-# ----------------------------------------------------------------------------- helpers
-async def _org(tag: str = "r", role: str = "admin") -> dict[str, str]:
-    org = f"run-{tag}-{uuid.uuid4().hex[:6]}"
-    uid, email = f"u-{uuid.uuid4().hex[:8]}", f"{role}@{org}.test"
-    await db.execute("INSERT INTO organizations (id, name, slug) VALUES ($1,$1,$1)", org)
-    await db.execute(
-        "INSERT INTO users (id,email,password_hash,full_name,organization_id,role) VALUES ($1,$2,'x','n',$3,$4)",
-        uid, email, org, role,
-    )  # fmt: skip
-    token = create_access_token(
-        user_id=uid, organization_id=org, role=role, email=email, full_name="n"
-    )
-    return {"org": org, "uid": uid, "token": token}
-
-
-async def _case(org: str, status: str = "pending") -> str:
-    cid = f"run-{uuid.uuid4().hex[:10]}"
-    bundle = {"resourceType": "Bundle", "entry": []}
-    await db.execute(
-        """INSERT INTO cases (id, organization_id, payer_id, patient_initials, requested_treatment_name,
-                              fhir_bundle, physician_note, status)
-           VALUES ($1,$2,'aetna','T.T.','Trastuzumab',$3::jsonb,'note',$4)""",
-        cid, org, json.dumps(bundle), status,
-    )  # fmt: skip
-    return cid
-
-
-async def _isolate_queue() -> None:
-    """`claim_next` takes the globally oldest job; park leftovers from other tests/runs so a test claims its own."""
-    await db.execute(
-        "UPDATE case_jobs SET status='dead', finished_at=now() WHERE status IN ('queued','running')"
-    )
-
-
-def _h(tok: str) -> dict[str, str]:
-    return {"Authorization": f"Bearer {tok}"}
-
-
-@pytest.fixture
-async def client():
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as c:
-        yield c
-
-
-class FakeGraph:
-    """Stands in for the compiled LangGraph: one real trace-sink span per run, then a canned outcome."""
-
-    def __init__(self, *, paused: bool = False, boom: Exception | None = None, cost: float = 0.25):
-        self.paused, self.boom, self.cost, self.calls = paused, boom, cost, 0
-
-    async def ainvoke(self, state: ClinCaseState) -> ClinCaseState:
-        self.calls += 1
-        ctx = get_or_init_agent_context(state)
-        h = await ctx.trace_sink.open_span(
-            case_id=state.case_id, agent_name="fake_agent", input_payload={"n": self.calls}, identity=ctx.identity
-        )  # fmt: skip
-        if self.boom:
-            await ctx.trace_sink.close_span_error(
-                h,
-                case_id=state.case_id,
-                agent_name="fake_agent",
-                error=str(self.boom),
-                latency_ms=1,
-            )
-            raise self.boom
-        await ctx.trace_sink.close_span_ok(
-            h, case_id=state.case_id, agent_name="fake_agent", output_payload={"ok": True},
-            latency_ms=7, model_id="test-model", input_tokens=10, output_tokens=5,
-        )  # fmt: skip
-        ctx.budget.spent_usd = self.cost
-        if self.paused:
-            return state.model_copy(
-                update={"paused_for_review": True, "pause_reason": "low confidence"}
-            )
-        decision = Decision(
-            verdict="APPROVE", rationale="r", citations=[], confidence=0.9, risk_flags=[]
-        )
-        return state.model_copy(update={"decision": decision})
-
-
-async def _drain(q: asyncio.Queue) -> list[dict]:
-    out = []
-    while not q.empty():
-        out.append(q.get_nowait())
-    return out
 
 
 # ----------------------------------------------------------------------------- run numbering
@@ -569,10 +477,9 @@ async def test_resume_resolves_the_paused_run_and_is_parented_on_it(client, monk
     ).json()
     runs = {r["run_id"]: r for r in await list_runs(a["org"], cid)}
     assert runs[j["run_id"]]["status"] == "completed"  # no longer 'paused' on a resolved case
-    assert (
-        runs[rs["run_id"]]["parent_run_id"] == j["run_id"]
-        and runs[rs["run_id"]]["finished_at"] is not None
-    )
+    assert runs[rs["run_id"]]["parent_run_id"] == j["run_id"]
+    # the resume run stays 'running' while its queued continuation has agents left to run
+    assert runs[rs["run_id"]]["status"] == "running" and runs[rs["run_id"]]["finished_at"] is None
 
 
 async def test_a_worker_that_lost_its_lease_does_not_flip_the_run(client, monkeypatch):
@@ -604,7 +511,7 @@ async def test_dead_lettered_jobs_fail_their_runs_via_the_janitor_sweep(client, 
     cid = await _case(a["org"])
     await client.post(f"/api/v1/cases/{cid}/run-async", headers=_h(a["token"]))
     await db.execute("UPDATE case_jobs SET status='dead' WHERE case_id=$1", cid)
-    assert await fail_runs_of_dead_jobs() >= 1
+    assert len(await fail_runs_of_dead_jobs()) >= 1
     assert (await list_runs(a["org"], cid))[0]["status"] == "failed"
 
 

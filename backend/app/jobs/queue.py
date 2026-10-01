@@ -149,6 +149,7 @@ async def enqueue(
     payload: dict[str, Any] | None = None,
     idempotency_key: str | None = None,
     max_attempts: int = 3,
+    conn: Any = None,
 ) -> Job:
     """Enqueue a job. If `idempotency_key` matches an existing job, returns it.
 
@@ -157,7 +158,10 @@ async def enqueue(
     of the same case body return the same job_id.
     """
     job_id = uuid.uuid4()
-    row = await db.fetchrow(
+    # `conn` lets a caller enqueue inside its own transaction (e.g. record a decision and queue its
+    # continuation atomically); otherwise the pool is used.
+    fetchrow = conn.fetchrow if conn is not None else db.fetchrow
+    row = await fetchrow(
         """INSERT INTO case_jobs
               (id, case_id, organization_id, idempotency_key, job_type,
                status, payload_json, max_attempts)
@@ -173,7 +177,7 @@ async def enqueue(
         max_attempts,
     )
     if row is None and idempotency_key:
-        row = await db.fetchrow(
+        row = await fetchrow(
             "SELECT * FROM case_jobs WHERE idempotency_key = $1",
             idempotency_key,
         )

@@ -193,9 +193,12 @@ CREATE INDEX IF NOT EXISTS idx_policy_chunks_embedding
     ON policy_chunks USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
 
 -- =============================================================================
--- Run identity (Phase 2): case_runs + run/case/trace columns. Additive and idempotent; mirrors
+-- Run identity (Phase 2): case_runs + run/case/trace columns, human-review pause state. Additive and idempotent; mirrors
 -- app/runs.py SCHEMA_SQL, which is also applied at API and worker start.
 -- =============================================================================
+-- Serialise concurrent API/worker starts (constraint widening below drops and re-adds a constraint).
+SELECT pg_advisory_xact_lock(hashtext('clincase_run_identity_schema'));
+
 ALTER TABLE cases ADD COLUMN IF NOT EXISTS case_intelligence_id TEXT;
 
 CREATE TABLE IF NOT EXISTS case_runs (
@@ -209,12 +212,36 @@ CREATE TABLE IF NOT EXISTS case_runs (
     trace_id             TEXT NOT NULL,
     job_id               UUID,
     status               TEXT NOT NULL DEFAULT 'running'
-                         CHECK (status IN ('queued','running','paused','completed','failed','cancelled')),
+                         CHECK (status IN ('queued','running','paused','completed','failed','cancelled','superseded')),
     created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     finished_at          TIMESTAMPTZ,
     UNIQUE (case_id, attempt_no)
 );
 CREATE INDEX IF NOT EXISTS idx_case_runs_case ON case_runs (case_id, attempt_no);
+
+-- 'superseded' (a paused run replaced by a newer execution) was added after the first release: widen once.
+DO $$ BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'case_runs_status_check' AND pg_get_constraintdef(oid) LIKE '%superseded%'
+    ) THEN
+        ALTER TABLE case_runs DROP CONSTRAINT IF EXISTS case_runs_status_check;
+        ALTER TABLE case_runs ADD CONSTRAINT case_runs_status_check CHECK (
+            status IN ('queued','running','paused','completed','failed','cancelled','superseded'));
+    END IF;
+END $$;
+
+-- The durable state of a run that stopped for human review (what the remaining agents need to continue).
+CREATE TABLE IF NOT EXISTS case_run_states (
+    run_id          TEXT PRIMARY KEY REFERENCES case_runs(run_id) ON DELETE CASCADE,
+    case_id         TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+    organization_id TEXT NOT NULL,
+    schema_version  INTEGER NOT NULL,
+    pause_kind      TEXT NOT NULL,
+    pause_reason    TEXT,
+    state_json      JSONB NOT NULL,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
 ALTER TABLE agent_runs ADD COLUMN IF NOT EXISTS run_id TEXT;
 ALTER TABLE agent_runs ADD COLUMN IF NOT EXISTS case_intelligence_id TEXT;

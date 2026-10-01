@@ -80,6 +80,14 @@ class ClinCaseState(BaseModel):
     # supply the verdict and continue the workflow.
     paused_for_review: bool = False
     pause_reason: str | None = None
+    # Why the run stopped: low_confidence | missing_assessment today; verification_disagreement and
+    # evidence_conflict are reserved for the verifier / evidence checks (see app/review/human.py PAUSE_KINDS).
+    pause_kind: str | None = None
+
+    # --- Human review continuation ---------------------------------------
+    # Set only on a resume run: the reviewer's decision (app.review.human.HumanReview as a dict). The
+    # `human_decision` node turns it into the Decision and the remaining agents run from there.
+    human_review: dict[str, Any] | None = None
 
     # --- Routing / trace -----------------------------------------------
     next_route: Literal["approve_done", "refer_done", "denial_path"] | None = None

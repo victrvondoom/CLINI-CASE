@@ -294,6 +294,48 @@ def _infra(job: dict[str, Any] | None) -> list[dict[str, Any]]:
     return events
 
 
+def _agent_history(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        {
+            "agent": r["agent_name"],
+            "started_at": _iso(r["started_at"]),
+            "latency_ms": r.get("latency_ms"),
+            "model_id": r.get("model_id"),
+            "input_tokens": r.get("input_tokens"),
+            "output_tokens": r.get("output_tokens"),
+            "error": r.get("error_text"),
+        }
+        for r in rows
+    ]
+
+
+def _continuation(
+    case_runs: list[dict[str, Any]], agent_rows: list[dict[str, Any]], headline_id: str | None
+) -> dict[str, Any] | None:
+    """The agents a human-review resume ran after THE headline run paused (forecast / appeal / patient letter).
+
+    Only the resume that continues the headline execution counts: after a rerun, an older run's resume is
+    history, not this execution's continuation."""
+    resumes = [
+        r
+        for r in case_runs
+        if r.get("trigger") == "resume" and headline_id and r.get("parent_run_id") == headline_id
+    ]
+    if not resumes:
+        return None
+    run = resumes[-1]
+    rows = [a for a in agent_rows if a.get("run_id") == run["run_id"]]
+    if rows:
+        last_attempt = max(int(a.get("job_attempt") or 1) for a in rows)
+        rows = [a for a in rows if int(a.get("job_attempt") or 1) == last_attempt]
+    return {
+        "run_id": run["run_id"],
+        "parent_run_id": run.get("parent_run_id"),
+        "status": run.get("status"),
+        "agent_history": _agent_history(rows),
+    }
+
+
 def _headline_run(case_runs: list[dict[str, Any]]) -> dict[str, Any] | None:
     """The run whose execution the twin foregrounds: the latest EXECUTION run (initial/rerun).
 
@@ -390,8 +432,15 @@ def build_twin(
                 last_attempt = max(int(a.get("job_attempt") or 1) for a in runs)
                 runs = [a for a in runs if int(a.get("job_attempt") or 1) == last_attempt]
             decisions = [d for d in all_decisions if d.get("run_id") == hid]
+            # An appeal belongs to the execution (drafted in its run) or to the human-review resume that
+            # continued it (the continuation drafts it under the resume run).
+            mine = {hid} | {
+                r["run_id"]
+                for r in run_list
+                if r.get("trigger") == "resume" and r.get("parent_run_id") == hid
+            }
             appeal = next(
-                (a for a in reversed(appeals or []) if a.get("run_id") == hid),
+                (a for a in reversed(appeals or []) if a.get("run_id") in mine),
                 None if appeals is not None else appeal,
             )
             trace_origin = headline.get("created_at") or case["created_at"]
@@ -446,18 +495,10 @@ def build_twin(
         },
         "evidence_graph": _graph(case_id, latest, evidence, criteria, ciid),
         "evidence": evidence,
-        "agent_history": [
-            {
-                "agent": r["agent_name"],
-                "started_at": _iso(r["started_at"]),
-                "latency_ms": r.get("latency_ms"),
-                "model_id": r.get("model_id"),
-                "input_tokens": r.get("input_tokens"),
-                "output_tokens": r.get("output_tokens"),
-                "error": r.get("error_text"),
-            }
-            for r in runs
-        ],
+        "agent_history": _agent_history(runs),
+        "continuation": _continuation(
+            run_list, all_agent_rows, headline["run_id"] if headline else None
+        ),
         "model_decisions": [
             {
                 "verdict": d["verdict"],

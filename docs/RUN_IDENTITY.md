@@ -72,7 +72,7 @@ case's latest run.
   derived from the case, a deliberate async rerun needs an explicit `Idempotency-Key`; the synchronous
   endpoint always starts a new run.
 * Crash-retries of a job re-execute under the same run id; `agent_runs.job_attempt` separates the rows.
-* Run status: `queued → running → completed | paused | failed | cancelled`. A job that is retried returns its
+* Run status: `queued → running → completed | paused | failed | cancelled | superseded` (a paused run replaced by a newer execution). A job that is retried returns its
   run to `queued`; a dead-lettered or reaped job fails it.
 
 ## Digital Twin
@@ -85,5 +85,5 @@ run records fall back to the previous whole-case projection. `GET /api/v1/cases/
 ## Not done in this phase
 
 OpenTelemetry spans and W3C context propagation across the queue (the `trace_id` value is carried and stored,
-but no span uses it yet), a real LangGraph interrupt/resume (the resume run records the human decision; it does
-not re-enter the graph), snapshot persistence of the twin, and the independent verifier.
+but no span uses it yet), snapshot persistence of the twin, and the independent verifier. Human review (pause
+state, resume run, continuation) is described in [`HUMAN_REVIEW.md`](HUMAN_REVIEW.md).

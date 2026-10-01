@@ -28,6 +28,9 @@ log = structlog.get_logger()
 _TERMINAL = ("paused", "completed", "failed", "cancelled")
 
 SCHEMA_SQL = """
+-- Serialise concurrent API/worker starts (constraint widening below drops and re-adds a constraint).
+SELECT pg_advisory_xact_lock(hashtext('clincase_run_identity_schema'));
+
 ALTER TABLE cases ADD COLUMN IF NOT EXISTS case_intelligence_id TEXT;
 
 CREATE TABLE IF NOT EXISTS case_runs (
@@ -41,12 +44,36 @@ CREATE TABLE IF NOT EXISTS case_runs (
     trace_id             TEXT NOT NULL,
     job_id               UUID,
     status               TEXT NOT NULL DEFAULT 'running'
-                         CHECK (status IN ('queued','running','paused','completed','failed','cancelled')),
+                         CHECK (status IN ('queued','running','paused','completed','failed','cancelled','superseded')),
     created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     finished_at          TIMESTAMPTZ,
     UNIQUE (case_id, attempt_no)
 );
 CREATE INDEX IF NOT EXISTS idx_case_runs_case ON case_runs (case_id, attempt_no);
+
+-- 'superseded' (a paused run replaced by a newer execution) was added after the first release: widen once.
+DO $$ BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'case_runs_status_check' AND pg_get_constraintdef(oid) LIKE '%superseded%'
+    ) THEN
+        ALTER TABLE case_runs DROP CONSTRAINT IF EXISTS case_runs_status_check;
+        ALTER TABLE case_runs ADD CONSTRAINT case_runs_status_check CHECK (
+            status IN ('queued','running','paused','completed','failed','cancelled','superseded'));
+    END IF;
+END $$;
+
+-- The durable state of a run that stopped for human review (what the remaining agents need to continue).
+CREATE TABLE IF NOT EXISTS case_run_states (
+    run_id          TEXT PRIMARY KEY REFERENCES case_runs(run_id) ON DELETE CASCADE,
+    case_id         TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+    organization_id TEXT NOT NULL,
+    schema_version  INTEGER NOT NULL,
+    pause_kind      TEXT NOT NULL,
+    pause_reason    TEXT,
+    state_json      JSONB NOT NULL,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
 ALTER TABLE agent_runs ADD COLUMN IF NOT EXISTS run_id TEXT;
 ALTER TABLE agent_runs ADD COLUMN IF NOT EXISTS case_intelligence_id TEXT;
@@ -240,17 +267,17 @@ async def settle_runs_for_job(job_id: Any, status: str, *, conn: Any = None) -> 
         return 0
 
 
-async def fail_runs_of_dead_jobs() -> int:
-    """Runs whose job was dead-lettered (retries exhausted or reaped) can never finish: mark them failed."""
-    result = await db.execute(
+async def fail_runs_of_dead_jobs() -> list[dict[str, Any]]:
+    """Runs whose job was dead-lettered (retries exhausted or reaped) can never finish: mark them failed.
+
+    Returns the runs just failed so the caller can announce them (the worker that held the lease may be gone)."""
+    rows = await db.fetch(
         """UPDATE case_runs r SET status = 'failed', finished_at = NOW()
            FROM case_jobs j
-           WHERE r.job_id = j.id AND j.status = 'dead' AND r.status IN ('queued','running')"""
+           WHERE r.job_id = j.id AND j.status = 'dead' AND r.status IN ('queued','running')
+           RETURNING r.run_id, r.case_id, r.trigger, r.case_intelligence_id, r.trace_id"""
     )
-    try:
-        return int(str(result).rsplit(" ", 1)[-1])
-    except (ValueError, IndexError):
-        return 0
+    return [dict(r) for r in rows]
 
 
 async def paused_run_id(case_id: str, *, conn: Any = None) -> str | None:
@@ -261,3 +288,25 @@ async def paused_run_id(case_id: str, *, conn: Any = None) -> str | None:
     )
     value = await (conn.fetchval(sql, case_id) if conn is not None else db.fetchval(sql, case_id))
     return str(value) if value is not None else None
+
+
+async def settle_execution_run(run_id: str, status: str, *, conn: Any = None) -> None:
+    """Finish an EXECUTION run (initial/rerun) and supersede any older run still waiting at the review gate.
+
+    A newer execution replaces an earlier pause: the case's state now comes from the newer run, so the old
+    paused run can no longer be resumed and must not stay 'paused' forever. Resume runs never supersede."""
+    if conn is None:
+        # Both statements or neither: a crash between them must not leave the old run 'paused'.
+        async with db.pool.acquire() as own, own.transaction():
+            await settle_execution_run(run_id, status, conn=own)
+        return
+    await mark_run(run_id, status, conn=conn)
+    if status not in ("paused", "completed"):
+        return
+    sql = (
+        "UPDATE case_runs old SET status = 'superseded', finished_at = COALESCE(old.finished_at, NOW()) "
+        "FROM case_runs cur "
+        "WHERE cur.run_id = $1 AND cur.trigger <> 'resume' AND old.case_id = cur.case_id "
+        "AND old.status = 'paused' AND old.attempt_no < cur.attempt_no"
+    )
+    await conn.execute(sql, run_id)

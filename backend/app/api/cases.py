@@ -29,7 +29,14 @@ from app.graph.state import ClinCaseState, state_for_run
 from app.identity import RunIdentity, case_intelligence_id
 from app.llm.factory import llm_unavailable_reason
 from app.quotas import QuotaExceededError, consume_case_quota, quota_exceeded_to_http
-from app.runs import latest_run_id, mark_run, paused_run_id, start_run
+from app.review.pause_state import has_continuation_inputs, load_pause_state, save_pause_state
+from app.runs import (
+    latest_run_id,
+    mark_run,
+    paused_run_id,
+    settle_execution_run,
+    start_run,
+)
 from app.streaming import publish
 
 # Compile both graphs once at module load (compile is non-trivial)
@@ -391,10 +398,14 @@ async def run_full(
         # HITL pause: graph stopped at review_gate. Persist what we have, mark
         # the case as awaiting_review, and return without writing a decision.
         if final.paused_for_review:
-            await db.execute(
-                "UPDATE cases SET status = 'awaiting_review' WHERE id = $1",
-                case_id,
-            )
+            # Case status and the durable pause state commit together: a case is never "awaiting review"
+            # without the state a resume needs.
+            async with db.pool.acquire() as conn, conn.transaction():
+                await conn.execute(
+                    "UPDATE cases SET status = 'awaiting_review' WHERE id = $1",
+                    case_id,
+                )
+                await save_pause_state(conn, final, organization_id=user["organization_id"])
             await publish(
                 case_id,
                 {
@@ -402,6 +413,7 @@ async def run_full(
                     "case_id": case_id,
                     **identity.event_fields(),
                     "reason": final.pause_reason,
+                    "pause_kind": final.pause_kind,
                     "overall_confidence": (
                         final.necessity_assessment.overall_confidence
                         if final.necessity_assessment
@@ -493,7 +505,7 @@ async def run_full(
     finally:
         release_run_context(identity)
         try:
-            await mark_run(identity.run_id, run_status)
+            await settle_execution_run(identity.run_id, run_status)
         except Exception:  # noqa: BLE001 - never mask the real outcome
             log.warning("case.run.status_update_failed", run_id=identity.run_id)
         await publish(case_id, {"type": "done", "case_id": case_id, **identity.event_fields()})
@@ -541,34 +553,30 @@ async def resume_after_review(
 ) -> dict[str, Any]:
     """Resume a HITL-paused case with the reviewer's verdict.
 
-    Persists a Decision row sourced from the human reviewer (with full audit
-    trail noting the human override), updates case status, and inserts a
-    reviewer_actions row. Per CMS-0057-F § IV.C, adverse determinations
-    require this human clinician sign-off.
+    In ONE transaction: the human Decision, the reviewer action, the case's new status, the resume run (its own
+    execution, parented on the run that paused), the `case.decided` domain event, and — when the paused run
+    left durable state — the queued `resume_after_review` job. A worker then runs the REMAINING graph
+    (denial forecast, appeal if DENY, patient communication) under the resume run; the human decision is
+    durable even if that continuation later fails. Per CMS-0057-F § IV.C, adverse determinations require
+    this human clinician sign-off.
+
+    A case paused before pause state was persisted (legacy) still gets the decision recorded, without a
+    continuation.
     """
-    rationale = (
-        f"HUMAN REVIEWER OVERRIDE — clinician {user['email']} (role={user['role']}) "
-        f"reviewed this case after ClinCase paused at the review_gate due to "
-        f"low Necessity Reasoner confidence. Reviewer verdict: {req.verdict}. "
-        f"Reviewer note: {req.reviewer_note or '(none)'}. "
-        f"Provenance per CMS-0057-F § IV.C and CA SB 1120."
-    )
+    from app.events.outbox import emit_case_decided
+    from app.jobs import queue as jq
+    from app.review.human import STATUS_FOR_VERDICT, HumanReview, build_human_decision
 
-    citations = [
-        {
-            "kind": "human_override",
-            "text": f"Reviewer {user['email']} clinical sign-off",
-            "pointer": f"reviewer_action:{user['id']}",
-        }
-    ]
-
-    status_map = {"APPROVE": "approved", "DENY": "denied", "REFER": "referred"}
-    new_status = status_map.get(req.verdict, "referred")
+    new_status = STATUS_FOR_VERDICT.get(req.verdict, "referred")
     identity: RunIdentity | None = None
+    job_id: str | None = None
+    no_continuation_reason: str | None = None
     try:
         async with db.pool.acquire() as conn, conn.transaction():
             row = await conn.fetchrow(
-                """SELECT id, status FROM cases
+                """SELECT id, status, payer_id, fhir_bundle, physician_note,
+                          requested_treatment_name, requested_j_code
+                   FROM cases
                    WHERE id = $1 AND organization_id = $2
                    FOR UPDATE""",
                 case_id,
@@ -585,16 +593,36 @@ async def resume_after_review(
                     ),
                 )
 
-            # The human continuation is its own run (trigger='resume', parent = the run that paused),
-            # so the review is never confused with the execution it follows. Decision, state
-            # transition, run record and audit identity commit together.
             reviewed_run = await paused_run_id(case_id, conn=conn)
+            paused = await load_pause_state(conn, reviewed_run) if reviewed_run else None
+            # A continuation needs the agent outputs the pause saved; without them (legacy pause, or a
+            # 'missing_assessment' pause) the human decision is still recorded, just not continued.
+            continuable = paused is not None and has_continuation_inputs(paused["state"])
+            no_continuation_reason = (
+                None
+                if continuable
+                else ("no_pause_state" if paused is None else "incomplete_pause_state")
+            )
+            review = HumanReview(
+                verdict=req.verdict,
+                reviewer_id=user["id"],
+                reviewer_email=user["email"],
+                reviewer_role=user["role"],
+                note=req.reviewer_note,
+                pause_kind=paused["pause_kind"] if paused else None,
+                pause_run_id=reviewed_run,
+            )
+            decision = build_human_decision(review)
+
+            # The human continuation is its own run (trigger='resume', parent = the run that paused), so the
+            # review is never confused with the execution it follows. It stays 'running' while a queued
+            # continuation still has agents to run; otherwise it is complete.
             identity = await start_run(
                 organization_id=user["organization_id"],
                 case_id=case_id,
                 trigger="resume",
                 parent_run_id=reviewed_run,
-                status="completed",
+                status="running" if continuable else "completed",
                 conn=conn,
             )
             if reviewed_run is not None:
@@ -606,10 +634,10 @@ async def resume_after_review(
                                           run_id, case_intelligence_id)
                    VALUES ($1, $2, $3, $4, $5, $6, $7)""",
                 case_id,
-                req.verdict,
-                rationale,
-                json.dumps(citations),
-                1.0,
+                decision.verdict,
+                decision.rationale,
+                json.dumps([c.model_dump() for c in decision.citations]),
+                decision.confidence,
                 identity.run_id,
                 identity.case_intelligence_id,
             )
@@ -625,9 +653,50 @@ async def resume_after_review(
                 identity.run_id,
                 identity.case_intelligence_id,
             )
+            await emit_case_decided(
+                organization_id=user["organization_id"],
+                case_id=case_id,
+                verdict=decision.verdict,
+                confidence=float(decision.confidence),
+                triggered_hitl=True,
+                decision_run_id=identity.run_id,
+                primary_model_id="human_reviewer",
+                cost_usd=0.0,
+                duration_seconds=0.0,
+                conn=conn,
+                trace_id=identity.trace_id,
+            )
+            if continuable:
+                fhir = (
+                    json.loads(row["fhir_bundle"])
+                    if isinstance(row["fhir_bundle"], str)
+                    else row["fhir_bundle"]
+                )
+                job = await jq.enqueue(
+                    case_id=case_id,
+                    organization_id=user["organization_id"],
+                    job_type="resume_after_review",
+                    payload={
+                        "run": identity.to_payload(),
+                        "review": review.model_dump(),
+                        "parent_run_id": reviewed_run,
+                        "fhir_bundle": fhir,
+                        "physician_note": row["physician_note"],
+                        "requested_treatment": {
+                            "name": row["requested_treatment_name"],
+                            "j_code": row["requested_j_code"],
+                        },
+                        "payer_id": row["payer_id"],
+                    },
+                    idempotency_key=f"resume:{identity.run_id}",
+                    conn=conn,
+                )
+                job_id = str(job.id)
+                await mark_run(identity.run_id, "running", job_id=job.id, finished=False, conn=conn)
     except HTTPException:
         raise
     except Exception as exc:
+        log.warning("case.resume.failed", case_id=case_id, error=str(exc)[:200])
         raise HTTPException(status_code=503, detail="Review service unavailable") from exc
 
     await publish(
@@ -637,20 +706,94 @@ async def resume_after_review(
             "case_id": case_id,
             "verdict": req.verdict,
             "reviewer_id": user["id"],
-            **(identity.event_fields() if identity else {}),
+            **identity.event_fields(),
         },
     )
-    await publish(
-        case_id,
-        {"type": "done", "case_id": case_id, **(identity.event_fields() if identity else {})},
-    )
+    if job_id is None:
+        await publish(case_id, {"type": "done", "case_id": case_id, **identity.event_fields()})
+    # else: the worker publishes `done` when the continuation finishes.
 
     return {
         "case_id": case_id,
-        **(identity.event_fields() if identity else {}),
+        **identity.event_fields(),
         "verdict": req.verdict,
         "status": new_status,
         "reviewer_id": user["id"],
+        "continuation": {
+            "queued": job_id is not None,
+            "job_id": job_id,
+            "reason": no_continuation_reason,
+        },
+    }
+
+
+@router.post("/{case_id}/resume/retry")
+async def retry_continuation(
+    case_id: str,
+    user: dict[str, Any] = Depends(require_role("reviewer", "admin")),
+) -> dict[str, Any]:
+    """Re-queue a human-review continuation that failed (its job was dead-lettered).
+
+    The human decision is untouched; only the remaining agents (forecast / appeal / patient letter) are run
+    again, under the same resume run. Refused (409) unless the latest resume run is `failed` and no newer run
+    has started since."""
+    try:
+        async with db.pool.acquire() as conn, conn.transaction():
+            row = await conn.fetchrow(
+                "SELECT id FROM cases WHERE id = $1 AND organization_id = $2 FOR UPDATE",
+                case_id,
+                user["organization_id"],
+            )
+            if row is None:
+                raise HTTPException(status_code=404, detail=f"Case {case_id} not found")
+            run = await conn.fetchrow(
+                """SELECT run_id, status, job_id, attempt_no FROM case_runs
+                   WHERE case_id = $1 AND trigger = 'resume' ORDER BY attempt_no DESC LIMIT 1""",
+                case_id,
+            )
+            if run is None:
+                raise HTTPException(status_code=404, detail="No human-review continuation to retry")
+            if run["status"] != "failed" or run["job_id"] is None:
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"The continuation is {run['status']!r}; only a failed one can be retried.",
+                )
+            newer = await conn.fetchval(
+                "SELECT 1 FROM case_runs WHERE case_id = $1 AND attempt_no > $2 LIMIT 1",
+                case_id,
+                run["attempt_no"],
+            )
+            if newer:
+                raise HTTPException(
+                    status_code=409,
+                    detail="A newer run exists; this continuation is no longer current.",
+                )
+            requeued = await conn.fetchval(
+                # Attempts are NOT reset: job_attempt stays unique per (run, attempt), so the retry's agent rows
+                # can never be confused with the dead attempts'. The retry just gets a fresh allowance.
+                """UPDATE case_jobs SET status = 'queued', max_attempts = attempts + 3, error_text = NULL,
+                          finished_at = NULL, claimed_at = NULL, claimed_by = NULL, heartbeat_at = NULL
+                   WHERE id = $1 AND status = 'dead' RETURNING id""",
+                run["job_id"],
+            )
+            if requeued is None:
+                raise HTTPException(
+                    status_code=409, detail="The continuation job is not dead-lettered."
+                )
+            await conn.execute(
+                "UPDATE case_runs SET status = 'queued', finished_at = NULL WHERE run_id = $1",
+                run["run_id"],
+            )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        log.warning("case.resume.retry_failed", case_id=case_id, error=str(exc)[:200])
+        raise HTTPException(status_code=503, detail="Review service unavailable") from exc
+    return {
+        "case_id": case_id,
+        "run_id": run["run_id"],
+        "job_id": str(run["job_id"]),
+        "status": "queued",
     }
 
 

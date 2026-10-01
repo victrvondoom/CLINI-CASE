@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import pytest
+from httpx import ASGITransport, AsyncClient
 
 from app.db import db
+from app.main import app
 
 
 @pytest.fixture(autouse=True)
@@ -26,3 +28,9 @@ async def _fresh_pool(request):
         await ensure()
     yield
     await db.disconnect()
+
+
+@pytest.fixture
+async def client():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as c:
+        yield c
