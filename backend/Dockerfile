@@ -21,6 +21,11 @@ RUN python -m pip install --upgrade pip && \
 COPY app /app/app
 COPY db  /app/db
 
+# Run unprivileged: the app only needs to read /app and write under /app/data (policy store).
+RUN useradd --system --uid 10001 --home-dir /app clincase \
+    && mkdir -p /app/data && chown -R clincase:clincase /app
+USER 10001
+
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \

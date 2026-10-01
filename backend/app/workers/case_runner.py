@@ -447,7 +447,13 @@ async def _process_job(job: jq.Job, worker_id: str) -> None:
     hb_task = asyncio.create_task(_heartbeat_loop(job, worker_id, stop_heartbeat))
     try:
         started = time.time()
-        handler_task = asyncio.create_task(handler(job))
+        from app.observability.otel import restored_trace_context
+
+        async def _traced() -> Any:
+            with restored_trace_context((job.payload or {}).get("traceparent")):
+                return await handler(job)
+
+        handler_task = asyncio.create_task(_traced())
         lease_signal = asyncio.create_task(stop_heartbeat.wait())
         done, _pending = await asyncio.wait(
             {handler_task, lease_signal}, return_when=asyncio.FIRST_COMPLETED

@@ -7,8 +7,8 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
-from app.agents.framework.models import HAIKU_LITE, SONNET_REASONING
 from app.db import db
+from app.llm import pricing
 
 #: a span with no finish time younger than this counts as "running"
 RUNNING_WINDOW_MINUTES = 10
@@ -18,9 +18,8 @@ MIN_RUNS_FOR_ERROR = 3
 
 
 def price_for(model_id: str | None) -> tuple[float, float]:
-    """(USD per 1M input tokens, USD per 1M output tokens) by model family, from the framework's own price table."""
-    spec = HAIKU_LITE if model_id and "haiku" in model_id.lower() else SONNET_REASONING
-    return spec.cost_per_million_input_tokens, spec.cost_per_million_output_tokens
+    """(USD per 1M input tokens, USD per 1M output tokens) by model family (single source: app.llm.pricing)."""
+    return pricing.price_per_mtok(model_id)
 
 
 def summarize_agent(row: dict[str, Any], cost_rows: list[dict[str, Any]]) -> dict[str, Any]:

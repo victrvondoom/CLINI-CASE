@@ -140,6 +140,15 @@ class ClinicalExtractorAgent(Agent[ClinicalExtractorInput, ClinicalExtractorOutp
             max_tokens=2000,
             temperature=0.0,
         )
+        # This call bypasses Agent.invoke, so charge the per-case budget here (the gateway already
+        # audits it in llm_invocations under the active call context).
+        from app.llm import pricing
+
+        ctx.budget.spent_usd += pricing.cost_usd(
+            response.model_id, response.input_tokens, response.output_tokens
+        )
+        ctx.budget.spent_input_tokens += response.input_tokens
+        ctx.budget.spent_output_tokens += response.output_tokens
         snapshot = ClinicalSnapshot.model_validate_json(_strip_code_fence(response.text))
 
         if bio_result.output.biomarkers:

@@ -27,11 +27,20 @@ async def oidc_status() -> dict[str, Any]:
     return oidc_snapshot()
 
 
+def _safe_return_to(value: str | None) -> str:
+    """Same-origin relative paths only: the token rides in the redirect fragment, so an absolute or
+    protocol-relative URL here would hand a session token to an attacker-chosen site."""
+    v = (value or "/").strip()
+    if not v.startswith("/") or v.startswith(("//", "/\\")) or "://" in v or "\\" in v:
+        return "/"
+    return v
+
+
 @router.get("/login")
 async def oidc_login(return_to: str | None = Query(default="/")) -> RedirectResponse:
     """Step 1 — redirect to the IdP's authorize endpoint."""
     try:
-        url, _state = await build_authorize_url(return_to=return_to)
+        url, _state = await build_authorize_url(return_to=_safe_return_to(return_to))
     except RuntimeError as e:
         # OIDC not configured
         raise HTTPException(status_code=503, detail=str(e)) from e
@@ -83,6 +92,6 @@ async def oidc_callback(
 
     # Redirect to the frontend with the token in the URL fragment so it
     # never hits a server log. Frontend pulls it from window.location.hash.
-    return_url = result.return_to or "/"
+    return_url = _safe_return_to(result.return_to)
     redirect = f"{return_url}#access_token={token}&token_type=Bearer"
     return RedirectResponse(url=redirect, status_code=302)

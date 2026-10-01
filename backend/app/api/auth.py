@@ -14,7 +14,7 @@ import re
 from typing import Any
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, EmailStr, Field
 
 from app.auth import (
@@ -162,7 +162,29 @@ _DEMO_USERS_DBLESS: dict[str, dict[str, Any]] = {
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(req: LoginRequest) -> TokenResponse:
+async def login(req: LoginRequest, request: Request = None) -> TokenResponse:  # type: ignore[assignment]
+    """Throttled wrapper: repeated failures for one (email, client) get 429 until the window passes."""
+    from app.auth import login_throttle as lt
+
+    client = request.client.host if request is not None and request.client else "unknown"
+    wait = lt.retry_after(req.email, client)
+    if wait:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many failed login attempts; try again later",
+            headers={"Retry-After": str(wait)},
+        )
+    try:
+        resp = await _login_impl(req)
+    except HTTPException as exc:
+        if exc.status_code == 401:
+            lt.record_failure(req.email, client)
+        raise
+    lt.reset(req.email, client)
+    return resp
+
+
+async def _login_impl(req: LoginRequest) -> TokenResponse:
     """Exchange email + password for an access token.
 
     Two paths:

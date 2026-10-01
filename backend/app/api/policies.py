@@ -48,6 +48,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 
 from app.auth import get_current_user
+from app.auth.dependencies import require_platform_admin
 from app.config import settings
 
 log = logging.getLogger(__name__)
@@ -402,7 +403,7 @@ async def upload_policy(
     file: UploadFile = File(...),
     payer_id: str = Form("unknown"),
     policy_title: str = Form(""),
-    user: dict[str, Any] = Depends(get_current_user),
+    user: dict[str, Any] = Depends(require_platform_admin),
 ) -> PolicyUploadResponse:
     if file.content_type not in _ACCEPTED_MIME:
         raise HTTPException(
@@ -535,7 +536,7 @@ async def list_trash(user: dict[str, Any] = Depends(get_current_user)) -> Policy
 )
 async def restore_policy(
     policy_key: str,
-    user: dict[str, Any] = Depends(get_current_user),
+    user: dict[str, Any] = Depends(require_platform_admin),
 ) -> PolicyMutationResponse:
     key = _safe_key(policy_key)
     if key.startswith(".") or "/" in key:
@@ -593,7 +594,7 @@ async def restore_policy(
 )
 async def purge_policy(
     policy_key: str,
-    user: dict[str, Any] = Depends(get_current_user),
+    user: dict[str, Any] = Depends(require_platform_admin),
 ) -> PolicyMutationResponse:
     key = _safe_key(policy_key)
     if key.startswith(".") or "/" in key:
@@ -632,7 +633,7 @@ async def purge_policy(
 )
 async def delete_policy(
     policy_key: str,
-    user: dict[str, Any] = Depends(get_current_user),
+    user: dict[str, Any] = Depends(require_platform_admin),
 ) -> PolicyMutationResponse:
     # Guard against the route eating /trash/{key}/{action} suffixes
     if policy_key.startswith("trash/") or "/" in policy_key:

@@ -44,6 +44,7 @@ from typing import Any
 import structlog
 
 from app.config import settings
+from app.llm import pricing
 from app.llm.base import LLMClient, LLMResponse
 from app.llm.circuit_breaker import (
     CircuitBreakerOpenError,
@@ -342,19 +343,8 @@ def _content_safety_pre_check(prompt_material: str) -> None:
 # =============================================================================
 
 
-_MODEL_PRICING_PER_MTOK = {
-    # input, output (USD per million tokens, on-demand)
-    # Sonnet 4.6 (apac/us): $3 in / $15 out
-    "sonnet": (3.0, 15.0),
-    # Haiku 4.5 (apac/us): $1 in / $5 out
-    "haiku": (1.0, 5.0),
-}
-
-
 def _cost_for(model_id: str, input_tokens: int, output_tokens: int) -> float:
-    key = "haiku" if "haiku" in model_id.lower() else "sonnet"
-    in_rate, out_rate = _MODEL_PRICING_PER_MTOK[key]
-    return (input_tokens * in_rate / 1_000_000.0) + (output_tokens * out_rate / 1_000_000.0)
+    return pricing.cost_usd(model_id, input_tokens, output_tokens)
 
 
 # =============================================================================

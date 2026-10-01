@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from app.config import settings
+from app.llm import pricing
 
 
 @dataclass(frozen=True)
@@ -41,8 +42,8 @@ class ModelSpec:
     # keeping cost reasonable. Agents needing more declare it explicitly.
     max_tokens: int = 3000
     temperature: float = 0.0
-    cost_per_million_input_tokens: float = 3.0
-    cost_per_million_output_tokens: float = 15.0
+    cost_per_million_input_tokens: float = pricing.STANDARD[0]
+    cost_per_million_output_tokens: float = pricing.STANDARD[1]
 
 
 # =============================================================================
@@ -60,16 +61,16 @@ SONNET_REASONING = ModelSpec(
     size="sonnet",
     role="reasoning",
     # max_tokens defaults to 3000 (post-round-15 base)
-    cost_per_million_input_tokens=3.0,
-    cost_per_million_output_tokens=15.0,
+    cost_per_million_input_tokens=pricing.STANDARD[0],
+    cost_per_million_output_tokens=pricing.STANDARD[1],
 )
 SONNET_LETTER = ModelSpec(
     size="sonnet",
     role="letter_writing",
     max_tokens=3500,
     temperature=0.2,
-    cost_per_million_input_tokens=3.0,
-    cost_per_million_output_tokens=15.0,
+    cost_per_million_input_tokens=pricing.STANDARD[0],
+    cost_per_million_output_tokens=pricing.STANDARD[1],
 )
 SONNET_MEDIUM_JSON = ModelSpec(
     # Round-15: for agents that produce 5-15 structured items per call
@@ -79,8 +80,8 @@ SONNET_MEDIUM_JSON = ModelSpec(
     role="medium_json_output",
     max_tokens=4000,
     temperature=0.0,
-    cost_per_million_input_tokens=3.0,
-    cost_per_million_output_tokens=15.0,
+    cost_per_million_input_tokens=pricing.STANDARD[0],
+    cost_per_million_output_tokens=pricing.STANDARD[1],
 )
 SONNET_LONG_JSON = ModelSpec(
     # Round-15: dedicated spec for agents that produce large structured JSON
@@ -90,8 +91,8 @@ SONNET_LONG_JSON = ModelSpec(
     role="large_json_output",
     max_tokens=8000,
     temperature=0.0,
-    cost_per_million_input_tokens=3.0,
-    cost_per_million_output_tokens=15.0,
+    cost_per_million_input_tokens=pricing.STANDARD[0],
+    cost_per_million_output_tokens=pricing.STANDARD[1],
 )
 HAIKU_LITE = ModelSpec(
     size="haiku",
@@ -102,8 +103,8 @@ HAIKU_LITE = ModelSpec(
     # (top-3 reasons), confidence_calibrator (per-criterion floats).
     max_tokens=3000,
     temperature=0.0,
-    cost_per_million_input_tokens=1.0,
-    cost_per_million_output_tokens=5.0,
+    cost_per_million_input_tokens=pricing.LITE[0],
+    cost_per_million_output_tokens=pricing.LITE[1],
 )
 HAIKU_GRADER = ModelSpec(
     size="haiku",
@@ -115,8 +116,8 @@ HAIKU_GRADER = ModelSpec(
     # bug because the grader is invoked after every LLM agent's output.
     max_tokens=1500,
     temperature=0.0,
-    cost_per_million_input_tokens=1.0,
-    cost_per_million_output_tokens=5.0,
+    cost_per_million_input_tokens=pricing.LITE[0],
+    cost_per_million_output_tokens=pricing.LITE[1],
 )
 
 
@@ -178,8 +179,8 @@ class ModelRouter:
                 role=spec.role + "_escalated",
                 max_tokens=max(spec.max_tokens, 1500),
                 temperature=spec.temperature,
-                cost_per_million_input_tokens=3.0,
-                cost_per_million_output_tokens=15.0,
+                cost_per_million_input_tokens=pricing.STANDARD[0],
+                cost_per_million_output_tokens=pricing.STANDARD[1],
             )
         # Already Sonnet — best we have on this tier.
         return spec

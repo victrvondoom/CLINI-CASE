@@ -5,6 +5,21 @@ hardening, model registry, independent verifier, twin) is built and CI-green. No
 AWS/Bedrock, a real LLM at scale, or real users. Judges reward what they can *see working*, so most pending work is
 about proof and demo, not more features.
 
+## Status update (follow-up pass)
+
+| # | Item | Status |
+|---|---|---|
+| 1 | Live run with a real model | **Not done** - no LLM/AWS credentials in this environment. `scripts/eval_harness.py --mode live` is ready and refuses to run without credentials. |
+| 2 | Verifier + HITL on in the demo | **Done as config**: `ops/demo.env.example` (defaults stay off). |
+| 3 | Measured evaluation | **Partly**: verifier fault-injection results in `EVALUATION_RESULTS.md` (synthetic, no LLM). Clinical accuracy still needs a labelled set + live run. |
+| 4 | Browser pass | **Done locally** (Playwright, seeded data): cases, case detail, reviewer, agents, cohorts render without app errors. Found and fixed: the twin panel was hidden unless a run was started in-session. |
+| 5 | Reachable demo deployment | **Not done** - deployment/AWS changes were out of scope; needs a managed Postgres. |
+| 6 | Security gaps | **Done**: policy mutations platform-admin only; OIDC `return_to` same-origin only; login brute-force throttle (process-local); containers run non-root (Dockerfiles changed, **images not built here**). **Open**: ALB HTTP-only (infra), shared/distributed rate limiter. |
+| 7 | Extractor LLM call budget | **Done**: charged to the per-case budget; was already gateway-audited. |
+| 8 | W3C trace across queue | **Done and verified** with the real OTel SDK (traceparent in job payload, restored in worker). Collector screenshot: not done. |
+| 9 | Single pricing source | **Done** (`app/llm/pricing.py`). |
+| 10 | AWS availability + registry | **Not done** - needs AWS access. |
+
 ## A. Pending engineering work (ordered by value for a win)
 
 **Must do (proof):**
