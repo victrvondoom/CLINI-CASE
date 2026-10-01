@@ -10,7 +10,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.auth import require_role
+from app.auth import require_platform_admin, require_role
 from app.integrations.kiro import export_kiro_specs, kiro_spec_for_agent
 
 router = APIRouter(prefix="/integrations/kiro", tags=["integrations:kiro"])
@@ -18,7 +18,7 @@ router = APIRouter(prefix="/integrations/kiro", tags=["integrations:kiro"])
 
 @router.post("/export")
 async def export_specs(
-    user: dict[str, Any] = Depends(require_role("admin")),  # noqa: ARG001
+    user: dict[str, Any] = Depends(require_platform_admin),  # noqa: ARG001
 ) -> dict[str, Any]:
     """Materialize `.kiro/specs/` on disk. Admin-only — touches the working tree."""
     summary = export_kiro_specs()

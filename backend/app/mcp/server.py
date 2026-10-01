@@ -18,14 +18,18 @@ Reference: https://modelcontextprotocol.io/specification
 
 from __future__ import annotations
 
+import inspect
 import json
 from typing import Any
 
-from fastapi import APIRouter, Header, HTTPException, Request
+import structlog
+from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
 
-from app.config import settings
-from app.mcp.tools import TOOL_DEFINITIONS, TOOL_IMPLS
+from app.auth import get_current_user
+from app.mcp.tools import TOOL_DEFINITIONS, TOOL_IMPLS, CaseNotFoundError
+
+log = structlog.get_logger()
 
 router = APIRouter(prefix="/mcp", tags=["mcp"])
 
@@ -99,7 +103,9 @@ async def _handle_tools_list(req_id: str | int | None) -> dict[str, Any]:
     return _ok(req_id, {"tools": TOOL_DEFINITIONS})
 
 
-async def _handle_tools_call(req_id: str | int | None, params: dict[str, Any]) -> dict[str, Any]:
+async def _handle_tools_call(
+    req_id: str | int | None, params: dict[str, Any], organization_id: str
+) -> dict[str, Any]:
     name = params.get("name")
     args = params.get("arguments") or {}
     if not name or name not in TOOL_IMPLS:
@@ -108,15 +114,27 @@ async def _handle_tools_call(req_id: str | int | None, params: dict[str, Any]) -
             -32602,
             f"Unknown tool: {name!r}. Use tools/list to discover available tools.",
         )
+    if not isinstance(args, dict):
+        return _err(req_id, -32602, "arguments must be a JSON object")
+    if "organization_id" in args:
+        # The tenant comes from the authenticated caller, never from tool arguments.
+        return _err(req_id, -32602, "organization_id is not a tool argument")
     impl = TOOL_IMPLS[name]
     try:
-        result = await impl(**args)
+        # Bind first so that only a genuine argument-shape problem is reported as -32602; a TypeError raised
+        # inside a tool is a server fault and must not be echoed to the caller.
+        inspect.signature(impl).bind(organization_id=organization_id, **args)
+    except TypeError:
+        return _err(req_id, -32602, f"Invalid arguments for {name}", data={"tool": name})
+    try:
+        result = await impl(organization_id=organization_id, **args)
         return _ok(req_id, result)
-    except TypeError as e:
-        # Bad argument shape
-        return _err(req_id, -32602, f"Invalid arguments for {name}: {e}")
+    except CaseNotFoundError:
+        # Same answer for "no such case" and "case belongs to another organisation".
+        return _err(req_id, -32602, "Case not found", data={"tool": name})
     except Exception as e:  # noqa: BLE001
-        return _err(req_id, -32603, f"Tool execution failed: {e}", data={"tool": name})
+        log.error("mcp.tool_failed", tool=name, error=str(e)[:300])
+        return _err(req_id, -32603, "Tool execution failed", data={"tool": name})
 
 
 # =============================================================================
@@ -124,30 +142,12 @@ async def _handle_tools_call(req_id: str | int | None, params: dict[str, Any]) -
 # =============================================================================
 
 
-def _check_token(authorization: str | None) -> None:
-    """Optional shared-secret check.
-
-    If MCP_AUTH_TOKEN is set in the environment, require a matching Bearer
-    token. If unset, allow all callers (open-demo mode). In
-    production this is set via AWS Secrets Manager and rotated regularly.
-    """
-    expected = getattr(settings, "MCP_AUTH_TOKEN", None) or ""
-    if not expected:
-        return  # open mode for the demo
-    if not authorization:
-        raise HTTPException(status_code=401, detail="Missing Authorization header")
-    parts = authorization.split(maxsplit=1)
-    if len(parts) != 2 or parts[0].lower() != "bearer" or parts[1] != expected:
-        raise HTTPException(status_code=401, detail="Invalid bearer token")
-
-
 @router.post("", status_code=200)
 async def mcp_endpoint(
     request: Request,
-    authorization: str | None = Header(None),
+    user: dict[str, Any] = Depends(get_current_user),  # noqa: B008
 ) -> dict[str, Any]:
-    """JSON-RPC 2.0 endpoint. Single transport, multiple methods."""
-    _check_token(authorization)
+    """JSON-RPC 2.0 endpoint. Always authenticated: a ClinCase bearer JWT identifies user and tenant."""
 
     try:
         body = await request.json()
@@ -170,7 +170,7 @@ async def mcp_endpoint(
     if method == "tools/list":
         return await _handle_tools_list(rpc.id)
     if method == "tools/call":
-        return await _handle_tools_call(rpc.id, params)
+        return await _handle_tools_call(rpc.id, params, user["organization_id"])
     if method == "ping":
         return _ok(rpc.id, {})
     return _err(rpc.id, -32601, f"Method not found: {method!r}")

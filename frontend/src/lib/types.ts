@@ -368,3 +368,60 @@ export interface CaseComparison {
   recommendation: { primary: string | null; fallback: string | null; summary: string };
   method: string;
 }
+
+/** GET /cases/{id}/twin — derived, auditable view of one case's whole life. */
+export interface TwinEvidence {
+  evidence_id: string;
+  kind: string;
+  pointer: string;
+  text: string | null;
+  fhir_resource_type: string | null;
+  resolved: boolean | null;
+  policy_version: string | null;
+  section: string | null;
+  first_seen_agent: string | null;
+  model_id: string | null;
+  recorded_at: string | null;
+}
+export interface TwinStage {
+  stage: string;
+  actor: "agent" | "human" | "system";
+  offset_ms: number | null;
+  duration_ms: number | null;
+  status: "ok" | "error" | "running" | "waiting";
+}
+export interface TwinRun {
+  run_id: string | null;
+  attempt_no: number;
+  trigger: "initial" | "rerun" | "resume" | "legacy";
+  parent_run_id: string | null;
+  status: "queued" | "running" | "paused" | "completed" | "failed" | "cancelled" | null;
+  trace_id: string | null;
+  job_attempts: number[];
+  agent_rows: number;
+  agent_errors: number;
+  verdict: string | null;
+  human_actions: number;
+}
+export interface CaseTwin {
+  case_intelligence_id: string;
+  case_id: string;
+  identity: { case_intelligence_id: string; stored: boolean; matches_derived: boolean };
+  runs: TwinRun[];
+  headline_run_id: string | null;
+  patient_fhir: { resource_counts: Record<string, number> };
+  authorization: { status: string; payer_id: string; treatment: string };
+  policy: { criteria_total: number; criteria_met: number; criteria_ambiguous: number; criteria_not_met: number };
+  evidence: TwinEvidence[];
+  agent_history: { agent: string; latency_ms: number | null; model_id: string | null; error: string | null }[];
+  human_decisions: { reviewer_id: string; action: string; at: string | null }[];
+  infrastructure_events: { event: string; at?: string | null; worker?: string | null; attempts?: number; error?: string | null }[];
+  trace: {
+    stages: TwinStage[];
+    totals: { agent_ms: number; human_wait_ms: number | null; input_tokens: number; output_tokens: number; estimated_cost_usd: number };
+  };
+  outcome: { status: string; final: boolean; last_verdict: string | null; appeal_drafted: boolean };
+  integrity: { dangling_citations: string[]; citations_total: number; all_clinical_citations_resolve: boolean };
+  twin_sha256: string;
+  generated_at: string;
+}

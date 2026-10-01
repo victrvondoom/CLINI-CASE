@@ -23,6 +23,7 @@ CitationKind = Literal[
     "compendium",  # NCCN, AHFS, Lexi-Drugs, Clinical Pharmacology, DrugDex
     "fda_label",  # FDA-approved drug label (Highlights of Prescribing Information)
     "guideline",  # ASCO, ESMO, ASH, ACS, NCCN-Guidelines (vs NCCN compendium)
+    "human_override",  # a human reviewer's sign-off (pointer = "reviewer_action:<user_id>")
 ]
 
 

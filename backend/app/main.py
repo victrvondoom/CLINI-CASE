@@ -81,6 +81,14 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
             log.warning("clincase.startup.db_unavailable", error=str(e)[:200])
             db_disabled = True
 
+    # Run identity (case_runs + run/case/trace columns) is MANDATORY whenever a database is reachable:
+    # case creation, runs, reviews and every agent row depend on it. Fail fast at boot rather than with
+    # per-request 500s. (DB-less deployments skip it: their DB endpoints already answer 503.)
+    if not db_disabled:
+        from app.runs import ensure_schema as _ensure_run_identity_schema
+
+        await _ensure_run_identity_schema()
+
     # OpenTelemetry — no-op when OTEL_EXPORTER_OTLP_ENDPOINT is unset.
     def _otel_setup():
         from app.observability.otel import instrument_fastapi, setup_otel
@@ -186,6 +194,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         await ensure_schema()
 
     await _bootstrap_optional("aquahealth_schema", _aquahealth)
+
 
     async def _onehealth():
         from app.onehealth.repository import ensure_schema
@@ -375,6 +384,9 @@ from app.api import (  # noqa: E402
     case_compare as case_compare_api,
 )
 from app.api import (  # noqa: E402
+    case_twin as case_twin_api,
+)
+from app.api import (  # noqa: E402
     cohorts as cohorts_api,
 )
 from app.api import (  # noqa: E402
@@ -522,6 +534,7 @@ app.include_router(cohorts_api.router, prefix="/api/v1")
 app.include_router(reviewer_queue_api.router, prefix="/api/v1")
 app.include_router(policy_catalog_api.router, prefix="/api/v1")
 app.include_router(case_compare_api.router, prefix="/api/v1")
+app.include_router(case_twin_api.router, prefix="/api/v1")
 # AquaHealth — OneAquaHealth freshwater ecosystem module (additive; own tables,
 # own agents, own routes. ClinCase's clinical workflow is unchanged).
 app.include_router(aquahealth_api.router, prefix="/api/v1")

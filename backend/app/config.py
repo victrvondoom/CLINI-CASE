@@ -114,10 +114,18 @@ class Settings(BaseSettings):
     USE_BEDROCK_KB: bool = False
     SEED_ON_BOOT: bool = False
 
+    # --- Platform administration -----------------------------------------
+    # `admin` is an ORGANISATION role: anyone can self-provision an org and become its admin.
+    # Cross-tenant operations (tenant registry, global cost/anomaly/queue views, prompt
+    # registry, erasure runner) require membership of this allow-list instead.
+    # Comma-separated user ids (server-generated, e.g. "user_ab12cd34ef") of platform operators. Ids, not
+    # e-mails: an e-mail can be registered by anyone. Empty = nobody (fail closed). In ENVIRONMENT=dev the
+    # seeded demo administrator (user_demoadmin) is also accepted, for local demos.
+    PLATFORM_ADMIN_USER_IDS: str = ""
+
     # --- MCP server ------------------------------------------------------
-    # Optional shared-secret bearer token for /mcp. If empty, the endpoint
-    # is open (demo mode). In production this is set via AWS
-    # Secrets Manager.
+    # DEPRECATED and ignored: /mcp now always requires a normal ClinCase bearer JWT so that every
+    # tool call carries a tenant identity. A single shared secret cannot express a tenant.
     MCP_AUTH_TOKEN: str = ""
 
     # --- GenAI Gateway (governed Bedrock entry point) --------------------
@@ -152,6 +160,8 @@ class Settings(BaseSettings):
     # end-to-end. In production this is set to 0.75 via env var and
     # low-confidence cases route to the Reviewer queue via review_gate.
     HITL_CONFIDENCE_THRESHOLD: float = 0.0
+    # Independent evidence verifier after the Decision Composer; off by default (no behaviour change).
+    VERIFIER_ENABLED: bool = False
 
     @property
     def cors_origin_list(self) -> list[str]:
@@ -167,10 +177,6 @@ class Settings(BaseSettings):
         if self.ENVIRONMENT in ("staging", "production"):
             if self.AUTH_DBLESS_DEMO_ENABLED:
                 raise RuntimeError("DB-less demo authentication is restricted to ENVIRONMENT=dev")
-            if not self.MCP_AUTH_TOKEN or len(self.MCP_AUTH_TOKEN) < 32:
-                raise RuntimeError(
-                    "Set a random MCP_AUTH_TOKEN of at least 32 characters outside dev"
-                )
             if self.JWT_SECRET == _DEV_JWT_SECRET_SENTINEL:
                 raise RuntimeError(
                     f"FATAL: ENVIRONMENT={self.ENVIRONMENT} but JWT_SECRET is the "

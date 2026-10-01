@@ -26,6 +26,7 @@ AgentContext.WorkingMemory and the AgentTrace.
 
 from __future__ import annotations
 
+import contextlib
 import time
 import uuid
 from abc import ABC
@@ -215,7 +216,27 @@ class Agent(ABC, Generic[I, O]):
     # ------------------------------------------------------------------
 
     async def invoke(self, input: I, *, ctx: AgentContext) -> AgentResult[O]:
-        """Execute the full production lifecycle."""
+        """Execute the full production lifecycle inside an OTel agent span (no-op when OTel is off)."""
+        from app.observability.otel import agent_span
+
+        ident = ctx.identity
+        attrs = {
+            "clincase.run_id": ident.run_id if ident else "",
+            "clincase.trace_id": ident.trace_id if ident else "",
+        }
+        with agent_span(
+            f"agent.{self.qualified_name}",
+            organization_id=getattr(ctx, "organization_id", None),
+            case_id=ctx.case_id,
+            agent_name=self.qualified_name,
+            attributes=attrs,
+        ) as otel_span:
+            result = await self._invoke_inner(input, ctx=ctx)
+            with contextlib.suppress(Exception):  # telemetry must never affect the run
+                otel_span.set_attribute("clincase.agent_status", str(getattr(result, "status", "")))
+            return result
+
+    async def _invoke_inner(self, input: I, *, ctx: AgentContext) -> AgentResult[O]:
         invocation_id = uuid.uuid4()
         started_at = datetime.now(UTC)
         started_ts = time.time()
@@ -262,6 +283,7 @@ class Agent(ABC, Generic[I, O]):
             case_id=ctx.case_id,
             agent_name=self.qualified_name,
             input_payload=self._safe_dump(input),
+            identity=ctx.identity,
         )
 
         # Per-invocation state
@@ -286,6 +308,9 @@ class Agent(ABC, Generic[I, O]):
                 case_id=ctx.case_id,
                 agent_name=self.qualified_name,
                 request_id=getattr(ctx, "request_id", None),
+                run_id=ctx.identity.run_id if ctx.identity else None,
+                case_intelligence_id=ctx.identity.case_intelligence_id if ctx.identity else None,
+                trace_id=ctx.identity.trace_id if ctx.identity else None,
             )
         )
 

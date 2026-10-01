@@ -68,7 +68,7 @@ async def test_demo_password_cannot_bypass_healthy_database(monkeypatch, row):
     assert caught.value.status_code == 401
 
 
-@pytest.mark.parametrize("extra", [{"AUTH_DBLESS_DEMO_ENABLED": True}, {"MCP_AUTH_TOKEN": ""}])
+@pytest.mark.parametrize("extra", [{"AUTH_DBLESS_DEMO_ENABLED": True}])
 def test_nondev_rejects_unsafe_modes(extra):
     with pytest.raises(RuntimeError):
         Settings(
@@ -78,6 +78,17 @@ def test_nondev_rejects_unsafe_modes(extra):
             DEMO_USER_PASSWORD="different",
             **extra,
         )
+
+
+def test_mcp_no_longer_depends_on_a_shared_secret():
+    """/mcp authenticates with the normal bearer JWT; the retired shared secret must not gate boot."""
+    Settings(
+        _env_file=None,
+        ENVIRONMENT="production",
+        JWT_SECRET="x" * 40,
+        DEMO_USER_PASSWORD="different",
+        MCP_AUTH_TOKEN="",
+    )
 
 
 @pytest.mark.asyncio

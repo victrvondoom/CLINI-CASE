@@ -50,6 +50,8 @@ def pipeline_graph() -> dict[str, Any] | None:
     # Execution order: walk from __start__ following the first (unconditional-preferred) edge.
     nxt: dict[str, str] = {}
     for e in sorted(edges, key=lambda x: x["conditional"]):
+        if "verifier" in (e["source"], e["target"]):
+            continue  # optional gate (VERIFIER_ENABLED); the default pipeline order skips it
         nxt.setdefault(e["source"], e["target"])
     order: list[str] = []
     cur = nxt.get("__start__")

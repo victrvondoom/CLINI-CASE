@@ -22,7 +22,10 @@ import json
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from app.identity import RunIdentity
 
 # =============================================================================
 # Sink protocol
@@ -38,6 +41,7 @@ class SpanHandle:
     """
 
     sink_internal_id: Any
+    identity: RunIdentity | None = None
 
 
 class TraceSink(ABC):
@@ -50,6 +54,7 @@ class TraceSink(ABC):
         case_id: str,
         agent_name: str,
         input_payload: dict[str, Any],
+        identity: RunIdentity | None = None,
     ) -> SpanHandle:
         """Open a new span. Returns a handle the framework will pass to
         `close_span_ok` or `close_span_error`."""
@@ -100,18 +105,24 @@ class PostgresTraceSink(TraceSink):
         case_id: str,
         agent_name: str,
         input_payload: dict[str, Any],
+        identity: RunIdentity | None = None,
     ) -> SpanHandle:
         from app.db import db
         from app.streaming import publish
 
         row_id = await db.fetchval(
             """INSERT INTO agent_runs
-                  (case_id, agent_name, started_at, input_json)
-               VALUES ($1, $2, NOW(), $3)
+                  (case_id, agent_name, started_at, input_json,
+                   run_id, case_intelligence_id, trace_id, job_attempt)
+               VALUES ($1, $2, NOW(), $3, $4, $5, $6, $7)
                RETURNING id""",
             case_id,
             agent_name,
             json.dumps(input_payload),
+            identity.run_id if identity else None,
+            identity.case_intelligence_id if identity else None,
+            identity.trace_id if identity else None,
+            identity.job_attempt if identity else None,
         )
         await publish(
             case_id,
@@ -119,9 +130,10 @@ class PostgresTraceSink(TraceSink):
                 "type": "agent_started",
                 "agent_name": agent_name,
                 "ts": time.time(),
+                **(identity.event_fields() if identity else {}),
             },
         )
-        return SpanHandle(sink_internal_id=row_id)
+        return SpanHandle(sink_internal_id=row_id, identity=identity)
 
     async def close_span_ok(
         self,
@@ -163,6 +175,7 @@ class PostgresTraceSink(TraceSink):
                 "latency_ms": latency_ms,
                 "model_id": model_id,
                 "ts": time.time(),
+                **(handle.identity.event_fields() if handle.identity else {}),
             },
         )
 
@@ -192,6 +205,7 @@ class PostgresTraceSink(TraceSink):
                 "agent_name": agent_name,
                 "error": error,
                 "ts": time.time(),
+                **(handle.identity.event_fields() if handle.identity else {}),
             },
         )
 
@@ -213,6 +227,7 @@ class _InMemorySpan:
     output_tokens: int = 0
     error: str | None = None
     status: str = "open"
+    identity: RunIdentity | None = None
 
 
 @dataclass
@@ -227,6 +242,7 @@ class InMemoryTraceSink(TraceSink):
         case_id: str,
         agent_name: str,
         input_payload: dict[str, Any],
+        identity: RunIdentity | None = None,
     ) -> SpanHandle:
         idx = len(self.spans)
         self.spans.append(
@@ -234,9 +250,10 @@ class InMemoryTraceSink(TraceSink):
                 case_id=case_id,
                 agent_name=agent_name,
                 input_payload=input_payload,
+                identity=identity,
             )
         )
-        return SpanHandle(sink_internal_id=idx)
+        return SpanHandle(sink_internal_id=idx, identity=identity)
 
     async def close_span_ok(
         self,

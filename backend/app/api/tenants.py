@@ -20,7 +20,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, EmailStr, Field
 
-from app.auth import hash_password, require_role
+from app.auth import hash_password, require_platform_admin
 from app.cells import cell_for_organization
 from app.db import db
 
@@ -41,7 +41,7 @@ class CreateTenantBody(BaseModel):
 @router.post("")
 async def create_tenant(
     body: CreateTenantBody,
-    actor: dict[str, Any] = Depends(require_role("admin")),  # platform super-admin
+    actor: dict[str, Any] = Depends(require_platform_admin),
 ) -> dict[str, Any]:
     if not body.eula_accepted:
         raise HTTPException(status_code=400, detail="eula_accepted must be true")
@@ -116,7 +116,7 @@ async def create_tenant(
 
 @router.get("")
 async def list_tenants(
-    actor: dict[str, Any] = Depends(require_role("admin")),  # noqa: ARG001
+    actor: dict[str, Any] = Depends(require_platform_admin),  # noqa: ARG001
 ) -> dict[str, Any]:
     rows = await db.fetch_ro(
         "SELECT id, name, slug, created_at FROM organizations ORDER BY created_at DESC",
@@ -127,7 +127,7 @@ async def list_tenants(
 @router.get("/{organization_id}")
 async def get_tenant(
     organization_id: str,
-    actor: dict[str, Any] = Depends(require_role("admin")),  # noqa: ARG001
+    actor: dict[str, Any] = Depends(require_platform_admin),  # noqa: ARG001
 ) -> dict[str, Any]:
     row = await db.fetchrow_ro(
         "SELECT id, name, slug, created_at FROM organizations WHERE id = $1",

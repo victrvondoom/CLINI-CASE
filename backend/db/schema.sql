@@ -191,3 +191,104 @@ CREATE TABLE IF NOT EXISTS policy_chunks (
 CREATE INDEX IF NOT EXISTS idx_policy_chunks_payer ON policy_chunks(payer_id);
 CREATE INDEX IF NOT EXISTS idx_policy_chunks_embedding
     ON policy_chunks USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+
+-- =============================================================================
+-- Run identity (Phase 2): case_runs + run/case/trace columns, human-review pause state. Additive and idempotent; mirrors
+-- app/runs.py SCHEMA_SQL, which is also applied at API and worker start.
+-- =============================================================================
+-- Serialise concurrent API/worker starts (constraint widening below drops and re-adds a constraint).
+SELECT pg_advisory_xact_lock(hashtext('clincase_run_identity_schema'));
+
+ALTER TABLE cases ADD COLUMN IF NOT EXISTS case_intelligence_id TEXT;
+
+CREATE TABLE IF NOT EXISTS case_runs (
+    run_id               TEXT PRIMARY KEY,
+    case_id              TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+    organization_id      TEXT NOT NULL,
+    case_intelligence_id TEXT NOT NULL,
+    attempt_no           INTEGER NOT NULL,
+    trigger              TEXT NOT NULL CHECK (trigger IN ('initial','rerun','resume')),
+    parent_run_id        TEXT REFERENCES case_runs(run_id),
+    trace_id             TEXT NOT NULL,
+    job_id               UUID,
+    status               TEXT NOT NULL DEFAULT 'running'
+                         CHECK (status IN ('queued','running','paused','completed','failed','cancelled','superseded')),
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    finished_at          TIMESTAMPTZ,
+    UNIQUE (case_id, attempt_no)
+);
+CREATE INDEX IF NOT EXISTS idx_case_runs_case ON case_runs (case_id, attempt_no);
+
+-- 'superseded' (a paused run replaced by a newer execution) was added after the first release: widen once.
+DO $$ BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'case_runs_status_check' AND pg_get_constraintdef(oid) LIKE '%superseded%'
+    ) THEN
+        ALTER TABLE case_runs DROP CONSTRAINT IF EXISTS case_runs_status_check;
+        ALTER TABLE case_runs ADD CONSTRAINT case_runs_status_check CHECK (
+            status IN ('queued','running','paused','completed','failed','cancelled','superseded'));
+    END IF;
+END $$;
+
+-- The durable state of a run that stopped for human review (what the remaining agents need to continue).
+CREATE TABLE IF NOT EXISTS case_run_states (
+    run_id          TEXT PRIMARY KEY REFERENCES case_runs(run_id) ON DELETE CASCADE,
+    case_id         TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+    organization_id TEXT NOT NULL,
+    schema_version  INTEGER NOT NULL,
+    pause_kind      TEXT NOT NULL,
+    pause_reason    TEXT,
+    state_json      JSONB NOT NULL,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE agent_runs ADD COLUMN IF NOT EXISTS run_id TEXT;
+ALTER TABLE agent_runs ADD COLUMN IF NOT EXISTS case_intelligence_id TEXT;
+ALTER TABLE agent_runs ADD COLUMN IF NOT EXISTS trace_id TEXT;
+ALTER TABLE agent_runs ADD COLUMN IF NOT EXISTS job_attempt INTEGER;
+CREATE INDEX IF NOT EXISTS idx_agent_runs_run ON agent_runs (run_id);
+
+ALTER TABLE decisions ADD COLUMN IF NOT EXISTS run_id TEXT;
+ALTER TABLE decisions ADD COLUMN IF NOT EXISTS case_intelligence_id TEXT;
+CREATE INDEX IF NOT EXISTS idx_decisions_run ON decisions (run_id);
+
+ALTER TABLE appeals ADD COLUMN IF NOT EXISTS run_id TEXT;
+ALTER TABLE appeals ADD COLUMN IF NOT EXISTS case_intelligence_id TEXT;
+
+ALTER TABLE reviewer_actions ADD COLUMN IF NOT EXISTS run_id TEXT;
+ALTER TABLE reviewer_actions ADD COLUMN IF NOT EXISTS case_intelligence_id TEXT;
+
+-- /cases/{id}/resume has always recorded action 'resume_with_<verdict>', which the original CHECK rejected
+-- (every resume failed with 503 on a schema-conformant database). Widen it once; idempotent.
+DO $$ BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'reviewer_actions_action_check'
+          AND pg_get_constraintdef(oid) LIKE '%resume_with_approve%'
+    ) THEN
+        ALTER TABLE reviewer_actions DROP CONSTRAINT IF EXISTS reviewer_actions_action_check;
+        ALTER TABLE reviewer_actions ADD CONSTRAINT reviewer_actions_action_check CHECK (action IN (
+            'approve','override_to_approve','override_to_deny','escalate','add_note',
+            'resume_with_approve','resume_with_deny','resume_with_refer'));
+    END IF;
+END $$;
+
+ALTER TABLE IF EXISTS llm_invocations ADD COLUMN IF NOT EXISTS run_id TEXT;
+ALTER TABLE IF EXISTS llm_invocations ADD COLUMN IF NOT EXISTS case_intelligence_id TEXT;
+ALTER TABLE IF EXISTS llm_invocations ADD COLUMN IF NOT EXISTS trace_id TEXT;
+
+CREATE TABLE IF NOT EXISTS decision_verifications (
+    id BIGSERIAL PRIMARY KEY,
+    case_id TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+    run_id TEXT,
+    case_intelligence_id TEXT,
+    verifier_version TEXT NOT NULL,
+    composer_verdict TEXT NOT NULL,
+    independent_verdict TEXT NOT NULL,
+    agrees BOOLEAN NOT NULL,
+    pause_kind TEXT,
+    detail_json JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_decision_verifications_case ON decision_verifications(case_id, created_at DESC);

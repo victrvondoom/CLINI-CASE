@@ -25,13 +25,18 @@ import uuid
 from datetime import UTC
 from typing import Any
 
+import structlog
 from fastapi import APIRouter, Depends, Header, HTTPException, Response
 
-from app.auth.dependencies import get_current_user, require_role
+from app.auth.dependencies import get_current_user, require_platform_admin
 from app.db import db
+from app.identity import RunIdentity
 from app.jobs import queue as jq
 from app.llm.factory import llm_unavailable_reason
 from app.quotas import QuotaExceededError, consume_case_quota, quota_exceeded_to_http
+from app.runs import mark_run, start_run
+
+log = structlog.get_logger()
 
 router = APIRouter(tags=["jobs"])
 
@@ -60,6 +65,14 @@ def _retry_after_seconds(resets_at_iso: str) -> str:
         return str(max(1, int(delta)))
     except (ValueError, TypeError):
         return "60"
+
+
+async def _settle_run(run_id: str, status: str, *, job_id: Any = None) -> None:
+    """Best-effort run status update: never fail the request over bookkeeping."""
+    try:
+        await mark_run(run_id, status, job_id=job_id)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("jobs.run_status_update_failed", run_id=run_id, error_type=type(exc).__name__)
 
 
 def _derive_idempotency_key(
@@ -144,6 +157,7 @@ async def run_full_async(
         "SELECT id FROM case_jobs WHERE idempotency_key = $1",
         key,
     )
+    new_run: RunIdentity | None = None
     if existing is None:
         try:
             await consume_case_quota(user["organization_id"])
@@ -153,14 +167,39 @@ async def run_full_async(
                 detail=quota_exceeded_to_http(exc),
                 headers={"Retry-After": _retry_after_seconds(exc.resets_at_iso)},
             ) from exc
+        # A NEW submission is a new run (attempt N of this case); an idempotent replay is not. The
+        # identity travels in the job payload so the worker executes under exactly this run.
+        try:
+            new_run = await start_run(
+                organization_id=user["organization_id"], case_id=case_id, status="queued"
+            )
+        except Exception as exc:
+            log.warning("jobs.run_identity_unavailable", error_type=type(exc).__name__)
+            raise HTTPException(
+                status_code=503, detail="Run registry unavailable; the job was not queued."
+            ) from exc
+        payload["run"] = new_run.to_payload()
 
-    job = await jq.enqueue(
-        case_id=case_id,
-        organization_id=user["organization_id"],
-        job_type="run_full",
-        payload=payload,
-        idempotency_key=key,
-    )
+    try:
+        job = await jq.enqueue(
+            case_id=case_id,
+            organization_id=user["organization_id"],
+            job_type="run_full",
+            payload=payload,
+            idempotency_key=key,
+        )
+    except Exception:
+        if new_run is not None:
+            await _settle_run(new_run.run_id, "cancelled")
+        raise
+
+    queued_run = RunIdentity.from_payload((job.payload or {}).get("run"))
+    if new_run is not None:
+        if queued_run is not None and queued_run.run_id == new_run.run_id:
+            await _settle_run(new_run.run_id, "queued", job_id=job.id)
+        else:
+            # Lost an idempotency race: another submission's job won, ours will never execute.
+            await _settle_run(new_run.run_id, "cancelled")
 
     # Idempotent replay → return 200 instead of 202
     if job.status != "queued" or job.attempts > 0:
@@ -174,6 +213,8 @@ async def run_full_async(
         "created_at": job.created_at.isoformat() if job.created_at else None,
         "poll_url": f"/api/v1/jobs/{job.id}",
         "stream_url": f"/api/v1/cases/{case_id}/stream",
+        **(queued_run.event_fields() if queued_run else {}),
+        "run_attempt_no": queued_run.attempt_no if queued_run else None,
     }
 
 
@@ -240,7 +281,7 @@ async def list_case_jobs(
 
 @router.get("/jobs/queue/depth", status_code=200)
 async def queue_depth(
-    _user: dict[str, Any] = Depends(require_role("admin")),
+    _user: dict[str, Any] = Depends(require_platform_admin),
 ) -> dict[str, Any]:
     """Return global operational queue depth to administrators."""
     depth = await jq.queue_depth()

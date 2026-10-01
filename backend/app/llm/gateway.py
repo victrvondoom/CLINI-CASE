@@ -49,6 +49,7 @@ from app.llm.circuit_breaker import (
     CircuitBreakerOpenError,
     get_breaker,
 )
+from app.llm.errors import LLMError
 from app.observability.otel import bedrock_span
 
 log = structlog.get_logger()
@@ -73,6 +74,10 @@ class GatewayCallContext:
     case_id: str | None
     agent_name: str | None
     request_id: str | None
+    # Run identity (None for calls outside a case run, e.g. admin pings).
+    run_id: str | None = None
+    case_intelligence_id: str | None = None
+    trace_id: str | None = None
 
 
 _gateway_call_context: contextvars.ContextVar[GatewayCallContext | None] = contextvars.ContextVar(
@@ -166,6 +171,10 @@ CREATE TABLE IF NOT EXISTS llm_invocations (
     started_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     finished_at     TIMESTAMPTZ
 );
+ALTER TABLE llm_invocations ADD COLUMN IF NOT EXISTS run_id TEXT;
+ALTER TABLE llm_invocations ADD COLUMN IF NOT EXISTS case_intelligence_id TEXT;
+ALTER TABLE llm_invocations ADD COLUMN IF NOT EXISTS trace_id TEXT;
+CREATE INDEX IF NOT EXISTS idx_llmi_run ON llm_invocations (run_id);
 CREATE INDEX IF NOT EXISTS idx_llmi_org_started ON llm_invocations (organization_id, started_at);
 CREATE INDEX IF NOT EXISTS idx_llmi_case        ON llm_invocations (case_id);
 
@@ -452,14 +461,18 @@ class GenAIGateway(LLMClient):
         row_id = await db.fetchval(
             """INSERT INTO llm_invocations
                   (invocation_id, organization_id, case_id, agent_name,
-                   model_id, status, started_at)
-               VALUES ($1, $2, $3, $4, $5, 'running', NOW())
+                   model_id, status, started_at,
+                   run_id, case_intelligence_id, trace_id)
+               VALUES ($1, $2, $3, $4, $5, 'running', NOW(), $6, $7, $8)
                RETURNING id""",
             invocation_id,
             org_id,
             case_id,
             agent_name,
             resolved_model_id,
+            ctx.run_id if ctx else None,
+            ctx.case_intelligence_id if ctx else None,
+            ctx.trace_id if ctx else None,
         )
 
         started = time.time()
@@ -509,9 +522,36 @@ class GenAIGateway(LLMClient):
             )
             # Circuit breaker counts ALL failures (Bedrock 5xx, timeout, parse error).
             # CircuitBreakerOpenError itself is not counted (we're not actually calling).
-            if not isinstance(e, CircuitBreakerOpenError):
+            # Only provider-health failures trip the breaker; a guardrail block or a bad request is
+            # a property of the input, not of the model's availability.
+            if not isinstance(e, CircuitBreakerOpenError) and (
+                not isinstance(e, LLMError) or e.retryable
+            ):
                 await breaker.record_failure()
             raise
+
+    async def complete_with_image(
+        self,
+        *,
+        system: str,
+        user: str,
+        image_bytes: bytes,
+        image_format: str,
+        max_tokens: int = 4096,
+        temperature: float = 0.0,
+        model_id: str | None = None,
+    ) -> LLMResponse:
+        # Vision calls go straight to the provider (the underlying client enforces the
+        # guardrail and typed errors); the image is never inspected or logged here.
+        return await self._underlying.complete_with_image(
+            system=system,
+            user=user,
+            image_bytes=image_bytes,
+            image_format=image_format,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            model_id=model_id,
+        )
 
     async def stream(
         self,
@@ -522,8 +562,9 @@ class GenAIGateway(LLMClient):
         temperature: float = 0.0,
         model_id: str | None = None,
     ) -> AsyncIterator[str]:
-        # Streaming path passes through unchanged (no audit). ClinCase doesn't
-        # use streaming today — kept for interface conformance.
+        # Streaming is not audited or quota-checked (unused by the case pipeline); the content
+        # safety pre-check still applies so raw PHI patterns cannot bypass it.
+        _content_safety_pre_check(system + "\n" + user)
         async for chunk in self._underlying.stream(
             system=system,
             user=user,

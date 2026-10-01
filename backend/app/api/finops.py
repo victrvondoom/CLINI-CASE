@@ -24,7 +24,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Query
 
-from app.auth import get_current_user, require_role
+from app.auth import get_current_user, require_platform_admin
 from app.cells import cell_for_organization, list_cells
 from app.db import db
 
@@ -164,7 +164,7 @@ async def my_rollup(
 
 @router.get("/cells")
 async def per_cell_rollup(
-    user: dict[str, Any] = Depends(require_role("admin")),
+    user: dict[str, Any] = Depends(require_platform_admin),
     window: str = Query(default="30d"),
 ) -> dict[str, Any]:
     since = _since(window)
@@ -213,7 +213,7 @@ async def per_cell_rollup(
 
 @router.get("/leaderboard")
 async def leaderboard(
-    user: dict[str, Any] = Depends(require_role("admin")),
+    user: dict[str, Any] = Depends(require_platform_admin),
     window: str = Query(default="30d"),
     limit: int = Query(default=20, ge=1, le=200),
 ) -> dict[str, Any]:
@@ -250,7 +250,7 @@ async def leaderboard(
 
 @router.get("/projection")
 async def projection(
-    user: dict[str, Any] = Depends(require_role("admin")),
+    user: dict[str, Any] = Depends(require_platform_admin),
 ) -> dict[str, Any]:
     """Forward-30d projection from last 7d run-rate."""
     since = datetime.now(UTC) - timedelta(days=7)
