@@ -231,3 +231,170 @@ def test_stale_reviewer_action_before_a_rerun_does_not_hide_a_pending_review():
     )
     last = t["trace"]["stages"][-1]
     assert last["status"] == "waiting" and t["trace"]["totals"]["human_wait_ms"] is None
+
+
+# ---- run-aware twin (Phase 2) ------------------------------------------------------------------
+def _case_run(attempt, trigger="initial", status="completed", run_id=None, at=0, parent=None):
+    return {
+        "run_id": run_id or f"run_{attempt}", "attempt_no": attempt, "trigger": trigger, "status": status,
+        "parent_run_id": parent, "trace_id": f"{attempt:032x}", "job_id": None,
+        "created_at": T0 + timedelta(seconds=at), "finished_at": T0 + timedelta(seconds=at + 5),
+    }  # fmt: skip
+
+
+def _tag(row, run_id, job_attempt=1):
+    return {**row, "run_id": run_id, "job_attempt": job_attempt}
+
+
+def test_rerun_is_not_mixed_into_the_original_and_each_run_is_summarised():
+    r1, r2 = _case_run(1, at=0), _case_run(2, "rerun", at=100, parent="run_1")
+    agents = [
+        _tag(_run("necessity_reasoner", 1, 500, {"criteria": [{"status": "MET"}]}), "run_1"),
+        _tag(
+            _run(
+                "necessity_reasoner",
+                101,
+                900,
+                {"criteria": [{"status": "NOT_MET"}, {"status": "MET"}]},
+            ),
+            "run_2",
+        ),
+    ]
+    decs = [
+        {**_decision([], "APPROVE", at=10), "run_id": "run_1"},
+        {**_decision([], "DENY", at=110), "run_id": "run_2"},
+    ]
+    t = _build(case_runs=[r1, r2], runs=agents, decisions=decs, appeals=[])
+    assert t["headline_run_id"] == "run_2"
+    assert [a["latency_ms"] for a in t["agent_history"]] == [900]  # only the rerun's agents
+    assert t["policy"]["criteria_total"] == 2 and t["outcome"]["last_verdict"] == "DENY"
+    assert [r["attempt_no"] for r in t["runs"]] == [1, 2] and [r["verdict"] for r in t["runs"]] == [
+        "APPROVE",
+        "DENY",
+    ]
+    assert (
+        t["trace"]["stages"][0]["offset_ms"] == 1000
+    )  # relative to the rerun, not to the case's creation
+    assert len(t["model_decisions"]) == 2 and {d["run_id"] for d in t["model_decisions"]} == {
+        "run_1",
+        "run_2",
+    }
+
+
+def test_a_resume_run_does_not_replace_the_execution_it_follows():
+    r1, rs = _case_run(1, at=0), _case_run(2, "resume", at=60, parent="run_1")
+    agents = [_tag(_run("necessity_reasoner", 1, 500), "run_1")]
+    decs = [
+        {**_decision([], "REFER", at=10), "run_id": "run_1"},
+        {**_decision([], "APPROVE", at=70), "run_id": "run_2"},
+    ]
+    acts = [
+        {
+            "reviewer_id": "u",
+            "action": "resume_with_approve",
+            "note": None,
+            "created_at": T0 + timedelta(seconds=70),
+            "run_id": "run_2",
+        }
+    ]
+    t = _build(case_runs=[r1, rs], runs=agents, decisions=decs, appeals=[], actions=acts)
+    assert t["headline_run_id"] == "run_1" and len(t["agent_history"]) == 1
+    assert [r["trigger"] for r in t["runs"]] == ["initial", "resume"] and t["runs"][1][
+        "human_actions"
+    ] == 1
+    assert t["human_decisions"][0]["run_id"] == "run_2"
+
+
+def test_rows_from_before_run_identity_appear_as_a_legacy_run():
+    legacy = _run("necessity_reasoner", 1, 500)  # no run_id
+    t = _build(
+        case_runs=[_case_run(1)], runs=[legacy, _tag(_run("necessity_reasoner", 2, 700), "run_1")]
+    )
+    assert [r["trigger"] for r in t["runs"]] == ["legacy", "initial"] and t["runs"][0][
+        "agent_rows"
+    ] == 1
+
+
+def test_stored_identity_is_used_and_a_mismatch_is_reported():
+    good = case_intelligence_id("org_a", "case_1")
+    assert _build(case={**_case(), "case_intelligence_id": good})["identity"] == {
+        "case_intelligence_id": good, "stored": True, "matches_derived": True,
+    }  # fmt: skip
+    bad = _build(case={**_case(), "case_intelligence_id": "CI-FORGED000000"})
+    assert (
+        bad["case_intelligence_id"] == "CI-FORGED000000"
+        and bad["integrity"]["identity_consistent"] is False
+    )
+
+
+def test_crash_retries_of_one_run_are_visible_but_not_separate_runs():
+    r1 = _case_run(1)
+    agents = [_tag(_run("a", 1, 10), "run_1", 1), _tag(_run("a", 2, 10), "run_1", 2)]
+    t = _build(case_runs=[r1], runs=agents)
+    assert len(t["runs"]) == 1 and t["runs"][0]["job_attempts"] == [1, 2]
+
+
+def test_a_cancelled_run_never_becomes_the_headline():
+    real, lost = _case_run(1, at=0), _case_run(2, "rerun", status="cancelled", at=50)
+    agents = [_tag(_run("a", 1, 500), "run_1")]
+    t = _build(
+        case_runs=[real, lost],
+        runs=agents,
+        decisions=[{**_decision([], "APPROVE"), "run_id": "run_1"}],
+    )
+    assert (
+        t["headline_run_id"] == "run_1"
+        and len(t["agent_history"]) == 1
+        and t["outcome"]["last_verdict"] == "APPROVE"
+    )
+    assert [r["status"] for r in t["runs"]] == ["completed", "cancelled"]
+
+
+def test_headline_shows_only_the_attempt_that_produced_the_outcome():
+    agents = [
+        _tag(_run("a", 1, 100), "run_1", 1),
+        _tag(_run("b", 2, 100), "run_1", 1),
+        _tag(_run("a", 3, 200), "run_1", 2),
+    ]
+    t = _build(case_runs=[_case_run(1)], runs=agents)
+    assert [a["latency_ms"] for a in t["agent_history"]] == [
+        200
+    ]  # attempt 1's rows are not double-counted
+    assert t["trace"]["totals"]["agent_ms"] == 200 and t["runs"][0]["job_attempts"] == [1, 2]
+
+
+def test_after_a_review_resume_the_human_decision_is_the_current_outcome():
+    paused = _case_run(
+        1, status="paused", at=0
+    )  # finished_at = T0+5s, no model decision (graph stopped at the gate)
+    resume = _case_run(2, "resume", at=60, parent="run_1")
+    acts = [
+        {
+            "reviewer_id": "u",
+            "action": "resume_with_deny",
+            "note": None,
+            "created_at": T0 + timedelta(seconds=65),
+            "run_id": "run_2",
+        }
+    ]
+    human = {
+        **_decision(
+            [{"kind": "human_override", "text": "t", "pointer": "reviewer_action:u"}], "DENY", at=65
+        ),
+        "run_id": "run_2",
+    }
+    t = _build(
+        case=_case(status="denied"),
+        case_runs=[paused, resume],
+        runs=[_tag(_run("a", 1, 300), "run_1")],
+        decisions=[human],
+        actions=acts,
+        appeals=[],
+    )
+    assert (
+        t["outcome"]["last_verdict"] == "DENY" and t["outcome"]["latest_decision_run_id"] == "run_2"
+    )
+    review = next(s for s in t["trace"]["stages"] if s["stage"] == "human_review")
+    assert (
+        review["status"] == "ok" and review["duration_ms"] == 60000
+    )  # from the pause to the human action

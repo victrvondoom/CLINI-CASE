@@ -20,12 +20,16 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from app.agents.clinical_extractor import extract_clinical_snapshot
+from app.agents.framework.run_registry import release as release_run_context
+from app.agents.framework.run_registry import run_cost
 from app.auth import get_current_user, require_role
 from app.db import db
 from app.graph.build import build_full_graph, build_partial_graph
-from app.graph.state import ClinCaseState
+from app.graph.state import ClinCaseState, state_for_run
+from app.identity import RunIdentity, case_intelligence_id
 from app.llm.factory import llm_unavailable_reason
 from app.quotas import QuotaExceededError, consume_case_quota, quota_exceeded_to_http
+from app.runs import latest_run_id, mark_run, paused_run_id, start_run
 from app.streaming import publish
 
 # Compile both graphs once at module load (compile is non-trivial)
@@ -171,8 +175,9 @@ async def create_case(
             """INSERT INTO cases (id, organization_id, created_by_user_id,
                                   payer_id, patient_initials,
                                   requested_treatment_name, requested_j_code,
-                                  fhir_bundle, physician_note, status)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending')""",
+                                  fhir_bundle, physician_note, status,
+                                  case_intelligence_id)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending', $10)""",
             case_id,
             user["organization_id"],
             user["id"],
@@ -182,6 +187,7 @@ async def create_case(
             req.requested_treatment.get("j_code"),
             json.dumps(req.fhir_bundle),
             req.physician_note,
+            case_intelligence_id(user["organization_id"], case_id),
         )
     except Exception as exc:
         log.warning("cases.create.unavailable", error_type=type(exc).__name__)
@@ -354,9 +360,16 @@ async def run_full(
         if isinstance(row["fhir_bundle"], str)
         else row["fhir_bundle"]
     )
-    initial = ClinCaseState(
-        case_id=case_id,
-        organization_id=user["organization_id"],
+    try:
+        identity = await start_run(organization_id=user["organization_id"], case_id=case_id)
+    except Exception as exc:
+        log.warning("case.run.identity_unavailable", error_type=type(exc).__name__)
+        raise HTTPException(
+            status_code=503,
+            detail="Case storage is unavailable; no clinical decision was generated.",
+        ) from exc
+    initial = state_for_run(
+        identity,
         fhir_bundle=fhir,
         physician_note=row["physician_note"],
         requested_treatment={
@@ -365,6 +378,7 @@ async def run_full(
         },
         payer_id=row["payer_id"],
     )
+    run_status = "failed"
 
     try:
         final_raw = await _FULL_GRAPH.ainvoke(initial)
@@ -386,6 +400,7 @@ async def run_full(
                 {
                     "type": "hitl_pause",
                     "case_id": case_id,
+                    **identity.event_fields(),
                     "reason": final.pause_reason,
                     "overall_confidence": (
                         final.necessity_assessment.overall_confidence
@@ -403,16 +418,20 @@ async def run_full(
             from app.events.outbox import emit_appeal_drafted, emit_case_decided
             from app.observability.otel import get_current_trace_id
 
+            run_cost_usd, run_seconds = run_cost(identity)
             async with db.pool.acquire() as conn, conn.transaction():
                 await conn.execute(
                     """INSERT INTO decisions (case_id, verdict, rationale,
-                                                  citations_json, confidence)
-                           VALUES ($1, $2, $3, $4, $5)""",
+                                                  citations_json, confidence,
+                                                  run_id, case_intelligence_id)
+                           VALUES ($1, $2, $3, $4, $5, $6, $7)""",
                     case_id,
                     final.decision.verdict,
                     final.decision.rationale,
                     json.dumps([c.model_dump() for c in final.decision.citations]),
                     final.decision.confidence,
+                    identity.run_id,
+                    identity.case_intelligence_id,
                 )
 
                 # Update case status
@@ -431,12 +450,12 @@ async def run_full(
                     verdict=final.decision.verdict,
                     confidence=float(final.decision.confidence or 0.0),
                     triggered_hitl=False,
-                    decision_run_id=str(uuid4()),
+                    decision_run_id=identity.run_id,
                     primary_model_id="apac.anthropic.claude-sonnet-4-6-20251022-v1:0",
-                    cost_usd=0.0,
-                    duration_seconds=0.0,
+                    cost_usd=run_cost_usd,
+                    duration_seconds=run_seconds,
                     conn=conn,
-                    trace_id=get_current_trace_id(),
+                    trace_id=get_current_trace_id() or identity.trace_id,
                 )
 
                 # The appealed status, appeal body, and both outbox events are
@@ -444,14 +463,17 @@ async def run_full(
                 if final.appeal_draft is not None:
                     appeal_id = await conn.fetchval(
                         """INSERT INTO appeals (case_id, appeal_body,
-                                                structured_arguments_json)
-                           VALUES ($1, $2, $3)
+                                                structured_arguments_json,
+                                                run_id, case_intelligence_id)
+                           VALUES ($1, $2, $3, $4, $5)
                            RETURNING id""",
                         case_id,
                         final.appeal_draft.appeal_body,
                         json.dumps(
                             [a.model_dump() for a in final.appeal_draft.structured_arguments]
                         ),
+                        identity.run_id,
+                        identity.case_intelligence_id,
                     )
                     await emit_appeal_drafted(
                         organization_id=user["organization_id"],
@@ -459,19 +481,27 @@ async def run_full(
                         appeal_id=appeal_id,
                         structured_arguments_count=len(final.appeal_draft.structured_arguments),
                         conn=conn,
-                        trace_id=get_current_trace_id(),
+                        trace_id=get_current_trace_id() or identity.trace_id,
                     )
+        run_status = "paused" if final.paused_for_review else "completed"
     except Exception as exc:
-        log.exception("case.run.failed", case_id=case_id)
+        log.exception("case.run.failed", case_id=case_id, run_id=identity.run_id)
         raise HTTPException(
             status_code=502,
             detail="Case processing failed safely. No decision was recorded; review the audit log.",
         ) from exc
     finally:
-        await publish(case_id, {"type": "done", "case_id": case_id})
+        release_run_context(identity)
+        try:
+            await mark_run(identity.run_id, run_status)
+        except Exception:  # noqa: BLE001 - never mask the real outcome
+            log.warning("case.run.status_update_failed", run_id=identity.run_id)
+        await publish(case_id, {"type": "done", "case_id": case_id, **identity.event_fields()})
 
     return {
         "case_id": case_id,
+        **identity.event_fields(),
+        "attempt_no": identity.attempt_no,
         "clinical_snapshot": final.clinical_snapshot.model_dump()
         if final.clinical_snapshot
         else None,
@@ -534,6 +564,7 @@ async def resume_after_review(
 
     status_map = {"APPROVE": "approved", "DENY": "denied", "REFER": "referred"}
     new_status = status_map.get(req.verdict, "referred")
+    identity: RunIdentity | None = None
     try:
         async with db.pool.acquire() as conn, conn.transaction():
             row = await conn.fetchrow(
@@ -554,25 +585,45 @@ async def resume_after_review(
                     ),
                 )
 
-            # Decision, state transition and audit identity commit together.
+            # The human continuation is its own run (trigger='resume', parent = the run that paused),
+            # so the review is never confused with the execution it follows. Decision, state
+            # transition, run record and audit identity commit together.
+            reviewed_run = await paused_run_id(case_id, conn=conn)
+            identity = await start_run(
+                organization_id=user["organization_id"],
+                case_id=case_id,
+                trigger="resume",
+                parent_run_id=reviewed_run,
+                status="completed",
+                conn=conn,
+            )
+            if reviewed_run is not None:
+                # The human decision resolves the paused execution; it must not stay 'paused' forever.
+                await mark_run(reviewed_run, "completed", conn=conn)
             await conn.execute(
                 """INSERT INTO decisions (case_id, verdict, rationale,
-                                          citations_json, confidence)
-                   VALUES ($1, $2, $3, $4, $5)""",
+                                          citations_json, confidence,
+                                          run_id, case_intelligence_id)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7)""",
                 case_id,
                 req.verdict,
                 rationale,
                 json.dumps(citations),
                 1.0,
+                identity.run_id,
+                identity.case_intelligence_id,
             )
             await conn.execute("UPDATE cases SET status = $1 WHERE id = $2", new_status, case_id)
             await conn.execute(
-                """INSERT INTO reviewer_actions (case_id, reviewer_id, action, note)
-                   VALUES ($1, $2, $3, $4)""",
+                """INSERT INTO reviewer_actions (case_id, reviewer_id, action, note,
+                                                 run_id, case_intelligence_id)
+                   VALUES ($1, $2, $3, $4, $5, $6)""",
                 case_id,
                 user["id"],
                 f"resume_with_{req.verdict.lower()}",
                 req.reviewer_note,
+                identity.run_id,
+                identity.case_intelligence_id,
             )
     except HTTPException:
         raise
@@ -586,12 +637,17 @@ async def resume_after_review(
             "case_id": case_id,
             "verdict": req.verdict,
             "reviewer_id": user["id"],
+            **(identity.event_fields() if identity else {}),
         },
     )
-    await publish(case_id, {"type": "done", "case_id": case_id})
+    await publish(
+        case_id,
+        {"type": "done", "case_id": case_id, **(identity.event_fields() if identity else {})},
+    )
 
     return {
         "case_id": case_id,
+        **(identity.event_fields() if identity else {}),
         "verdict": req.verdict,
         "status": new_status,
         "reviewer_id": user["id"],
@@ -650,13 +706,17 @@ async def submit_review(
                 new_status = "denied"
 
             # Ignore client-supplied reviewer_id: audit identity comes from JWT/DB auth.
+            # The action is attributed to the run it was taken against (the case's latest run).
             await conn.execute(
-                """INSERT INTO reviewer_actions (case_id, reviewer_id, action, note)
-                   VALUES ($1, $2, $3, $4)""",
+                """INSERT INTO reviewer_actions (case_id, reviewer_id, action, note,
+                                                 run_id, case_intelligence_id)
+                   VALUES ($1, $2, $3, $4, $5, $6)""",
                 case_id,
                 user["id"],
                 req.action,
                 req.note,
+                await latest_run_id(case_id, conn=conn),
+                case_intelligence_id(user["organization_id"], case_id),
             )
             if new_status != old_status:
                 await conn.execute(

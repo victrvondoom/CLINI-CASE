@@ -108,6 +108,9 @@ class _Connection:
     async def fetchrow(self, _query: str, *_args: Any) -> dict[str, str]:
         return {"id": "case-1", "status": "awaiting_review"}
 
+    async def fetchval(self, _query: str, *_args: Any) -> str:
+        return "run-latest"  # latest_run_id(): the run a review action is attributed to
+
     async def execute(self, query: str, *args: Any) -> str:
         self.calls.append((query, args))
         return "INSERT 1"
@@ -136,6 +139,8 @@ async def test_review_uses_authenticated_identity_and_one_transaction(monkeypatc
     )
     audit_args = next(args for query, args in conn.calls if "reviewer_actions" in query)
     assert audit_args[1] == "real-reviewer"
+    assert audit_args[4] == "run-latest"  # attributed to the case's latest run
+    assert audit_args[5].startswith("CI-")  # and to the case's stable intelligence id
     assert result["reviewer_id"] == "real-reviewer"
     assert conn.tx.rolled_back is False
 

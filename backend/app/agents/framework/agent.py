@@ -262,6 +262,7 @@ class Agent(ABC, Generic[I, O]):
             case_id=ctx.case_id,
             agent_name=self.qualified_name,
             input_payload=self._safe_dump(input),
+            identity=ctx.identity,
         )
 
         # Per-invocation state
@@ -286,6 +287,9 @@ class Agent(ABC, Generic[I, O]):
                 case_id=ctx.case_id,
                 agent_name=self.qualified_name,
                 request_id=getattr(ctx, "request_id", None),
+                run_id=ctx.identity.run_id if ctx.identity else None,
+                case_intelligence_id=ctx.identity.case_intelligence_id if ctx.identity else None,
+                trace_id=ctx.identity.trace_id if ctx.identity else None,
             )
         )
 

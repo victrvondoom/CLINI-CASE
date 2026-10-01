@@ -29,6 +29,27 @@ export function CaseTwinPanel({ caseId }: { caseId: string }) {
       {error && !t && <p className="text-sm text-accent-red" role="alert">Could not load the case twin: {error}</p>}
       {t && (
         <div className="space-y-4">
+          {t.runs.length > 0 && (
+            <div>
+              <h4 className="text-[12px] uppercase tracking-wide text-ink-muted mb-1">Runs</h4>
+              <ul className="space-y-1" aria-label="Case runs">
+                {t.runs.map((r) => (
+                  <li
+                    key={r.run_id ?? "legacy"}
+                    className={clsx("text-[12px]", r.run_id === t.headline_run_id ? "text-ink-strong" : "text-ink-body")}
+                    data-testid="twin-run"
+                  >
+                    <span className="text-mono-tech">#{r.attempt_no}</span> · {r.trigger}
+                    {r.status && <span> · {r.status}</span>}
+                    {r.verdict && <span> · {r.verdict}</span>}
+                    {r.job_attempts.length > 1 && <span className="text-accent-amber"> · {r.job_attempts.length} attempts</span>}
+                    {r.run_id && <code className="text-mono-tech text-ink-muted"> · {r.run_id}</code>}
+                    {r.run_id === t.headline_run_id && <span className="text-ink-muted"> · shown below</span>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <ol className="space-y-1" aria-label="Case trace">
             {t.trace.stages.map((s, i) => (
               <li key={`${s.stage}-${i}`} className="flex items-center gap-2 text-[13px]">

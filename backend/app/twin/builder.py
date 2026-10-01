@@ -294,6 +294,63 @@ def _infra(job: dict[str, Any] | None) -> list[dict[str, Any]]:
     return events
 
 
+def _headline_run(case_runs: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """The run whose execution the twin foregrounds: the latest EXECUTION run (initial/rerun).
+
+    A human-review `resume` run is a continuation, not an execution of the agents, so it never replaces the
+    execution it follows; its decision and reviewer actions still appear in the decision/human sections."""
+    # A cancelled run never executed (lost an idempotency race / failed to enqueue): it must not hide the real one.
+    execution = [
+        r for r in case_runs if r.get("trigger") != "resume" and r.get("status") != "cancelled"
+    ]
+    return execution[-1] if execution else None
+
+
+def _run_summaries(
+    case_runs: list[dict[str, Any]],
+    agent_rows: list[dict[str, Any]],
+    decisions: list[dict[str, Any]],
+    actions: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """One record per run (plus one 'legacy' record for rows written before run identity existed)."""
+
+    def summary(run: dict[str, Any] | None) -> dict[str, Any] | None:
+        rid = run["run_id"] if run else None
+        rows = [a for a in agent_rows if a.get("run_id") == rid]
+        decs = [d for d in decisions if d.get("run_id") == rid]
+        acts = [a for a in actions if a.get("run_id") == rid]
+        if run is None and not (rows or decs or acts):
+            return None
+        last = decs[-1] if decs else None
+        return {
+            "run_id": rid,
+            "attempt_no": run["attempt_no"] if run else 0,
+            "trigger": run["trigger"] if run else "legacy",
+            "parent_run_id": run.get("parent_run_id") if run else None,
+            "status": run["status"] if run else None,
+            "trace_id": run.get("trace_id") if run else None,
+            "job_id": str(run["job_id"]) if run and run.get("job_id") else None,
+            "created_at": _iso(run.get("created_at")) if run else None,
+            "finished_at": _iso(run.get("finished_at")) if run else None,
+            "job_attempts": sorted({int(a["job_attempt"]) for a in rows if a.get("job_attempt")}),
+            "agent_rows": len(rows),
+            "agent_errors": sum(1 for a in rows if a.get("error_text")),
+            "input_tokens": sum(int(a.get("input_tokens") or 0) for a in rows),
+            "output_tokens": sum(int(a.get("output_tokens") or 0) for a in rows),
+            "verdict": last["verdict"] if last else None,
+            "confidence": last["confidence"] if last else None,
+            "human_actions": len(acts),
+        }
+
+    out: list[dict[str, Any]] = []
+    if (legacy := summary(None)) is not None:
+        out.append(legacy)
+    for run in case_runs:
+        if (item := summary(run)) is not None:
+            out.append(item)
+    return out
+
+
 def build_twin(
     *,
     organization_id: str,
@@ -303,11 +360,60 @@ def build_twin(
     decisions: list[dict[str, Any]],
     appeal: dict[str, Any] | None,
     actions: list[dict[str, Any]],
+    case_runs: list[dict[str, Any]] | None = None,
+    appeals: list[dict[str, Any]] | None = None,
     now: datetime | None = None,
 ) -> dict[str, Any]:
+    """Project a case's persisted records into the twin.
+
+    `runs` are the agent rows. With `case_runs` (the run registry) the twin is run-aware: the headline
+    sections (agents, evidence, trace, queue) describe the latest execution run only — a rerun is never mixed
+    with the original — and a `runs` list summarises every run. Without it (cases from before run identity
+    existed) the previous whole-case projection is used unchanged."""
     case_id = case["id"]
-    ciid = case_intelligence_id(organization_id, case_id)
+    derived_ciid = case_intelligence_id(organization_id, case_id)
+    stored_ciid = case.get("case_intelligence_id")
+    ciid = stored_ciid or derived_ciid
+    run_list = case_runs or []
+    all_agent_rows, all_decisions, all_actions = runs, decisions, actions
+    headline = _headline_run(run_list)
+    trace_origin = case["created_at"]
+    run_summaries: list[dict[str, Any]] = []
+    if run_list:
+        run_summaries = _run_summaries(run_list, all_agent_rows, all_decisions, all_actions)
+        if headline is not None:
+            hid = headline["run_id"]
+            runs = [a for a in all_agent_rows if a.get("run_id") == hid]
+            if runs:
+                # A crash-retry re-executes under the same run id: show the attempt that produced the outcome
+                # (the latest), not the dead attempts' rows as well.
+                last_attempt = max(int(a.get("job_attempt") or 1) for a in runs)
+                runs = [a for a in runs if int(a.get("job_attempt") or 1) == last_attempt]
+            decisions = [d for d in all_decisions if d.get("run_id") == hid]
+            appeal = next(
+                (a for a in reversed(appeals or []) if a.get("run_id") == hid),
+                None if appeals is not None else appeal,
+            )
+            trace_origin = headline.get("created_at") or case["created_at"]
+        else:
+            runs, decisions, appeal = [], [], None
     latest = decisions[-1] if decisions else None
+    trace_decision = latest
+    if (
+        latest is None
+        and headline is not None
+        and headline.get("finished_at") is not None
+        and (
+            headline.get("status") == "paused"
+            or any(
+                r.get("trigger") == "resume" and r.get("parent_run_id") == headline["run_id"]
+                for r in run_list
+            )
+        )
+    ):
+        # The run stopped at the review gate (no model decision): anchor the human-review stage at the pause.
+        trace_decision = {"created_at": headline["finished_at"], "verdict": "REFER"}
+    last_decision = all_decisions[-1] if all_decisions else None
     patient = _patient_state(case.get("fhir_bundle"))
     by_id = {r["id"]: r["type"] for r in patient["resources"] if r.get("id")}
     evidence = _evidence(case_id, latest, set(by_id), runs, by_id, _snapshot_pointers(runs))
@@ -316,6 +422,13 @@ def build_twin(
     twin: dict[str, Any] = {
         "case_intelligence_id": ciid,
         "case_id": case_id,
+        "identity": {
+            "case_intelligence_id": ciid,
+            "stored": stored_ciid is not None,
+            "matches_derived": ciid == derived_ciid,
+        },
+        "runs": run_summaries,
+        "headline_run_id": headline["run_id"] if headline else None,
         "patient_fhir": patient,
         "authorization": {
             "status": case["status"],
@@ -351,8 +464,9 @@ def build_twin(
                 "confidence": d["confidence"],
                 "rationale": d["rationale"],
                 "decided_at": _iso(d["created_at"]),
+                "run_id": d.get("run_id"),
             }
-            for d in decisions
+            for d in all_decisions
         ],
         "human_decisions": [
             {
@@ -360,21 +474,27 @@ def build_twin(
                 "action": a["action"],
                 "note": a.get("note"),
                 "at": _iso(a["created_at"]),
+                "run_id": a.get("run_id"),
             }
-            for a in actions
+            for a in all_actions
         ],
         "infrastructure_events": _infra(job),
-        "trace": _trace(case, runs, latest, actions, appeal),
+        "trace": _trace(
+            {**case, "created_at": trace_origin}, runs, trace_decision, all_actions, appeal
+        ),
         "outcome": {
             "status": case["status"],
             "final": case["status"] in _TERMINAL,
-            "last_verdict": latest["verdict"] if latest else None,
+            # The case's current decision — the human's after a review, otherwise the model's.
+            "last_verdict": last_decision["verdict"] if last_decision else None,
+            "latest_decision_run_id": last_decision.get("run_id") if last_decision else None,
             "appeal_drafted": appeal is not None,
         },
         "integrity": {
             "dangling_citations": dangling,
             "citations_total": len(evidence),
             "all_clinical_citations_resolve": not dangling,
+            "identity_consistent": ciid == derived_ciid,
         },
     }
     twin["twin_sha256"] = hashlib.sha256(
@@ -387,36 +507,54 @@ def build_twin(
 async def fetch_twin(organization_id: str, case_id: str) -> dict[str, Any] | None:
     case = await db.fetchrow(
         """SELECT id, created_at, payer_id, requested_treatment_name, requested_j_code,
-                  fhir_bundle, status
+                  fhir_bundle, status, case_intelligence_id
            FROM cases WHERE id = $1 AND organization_id = $2""",
         case_id,
         organization_id,
     )
     if case is None:
         return None
-    job = await db.fetchrow(
-        """SELECT status, attempts, claimed_by, claimed_at, created_at, finished_at, error_text
-           FROM case_jobs WHERE case_id = $1 AND organization_id = $2
-           ORDER BY created_at DESC LIMIT 1""",
+    case_runs = await db.fetch(
+        """SELECT run_id, attempt_no, trigger, parent_run_id, trace_id, job_id, status,
+                  created_at, finished_at
+           FROM case_runs WHERE case_id = $1 AND organization_id = $2 ORDER BY attempt_no""",
         case_id,
         organization_id,
     )
+    headline = _headline_run([dict(r) for r in case_runs])
+    # The queue record of the headline run (not merely the case's newest job).
+    job_filter = (
+        "AND id = $3::uuid"  # the headline run's own job (none for a synchronous run)
+        if headline is not None
+        else "AND $3::uuid IS NULL"  # no run records (pre-identity case): the newest job, as before
+    )
+    job = None
+    if headline is None or headline["job_id"] is not None:
+        job = await db.fetchrow(
+            f"""SELECT status, attempts, claimed_by, claimed_at, created_at, finished_at, error_text
+               FROM case_jobs WHERE case_id = $1 AND organization_id = $2 {job_filter}
+               ORDER BY created_at DESC LIMIT 1""",
+            case_id,
+            organization_id,
+            headline["job_id"] if headline is not None else None,
+        )
     runs = await db.fetch(
         """SELECT agent_name, started_at, finished_at, output_json, latency_ms, error_text,
-                  model_id, input_tokens, output_tokens
+                  model_id, input_tokens, output_tokens, run_id, job_attempt
            FROM agent_runs WHERE case_id = $1 ORDER BY id ASC""",
         case_id,
     )
     decisions = await db.fetch(
-        """SELECT verdict, rationale, citations_json, confidence, created_at
+        """SELECT verdict, rationale, citations_json, confidence, created_at, run_id
            FROM decisions WHERE case_id = $1 ORDER BY id ASC""",
         case_id,
     )
-    appeal = await db.fetchrow(
-        "SELECT created_at FROM appeals WHERE case_id = $1 ORDER BY id DESC LIMIT 1", case_id
+    appeals = await db.fetch(
+        "SELECT created_at, run_id FROM appeals WHERE case_id = $1 ORDER BY id ASC", case_id
     )
+    appeal = appeals[-1] if appeals else None
     actions = await db.fetch(
-        """SELECT reviewer_id, action, note, created_at
+        """SELECT reviewer_id, action, note, created_at, run_id
            FROM reviewer_actions WHERE case_id = $1 ORDER BY id ASC""",
         case_id,
     )
@@ -428,4 +566,6 @@ async def fetch_twin(organization_id: str, case_id: str) -> dict[str, Any] | Non
         decisions=[dict(d) for d in decisions],
         appeal=dict(appeal) if appeal else None,
         actions=[dict(a) for a in actions],
+        case_runs=[dict(r) for r in case_runs],
+        appeals=[dict(a) for a in appeals],
     )

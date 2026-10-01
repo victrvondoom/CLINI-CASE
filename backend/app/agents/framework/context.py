@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any
 
 from app.agents.framework.budget import BudgetTracker, new_default_budget
 from app.agents.framework.types import AgentTrace
+from app.identity import RunIdentity
 
 if TYPE_CHECKING:
     from app.agents.framework.trace_sink import TraceSink
@@ -59,6 +60,9 @@ class AgentContext:
     correlation: dict[str, str] = field(default_factory=dict)
     """OpenTelemetry-style baggage; propagates through the agent stack."""
 
+    identity: RunIdentity | None = None
+    """Case / run / trace identity of the execution this context belongs to (None only for legacy callers)."""
+
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
@@ -80,6 +84,7 @@ class AgentContext:
             working_memory=self.working_memory,
             root_trace=self.root_trace,
             correlation=dict(self.correlation),
+            identity=self.identity,
         )
 
     def attach_root_trace(self, span: AgentTrace) -> None:
@@ -94,6 +99,7 @@ class AgentContext:
             "parent_span_id": str(self.parent_span_id) if self.parent_span_id else None,
             "budget": self.budget.snapshot(),
             "correlation": self.correlation,
+            "identity": self.identity.to_payload() if self.identity else None,
         }
 
 
@@ -103,6 +109,7 @@ def new_agent_context(
     organization_id: str,
     budget: BudgetTracker | None = None,
     trace_sink: TraceSink | None = None,
+    identity: RunIdentity | None = None,
 ) -> AgentContext:
     """Factory at the top of every case. Use this — never construct directly."""
     from app.agents.framework.trace_sink import PostgresTraceSink
@@ -112,4 +119,6 @@ def new_agent_context(
         organization_id=organization_id,
         budget=budget or new_default_budget(),
         trace_sink=trace_sink or PostgresTraceSink(),
+        correlation=identity.baggage() if identity else {},
+        identity=identity,
     )

@@ -80,6 +80,7 @@ def _h(token: str) -> dict[str, str]:
         "/api/v1/cases/{c}",
         "/api/v1/cases/{c}/audit",
         "/api/v1/cases/{c}/twin",
+        "/api/v1/cases/{c}/runs",
         "/api/v1/cases/{c}/evidence-pack",
         "/api/v1/cases/{c}/compare",
     ],

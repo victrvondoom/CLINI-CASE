@@ -73,6 +73,10 @@ class GatewayCallContext:
     case_id: str | None
     agent_name: str | None
     request_id: str | None
+    # Run identity (None for calls outside a case run, e.g. admin pings).
+    run_id: str | None = None
+    case_intelligence_id: str | None = None
+    trace_id: str | None = None
 
 
 _gateway_call_context: contextvars.ContextVar[GatewayCallContext | None] = contextvars.ContextVar(
@@ -166,6 +170,10 @@ CREATE TABLE IF NOT EXISTS llm_invocations (
     started_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     finished_at     TIMESTAMPTZ
 );
+ALTER TABLE llm_invocations ADD COLUMN IF NOT EXISTS run_id TEXT;
+ALTER TABLE llm_invocations ADD COLUMN IF NOT EXISTS case_intelligence_id TEXT;
+ALTER TABLE llm_invocations ADD COLUMN IF NOT EXISTS trace_id TEXT;
+CREATE INDEX IF NOT EXISTS idx_llmi_run ON llm_invocations (run_id);
 CREATE INDEX IF NOT EXISTS idx_llmi_org_started ON llm_invocations (organization_id, started_at);
 CREATE INDEX IF NOT EXISTS idx_llmi_case        ON llm_invocations (case_id);
 
@@ -452,14 +460,18 @@ class GenAIGateway(LLMClient):
         row_id = await db.fetchval(
             """INSERT INTO llm_invocations
                   (invocation_id, organization_id, case_id, agent_name,
-                   model_id, status, started_at)
-               VALUES ($1, $2, $3, $4, $5, 'running', NOW())
+                   model_id, status, started_at,
+                   run_id, case_intelligence_id, trace_id)
+               VALUES ($1, $2, $3, $4, $5, 'running', NOW(), $6, $7, $8)
                RETURNING id""",
             invocation_id,
             org_id,
             case_id,
             agent_name,
             resolved_model_id,
+            ctx.run_id if ctx else None,
+            ctx.case_intelligence_id if ctx else None,
+            ctx.trace_id if ctx else None,
         )
 
         started = time.time()

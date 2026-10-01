@@ -390,9 +390,25 @@ export interface TwinStage {
   duration_ms: number | null;
   status: "ok" | "error" | "running" | "waiting";
 }
+export interface TwinRun {
+  run_id: string | null;
+  attempt_no: number;
+  trigger: "initial" | "rerun" | "resume" | "legacy";
+  parent_run_id: string | null;
+  status: "queued" | "running" | "paused" | "completed" | "failed" | "cancelled" | null;
+  trace_id: string | null;
+  job_attempts: number[];
+  agent_rows: number;
+  agent_errors: number;
+  verdict: string | null;
+  human_actions: number;
+}
 export interface CaseTwin {
   case_intelligence_id: string;
   case_id: string;
+  identity: { case_intelligence_id: string; stored: boolean; matches_derived: boolean };
+  runs: TwinRun[];
+  headline_run_id: string | null;
   patient_fhir: { resource_counts: Record<string, number> };
   authorization: { status: string; payer_id: string; treatment: string };
   policy: { criteria_total: number; criteria_met: number; criteria_ambiguous: number; criteria_not_met: number };
