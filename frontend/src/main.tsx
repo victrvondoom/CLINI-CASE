@@ -25,6 +25,7 @@ import { RequireAuth } from "./components/RequireAuth";
 const AquaCommunity = lazy(() => import("./routes/AquaCommunity"));
 const AquaDashboard = lazy(() => import("./routes/AquaDashboard"));
 const AquaEvaluation = lazy(() => import("./routes/AquaEvaluation"));
+const Interop = lazy(() => import("./routes/Interop"));
 const OneHealth = lazy(() => import("./routes/OneHealth"));
 const AquaMap = lazy(() => import("./routes/AquaMap"));
 const AquaObservationDetail = lazy(() => import("./routes/AquaObservationDetail"));
@@ -145,6 +146,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
                 Existing ClinCase routes above are unchanged. */}
             <Route path="/aquahealth" element={<AquaDashboard />} />
             <Route path="/onehealth" element={<OneHealth />} />
+            <Route path="/interop" element={<Interop />} />
             <Route path="/aquahealth/observations" element={<AquaObservations />} />
             <Route path="/aquahealth/observations/new" element={<AquaObservationNew />} />
             <Route path="/aquahealth/observations/:observationId" element={<AquaObservationDetail />} />

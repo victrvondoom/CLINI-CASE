@@ -645,3 +645,13 @@ entity. See [LICENSE](LICENSE) for the complete terms.
 `Approve cancer treatment in minutes, not weeks.`
 
 </div>
+
+
+### Track 7: evidence-aware One Health interoperability gateway
+
+New `/interop` workbench: synthetic external JSON/CSV -> deterministic or optional governed AI
+mapping -> human confirmation -> existing OAH/FHIR exporter -> validation -> independent HTTP
+receiver -> acknowledgement -> FHIR return to Lab A. Existing `/onehealth`, oncology, OncoTwin,
+CardioTwin and AquaHealth workflows remain intact. See [Track 7 architecture and demo](docs/ONEHEALTH_TRACK7.md#newly-added-one-health-interoperability-gateway).
+This is FHIR R4-targeted OAH exchange with pinned profile-aware contract checks and round-trip
+validation, not HL7 certification.

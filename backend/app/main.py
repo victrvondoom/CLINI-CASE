@@ -203,6 +203,13 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
     await _bootstrap_optional("onehealth_schema", _onehealth)
 
+    async def _interop():
+        from app.interop.repository import ensure_schema
+
+        await ensure_schema()
+
+    await _bootstrap_optional("interop_schema", _interop)
+
     # Redis SSE pub/sub — in-process is the safe fallback for single-replica.
     # Multi-replica deploys MUST set REDIS_URL or live SSE traces fan-out
     # asymmetrically. We log loudly when this fails because in production
@@ -435,6 +442,7 @@ from app.api import (  # noqa: E402
     oncotwin_intel as oncotwin_intel_api,
 )
 from app.api import (  # noqa: E402
+    interop as interop_api,
     onehealth as onehealth_api,
 )
 from app.api import (  # noqa: E402
@@ -540,6 +548,7 @@ app.include_router(case_twin_api.router, prefix="/api/v1")
 app.include_router(aquahealth_api.router, prefix="/api/v1")
 
 app.include_router(onehealth_api.router, prefix="/api/v1")
+app.include_router(interop_api.router, prefix="/api/v1")
 # fhir_bulk router carries its own /fhir prefix
 app.include_router(fhir_bulk_api.router)
 

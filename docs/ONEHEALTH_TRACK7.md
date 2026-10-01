@@ -4,8 +4,9 @@
 **Supporting:** Track 3 — AI-Supported Assessment.
 **Entry:** `/onehealth` (reviewer/admin); citizen workflow remains `/aquahealth`.
 
-The team states that the existing platform was also built during the hackathon. This is an
-additive integration, not a replacement project. All existing routes and clinical models remain.
+This Track 7 upgrade adds an interoperability gateway to the existing CLINI-CASE platform.
+It does not claim that the entire repository was created during this hackathon. Existing
+oncology, OncoTwin, CardioTwin, AquaHealth and `/onehealth` workflows remain intact.
 
 ## Problem and intended impact
 
@@ -148,3 +149,153 @@ Full R4/OAH terminology validation; institutional lab identity/signatures; a rea
 patient identity reconciliation; retention and remote revocation policy; field-study evaluation;
 clinical validation and regulatory review. Existing real-patient ingestion and clinical-database
 availability determine whether non-synthetic cross-module use is possible.
+
+
+## Newly added: One Health Interoperability Gateway
+
+**Positioning:** An evidence-aware One Health interoperability gateway that converts
+heterogeneous environmental, laboratory and health observations into validated OAH/FHIR
+exchanges while preserving provenance, consent and human review.
+
+The `/interop` route is the new judge-facing workbench. `/onehealth` remains the clinical
+evidence workflow. The new code lives in `backend/app/interop`, `backend/app/api/interop.py`,
+`frontend/src/interop` and `frontend/src/routes/Interop.tsx`; it reuses existing One Health
+FHIR export, validation, decoding, evidence logic and reviewer authorization.
+
+```mermaid
+flowchart TD
+    A[System A: heterogeneous synthetic JSON / CSV / FHIR] --> S[Schema discovery]
+    S --> M[Pinned aliases + optional governed AI semantic suggestions]
+    M --> H[Human mapping review: accept / edit / reject]
+    H --> N[Strict LabSample normalization]
+    N --> F[Existing OAH / FHIR native resource exporter]
+    F --> V[Contract validation + provenance + consent + round trip]
+    V --> HTTP[Explicit HTTP adapter]
+    HTTP --> B[System B: independent receiver ASGI app]
+    B --> DB[Separate tenant-scoped SQLite receipts]
+    B --> ACK[Content hash + resource acknowledgement]
+    B --> R[Return common FHIR package]
+    R --> RV[Gateway validates return]
+    RV --> LAB[System A lab HTTP receiver + native lab representation]
+    V --> E[Six evidence gates: local approval remains pending]
+```
+
+### Continuous golden-path demo
+
+1. Sign in as a reviewer/admin and open `/interop`. Select **Start Track 7 Interoperability Demo**.
+   This imports a clearly synthetic external laboratory record with mixed field names.
+2. Select **Analyze schema and propose mappings**. Offline mode uses deterministic rules and
+   explicitly says that no model was called. To exercise real AI, enable **Request model semantic
+   suggestions** with the existing LLM provider configured. Only field names, the target allowlist
+   and the Pydantic schema are sent. Provider errors are visible and never labelled AI success.
+3. Inspect rule/model origin, confidence score, unresolved terminology and suggested FHIR targets.
+   Accept each supported field, explicitly choose **Total arsenic - local code** only because
+   the synthetic fixture represents that assay, and reject the unsupported legacy note. Unknown
+   fields remain in the original source artifact. Edit targets through the field dropdowns.
+4. Generate the reviewed bundle. Existing exporter creates Location, Specimen, Observation,
+   Organization, PractitionerRole, environmental Task, QuestionnaireResponse and transformation
+   Provenance/actor. No Patient or Consent is invented for a patient-free laboratory record.
+5. Inspect validation, SHA-256 and measured native-field round-trip counts. Transfer to independent
+   Clinical System B. It receives serialized FHIR through HTTP, validates it again, stores its own
+   package and native representation, and acknowledges the exact hash and resource count.
+6. Select **Return FHIR/OAH from System B to Lab A**. The gateway retrieves FHIR through HTTP,
+   validates it and sends it to the lab receiver namespace over HTTP. Both native representations,
+   the returned bundle and the lab acknowledgement are visible.
+7. Select **Run validation failure**. This changes the unit to `ppm`; the validation gate rejects it.
+   Transfer stays disabled. Restore the generated bundle and validate again to recover.
+8. Follow the correlation ID across source receipt, schema discovery, reviewer decisions,
+   transformation, validation, transfer and return. Copy the ID into **Resume transaction** to
+   reload persisted work. In volatile demo mode, jobs disappear when the backend restarts.
+
+The six evidence gates are surfaced after exchange. Laboratory verification remains false at
+an independent receiver and clinical review remains pending. Source consent/history claims are
+retained when processing supported patient-linked FHIR, but never create/overwrite local patient
+records. Use the existing `/onehealth` workflow for local verification, consent and clinical review.
+No environmental measurement changes a cancer authorization, NCCN conclusion, OncoTwin result
+or CardioTwin calculation.
+
+### Additive API surface
+
+All gateway endpoints use `/api/v1/interop` and reviewer/admin authorization:
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/meta` | Supported targets, standards, storage and simulator mode |
+| POST | `/import`, `/simulators/lab/send` | Import one JSON/CSV/supported FHIR source record |
+| POST | `/demo` | Load labelled synthetic laboratory input |
+| POST | `/analyze-schema`, `/map` | Discover fields and propose typed mappings |
+| POST | `/mappings/{job_id}/approve`, `/mappings/{job_id}/reject` | Versioned per-field decisions / edits |
+| POST | `/generate-fhir` | Normalize confirmed source and reuse existing FHIR exporter |
+| POST | `/validate` | Validate editable challenge bundle; approved generated bundle stays separate |
+| POST | `/transfer` | Validate exact hash and deliver/retry through HTTP |
+| POST | `/return` | Receive FHIR from clinical system and deliver it back to lab receiver |
+| GET | `/jobs/{id}`, `/bundle/{id}`, `/events/{id}`, `/transfers/{id}` | Read the scoped transaction snapshot |
+
+The read aliases return the transaction snapshot, including the requested artifact. Mutations
+require `job_id` and `expected_version`. Approval additionally requires `source_field`, with an
+optional supported `target` and explicit local analyte `concept`. Generation requires every
+mapping to be accepted or rejected; missing required assay metadata fails rather than being
+invented. JSON/CSV currently support one laboratory sample per package and two local arsenic
+analytes, with `ug/L` or `mg/L`; this is intentionally a narrow reliable path.
+
+### Independent receiver and deployment
+
+Default demo mode uses an independent ASGI application through `httpx.ASGITransport`: requests
+and responses cross an explicit serialized HTTP boundary, with separate SQLite receipt storage.
+This default is **not a separate network process**. To show a real network boundary, launch from
+`backend` in another terminal:
+
+```powershell
+$env:INTEROP_RECEIVER_TOKEN = '<choose a shared service secret>'
+$env:INTEROP_RECEIVER_DB = 'interop-receiver.sqlite3'
+.venv/Scripts/python.exe -m uvicorn app.interop.receiver:app --host 127.0.0.1 --port 8091
+```
+
+Set the same `INTEROP_RECEIVER_TOKEN` and `INTEROP_RECEIVER_URL=http://127.0.0.1:8091`
+in the gateway process. The receiver exposes `POST /fhir`, `GET /exchanges/{correlation_id}`
+and `POST /lab/fhir`. It uses service authentication plus explicit tenant scope, accepts synthetic
+bundles only, never reads gateway/clinical state, and stores clinical/lab receipts in distinct
+correlation namespaces. Do not reuse it as a real patient system.
+
+Gateway persistence follows existing PostgreSQL patterns: `interop_jobs` contains CAS metadata;
+`interop_artifacts` separates source, discovered fields, mappings, normalized sample, bundle,
+validation, transfer records and audit events. All keys include organization identity and writes
+are transactional. The existing synthetic-only memory fallback applies without PostgreSQL.
+Transfers persist `processing` before delivery, then `delivered`, `rejected` or `failed`; retries
+reuse the correlation ID, and the receiver rejects a changed hash under the same identity.
+A crash after delivery can be recovered by retrying; no background queue or automatic retry
+scheduler is added.
+
+### Validation, terminology and limitations
+
+Wording: **FHIR R4-targeted OAH exchange with pinned profile-aware contract checks and
+round-trip validation.** This is not full HL7 R4 profile/terminology certification. Existing R4B
+base-model checks, selected pinned OAH constraints and local exchange-contract checks remain.
+The gateway adds supported-resource, transformation-provenance and active-consent transfer
+checks; the receiver repeats those checks. Checks cover references, identity duplication, dates,
+UCUM units/codes, patient binding, consent consistency and review-state consistency through
+the reused validator. Runtime counters report executed check groups, not an invented count of
+FHIR invariants. Round-trip counters count normalized sample fields, not every raw source field.
+Unsupported raw fields stay in source storage and are not claimed to be native FHIR mappings.
+
+AI uses the existing governed provider abstraction with tenant/correlation context. Suggestions
+are validated with strict Pydantic contracts and allowlisted targets; all remain pending review.
+Rule confidence is a fixed rule score, model confidence is a model-reported suggestion score,
+and neither is calibrated accuracy. Terminology is transparently local/unresolved; no verified
+LOINC, SNOMED CT, ICD or RxNorm mappings are invented. Consent and provenance are retained
+claims, not digital signatures or independently authenticated external clinical approval.
+
+Synthetic fixtures are in `backend/data/interop`: messy environmental JSON, one-row laboratory
+CSV, valid FHIR bundle and intentionally invalid unit bundle. Deterministic API tests exercise
+the continuous cross-system journey, adversarial validation, typed model suggestions/failure,
+review, privacy, authorization, CAS, receipt idempotency and retry. Live-provider operation
+requires configured credentials and is not required for the deterministic offline demo.
+
+
+The existing governed model gateway requires PostgreSQL for quota enforcement and invocation
+audit writes. With that governance enabled, synthetic memory mode reports AI unavailable;
+it does not bypass the controls. Configure the existing database and provider for live AI.
+Run the authenticated network demo from `backend` with
+`.venv/Scripts/python.exe scripts/interop_demo.py`; `--ai` requests the real provider and
+`--fixtures` regenerates the labelled valid/broken bundle fixtures. The script honors existing
+HTTP rate-limit retry headers. AI success and offline success are reported separately.

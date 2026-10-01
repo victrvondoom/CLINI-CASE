@@ -1,0 +1,283 @@
+{
+  "resourceType": "Bundle",
+  "id": "ig-synthetic-fixture",
+  "type": "collection",
+  "timestamp": "2026-10-01T04:03:18.077163+00:00",
+  "identifier": {
+    "system": "https://github.com/victrvondoom/CLINI-CASE/identifier/exposure",
+    "value": "ig-synthetic-fixture"
+  },
+  "meta": {
+    "versionId": "1",
+    "tag": [
+      {
+        "system": "https://github.com/victrvondoom/CLINI-CASE/fhir/CodeSystem/one-health",
+        "code": "clincase-one-health-1"
+      },
+      {
+        "system": "https://github.com/victrvondoom/CLINI-CASE/fhir/CodeSystem/one-health",
+        "code": "synthetic"
+      }
+    ]
+  },
+  "entry": [
+    {
+      "fullUrl": "https://clincase.invalid/fhir/Location/waterbody",
+      "resource": {
+        "resourceType": "Location",
+        "id": "waterbody",
+        "meta": {
+          "profile": [
+            "http://hl7.eu/fhir/ig/oah/StructureDefinition/location-oah"
+          ]
+        },
+        "identifier": [
+          {
+            "system": "https://github.com/victrvondoom/CLINI-CASE/identifier/waterbody",
+            "value": "external-23dbcc8c23b882b6"
+          }
+        ],
+        "name": "SYNTHETIC Example Lake",
+        "mode": "instance"
+      }
+    },
+    {
+      "fullUrl": "https://clincase.invalid/fhir/Location/sample-site",
+      "resource": {
+        "resourceType": "Location",
+        "id": "sample-site",
+        "meta": {
+          "profile": [
+            "http://hl7.eu/fhir/ig/oah/StructureDefinition/location-oah"
+          ]
+        },
+        "identifier": [
+          {
+            "system": "https://github.com/victrvondoom/CLINI-CASE/identifier/sample-site",
+            "value": "SYN-AS-001"
+          }
+        ],
+        "name": "SYNTHETIC household outlet",
+        "mode": "instance",
+        "type": [
+          {
+            "coding": [
+              {
+                "system": "https://github.com/victrvondoom/CLINI-CASE/fhir/CodeSystem/one-health",
+                "code": "drinking_water"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "fullUrl": "https://clincase.invalid/fhir/Organization/laboratory",
+      "resource": {
+        "resourceType": "Organization",
+        "id": "laboratory",
+        "name": "SYNTHETIC Example Laboratory"
+      }
+    },
+    {
+      "fullUrl": "https://clincase.invalid/fhir/PractitionerRole/collector",
+      "resource": {
+        "resourceType": "PractitionerRole",
+        "id": "collector",
+        "code": [
+          {
+            "text": "SYNTHETIC sampling team"
+          }
+        ]
+      }
+    },
+    {
+      "fullUrl": "https://clincase.invalid/fhir/Specimen/sample",
+      "resource": {
+        "resourceType": "Specimen",
+        "id": "sample",
+        "meta": {
+          "profile": [
+            "http://hl7.eu/fhir/ig/oah/StructureDefinition/specimen-oah"
+          ]
+        },
+        "identifier": [
+          {
+            "system": "https://github.com/victrvondoom/CLINI-CASE/identifier/sample",
+            "value": "SYN-AS-001"
+          }
+        ],
+        "subject": {
+          "reference": "Location/sample-site"
+        },
+        "type": {
+          "text": "Water sample"
+        },
+        "collection": {
+          "collector": {
+            "reference": "PractitionerRole/collector"
+          },
+          "collectedDateTime": "2026-09-28T10:00:00+00:00"
+        }
+      }
+    },
+    {
+      "fullUrl": "https://clincase.invalid/fhir/Observation/lab-result",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "lab-result",
+        "meta": {
+          "profile": [
+            "http://hl7.eu/fhir/ig/oah/StructureDefinition/observation-indicators-oah"
+          ]
+        },
+        "identifier": [
+          {
+            "system": "https://github.com/victrvondoom/CLINI-CASE/identifier/laboratory-report",
+            "value": "SYN-REPORT-001"
+          }
+        ],
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "https://github.com/victrvondoom/CLINI-CASE/fhir/CodeSystem/one-health",
+              "code": "total_arsenic"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Location/sample-site"
+        },
+        "specimen": {
+          "reference": "Specimen/sample"
+        },
+        "effectiveDateTime": "2026-09-28T10:00:00+00:00",
+        "issued": "2026-09-29T10:00:00+00:00",
+        "performer": [
+          {
+            "reference": "Organization/laboratory"
+          }
+        ],
+        "method": {
+          "text": "SYNTHETIC ICP-MS example; not a real assay"
+        },
+        "valueQuantity": {
+          "value": 18.2,
+          "unit": "ppm",
+          "system": "http://unitsofmeasure.org",
+          "code": "ppm"
+        }
+      }
+    },
+    {
+      "fullUrl": "https://clincase.invalid/fhir/Task/environmental-followup",
+      "resource": {
+        "resourceType": "Task",
+        "id": "environmental-followup",
+        "status": "requested",
+        "intent": "proposal",
+        "code": {
+          "coding": [
+            {
+              "system": "https://github.com/victrvondoom/CLINI-CASE/fhir/CodeSystem/one-health",
+              "code": "environmental-retest"
+            }
+          ]
+        },
+        "focus": {
+          "reference": "Location/sample-site"
+        },
+        "description": "Investigate the water source and document a retest. No patient details in this task."
+      }
+    },
+    {
+      "fullUrl": "https://clincase.invalid/fhir/QuestionnaireResponse/exposure-history",
+      "resource": {
+        "resourceType": "QuestionnaireResponse",
+        "id": "exposure-history",
+        "status": "completed",
+        "item": [
+          {
+            "linkId": "observation_id",
+            "answer": [
+              {
+                "valueString": "SYN-AS-001"
+              }
+            ]
+          },
+          {
+            "linkId": "lab_verified",
+            "answer": [
+              {
+                "valueBoolean": false
+              }
+            ]
+          },
+          {
+            "linkId": "review",
+            "answer": [
+              {
+                "valueString": "pending"
+              }
+            ]
+          },
+          {
+            "linkId": "created_at",
+            "answer": [
+              {
+                "valueString": "2026-10-01T04:03:18.077163+00:00"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "fullUrl": "https://clincase.invalid/fhir/Practitioner/actor-0",
+      "resource": {
+        "resourceType": "Practitioner",
+        "id": "actor-0",
+        "identifier": [
+          {
+            "system": "https://github.com/victrvondoom/CLINI-CASE/identifier/reviewer",
+            "value": "SYNTHETIC mapping reviewer"
+          }
+        ]
+      }
+    },
+    {
+      "fullUrl": "https://clincase.invalid/fhir/Provenance/audit-0",
+      "resource": {
+        "resourceType": "Provenance",
+        "id": "audit-0",
+        "target": [
+          {
+            "reference": "QuestionnaireResponse/exposure-history"
+          }
+        ],
+        "recorded": "2026-10-01T04:03:18.077163+00:00",
+        "activity": {
+          "coding": [
+            {
+              "system": "https://github.com/victrvondoom/CLINI-CASE/fhir/CodeSystem/one-health",
+              "code": "interop_mapping_confirmed"
+            }
+          ]
+        },
+        "reason": [
+          {
+            "text": "{\"source_system\": \"SYNTHETIC Lab A\", \"original_record_id\": \"SYN-AS-001\", \"source_hash\": \"62c444a6ec74c152fedbeb4e52974b1ab8109bac69f849b328508cd12ff3caf4\", \"mapping_version\": 1, \"correlation_id\": \"ig-synthetic-fixture\"}"
+          }
+        ],
+        "agent": [
+          {
+            "who": {
+              "reference": "Practitioner/actor-0"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

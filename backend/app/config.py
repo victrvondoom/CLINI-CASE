@@ -106,6 +106,11 @@ class Settings(BaseSettings):
     # Explicitly opt in only for a local demonstration without a database.
     AUTH_DBLESS_DEMO_ENABLED: bool = False
 
+    # Additive Track 7 simulator; an empty URL uses an independent embedded ASGI app.
+    INTEROP_RECEIVER_URL: str = ""
+    INTEROP_RECEIVER_TOKEN: str = ""
+    INTEROP_RECEIVER_DB: str = ":memory:"
+
     # Raw image/PDF OCR sends visible identifiers to a remote processor.
     # Enable only after the deployment has approved provider data handling.
     CLOUD_DOCUMENT_PROCESSING_ENABLED: bool = False

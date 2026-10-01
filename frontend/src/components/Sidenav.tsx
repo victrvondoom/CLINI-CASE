@@ -103,6 +103,7 @@ const SECTIONS: NavSection[] = [
   {
     label: "One Health · Track 7",
     items: [
+      { label: "Interop gateway", href: "/interop", icon: ShieldCheck, chip: "TRACK 7", reviewerOrAdmin: true },
       { label: "Evidence workbench", href: "/onehealth", icon: ShieldCheck, chip: "TRACK 7", reviewerOrAdmin: true },
       { label: "Overview",        href: "/aquahealth",                  icon: Droplets,   chip: "AQUA", end: true },
       { label: "New observation", href: "/aquahealth/observations/new", icon: Sprout },
