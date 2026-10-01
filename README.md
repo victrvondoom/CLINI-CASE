@@ -46,6 +46,7 @@ The following sections retain the existing platform reference documentation. Thi
 - [Regulatory alignment](#-regulatory-alignment)
 - [FHIR / Da Vinci PAS conformance](#-fhir--da-vinci-pas-conformance)
 - [Audit trail](#-audit-trail)
+- [Accountable authorization](#-accountable-authorization-identity-review-verification)
 - [Business case](#-business-case)
 - [Getting started](#-getting-started)
 - [Roadmap](#%EF%B8%8F-roadmap)
@@ -431,6 +432,24 @@ ClinCase has two tamper-evidence mechanisms at different levels of maturity.
 
 ---
 
+## 🧾 Accountable authorization: identity, review, verification
+
+Every decision is traceable to one execution and can be escalated to a human. All of this is additive; nothing is on by default that changes existing verdicts.
+
+| Capability | What it does | Docs |
+|---|---|---|
+| **Run identity** | Each execution has a `run_id`, a stable `case_intelligence_id` (`CI-…`) and a `trace_id`, carried through the queue, graph, agents, model calls and SSE, and stored on every artifact. | [`docs/RUN_IDENTITY.md`](docs/RUN_IDENTITY.md) |
+| **Human review (pause/resume)** | A low-confidence or disputed case pauses durably; a reviewer's decision (`/resume`) becomes the decision of record and a queued continuation drafts the downstream outputs. Prior runs are kept as `superseded`. | [`docs/HUMAN_REVIEW.md`](docs/HUMAN_REVIEW.md) |
+| **Independent verifier** | Re-derives the verdict from criterion-level evidence and checks that clinical citations resolve to the FHIR bundle, without reading the composer's reasoning. Disagreement pauses the case. Off by default: `VERIFIER_ENABLED=true`. | [`docs/PLATFORM_HARDENING.md`](docs/PLATFORM_HARDENING.md) |
+| **Case Digital Twin** | `GET /cases/{id}/twin`: one auditable projection (runs, evidence lineage, human decisions, verifications, gateway-audited cost reconciliation, tamper hash). | [`docs/CASE_DIGITAL_TWIN.md`](docs/CASE_DIGITAL_TWIN.md) |
+| **Model gateway** | Typed Bedrock errors, guardrail interventions never returned as answers, config-driven model registry, deterministic routing with no silent fallback, one price source. | [`docs/PLATFORM_HARDENING.md`](docs/PLATFORM_HARDENING.md) |
+| **Security** | Tenant-scoped MCP, platform-admin-only policy writes, login throttle, same-origin OIDC redirects, non-root containers. | [`docs/SECURITY_PROCESSING.md`](docs/SECURITY_PROCESSING.md) |
+| **Tracing** | `Agent.invoke` spans plus a W3C `traceparent` carried across the job queue. | [`docs/PLATFORM_HARDENING.md`](docs/PLATFORM_HARDENING.md) |
+
+Demo settings that make the verifier and human-review gate fire are in [`ops/demo.env.example`](ops/demo.env.example). Honest status, what is not yet proven, and the evaluation plan: [`docs/PENDING_WORK_AND_WIN_PLAN.md`](docs/PENDING_WORK_AND_WIN_PLAN.md) and [`docs/EVALUATION_RESULTS.md`](docs/EVALUATION_RESULTS.md) (synthetic verifier fault injection only; no live-model accuracy is claimed).
+
+---
+
 ## 💵 Business case
 
 The figures below start from **cited external sources** and apply them to a modeled 50-physician oncology practice with 10,000 PA requests a year. They are the economics the product is designed to deliver, not results measured in a production deployment.
@@ -522,6 +541,7 @@ commands.
 
 In rough priority order:
 
+0. **Prove it live**: run the pipeline on real cases with a real model, report accuracy, verifier catch rate and cost per case, and deploy a reachable demo (see the pending-work doc).
 1. **Durable audit chain**: move the hash chain from an in-process list to the persisted `agent_runs` rows or an append-only store, so it survives restarts and replica failover.
 2. **Full Da Vinci PAS conformance**: IG profile validation and the X12 278 bridge.
 3. **Bedrock as the default provider**: the code path is done and tested. The remaining work is setting `LLM_PROVIDER=bedrock` in deployment and moving the Policy Retriever to Bedrock Knowledge Bases.

@@ -129,3 +129,13 @@ Every doc in this repo, with one-line purpose. Use this as the table of contents
 | `frontend/src/oncotwin/` | OncoTwin UI components and API client |
 | `frontend/src/lib/api.ts` | Typed API client |
 | `frontend/src/lib/sse.ts` | SSE trace stream consumer |
+
+## Accountability, platform and planning docs
+
+| Doc | Covers |
+|---|---|
+| [RUN_IDENTITY.md](RUN_IDENTITY.md) | Run / case-intelligence / trace identity and propagation |
+| [HUMAN_REVIEW.md](HUMAN_REVIEW.md) | Durable pause and resume, reviewer decisions |
+| [PLATFORM_HARDENING.md](PLATFORM_HARDENING.md) | Bedrock hardening, model registry, verifier, telemetry |
+| [EVALUATION_RESULTS.md](EVALUATION_RESULTS.md) | Verifier fault-injection results (synthetic) |
+| [PENDING_WORK_AND_WIN_PLAN.md](PENDING_WORK_AND_WIN_PLAN.md) | Status, pending work, hackathon plan, product path |
