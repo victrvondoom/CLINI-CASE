@@ -28,7 +28,7 @@ def app(monkeypatch):
     application.include_router(journey_api.router, prefix="/api/v1")
     application.dependency_overrides[get_current_user] = lambda: {
         "id": "u1",
-        "role": "coordinator",
+        "role": "reviewer",
         "organization_id": "o1",
     }
     return application
@@ -48,6 +48,15 @@ def _service(body, service_id):
 async def test_runtime_requires_authentication(app):
     app.dependency_overrides.clear()
     assert (await _get(app)).status_code == 401
+
+
+async def test_runtime_topology_is_reviewer_or_admin_only(app):
+    app.dependency_overrides[get_current_user] = lambda: {
+        "id": "u2",
+        "role": "coordinator",
+        "organization_id": "o1",
+    }
+    assert (await _get(app)).status_code == 403
 
 
 async def test_local_process_is_labelled_deployment_topology_without_secrets(app, monkeypatch):

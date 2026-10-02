@@ -77,6 +77,18 @@ def _stage(
     }
 
 
+def _delivered(job: dict[str, Any], digest: str | None) -> dict[str, Any] | None:
+    """The newest delivered (non-challenge) transfer of exactly this bundle digest."""
+    return next(
+        (
+            t
+            for t in reversed(job.get("transfers") or [])
+            if not t.get("challenge") and t.get("status") == "delivered" and t.get("sha256") == digest
+        ),
+        None,
+    )
+
+
 def project(job: dict[str, Any], evidence: dict[str, Any] | None = None) -> dict[str, Any]:
     """Compose stages from an interop job view and, when bound, its One Health journey."""
     source = job["source"]
@@ -86,6 +98,15 @@ def project(job: dict[str, Any], evidence: dict[str, Any] | None = None) -> dict
     bundle: dict[str, Any] | None = job.get("bundle")
     validation: dict[str, Any] | None = job.get("validation")
     withdrawn = job.get("consent_status") == "WITHDRAWN"
+    record = (evidence or {}).get("record")
+    # The gateway refuses transfer (HTTP 409) when the bound evidence record changed after the bundle
+    # was generated, or when binding reset the job's exposure_version. Mirror that rule.
+    stale = bool(
+        job.get("exposure_id") and record and job.get("exposure_version") != record.get("version")
+    )
+    current_digest = fhir.digest(bundle) if bundle else None
+    # Before a successful exchange, stale evidence means the bundle must be regenerated first.
+    regenerate = stale and _delivered(job, current_digest) is None
     from_evidence = bool(_proof(job, "reviewed_evidence_exchange_created"))
     workbench = ("Open in interop workbench", f"/interop?job={job['id']}")
     stages: list[dict[str, Any]] = []
@@ -236,7 +257,17 @@ def project(job: dict[str, Any], evidence: dict[str, Any] | None = None) -> dict
         )
 
     # 5 Standardize ------------------------------------------------------------------
-    if bundle:
+    if bundle and regenerate:
+        stages.append(
+            _stage(
+                "standardize",
+                "ready",
+                "The bound evidence changed since this bundle was generated; regenerate it from the current record",
+                facts=[("Bundle SHA-256", _short(current_digest))],
+                next_action=("generate", "Regenerate from current evidence"),
+            )
+        )
+    elif bundle:
         types = Counter(e["resource"]["resourceType"] for e in bundle.get("entry", []))
         stages.append(
             _stage(
@@ -264,8 +295,9 @@ def project(job: dict[str, Any], evidence: dict[str, Any] | None = None) -> dict
         )
 
     # 6 Validate ---------------------------------------------------------------------
-    current_digest = fhir.digest(bundle) if bundle else None
-    if not bundle:
+    if regenerate and bundle:
+        stages.append(_stage("validate", "waiting", "Waiting for the regenerated bundle"))
+    elif not bundle:
         stages.append(_stage("validate", "blocked" if withdrawn else "waiting", "Waiting for a bundle"))
     elif not validation:
         stages.append(
@@ -325,14 +357,7 @@ def project(job: dict[str, Any], evidence: dict[str, Any] | None = None) -> dict
     all_transfers: list[dict[str, Any]] = job.get("transfers") or []
     transfers = [t for t in all_transfers if not t.get("challenge")]
     challenges = [t for t in all_transfers if t.get("challenge")]
-    delivered = next(
-        (
-            t
-            for t in reversed(transfers)
-            if t.get("status") == "delivered" and t.get("sha256") == current_digest
-        ),
-        None,
-    )
+    delivered = _delivered(job, current_digest)
     latest = next((t for t in reversed(transfers) if t.get("sha256") == current_digest), None)
     transfer_detail = {
         "transfers": [
@@ -364,6 +389,10 @@ def project(job: dict[str, Any], evidence: dict[str, Any] | None = None) -> dict
                     ("Correlation ID", delivered.get("correlation_id")),
                     ("Receiver reassigned resource IDs", "Yes" if ack.get("resource_ids_reassigned") else "No"),
                     ("Invalid packages rejected by System B", rejected_challenges or None),
+                    (
+                        "Evidence changed since this exchange",
+                        "Regenerate and exchange again to share the current record" if stale else None,
+                    ),
                 ],
                 evidence=_proof(job, "transfer_delivered"),
                 detail=transfer_detail,
@@ -446,7 +475,6 @@ def project(job: dict[str, Any], evidence: dict[str, Any] | None = None) -> dict
         )
 
     # 9 Clinical context -------------------------------------------------------------
-    record = (evidence or {}).get("record")
     if not job.get("exposure_id"):
         stages.append(
             _stage(
@@ -539,6 +567,7 @@ def project(job: dict[str, Any], evidence: dict[str, Any] | None = None) -> dict
         "job_version": job["version"],
         "exposure_id": job.get("exposure_id"),
         "exposure_version": record.get("version") if record else None,
+        "evidence_stale": stale,
         "source": {
             "system": source["source_system"],
             "record_id": source["original_record_id"],

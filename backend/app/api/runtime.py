@@ -22,12 +22,14 @@ import httpx
 from fastapi import APIRouter, Depends, Request
 from fastapi.routing import APIRoute
 
-from app.auth import get_current_user
+from app.auth import require_role
 from app.config import settings
 from app.db import db
 from app.onehealth.repository import mode
 
 router = APIRouter(prefix="/runtime", tags=["runtime"])
+# Topology (pod, node, image tags, route table) is reconnaissance data: reviewers and admins only.
+reviewer = require_role("reviewer", "admin")
 PROBE_TIMEOUT_S = 1.5
 
 
@@ -154,7 +156,7 @@ def _routes(request: Request) -> list[dict[str, Any]]:
 
 @router.get("")
 async def runtime_topology(
-    request: Request, _user: dict[str, Any] = Depends(get_current_user)
+    request: Request, _user: dict[str, Any] = Depends(reviewer)
 ) -> dict[str, Any]:
     env = os.environ
     host = _platform()

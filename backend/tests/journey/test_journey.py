@@ -4,7 +4,7 @@ import copy
 
 import httpx
 import pytest
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 
 from app.api import interop as interop_api
 from app.api import journey as journey_api
@@ -254,3 +254,60 @@ def test_projection_is_pure():
     snapshot = copy.deepcopy(job)
     projection.project(job)
     assert job == snapshot
+
+
+def _evidence(version=5):
+    return {
+        "record": {"id": "oh-1", "version": version, "review": "pending", "lab_verified": False, "followup_status": "requested"},
+        "consent_status": "NOT_ESTABLISHED",
+        "connections": [],
+    }
+
+
+def test_stale_evidence_before_exchange_requires_regeneration_like_the_gateway():
+    # /bind-evidence resets exposure_version to None; the gateway then refuses transfer with 409.
+    job = _job(exposure_id="oh-1", exposure_version=None)
+    projected = projection.project(job, _evidence())
+    standardize = _stage(projected, "standardize")
+    assert projected["evidence_stale"] is True
+    assert standardize["status"] == "ready" and standardize["next_action"]["id"] == "generate"
+    assert _stage(projected, "validate")["status"] == "waiting"
+    assert _stage(projected, "exchange")["status"] == "waiting"
+    assert projected["current_stage"] == "standardize"
+
+
+def test_current_evidence_does_not_force_regeneration():
+    job = _job(exposure_id="oh-1", exposure_version=5)
+    projected = projection.project(job, _evidence(version=5))
+    assert projected["evidence_stale"] is False
+    assert _stage(projected, "standardize")["status"] == "complete"
+    assert _stage(projected, "exchange")["status"] == "ready"
+
+
+def test_completed_exchange_stays_complete_but_flags_changed_evidence():
+    job = _job(exposure_id="oh-1", exposure_version=4)
+    job["transfers"] = [
+        {"id": "t1", "status": "delivered", "sha256": job["validation"]["sha256"], "acknowledgement": {}, "correlation_id": "c"}
+    ]
+    exchange = _stage(projection.project(job, _evidence(version=5)), "exchange")
+    assert exchange["status"] == "complete"
+    assert any(f["label"] == "Evidence changed since this exchange" for f in exchange["facts"])
+
+
+async def test_one_unreadable_job_does_not_break_the_journey_list(client, monkeypatch):
+    session, _ = client
+    good = await _post(session, "/demo?variant=dissolved")
+    bad = await _post(session, "/demo?variant=ambiguous")
+
+    original = journey_api.interop_api.detail_view
+
+    async def flaky(job):
+        if job.id == bad["id"]:
+            raise HTTPException(404, "bound evidence is gone")
+        return await original(job)
+
+    monkeypatch.setattr(journey_api.interop_api, "detail_view", flaky)
+    rows = {r["job_id"]: r for r in (await session.get("/api/v1/journey")).json()["journeys"]}
+    assert rows[good["id"]]["current_stage"] == "map"
+    assert rows[bad["id"]]["current_status"] == "failed" and rows[bad["id"]]["current_stage"] is None
+    assert rows[bad["id"]]["progress"] == {"complete": 0, "total": 10}

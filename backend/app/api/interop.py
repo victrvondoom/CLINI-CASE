@@ -167,7 +167,11 @@ async def demo(
 @router.get("/bundle/{job_id}")
 @router.get("/transfers/{job_id}")
 async def detail(job_id: str, user: dict[str, Any] = Depends(reviewer)) -> dict[str, Any]:
-    j = await repository.get(user["organization_id"], job_id)
+    return await detail_view(await repository.get(user["organization_id"], job_id))
+
+
+async def detail_view(j: Job) -> dict[str, Any]:
+    """The consent-aware job view; shared by the detail routes and the unified journey."""
     data = view(j)
     if j.exposure_id and (await exposures.get(j.organization_id, j.exposure_id)).consent_withdrawn:
         data.update(
