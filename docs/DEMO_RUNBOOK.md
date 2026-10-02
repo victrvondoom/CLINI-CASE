@@ -57,29 +57,14 @@ docker compose -f docker-compose.track7.yml up --build
 
 Open `http://localhost:5173`. The API, PostgreSQL and independent receiver are available on localhost ports 8000, 15432 and the internal-only 8091 service, respectively. Stop with Ctrl+C; `docker compose -f docker-compose.track7.yml down` removes the containers but preserves the named demo data volumes. This local stack is not a production deployment.
 
-For a local kind cluster, build and load the same images, create the two setup resources referenced by the manifest, then apply it. The sample uses one replica per service and local cluster storage; it is a deployment-portability showcase, not production hardening or EKS evidence.
+For a local Kubernetes (kind) cluster that runs the whole application (frontend, API, the independent receiver and PostgreSQL) with Pod Security Admission, default-deny NetworkPolicies and generated secrets, use the orchestrator in [`k8s/`](../k8s/) instead of compose. It builds and loads the images, applies the manifests and can prove the Track 7 network exchange against the cluster. [KUBERNETES.md](KUBERNETES.md) has the prerequisites, security posture and troubleshooting. It is a local portability showcase, not production hardening or EKS evidence.
 
 ```powershell
-kind create cluster --name clincase
-kubectl create namespace clincase-demo --dry-run=client -o yaml | kubectl apply -f -
-$env:TRACK7_POSTGRES_PASSWORD = [guid]::NewGuid().ToString('N') + [guid]::NewGuid().ToString('N')
-$env:INTEROP_RECEIVER_TOKEN = [guid]::NewGuid().ToString('N') + [guid]::NewGuid().ToString('N')
-$env:JWT_SECRET = [guid]::NewGuid().ToString('N') + [guid]::NewGuid().ToString('N')
-$databaseUrl = "postgresql://clincase:$($env:TRACK7_POSTGRES_PASSWORD)@postgres:5432/clincase"
-kubectl -n clincase-demo create secret generic clincase-track7-demo-secrets `
-  --from-literal=POSTGRES_PASSWORD=$env:TRACK7_POSTGRES_PASSWORD `
-  --from-literal=DATABASE_URL=$databaseUrl `
-  --from-literal=JWT_SECRET=$env:JWT_SECRET `
-  --from-literal=INTEROP_RECEIVER_TOKEN=$env:INTEROP_RECEIVER_TOKEN
-kubectl -n clincase-demo create configmap clincase-track7-demo-schema --from-file=01-schema.sql=backend/db/schema.sql
-docker build -t clincase-api:demo ./backend
-docker build -t clincase-web:demo ./frontend
-kind load docker-image clincase-api:demo clincase-web:demo --name clincase
-kubectl apply -f ops/kind/track7-demo.yaml
-kubectl -n clincase-demo port-forward svc/frontend 5173:5173
+python k8s/cluster.py up           # build, create the kind cluster, deploy, wait until Ready
+python k8s/cluster.py verify       # health, login, Track 7 network demo, NetworkPolicy checks
+python k8s/cluster.py credentials  # print the generated demo password (explicit opt-in)
+python k8s/cluster.py down         # delete the cluster when the disposable showcase is done
 ```
-
-The kind database and receiver use cluster-local storage. Delete the cluster when the disposable showcase is no longer needed with `kind delete cluster --name clincase`.
 
 The launcher executes this story through real HTTP requests and saves `runtime-metrics.json`, `evidence-passport.json` and `retest-passport.json` in the ignored cache. An existing ClinCase case can be linked only with explicit same-organization identity attestation; the demo does not fabricate a payer case.
 

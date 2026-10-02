@@ -1,0 +1,18 @@
+# `kubectl apply -k k8s` deploys the whole stack. Order is dependency order: namespace first, then
+# identities and config, then the data tier, the receiver, the api, the web tier, and finally the
+# network policies. The Secret `clinicase-secrets` and the ConfigMap `clinicase-db-schema` are NOT
+# listed on purpose: `python k8s/cluster.py up` creates them (generated secrets and
+# backend/db/schema.sql are never committed as YAML).
+# kind-config.yaml configures the cluster, not a resource.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: clinicase
+resources:
+  - namespace.yaml
+  - serviceaccounts.yaml
+  - configmap.yaml
+  - postgres.yaml
+  - receiver.yaml
+  - api.yaml
+  - frontend.yaml
+  - networkpolicies.yaml

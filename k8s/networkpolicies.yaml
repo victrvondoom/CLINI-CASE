@@ -1,0 +1,184 @@
+# Zero-trust network model for the namespace: deny everything, then allow exactly the edges the app
+# uses. NetworkPolicy is additive (union of all policies selecting a pod), so the two namespace-wide
+# policies below are the floor and each workload policy only adds what that workload needs.
+#
+#   browser --NodePort 30080--> frontend:5173 --> api:8000 --> postgres:5432
+#                                                       \-----> receiver:8091
+#                                                       \-----> frontend:5173 (GET /healthz, /runtime topology probe)
+#                                                       \-----> TCP 443 (public internet; optional LLM providers)
+#
+# Enforcement needs a CNI that implements NetworkPolicy (kindnet does since kind 0.24);
+# `python k8s/cluster.py verify` proves it by attempting a blocked and an allowed connection.
+#
+# 1. Default deny: no pod accepts or initiates any connection unless another policy allows it.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  labels:
+    app.kubernetes.io/part-of: clinicase
+    app.kubernetes.io/component: network-policy
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress", "Egress"]
+---
+# 2. Every pod may resolve names through CoreDNS (and nothing else in kube-system).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  labels:
+    app.kubernetes.io/part-of: clinicase
+    app.kubernetes.io/component: network-policy
+spec:
+  podSelector: {}
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+# 3. frontend: reachable from anywhere on 5173 (the kind NodePort, kubelet probes); its only
+#    outbound connection is the reverse proxy to the api.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: frontend
+  labels:
+    app.kubernetes.io/name: frontend
+    app.kubernetes.io/part-of: clinicase
+    app.kubernetes.io/component: network-policy
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: frontend
+  policyTypes: ["Ingress", "Egress"]
+  ingress:
+    - ports:
+        - protocol: TCP
+          port: 5173
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: api
+      ports:
+        - protocol: TCP
+          port: 8000
+---
+# 4. api: only the frontend may call it. It may reach its database and the receiver, probe the web
+#    tier's /healthz (GET /api/v1/runtime reports live reachability of every configured service),
+#    plus public HTTPS so that an operator-configured LLM provider (Anthropic/OpenRouter/Bedrock)
+#    works. That 443 rule is optional: nothing in the demo path needs it, and it excludes every
+#    private and link-local range so it cannot be used to reach other pods, nodes or a metadata
+#    endpoint.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: api
+  labels:
+    app.kubernetes.io/name: api
+    app.kubernetes.io/part-of: clinicase
+    app.kubernetes.io/component: network-policy
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: api
+  policyTypes: ["Ingress", "Egress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: frontend
+      ports:
+        - protocol: TCP
+          port: 8000
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: receiver
+      ports:
+        - protocol: TCP
+          port: 8091
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: frontend
+      ports:
+        - protocol: TCP
+          port: 5173
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 169.254.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443
+---
+# 5. receiver (System B): callable by the api only; it initiates no connections at all.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: receiver
+  labels:
+    app.kubernetes.io/name: receiver
+    app.kubernetes.io/part-of: clinicase
+    app.kubernetes.io/component: network-policy
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: receiver
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: api
+      ports:
+        - protocol: TCP
+          port: 8091
+---
+# 6. postgres: the database accepts connections from the api only (not from the frontend, not from
+#    the receiver) and initiates none.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres
+  labels:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/part-of: clinicase
+    app.kubernetes.io/component: network-policy
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: postgres
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: api
+      ports:
+        - protocol: TCP
+          port: 5432

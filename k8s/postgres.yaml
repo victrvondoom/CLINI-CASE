@@ -1,0 +1,147 @@
+# PostgreSQL + pgvector for the api (single instance, 2Gi PVC on kind's default `standard` class).
+#
+# Prerequisites created by `python k8s/cluster.py up` (never committed):
+#   Secret    clinicase-secrets    (POSTGRES_PASSWORD, ...)
+#   ConfigMap clinicase-db-schema  (key 01-schema.sql, built from backend/db/schema.sql)
+# The init scripts only run against an EMPTY data directory, i.e. on first start of a fresh PVC.
+#
+# Pod Security `restricted` notes: the image's `postgres` user is uid/gid 999, so the pod runs as
+# 999 and fsGroup 999 makes the volume writable for it without root. PGDATA is a sub-directory of
+# the mount (initdb refuses a mount point that carries lost+found), and the root filesystem is
+# read-only except for the explicit emptyDirs (/var/run/postgresql for the socket, /tmp).
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  labels:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/part-of: clinicase
+    app.kubernetes.io/component: database
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+      protocol: TCP
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  labels:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/part-of: clinicase
+    app.kubernetes.io/component: database
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgres
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: postgres
+        app.kubernetes.io/part-of: clinicase
+        app.kubernetes.io/component: database
+    spec:
+      serviceAccountName: postgres
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: postgres
+          image: pgvector/pgvector:pg16
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: postgres
+              containerPort: 5432
+              protocol: TCP
+          env:
+            - name: POSTGRES_USER
+              value: clincase
+            - name: POSTGRES_DB
+              value: clincase
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: clinicase-secrets
+                  key: POSTGRES_PASSWORD
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi  # about 45 MiB resident on the demo data set
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          # `-h 127.0.0.1` matters: during first-boot init the entrypoint runs a temporary server that
+          # listens on the unix socket only. A socket-based pg_isready would report "ready" while the
+          # schema is still loading; the TCP check only passes once the real server is up.
+          startupProbe:
+            exec:
+              command: ["pg_isready", "-h", "127.0.0.1", "-U", "clincase", "-d", "clincase"]
+            periodSeconds: 3
+            timeoutSeconds: 3
+            failureThreshold: 60
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-h", "127.0.0.1", "-U", "clincase", "-d", "clincase"]
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-h", "127.0.0.1", "-U", "clincase", "-d", "clincase"]
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 6
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+            - name: schema
+              mountPath: /docker-entrypoint-initdb.d
+              readOnly: true
+            - name: run
+              mountPath: /var/run/postgresql
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: schema
+          configMap:
+            name: clinicase-db-schema
+        - name: run
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          app.kubernetes.io/name: postgres
+          app.kubernetes.io/part-of: clinicase
+          app.kubernetes.io/component: database
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 2Gi

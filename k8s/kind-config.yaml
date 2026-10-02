@@ -1,0 +1,21 @@
+# Single-node kind cluster for the whole CLINI-CASE stack. Create it with
+#   python k8s/cluster.py up
+# (or by hand: kind create cluster --config k8s/kind-config.yaml). Local use only.
+#
+# The frontend Service is a NodePort on 30080. kind runs the node as a Docker container, so the one
+# port mapping below is the only door from the host: http://localhost:8080 -> node:30080 ->
+# frontend:5173. It listens on loopback only, so the demo is not exposed to the LAN.
+# If host port 8080 is taken, `cluster.py up --host-port 18080` rewrites hostPort for you.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: clinicase
+nodes:
+  - role: control-plane
+    # Pinned (Kubernetes v1.37.0, the default node image of kind v0.33.0) so every machine gets the same
+    # cluster. To move to another release, copy the image reference from that kind release's notes.
+    image: kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5
+    extraPortMappings:
+      - containerPort: 30080
+        hostPort: 8080
+        listenAddress: "127.0.0.1"
+        protocol: TCP

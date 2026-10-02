@@ -1,0 +1,20 @@
+# Namespace for the whole CLINI-CASE stack (frontend + api + receiver + postgres), local kind only.
+#
+# Pod Security Admission: the `restricted` profile is ENFORCED, not just audited. Every workload in
+# this directory (postgres included: uid/gid/fsGroup 999, PGDATA in a sub-directory, writable
+# emptyDirs for the socket dir and /tmp) satisfies it, so a pod that drifts from the hardened
+# baseline (root user, added capabilities, privilege escalation, hostPath, ...) is refused at
+# admission instead of silently running. warn/audit use the same level so `kubectl apply` and the
+# API audit log say why.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: clinicase
+  labels:
+    app.kubernetes.io/part-of: clinicase
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: latest
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: latest
