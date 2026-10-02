@@ -133,7 +133,17 @@ export function AppShell() {
           <WorkflowNavigation />
           <div ref={contentRef}>
             <RouteBoundary>
-              <Outlet />
+              {/* Dashboard and Cases own their intro; every other page gets the same reveal and heading style. */}
+              {location.pathname === "/dashboard" || location.pathname === "/cases" ? (
+                <Outlet />
+              ) : (
+                <div
+                  key={location.pathname}
+                  className="reveal-go [&_h1]:text-2xl [&_h1]:font-semibold [&_h1]:leading-tight [&_h1]:text-ink-primary [&_h1]:tracking-normal"
+                >
+                  <Outlet />
+                </div>
+              )}
             </RouteBoundary>
           </div>
         </main>
