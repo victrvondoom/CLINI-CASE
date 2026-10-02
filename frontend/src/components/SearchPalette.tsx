@@ -13,6 +13,13 @@ import type { DemoFixture } from "../lib/types";
 
 const SECTIONS: { label: string; items: { label: string; href: string; mono?: boolean }[] }[] = [
   {
+    label: "CLINI-CASE",
+    items: [
+      { label: "Evidence journey", href: "/journey" },
+      { label: "Runtime topology", href: "/runtime" },
+    ],
+  },
+  {
     label: "Workspace",
     items: [
       { label: "Dashboard",    href: "/dashboard" },

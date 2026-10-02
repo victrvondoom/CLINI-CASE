@@ -20,6 +20,12 @@ export default function Track7Overview() {
             support.
           </p>
           <div className="flex flex-wrap gap-4">
+            <Link
+              className="inline-flex items-center rounded-md bg-accent-brand px-4 py-2 font-medium text-ink-invert hover:bg-accent-brand/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface-bg"
+              to="/journey"
+            >
+              Start the evidence journey
+            </Link>
             <Link className={BUTTON} to="/onehealth">
               Open the One Health journey
             </Link>

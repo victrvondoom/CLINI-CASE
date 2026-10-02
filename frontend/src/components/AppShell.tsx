@@ -30,7 +30,11 @@ export function AppShell() {
   const location = useLocation();
   const navigate = useNavigate();
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const oneHealth = location.pathname === "/onehealth" || location.pathname === "/interop" || location.pathname.startsWith("/aquahealth");
+  const oneHealth =
+    location.pathname === "/onehealth" ||
+    location.pathname === "/interop" ||
+    location.pathname.startsWith("/journey") ||
+    location.pathname.startsWith("/aquahealth");
   const showFab = !_SUPPRESS_FAB_ROUTES.has(location.pathname);
 
   const openPalette = useCallback(() => setPaletteOpen(true), []);

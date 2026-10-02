@@ -31,7 +31,7 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const from =
-    (location.state as { from?: string } | null)?.from ?? "/onehealth";
+    (location.state as { from?: string } | null)?.from ?? "/journey";
 
   const [email, setEmail] = useState("admin@clincase.health");
   const [password, setPassword] = useState("");

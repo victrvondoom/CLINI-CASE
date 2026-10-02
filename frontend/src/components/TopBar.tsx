@@ -60,7 +60,7 @@ export function TopBar({ onOpenSearch, oneHealth = false }: Props) {
     >
       <div className="h-14 flex items-center justify-between px-3 sm:px-4 lg:px-5 gap-2 sm:gap-3">
         <Link
-          to={oneHealth ? "/onehealth" : "/dashboard"}
+          to={oneHealth ? "/journey" : "/dashboard"}
           className="flex items-center gap-2 sm:gap-3 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-brand rounded-md min-w-0 lg:w-[228px] lg:shrink-0"
           aria-label="ClinCase home"
         >

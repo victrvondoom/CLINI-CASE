@@ -213,6 +213,14 @@ export default function Interop() {
         )}
       </div>
       {job && (
+        <Link
+          to={`/journey/${encodeURIComponent(job.id)}`}
+          className="inline-flex items-center gap-1 text-sm text-accent-cyan underline-offset-2 hover:underline"
+        >
+          Continue in unified journey →
+        </Link>
+      )}
+      {job && (
         <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
           {Object.entries(job.metrics).map(([k, v]) => (
             <div className={CARD} key={k}>

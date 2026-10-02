@@ -29,6 +29,7 @@ import {
   PlayCircle,
   Sprout,
   ScanLine,
+  Server,
   Settings,
   ShieldCheck,
   Stethoscope,
@@ -36,6 +37,7 @@ import {
   Upload,
   UserCheck,
   Users,
+  Workflow,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -73,12 +75,26 @@ interface NavLiveCounts {
   awaitingReview: number | null;
 }
 
+// One platform: the evidence journey first, then every existing capability grouped by the
+// part of the journey it serves. Every pre-existing route is still listed here.
 const SECTIONS: NavSection[] = [
   {
-    label: "One Health · Track 7",
+    label: "CLINI-CASE",
+    items: [
+      { label: "Evidence journey", href: "/journey", icon: Workflow, chip: "START", reviewerOrAdmin: true },
+      { label: "Runtime",          href: "/runtime", icon: Server },
+    ],
+  },
+  {
+    label: "Interoperability",
     items: [
       { label: "Interop gateway", href: "/interop", icon: ShieldCheck, chip: "TRACK 7", reviewerOrAdmin: true },
       { label: "Evidence workbench", href: "/onehealth", icon: ShieldCheck, chip: "TRACK 7", reviewerOrAdmin: true },
+    ],
+  },
+  {
+    label: "Environmental evidence",
+    items: [
       { label: "Overview",        href: "/aquahealth",                  icon: Droplets,   chip: "AQUA", end: true },
       { label: "New observation", href: "/aquahealth/observations/new", icon: Sprout },
       { label: "Observations",    href: "/aquahealth/observations",     icon: FolderOpen, end: true },
@@ -91,50 +107,35 @@ const SECTIONS: NavSection[] = [
     ],
   },
   {
-    label: "Workspace",
+    label: "Clinical context",
     items: [
       { label: "Dashboard",    href: "/dashboard",         icon: LayoutDashboard },
       { label: "Cases",        href: "/cases",             icon: FolderOpen, liveBadge: "cases" },
       { label: "Drop a scan",  href: "/intake",            icon: ScanLine, chip: "INTAKE" },
       { label: "Bulk import",  href: "/cases/bulk-import", icon: Upload, chip: "§ IV.A" },
+      { label: "Reviewer queue",  href: "/reviewer",    icon: UserCheck, liveBadge: "awaitingReview", reviewerOrAdmin: true },
+      { label: "Oncology",  href: "/onco",     icon: Stethoscope, chip: "ONCO" },
+      { label: "Agents",    href: "/agents",   icon: Cpu },
+      { label: "Policies",  href: "/policies", icon: BookOpen },
       { label: "Sandbox",      href: "/sandbox",           icon: Beaker, chip: "SIM" },
     ],
   },
   {
-    label: "Digital twin",
+    label: "Digital twins",
     items: [
-      { label: "Command center", href: "/twin",      icon: HeartPulse,   chip: "TWIN", end: true },
+      { label: "OncoTwin command center", href: "/twin",      icon: HeartPulse,   chip: "TWIN", end: true },
       { label: "Guided demo",    href: "/twin/demo", icon: PlayCircle,   chip: "OT-005" },
       { label: "Research lab",   href: "/twin/lab",  icon: FlaskConical, chip: "BENCH" },
       { label: "Observability",  href: "/twin/ops",  icon: Gauge,        chip: "MLOPS" },
+      { label: "CardioTwin vessel risk",  href: "/cardiotwin",            icon: HeartPulse,   chip: "CAD", end: true },
+      { label: "CardioTwin evaluation",   href: "/cardiotwin/evaluation", icon: FlaskConical, chip: "METHODS" },
     ],
   },
   {
-    label: "Cardio twin",
-    items: [
-      { label: "Vessel risk",  href: "/cardiotwin",            icon: HeartPulse,   chip: "CAD", end: true },
-      { label: "Evaluation",   href: "/cardiotwin/evaluation", icon: FlaskConical, chip: "METHODS" },
-    ],
-  },
-  {
-    label: "Knowledge",
-    items: [
-      { label: "Policies",  href: "/policies", icon: BookOpen },
-      { label: "Agents",    href: "/agents",   icon: Cpu },
-      { label: "Oncology",  href: "/onco",     icon: Stethoscope, chip: "ONCO" },
-    ],
-  },
-  {
-    label: "Analytics",
+    label: "Insights",
     items: [
       { label: "Cohorts",         href: "/cohorts",     icon: BarChart3 },
-      { label: "Reviewer queue",  href: "/reviewer",    icon: UserCheck, liveBadge: "awaitingReview", reviewerOrAdmin: true },
       { label: "Eval harness",    href: "/eval",        icon: Microscope },
-    ],
-  },
-  {
-    label: "Business value",
-    items: [
       { label: "ROI",             href: "/roi",            icon: Calculator,  chip: "$1.26B" },
       { label: "Compliance",      href: "/compliance",     icon: ShieldCheck, chip: "LIVE" },
       { label: "Industrialize",   href: "/industrialize",  icon: Layers,      chip: "FOUNDRY" },
