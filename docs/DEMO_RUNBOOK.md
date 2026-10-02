@@ -82,3 +82,7 @@ Recomputes every chain hash and artifact digest without the application server. 
 No external validation was executed for the current generated Bundle. The earlier checked-in core-only result (validator_cli 6.10.4; 0 errors, 22 warnings and 7 informational messages) used a different fixture, omitted the OAH package, and disabled terminology. It is not a current result. This workstation has no Java runtime or validator JAR, and the pinned draft package archive is not available from the checked package endpoints. See [the dated validation record](track7/VALIDATION.md) for the exact outcome and conditional command; errors and warnings for full OAH validation are unmeasured, not zero.
 
 See [manual checklist](TRACK7_MANUAL_CHECKLIST.md) and [conformance statement](OAH_CONFORMANCE.md).
+
+## Local Track 7 demo login
+
+For `./start-track7.ps1 -SQLite`, sign in as `reviewer@clincase.health` with password `2026`. The loopback-only synthetic launcher uses this fixed demo password on every restart. Its `backend/.cache/track7/demo-login.json` also records the current login and frontend URL. Production authentication is unchanged.

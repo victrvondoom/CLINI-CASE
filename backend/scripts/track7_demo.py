@@ -85,7 +85,7 @@ async def main(args) -> None:
         ports += (args.frontend_port,)
     for port in ports:
         available(port)
-    password = secrets.token_urlsafe(24)
+    password = "2026"  # Known password for this loopback-only synthetic demo.
     email = "track7-" + secrets.token_hex(6) + "@clincase.health"
     token = secrets.token_urlsafe(32)
     dsn = os.getenv(
