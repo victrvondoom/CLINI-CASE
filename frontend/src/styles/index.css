@@ -684,3 +684,11 @@
     scroll-behavior: auto !important;
   }
 }
+
+.page-skeleton { min-height: 40vh; background: linear-gradient(110deg, transparent, rgb(var(--surface-panel)), transparent); }
+@media (max-width: 639px) {
+  aside[aria-label="Primary navigation"] { width: 64px; }
+  aside[aria-label="Primary navigation"] nav a > span { display: none; }
+  aside[aria-label="Primary navigation"] > div > div { display: none; }
+  aside[aria-label="Primary navigation"] button[aria-label="Sign out of CLINI-CASE"] > span { display: none; }
+}

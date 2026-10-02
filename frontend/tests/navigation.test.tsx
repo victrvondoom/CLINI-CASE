@@ -2,11 +2,13 @@
  * Unification must not delete anything: every pre-existing route stays registered and every
  * pre-existing nav destination stays reachable, alongside the new journey and runtime entries.
  */
-import { cleanup, render, screen, within } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { Link, MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { Sidenav } from "../src/components/Sidenav";
+import { RouteBoundary } from "../src/components/RouteBoundary";
+import { areas } from "../src/workflow/areas";
 import mainSource from "../src/main.tsx?raw";
 
 vi.mock("../src/components/AuthContext", () => ({
@@ -44,7 +46,7 @@ const LEGACY_NAV = [
   "/industrialize", "/architecture", "/settings",
 ];
 
-afterEach(cleanup);
+afterEach(() => { cleanup(); localStorage.clear(); sessionStorage.clear(); });
 
 describe("one platform, nothing removed", () => {
   it("keeps every pre-existing route registered and adds the journey and runtime routes", () => {
@@ -63,8 +65,25 @@ describe("one platform, nothing removed", () => {
     const hrefs = within(nav)
       .getAllByRole("link")
       .map((link) => link.getAttribute("href"));
-    expect(hrefs.slice(0, 2)).toEqual(["/journey", "/runtime"]);
-    for (const href of LEGACY_NAV) expect(hrefs, href).toContain(href);
+    expect(hrefs.slice(0, 3)).toEqual(["/dashboard", "/cases", "/journey"]);
+    const contextual = areas.flatMap(a => a.links.map(([,href]) => href));
+    for (const href of LEGACY_NAV) expect([...hrefs, ...contextual], href).toContain(href);
+    expect(hrefs.length).toBeLessThanOrEqual(13);
     expect(new Set(hrefs).size).toBe(hrefs.length);
   });
+});
+
+it("keeps sidebar DOM, scroll and expanded state across navigation and remembers collapse", () => {
+  render(<MemoryRouter><RouteBoundary><Sidenav /><Link to="/architecture">Open architecture</Link></RouteBoundary></MemoryRouter>);
+  const nav = screen.getByRole("navigation", { name: "Sections" });
+  nav.scrollTop = 125;
+  fireEvent.scroll(nav);
+  fireEvent.click(screen.getByRole("button", { name: "Workflow" }));
+  fireEvent.click(screen.getByRole("link", { name: "Open architecture" }));
+  expect(screen.getByRole("navigation", { name: "Sections" })).toBe(nav);
+  expect(nav.scrollTop).toBe(125);
+  expect(screen.getByRole("button", { name: "Workflow" }).getAttribute("aria-expanded")).toBe("false");
+  fireEvent.click(screen.getByRole("button", { name: "Collapse navigation" }));
+  expect(localStorage.getItem("clini-nav-collapsed")).toBe("true");
+  expect(screen.getByRole("link", { name: "Architecture" }).getAttribute("title")).toBe("Architecture");
 });

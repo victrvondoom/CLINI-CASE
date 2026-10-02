@@ -122,6 +122,12 @@ spec:
                 secretKeyRef:
                   name: clinicase-secrets
                   key: DEMO_USER_PASSWORD
+            - name: PASSPORT_SIGNING_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: clinicase-secrets
+                  key: PASSPORT_SIGNING_KEY
+                  optional: true # absent => passports export UNSIGNED (hash chain only), never a fake signature
             - name: POD_NAME
               valueFrom:
                 fieldRef:

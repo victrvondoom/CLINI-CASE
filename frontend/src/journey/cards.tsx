@@ -7,7 +7,7 @@ import { ArrowRight, Check, Download, Lock, Minus, X } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 
-import type { MappingRow, Stage, StageDetail, StageEvidence } from "./api";
+import type { ExternalCheck, MappingRow, PassportVerdict, Stage, StageDetail, StageEvidence } from "./api";
 
 export const BUTTON =
   "inline-flex items-center justify-center gap-1.5 rounded-md border border-surface-border bg-surface-bg px-3 py-1.5 text-xs font-medium text-ink-primary hover:border-accent-brand hover:text-accent-brand disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-brand";
@@ -159,19 +159,58 @@ function MappingDecision({
   );
 }
 
+const TRIAGE_STYLE: Record<string, string> = {
+  safe: "bg-accent-green/15 text-accent-green",
+  review: "bg-accent-amber/15 text-accent-amber",
+  unresolved: "bg-surface-bg text-ink-muted",
+};
+
+export function TriageStrip({
+  triage,
+  busy,
+  onApproveSafe,
+}: {
+  triage?: StageDetail["triage"];
+  busy: boolean;
+  onApproveSafe?: () => void;
+}) {
+  if (!triage) return null;
+  return (
+    <Section title="Review triage">
+      <ul className="flex flex-wrap gap-3 text-sm" aria-label="Mapping triage">
+        <li className="text-accent-green">✓ Safe: {triage.safe.length}</li>
+        <li className="text-accent-amber">⚠ Requires review: {triage.review.length}</li>
+        <li className="text-ink-muted">? Unresolved: {triage.unresolved.length}</li>
+      </ul>
+      <p className="mt-2 text-xs text-ink-muted">
+        Safe = deterministic, allowlisted target, no ambiguity, no unresolved terminology. The generic “arsenic” label is never
+        safe: a reviewer must confirm total or inorganic.
+      </p>
+      {onApproveSafe && triage.safe.length > 0 && (
+        <button type="button" className={clsx(PRIMARY_BUTTON, "mt-3")} disabled={busy} onClick={onApproveSafe}>
+          Approve {triage.safe.length} safe mappings
+        </button>
+      )}
+    </Section>
+  );
+}
+
 export function MappingCard({
   detail,
   busy = false,
   onDecide,
+  onApproveSafe,
 }: {
   detail: StageDetail;
   busy?: boolean;
   onDecide?: (row: MappingRow, decision: "approve" | "reject", target: string | null, concept: string | null) => void;
+  onApproveSafe?: () => void;
 }) {
   const rows = detail.mappings ?? [];
   const firewall = detail.semantic_firewall;
   return (
     <>
+      <TriageStrip triage={detail.triage} busy={busy} onApproveSafe={onDecide ? onApproveSafe : undefined} />
       {firewall && (
         <Section title="Semantic firewall">
           <p>{firewall.ai_authority}</p>
@@ -197,6 +236,11 @@ export function MappingCard({
                 <span className="ml-auto text-ink-muted">
                   {Math.round(row.confidence * 100)}% · {row.origin.replace("_", " ")}
                 </span>
+                {row.triage && row.triage !== "decided" && (
+                  <span className={clsx("rounded px-1.5 py-0.5 text-[10px] uppercase", TRIAGE_STYLE[row.triage])}>
+                    {row.triage === "review" ? "needs review" : row.triage}
+                  </span>
+                )}
                 <span
                   className={clsx(
                     "rounded px-1.5 py-0.5 text-[10px] uppercase",
@@ -378,7 +422,11 @@ export function ClinicalContextCard({ detail }: { detail: StageDetail }) {
   const ceiling = detail.epistemic_ceiling;
   return (
     <>
-      <Section title="Connected capabilities">
+      <Section title="Choose clinical context">
+        <p className="mb-3 text-xs text-ink-muted">Optional context: choose only what is relevant to this case.</p>
+        <div className="mb-3 flex flex-wrap gap-2">
+          {[["General cases", "/cases"], ["Oncology", "/onco"], ["OncoTwin", "/twin"], ["CardioTwin", "/cardiotwin"]].map(([label, href]) => <Link key={href} to={href} className={BUTTON}>{label}</Link>)}
+        </div>
         <ul className="space-y-2">
           {(detail.connections ?? []).map((c) => (
             <li key={c.capability} className="text-xs">
@@ -441,24 +489,159 @@ export function RetestCard({ detail }: { detail: StageDetail }) {
   );
 }
 
+export function ExternalCheckCard({
+  external,
+  busy,
+  onRun,
+}: {
+  external?: ExternalCheck | null;
+  busy: boolean;
+  onRun?: () => void;
+}) {
+  return (
+    <Section title="Third-party FHIR server check">
+      {external ? (
+        <dl className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1 text-xs">
+          <dt className="text-ink-muted">Result</dt>
+          <dd className={external.status === "passed" ? "text-accent-green" : "text-accent-amber"}>
+            {external.status} · {external.detail}
+          </dd>
+          <dt className="text-ink-muted">Endpoint</dt>
+          <dd className="break-all text-mono-tech">{external.endpoint}</dd>
+          <dt className="text-ink-muted">Resource</dt>
+          <dd className="text-mono-tech">
+            {external.resource_type}
+            {external.resource_id ? `/${external.resource_id}` : ""}
+          </dd>
+          {external.fields_total !== null && (
+            <>
+              <dt className="text-ink-muted">Semantic fields</dt>
+              <dd>
+                {external.fields_preserved}/{external.fields_total} preserved
+              </dd>
+            </>
+          )}
+        </dl>
+      ) : (
+        <p className="text-ink-muted">Not run. This sends the synthetic Bundle to a public FHIR R4 server and reads it back.</p>
+      )}
+      <p className="mt-2 text-[11px] text-ink-faint">
+        An additional external FHIR R4 interoperability path. A generic FHIR server does not validate OAH profiles; this is not an
+        OAH conformance result. Optional: the local workflow never depends on it.
+      </p>
+      {onRun && (
+        <button type="button" className={clsx(BUTTON, "mt-3")} disabled={busy} onClick={onRun}>
+          Run third-party FHIR check
+        </button>
+      )}
+    </Section>
+  );
+}
+
+type PassportState =
+  | { kind: "idle" }
+  | { kind: "working" }
+  | { kind: "error"; message: string }
+  | { kind: "done"; verdict: PassportVerdict; change: string | null };
+
+/** Verify (and demonstrably break) the CLINI-CASE demo-system signature on the exported Evidence Passport. */
+export function PassportVerifyCard({
+  signing,
+  verify,
+}: {
+  signing?: StageDetail["signing"];
+  verify: (tamper: boolean) => Promise<{ verdict: PassportVerdict; change: string | null }>;
+}) {
+  const [state, setState] = useState<PassportState>({ kind: "idle" });
+
+  async function run(tamper: boolean) {
+    setState({ kind: "working" });
+    try {
+      setState({ kind: "done", ...(await verify(tamper)) });
+    } catch (e) {
+      setState({ kind: "error", message: e instanceof Error ? e.message : String(e) });
+    }
+  }
+
+  const working = state.kind === "working";
+  return (
+    <section aria-labelledby="passport-verify-title" className="rounded-2xl border border-accent-cyan/40 bg-surface-raised p-5">
+      <h2 id="passport-verify-title" className="text-lg font-semibold text-ink-primary">
+        Evidence Passport signature
+      </h2>
+      <p className="mt-1 text-xs text-ink-muted">
+        {signing?.enabled
+          ? `${signing.algorithm} · key ${signing.key_id} · ${signing.signer}.`
+          : "No signing key is configured, so exports are hash-chain only."}{" "}
+        {signing?.scope ??
+          "A CLINI-CASE demo-system signature. Not a laboratory, clinician, government or third-party attestation."}
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button type="button" className={PRIMARY_BUTTON} disabled={working} onClick={() => void run(false)}>
+          Verify Passport signature
+        </button>
+        <button type="button" className={BUTTON} disabled={working} onClick={() => void run(true)}>
+          Change one value, then verify
+        </button>
+      </div>
+      <div role="status" aria-live="polite" className="mt-3 text-sm">
+        {state.kind === "working" && <p className="text-ink-muted">Verifying…</p>}
+        {state.kind === "error" && <p className="text-accent-red">{state.message}</p>}
+        {state.kind === "done" && (
+          <div
+            className={clsx(
+              "rounded-lg border p-3",
+              state.verdict.overall === "VERIFIED" && "border-accent-green/50 text-accent-green",
+              state.verdict.overall === "FAILED" && "border-accent-red/50 text-accent-red",
+              state.verdict.overall === "HASH_CHAIN_ONLY" && "border-accent-amber/50 text-accent-amber",
+            )}
+          >
+            <p className="font-medium">
+              {state.verdict.overall === "VERIFIED" && "✓ Signature verified"}
+              {state.verdict.overall === "FAILED" && "✗ Verification failed"}
+              {state.verdict.overall === "HASH_CHAIN_ONLY" && "Hash chain valid, but the passport is not signed"}
+            </p>
+            {state.change && <p className="mt-1 text-xs text-ink-body">Edited copy (nothing saved): {state.change}</p>}
+            {state.verdict.overall === "FAILED" && state.verdict.signature.valid && (
+              <p className="mt-1 text-xs text-ink-body">
+                The signature still matches the hashes it was made over, but the content no longer matches those hashes, so the
+                package is rejected. Rewriting the hashes to fit the edit would break the signature.
+              </p>
+            )}
+            <p className="mt-1 text-xs text-ink-body">
+              Hash chain: {state.verdict.hash_chain.valid ? "valid" : "broken"} · Signature:{" "}
+              {state.verdict.signature.status.toLowerCase().replace(/_/g, " ")}
+              {state.verdict.changed_artifacts.length > 0 && ` · Changed: ${state.verdict.changed_artifacts.join(", ")}`}
+            </p>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
 /** The detail body for one stage, assembled from the cards above. */
 export function StageDetailBody({
   stage,
   busy,
   onDecide,
   onExport,
+  onApproveSafe,
+  onExternalCheck,
 }: {
   stage: Stage;
   busy: boolean;
   onDecide?: (row: MappingRow, decision: "approve" | "reject", target: string | null, concept: string | null) => void;
   onExport?: () => void;
+  onApproveSafe?: () => void;
+  onExternalCheck?: () => void;
 }) {
   const d = stage.detail;
   const body: Record<Stage["id"], ReactNode> = {
     ingest: null,
     understand: <EvidenceCard detail={d} />,
     map: <MappingCard detail={d} />,
-    review: <MappingCard detail={d} busy={busy} onDecide={onDecide} />,
+    review: <MappingCard detail={d} busy={busy} onDecide={onDecide} onApproveSafe={onApproveSafe} />,
     standardize: <FHIRBundleCard detail={d} />,
     validate: <ValidationCard detail={d} />,
     exchange: <ExchangeCard detail={d} />,
@@ -466,6 +649,7 @@ export function StageDetailBody({
       <>
         <RoundTripCard detail={d} />
         <EvidencePassportCard passport={d.passport} busy={busy} onExport={onExport} />
+        <ExternalCheckCard external={d.external_check} busy={busy} onRun={onExternalCheck} />
       </>
     ),
     clinical_context: <ClinicalContextCard detail={d} />,

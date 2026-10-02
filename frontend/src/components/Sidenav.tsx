@@ -1,47 +1,27 @@
-/**
- * Left sidenav. Sections: Workspace / Knowledge / Analytics / Admin.
- * Active route gets accent-brand left border + tinted bg + brand-tinted text.
- *
- * Width 240px expanded; can be collapsed to 64px (icons only) on a future
- * iteration. For now, expanded by default per spec.
- */
+/** Compact workflow navigation with persistent scroll and preferences. */
 import clsx from "clsx";
 import {
-  BarChart3,
-  Beaker,
-  BookOpen,
-  Calculator,
-  Cpu,
   Droplets,
-  Fish,
-  FlaskConical,
   FolderOpen,
-  Gauge,
   HeartPulse,
   Info,
   LayoutDashboard,
   Layers,
   Lock,
   LogOut,
-  Map,
   Microscope,
   Network,
-  PlayCircle,
-  Sprout,
-  ScanLine,
   Server,
   Settings,
   ShieldCheck,
   Stethoscope,
-  TrendingUp,
   Upload,
-  UserCheck,
-  Users,
   Workflow,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { useEffect, useState } from "react";
-import { NavLink } from "react-router-dom";
+import { useEffect, useState, useRef, useLayoutEffect } from "react";
+import { areaFor } from "../workflow/areas";
+import { NavLink, useLocation } from "react-router-dom";
 
 import { api } from "../lib/api";
 import { EMPTY_SNAPSHOT, buildNavChips, fetchSnapshot } from "../lib/liveFeed";
@@ -58,9 +38,9 @@ interface NavItem {
   /** Key into NavLiveCounts — badge renders the live count (or nothing while
    * loading / on fetch failure, rather than a stale hardcoded number). */
   liveBadge?: keyof NavLiveCounts;
-  chip?: string;        // small inline chip (e.g. "CMS-0057-F")
+  chip?: string; // small inline chip (e.g. "CMS-0057-F")
   disabled?: boolean;
-  end?: boolean;        // active only on an exact match (not on child routes)
+  end?: boolean; // active only on an exact match (not on child routes)
   adminOnly?: boolean;
   reviewerOrAdmin?: boolean;
 }
@@ -75,90 +55,115 @@ interface NavLiveCounts {
   awaitingReview: number | null;
 }
 
-// One platform: the evidence journey first, then every existing capability grouped by the
-// part of the journey it serves. Every pre-existing route is still listed here.
+// One platform as one flow: Dashboard, then each step of the evidence workflow in the order a
+// reviewer works through it. Every pre-existing route is still listed here.
 const SECTIONS: NavSection[] = [
   {
-    label: "CLINI-CASE",
+    label: "Main",
     items: [
-      { label: "Evidence journey", href: "/journey", icon: Workflow, chip: "START", reviewerOrAdmin: true },
-      { label: "Runtime",          href: "/runtime", icon: Server },
+      { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+      {
+        label: "Cases",
+        href: "/cases",
+        icon: FolderOpen,
+        liveBadge: "cases",
+        end: true,
+      },
+      { label: "Journey", href: "/journey", icon: Workflow },
     ],
   },
   {
-    label: "Interoperability",
+    label: "Workflow",
     items: [
-      { label: "Interop gateway", href: "/interop", icon: ShieldCheck, chip: "TRACK 7", reviewerOrAdmin: true },
-      { label: "Evidence workbench", href: "/onehealth", icon: ShieldCheck, chip: "TRACK 7", reviewerOrAdmin: true },
+      { label: "Intake", href: "/intake-tools", icon: Upload },
+      { label: "Evidence", href: "/evidence", icon: Droplets },
+      { label: "Interoperability", href: "/interop", icon: Network },
+      { label: "Review & Safety", href: "/review", icon: ShieldCheck },
+      {
+        label: "Clinical Context",
+        href: "/clinical-context",
+        icon: Stethoscope,
+      },
+      { label: "Follow-up", href: "/follow-up", icon: HeartPulse },
     ],
   },
   {
-    label: "Environmental evidence",
+    label: "Platform",
     items: [
-      { label: "Overview",        href: "/aquahealth",                  icon: Droplets,   chip: "AQUA", end: true },
-      { label: "New observation", href: "/aquahealth/observations/new", icon: Sprout },
-      { label: "Observations",    href: "/aquahealth/observations",     icon: FolderOpen, end: true },
-      { label: "Map",             href: "/aquahealth/map",              icon: Map },
-      { label: "Trends",          href: "/aquahealth/trends",           icon: TrendingUp },
-      { label: "One Health",      href: "/aquahealth/one-health",       icon: Fish },
-      { label: "Safety evaluation", href: "/aquahealth/evaluation",   icon: FlaskConical, chip: "SAFETY" },
-      { label: "Review queue",    href: "/aquahealth/review",           icon: UserCheck, reviewerOrAdmin: true },
-      { label: "Community",       href: "/aquahealth/community",        icon: Users },
-    ],
-  },
-  {
-    label: "Clinical context",
-    items: [
-      { label: "Dashboard",    href: "/dashboard",         icon: LayoutDashboard },
-      { label: "Cases",        href: "/cases",             icon: FolderOpen, liveBadge: "cases" },
-      { label: "Drop a scan",  href: "/intake",            icon: ScanLine, chip: "INTAKE" },
-      { label: "Bulk import",  href: "/cases/bulk-import", icon: Upload, chip: "§ IV.A" },
-      { label: "Reviewer queue",  href: "/reviewer",    icon: UserCheck, liveBadge: "awaitingReview", reviewerOrAdmin: true },
-      { label: "Oncology",  href: "/onco",     icon: Stethoscope, chip: "ONCO" },
-      { label: "Agents",    href: "/agents",   icon: Cpu },
-      { label: "Policies",  href: "/policies", icon: BookOpen },
-      { label: "Sandbox",      href: "/sandbox",           icon: Beaker, chip: "SIM" },
-    ],
-  },
-  {
-    label: "Digital twins",
-    items: [
-      { label: "OncoTwin command center", href: "/twin",      icon: HeartPulse,   chip: "TWIN", end: true },
-      { label: "Guided demo",    href: "/twin/demo", icon: PlayCircle,   chip: "OT-005" },
-      { label: "Research lab",   href: "/twin/lab",  icon: FlaskConical, chip: "BENCH" },
-      { label: "Observability",  href: "/twin/ops",  icon: Gauge,        chip: "MLOPS" },
-      { label: "CardioTwin vessel risk",  href: "/cardiotwin",            icon: HeartPulse,   chip: "CAD", end: true },
-      { label: "CardioTwin evaluation",   href: "/cardiotwin/evaluation", icon: FlaskConical, chip: "METHODS" },
-    ],
-  },
-  {
-    label: "Insights",
-    items: [
-      { label: "Cohorts",         href: "/cohorts",     icon: BarChart3 },
-      { label: "Eval harness",    href: "/eval",        icon: Microscope },
-      { label: "ROI",             href: "/roi",            icon: Calculator,  chip: "$1.26B" },
-      { label: "Compliance",      href: "/compliance",     icon: ShieldCheck, chip: "LIVE" },
-      { label: "Industrialize",   href: "/industrialize",  icon: Layers,      chip: "FOUNDRY" },
-      { label: "Architecture",    href: "/architecture",   icon: Network,     chip: "5-LAYER" },
-    ],
-  },
-  {
-    label: "Admin",
-    items: [
+      { label: "Research", href: "/research", icon: Microscope },
+      { label: "Runtime", href: "/runtime", icon: Server },
+      { label: "Architecture", href: "/architecture", icon: Layers },
       { label: "Settings", href: "/settings", icon: Settings, adminOnly: true },
     ],
   },
 ];
 
+/** The workflow in reading order, for Previous / Next links under each page. */
+export const FLOW = SECTIONS.flatMap((section) =>
+  section.items
+    .filter((item) => !item.adminOnly)
+    .map((item) => ({
+      label: item.label,
+      href: item.href,
+      group: section.label,
+    })),
+);
+
 export function Sidenav() {
   const { user, logout } = useAuth();
   const [aboutOpen, setAboutOpen] = useState(false);
+  const navRef = useRef<HTMLElement>(null);
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem("clini-nav-collapsed") === "true";
+    } catch {
+      return false;
+    }
+  });
+  const [closed, setClosed] = useState<string[]>(() => {
+    try {
+      const value = JSON.parse(
+        localStorage.getItem("clini-nav-groups") ?? "[]",
+      );
+      return Array.isArray(value)
+        ? value.filter((v): v is string => typeof v === "string")
+        : [];
+    } catch {
+      return [];
+    }
+  });
+  useLayoutEffect(() => {
+    try {
+      if (navRef.current)
+        navRef.current.scrollTop = Number(
+          sessionStorage.getItem("clini-nav-scroll") ?? 0,
+        );
+    } catch {
+      /* storage unavailable */
+    }
+  }, []);
+  function toggleGroup(label: string) {
+    setClosed((previous) => {
+      const next = previous.includes(label)
+        ? previous.filter((v) => v !== label)
+        : [...previous, label];
+      try {
+        localStorage.setItem("clini-nav-groups", JSON.stringify(next));
+      } catch {
+        /* storage unavailable */
+      }
+      return next;
+    });
+  }
   const role = user?.role ?? "coordinator";
 
   // Live nav badge counts — replaces the old hardcoded "47" / "8" placeholder
   // badges with real counts from the backend. null = not loaded yet (or the
   // fetch failed); the badge simply doesn't render rather than showing a lie.
-  const [liveCounts, setLiveCounts] = useState<NavLiveCounts>({ cases: null, awaitingReview: null });
+  const [liveCounts, setLiveCounts] = useState<NavLiveCounts>({
+    cases: null,
+    awaitingReview: null,
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -169,7 +174,10 @@ export function Sidenav() {
           api.listCases({ status: "awaiting_review", limit: 1 }),
         ]);
         if (cancelled) return;
-        setLiveCounts({ cases: allCases.total, awaitingReview: awaitingReview.total });
+        setLiveCounts({
+          cases: allCases.total,
+          awaitingReview: awaitingReview.total,
+        });
       } catch {
         // Backend unreachable / DB down — leave counts null so badges hide
         // rather than showing a stale or fabricated number.
@@ -185,7 +193,9 @@ export function Sidenav() {
   }, []);
 
   // Metric-style chips (F1, projected savings, layer count) come from real endpoints; absent until loaded.
-  const chips = buildNavChips(useLive(fetchSnapshot, [], 5 * 60_000).data ?? EMPTY_SNAPSHOT);
+  const chips = buildNavChips(
+    useLive(fetchSnapshot, [], 5 * 60_000).data ?? EMPTY_SNAPSHOT,
+  );
 
   // Filter sections by role
   const visibleSections = SECTIONS.map((section) => ({
@@ -198,55 +208,125 @@ export function Sidenav() {
     }),
   })).filter((s) => s.items.length > 0);
 
-  const initials = (user?.full_name ?? user?.email ?? "??")
-    .split(/[@.\s]/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((s) => s[0]?.toUpperCase() ?? "")
-    .join("") || "??";
+  const initials =
+    (user?.full_name ?? user?.email ?? "??")
+      .split(/[@.\s]/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((s) => s[0]?.toUpperCase() ?? "")
+      .join("") || "??";
 
   return (
     <>
       <aside
-        className="w-60 shrink-0 border-r border-surface-border bg-surface-panel flex flex-col h-[calc(100vh-3.5rem)] sm:h-[calc(100vh-84px)] sticky top-14 sm:top-[84px]"
+        className={clsx(
+          collapsed ? "w-16" : "w-48",
+          "shrink-0 border-r border-surface-border bg-surface-panel flex flex-col h-[calc(100vh-3.5rem)] sm:h-[calc(100vh-84px)] sticky top-14 sm:top-[84px]",
+        )}
         aria-label="Primary navigation"
       >
-        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-5" aria-label="Sections">
+        <button
+          type="button"
+          className="p-2 text-xs hover:bg-surface-raised"
+          aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}
+          onClick={() =>
+            setCollapsed((v) => {
+              try {
+                localStorage.setItem("clini-nav-collapsed", String(!v));
+              } catch {
+                /* storage unavailable */
+              }
+              return !v;
+            })
+          }
+        >
+          {collapsed ? (
+            ">"
+          ) : (
+            <>
+              <span aria-hidden="true">&lt;</span>
+              <span className="hidden sm:inline"> Compact</span>
+            </>
+          )}
+        </button>
+        <nav
+          ref={navRef}
+          onScroll={(e) => {
+            try {
+              sessionStorage.setItem(
+                "clini-nav-scroll",
+                String(e.currentTarget.scrollTop),
+              );
+            } catch {
+              /* storage unavailable */
+            }
+          }}
+          className="flex-1 overflow-y-auto py-4 px-3 space-y-3"
+          aria-label="Sections"
+        >
           {visibleSections.map((section) => (
-            <div key={section.label} role="group" aria-labelledby={`section-${section.label}`}>
-              <div
+            <div
+              key={section.label}
+              role="group"
+              aria-labelledby={`section-${section.label}`}
+            >
+              <button
+                type="button"
+                aria-label={section.label}
+                aria-expanded={!closed.includes(section.label)}
+                onClick={() => toggleGroup(section.label)}
                 id={`section-${section.label}`}
                 className="px-3 py-1 text-[10px] text-compact text-ink-faint"
               >
-                {section.label}
-              </div>
-              <div className="mt-1 space-y-0.5">
-                {section.items.map((item) => (
-                  <NavItemRow key={item.href} item={item} liveCounts={liveCounts} chips={chips} />
-                ))}
-              </div>
+                <span className="hidden sm:inline">
+                  {collapsed ? section.label.slice(0, 1) : section.label}
+                </span>
+                <span className="sm:hidden">{section.label.slice(0, 1)}</span>
+              </button>
+              {!closed.includes(section.label) && (
+                <div className="mt-1 space-y-0.5">
+                  {section.items.map((item) => (
+                    <NavItemRow
+                      key={item.href}
+                      item={item}
+                      liveCounts={liveCounts}
+                      chips={chips}
+                      collapsed={collapsed}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           ))}
         </nav>
 
-        <div className="px-3 py-3 border-t border-surface-border space-y-2">
+        <div
+          className={clsx("px-3 py-3 border-t border-surface-border space-y-2")}
+        >
           {/* User identity card */}
           <div className="flex items-center gap-2 px-2 py-1.5 text-xs">
             <div
-              className="w-8 h-8 rounded-full bg-accent-brand/15 text-accent-brand flex items-center justify-center text-mono-tech font-semibold text-[11px] shrink-0"
+              className={clsx(
+                collapsed && "hidden",
+                "w-8 h-8 rounded-full bg-accent-brand/15 text-accent-brand flex items-center justify-center text-mono-tech font-semibold text-[11px] shrink-0",
+              )}
               aria-hidden="true"
             >
               {initials}
             </div>
-            <div className="flex-1 min-w-0">
+            <div className={clsx(collapsed && "hidden", "flex-1 min-w-0")}>
               <div className="text-ink-primary font-medium truncate">
                 {user?.full_name || user?.email || "—"}
               </div>
               <div className="text-[10px] text-ink-muted truncate">
-                <span className="uppercase text-mono-tech tracking-wider">{role}</span>
+                <span className="uppercase text-mono-tech tracking-wider">
+                  {role}
+                </span>
                 {user?.organization_name && (
                   <>
-                    <span className="mx-1" aria-hidden="true">·</span>
+                    <span className="mx-1" aria-hidden="true">
+                      ·
+                    </span>
                     <span className="truncate">{user.organization_name}</span>
                   </>
                 )}
@@ -256,8 +336,8 @@ export function Sidenav() {
               type="button"
               onClick={() => setAboutOpen(true)}
               className="p-1.5 rounded text-ink-muted hover:text-ink-primary hover:bg-surface-raised transition-all focus:outline-none focus:ring-2 focus:ring-accent-brand"
-              aria-label="About ClinCase (build version, deployment mode, feature flags)"
-              title="About ClinCase"
+              aria-label="About CLINI-CASE (build version, deployment mode, feature flags)"
+              title="About CLINI-CASE"
             >
               <Info size={14} aria-hidden="true" />
             </button>
@@ -268,11 +348,11 @@ export function Sidenav() {
             type="button"
             onClick={logout}
             className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md text-xs font-medium text-ink-body bg-surface-bg hover:bg-accent-red/10 hover:text-accent-red border border-surface-border hover:border-accent-red/40 transition-colors focus:outline-none focus:ring-2 focus:ring-accent-red/40"
-            aria-label="Sign out of ClinCase"
+            aria-label="Sign out of CLINI-CASE"
             title="Sign out"
           >
             <LogOut size={14} aria-hidden="true" />
-            <span>Sign out</span>
+            {!collapsed && <span>Sign out</span>}
           </button>
         </div>
       </aside>
@@ -281,11 +361,27 @@ export function Sidenav() {
   );
 }
 
-function NavItemRow({ item, liveCounts, chips }: { item: NavItem; liveCounts: NavLiveCounts; chips: Record<string, string | null> }) {
+function NavItemRow({
+  item,
+  liveCounts,
+  chips,
+  collapsed,
+}: {
+  collapsed?: boolean;
+  item: NavItem;
+  liveCounts: NavLiveCounts;
+  chips: Record<string, string | null>;
+}) {
+  const { pathname } = useLocation();
+  const contextualActive = areaFor(pathname)?.path === item.href;
   const chip = item.chip ?? chips[item.href] ?? null;
   const Icon = item.icon;
   const liveValue = item.liveBadge ? liveCounts[item.liveBadge] : null;
-  const badgeText = item.liveBadge ? (liveValue !== null ? String(liveValue) : null) : item.badge ?? null;
+  const badgeText = item.liveBadge
+    ? liveValue !== null
+      ? String(liveValue)
+      : null
+    : (item.badge ?? null);
 
   if (item.disabled) {
     return (
@@ -302,12 +398,15 @@ function NavItemRow({ item, liveCounts, chips }: { item: NavItem; liveCounts: Na
 
   return (
     <NavLink
+      title={item.label}
+      aria-label={item.label}
+      aria-current={contextualActive ? "page" : undefined}
       to={item.href}
       end={item.end}
       className={({ isActive }) =>
         clsx(
           "flex items-center gap-2.5 px-3 py-1.5 rounded-md text-sm transition-colors duration-200 group relative",
-          isActive
+          isActive || contextualActive
             ? "bg-accent-brand/10 text-accent-brand font-medium"
             : "text-ink-body hover:bg-surface-raised hover:text-ink-primary",
         )
@@ -315,21 +414,30 @@ function NavItemRow({ item, liveCounts, chips }: { item: NavItem; liveCounts: Na
     >
       {({ isActive }) => (
         <>
-          {isActive && (
+          {(isActive || contextualActive) && (
             <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r bg-accent-brand animate-fade-in" />
           )}
-          <Icon size={15} className={clsx(isActive ? "text-accent-brand" : "", "transition-colors duration-200")} />
-          <span className="flex-1 truncate">{item.label}</span>
-          {chip && (
-            <span data-testid={`chip-${item.href}`} className="text-[9px] text-mono-tech px-1 py-0.5 rounded bg-accent-cyan/10 text-accent-cyan">
+          <Icon
+            size={15}
+            className={clsx(
+              isActive || contextualActive ? "text-accent-brand" : "",
+              "transition-colors duration-200",
+            )}
+          />
+          {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
+          {!collapsed && chip && (
+            <span
+              data-testid={`chip-${item.href}`}
+              className="text-[9px] text-mono-tech px-1 py-0.5 rounded bg-accent-cyan/10 text-accent-cyan"
+            >
               {chip}
             </span>
           )}
-          {badgeText && (
+          {!collapsed && badgeText && (
             <span
               className={clsx(
                 "text-[10px] text-mono-tech px-1.5 py-0.5 rounded transition-colors duration-200",
-                isActive
+                isActive || contextualActive
                   ? "bg-accent-brand text-ink-invert"
                   : "bg-surface-border text-ink-muted group-hover:bg-surface-border-hi",
               )}

@@ -21,7 +21,8 @@ import {
   type JourneyView,
   type MappingRow,
 } from "../journey/api";
-import { BUTTON, PRIMARY_BUTTON, StageDetailBody } from "../journey/cards";
+import { BUTTON, PRIMARY_BUTTON, PassportVerifyCard, StageDetailBody } from "../journey/cards";
+import { ProofStrip } from "../journey/ProofStrip";
 import { Drawer } from "../journey/Drawer";
 import { JourneyStageCard } from "../journey/JourneyStageCard";
 import { JourneyStepper, STATUS_TEXT, STATUS_TONE, StatusIcon } from "../journey/JourneyStepper";
@@ -43,7 +44,7 @@ function Header({ children }: { children?: ReactNode }) {
   return (
     <header className="space-y-1">
       <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-accent-cyan">CLINI-CASE</p>
-      <h1 className="text-2xl font-semibold text-ink-primary">One Health Evidence &amp; Interoperability Journey</h1>
+      <h1 className="text-2xl font-semibold text-ink-primary">One Health Interoperability Gateway</h1>
       {children}
     </header>
   );
@@ -443,11 +444,43 @@ function JourneyRun({ jobId }: { jobId: string }) {
       case "bind":
         void perform(action, () => journeyActions.bind(journey));
         return;
+      case "approve_safe":
+        void perform(action, () => journeyActions.approveSafe(journey), false);
+        return;
+      case "external_check":
+        void perform(action, () => journeyActions.externalCheck(journey), false);
+        return;
     }
   }
 
   function onDecide(row: MappingRow, decision: "approve" | "reject", target: string | null, concept: string | null) {
     void perform("review", () => journeyActions.decide(journey, row, decision, target, concept), false);
+  }
+
+  /** Verify the exported passport server-side; with `tamper`, on an edited throwaway copy (nothing is saved). */
+  async function verifyPassport(tamper: boolean) {
+    const exported = (await journeyActions.passport(journey)) as {
+      content?: { record?: Record<string, unknown> & { normalized?: { value?: unknown } } };
+    };
+    let submitted: unknown = exported;
+    let change: string | null = null;
+    if (tamper) {
+      const copy = structuredClone(exported);
+      const record = copy.content?.record;
+      if (record) {
+        const normalized = record.normalized;
+        if (normalized && typeof normalized.value === "number") {
+          const before = normalized.value;
+          normalized.value = before * 10 + 1;
+          change = `measured value ${before} → ${normalized.value}`;
+        } else {
+          record.tamper_demo = "edited";
+          change = "added one field to the record";
+        }
+      }
+      submitted = copy;
+    }
+    return { verdict: await journeyActions.verifyPassport(submitted), change };
   }
 
   const reviewPending = journey.stages.find((s) => s.id === "review")?.status === "ready";
@@ -497,6 +530,8 @@ function JourneyRun({ jobId }: { jobId: string }) {
         )}
       </section>
 
+      <ProofStrip stages={journey.stages} />
+
       <JourneyStepper
         jobId={journey.job_id}
         stages={journey.stages}
@@ -519,6 +554,10 @@ function JourneyRun({ jobId }: { jobId: string }) {
         onAction={onAction}
         onOpenDetails={() => setDrawerOpen(true)}
       />
+
+      {stage.id === "verify" && stage.status === "complete" && (
+        <PassportVerifyCard signing={stage.detail.signing} verify={verifyPassport} />
+      )}
 
       {!isCurrent && next && (
         <p className="text-sm text-ink-muted">
@@ -553,6 +592,8 @@ function JourneyRun({ jobId }: { jobId: string }) {
           busy={busy !== null}
           onDecide={onDecide}
           onExport={() => onAction("export_passport")}
+          onApproveSafe={() => onAction("approve_safe")}
+          onExternalCheck={() => onAction("external_check")}
         />
       </Drawer>
     </div>

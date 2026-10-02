@@ -25,7 +25,7 @@ Run `./start-track7.ps1` for the complete synthetic, deterministic reference jou
 - [Evidence Passport](docs/EVIDENCE_PASSPORT.md), [epistemic ceiling](docs/EPISTEMIC_CEILING.md) and [conformance statement](docs/OAH_CONFORMANCE.md)
 - [Verification](docs/TRACK7_HARDENING_VERIFICATION.md), [build scope / AI assistance](docs/HACKATHON_BUILD_SCOPE.md) and [self-audit](docs/TRACK7_SELF_AUDIT.md)
 
-**Validation scope:** FHIR R4-targeted exchange with selected pinned OAH constraints, local contract checks and semantic round-trip tests. A prior core-only validator result (0 errors, 22 warnings and 7 informational messages) used a different fixture and did not load the OAH package or terminology; it is not evidence for the current generated Bundle. Full OAH validation is currently not run because the local Java/validator and immutable guide package are unavailable. No HL7 certification is claimed. See [the validation record](docs/track7/VALIDATION.md). All demo data is synthetic; no real pilot or clinical-performance claim is made.
+**Validation scope:** FHIR R4-targeted exchange with selected pinned OAH constraints, local contract checks and semantic round-trip tests. The official HL7 validator (6.10.4) was run on the Bundle the current code generates: 0 errors, 15 warnings and 3 informational messages with the OAH draft guide and a terminology server (21/16/15 warnings across three configurations; nothing suppressed). The OAH package was built locally from the pinned guide commit because no package is published, and the guide is a draft CI build. This is not certification and not a claim of full OAH conformance. See [the validation record](docs/track7/VALIDATION.md). An independent public FHIR R4 server also accepted the Bundle and returned it intact ([third-party check](docs/track7/THIRD_PARTY_INTEROP.md)); that shows generic FHIR R4 interoperability, not OAH conformance. Evidence Passports carry an Ed25519 signature that is a CLINI-CASE demo-system signature only, not a laboratory, clinician, government or third-party attestation. All demo data is synthetic; no real pilot or clinical-performance claim is made.
 
 **License:** [proprietary terms](LICENSE) are unchanged. The owner is credited by the existing license/history. You confirmed authorization exists; judges' signed run/review rights still need documentary verification. See [judge access](docs/JUDGE_ACCESS.md). Public availability alone grants no license.
 
@@ -33,7 +33,7 @@ The following sections retain the existing platform reference documentation. Thi
 
 ## Contents
 
-- [ClinCase One Health — primary OneAquaHealth Track 7](docs/ONEHEALTH_TRACK7.md)
+- [CLINI-CASE / One Health — primary OneAquaHealth Track 7](docs/ONEHEALTH_TRACK7.md)
 - [AquaHealth Sentinel — supporting OneAquaHealth Track 3](docs/AQUAHEALTH_TRACK3.md)
 - [Why ClinCase](#-why-clincase)
 - [What it does](#-what-it-does)

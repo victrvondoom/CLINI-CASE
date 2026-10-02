@@ -10,8 +10,9 @@ from __future__ import annotations
 from collections import Counter
 from typing import Any, Literal
 
+from app.interop import triage
 from app.interop.models import TARGETS
-from app.onehealth import fhir
+from app.onehealth import fhir, passport
 
 StageStatus = Literal["complete", "ready", "waiting", "blocked", "failed"]
 
@@ -48,6 +49,25 @@ def _proof(job: dict[str, Any], *types: str, limit: int = 1) -> list[dict[str, A
     ]
 
 
+def _external_check(job: dict[str, Any]) -> dict[str, Any] | None:
+    """The newest recorded third-party FHIR check, from the job's own event log."""
+    for e in reversed(job.get("events") or []):
+        if str(e.get("event_type", "")).startswith("external_fhir_check_"):
+            p = e.get("provenance") or {}
+            return {
+                "status": p.get("status"),
+                "endpoint": p.get("endpoint"),
+                "resource_type": p.get("resource_type"),
+                "resource_id": p.get("resource_id"),
+                "fields_preserved": p.get("fields_preserved"),
+                "fields_total": p.get("fields_total"),
+                "detail": p.get("detail"),
+                "scope_note": p.get("scope_note"),
+                "checked_at": e["timestamp"],
+            }
+    return None
+
+
 def _stage(
     stage_id: str,
     status: StageStatus,
@@ -56,6 +76,7 @@ def _stage(
     facts: list[tuple[str, Any]] | None = None,
     evidence: list[dict[str, Any]] | None = None,
     next_action: tuple[str, str] | None = None,
+    secondary_actions: list[tuple[str, str]] | None = None,
     links: list[tuple[str, str]] | None = None,
     detail: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
@@ -72,6 +93,7 @@ def _stage(
         "facts": [{"label": k, "value": v} for k, v in (facts or []) if v is not None],
         "evidence": evidence or [],
         "next_action": {"id": next_action[0], "label": next_action[1]} if next_action else None,
+        "secondary_actions": [{"id": k, "label": v} for k, v in (secondary_actions or [])],
         "links": [{"label": k, "href": v} for k, v in (links or [])],
         "detail": detail or {},
     }
@@ -172,6 +194,9 @@ def project(job: dict[str, Any], evidence: dict[str, Any] | None = None) -> dict
         }
         for m in mappings
     ]
+    for row, mapping in zip(mapping_rows, mappings, strict=True):
+        row["triage"] = triage.classify(mapping)
+    groups = triage.summarize(mappings)
     firewall = job.get("semantic_firewall") or {}
     if from_evidence:
         stages.append(
@@ -210,7 +235,12 @@ def project(job: dict[str, Any], evidence: dict[str, Any] | None = None) -> dict
     # 4 Review -----------------------------------------------------------------------
     pending = [m for m in mappings if m.get("decision") == "pending"]
     missing = schema.get("missing_required_fields") or []
-    review_detail = {"mappings": mapping_rows, "targets": TARGETS, "semantic_firewall": firewall}
+    review_detail = {
+        "mappings": mapping_rows,
+        "targets": TARGETS,
+        "semantic_firewall": firewall,
+        "triage": groups,
+    }
     if from_evidence:
         stages.append(
             _stage(
@@ -228,8 +258,16 @@ def project(job: dict[str, Any], evidence: dict[str, Any] | None = None) -> dict
                 "review",
                 "ready",
                 f"{len(pending)} mapping decision(s) await a reviewer",
-                facts=[("Ambiguous fields", ", ".join(firewall.get("ambiguous_fields") or []) or "None")],
+                facts=[
+                    ("Safe to batch-approve", len(groups["safe"])),
+                    ("Requires individual review", len(groups["review"])),
+                    ("Unresolved", len(groups["unresolved"])),
+                    ("Ambiguous fields", ", ".join(firewall.get("ambiguous_fields") or []) or "None"),
+                ],
                 next_action=("review", "Review mappings"),
+                secondary_actions=(
+                    [("approve_safe", f"Approve {len(groups['safe'])} safe mappings")] if groups["safe"] else None
+                ),
                 detail=review_detail,
             )
         )
@@ -439,8 +477,29 @@ def project(job: dict[str, Any], evidence: dict[str, Any] | None = None) -> dict
         ("Passport revisions", integrity.get("revision_count")),
         ("Passport head", _short(integrity.get("head"))),
     ]
+    signing = passport.signing_status()
+    external = _external_check(job)
+    if signing["enabled"]:
+        passport_facts.append(("Passport signature", f"{signing['algorithm']} · key {signing['key_id']} · {signing['signer']}"))
+    else:
+        passport_facts.append(("Passport signature", "Not configured: exports are hash-chain only"))
+    if external:
+        where = (external["endpoint"] or "").split("//")[-1].split("/")[0]
+        passport_facts.append(
+            (
+                "Third-party FHIR server",
+                f"{external['status']} · {where} · {external['resource_type']}/{external['resource_id']}"
+                if external["resource_id"]
+                else f"{external['status']} · {where}",
+            )
+        )
     if roundtrip:
-        verify_detail = {"roundtrip_fields": roundtrip.get("fields", []), "passport": integrity}
+        verify_detail = {
+            "roundtrip_fields": roundtrip.get("fields", []),
+            "passport": integrity,
+            "signing": signing,
+            "external_check": external,
+        }
         verified = roundtrip.get("status") == "passed" and integrity.get("valid") is True
         stages.append(
             _stage(
@@ -459,6 +518,7 @@ def project(job: dict[str, Any], evidence: dict[str, Any] | None = None) -> dict
                 ],
                 evidence=_proof(job, "return_exchange_validated"),
                 next_action=("export_passport", "Export Evidence Passport"),
+                secondary_actions=[("external_check", "Run third-party FHIR check")],
                 detail=verify_detail,
             )
         )

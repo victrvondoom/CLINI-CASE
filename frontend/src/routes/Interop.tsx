@@ -116,7 +116,7 @@ export default function Interop() {
           TRACK 7 | DIGITAL HEALTH STANDARDS
         </p>
         <h1 className="text-3xl mt-2">
-          ONEAQUAHEALTH INTEROPERABILITY GATEWAY
+          CLINI-CASE / One Health Interoperability Gateway
         </h1>
         <p className="text-ink-muted mt-3">
           Move One Health evidence between systems without losing meaning,

@@ -281,6 +281,7 @@ def ensure_secret() -> None:
     """Create clinicase-secrets only when absent: re-running `up` must never rotate live credentials."""
     if kubectl("get", "secret", SECRET_NAME, check=False).returncode == 0:
         say(f"secret {SECRET_NAME} already exists; keeping it")
+        ensure_signing_key()
         return
     db_password = secrets.token_urlsafe(32)
     manifest = {
@@ -298,10 +299,36 @@ def ensure_secret() -> None:
             "JWT_SECRET": secrets.token_urlsafe(32),
             "INTEROP_RECEIVER_TOKEN": secrets.token_urlsafe(32),
             "DEMO_USER_PASSWORD": secrets.token_urlsafe(32),
+            "PASSPORT_SIGNING_KEY": new_signing_key(),
         },
     }
     kubectl("create", "-f", "-", stdin=json.dumps(manifest))  # values travel on stdin, not argv
     say(f"generated secret {SECRET_NAME} (random values, kept only in the cluster)")
+
+
+def new_signing_key() -> str:
+    """A fresh Ed25519 seed (32 random bytes, base64) for the CLINI-CASE demo-system passport signature."""
+    return base64.b64encode(secrets.token_bytes(32)).decode("ascii")
+
+
+def ensure_signing_key() -> None:
+    """Add the signing key to a Secret created before signing existed, without touching any other value."""
+    present = kubectl(
+        "get", "secret", SECRET_NAME, "-o", "jsonpath={.data.PASSPORT_SIGNING_KEY}", check=False
+    ).stdout.strip()
+    if present:
+        return
+    patch = {
+        "apiVersion": "v1",
+        "kind": "Secret",
+        "metadata": {"name": SECRET_NAME, "namespace": NAMESPACE},
+        "stringData": {"PASSPORT_SIGNING_KEY": new_signing_key()},
+    }
+    # Server-side apply owns only the key it sends, so the generated credentials stay exactly as they are.
+    kubectl(
+        "apply", "--server-side", "--field-manager", "clinicase-signing-key", "-f", "-", stdin=json.dumps(patch)
+    )
+    say("added PASSPORT_SIGNING_KEY to the existing secret (other values untouched)")
 
 
 def refresh_configmap(name: str, source: str, origin: Path) -> None:

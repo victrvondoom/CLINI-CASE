@@ -32,6 +32,9 @@ vi.mock("../src/journey/api", async (importOriginal) => {
       returnTrip: vi.fn(),
       bind: vi.fn(),
       passport: vi.fn(),
+      approveSafe: vi.fn(),
+      externalCheck: vi.fn(),
+      verifyPassport: vi.fn(),
     },
   };
 });
@@ -71,6 +74,8 @@ function view(current: StageId): JourneyView {
           ? [{ event_type: `${id}_event`, timestamp: "2026-10-01T18:00:00+00:00", actor: "reviewer-1", status: "ok", correlation_id: "ig-1" }]
           : [],
       next_action: status === "ready" ? (NEXT[id] ?? null) : null,
+      secondary_actions:
+        id === "review" && status === "ready" ? [{ id: "approve_safe", label: "Approve 11 safe mappings" }] : [],
       links: [],
       detail:
         id === "review"
@@ -227,6 +232,62 @@ describe("unified evidence journey", () => {
         "total_arsenic",
       ),
     );
+  });
+
+  it("offers one-click approval of safe mappings and leaves the rest to a person", async () => {
+    vi.mocked(journeyActions.approveSafe).mockResolvedValue({} as never);
+    page("/journey/ig-1/review");
+    fireEvent.click(await screen.findByRole("button", { name: "Approve 11 safe mappings" }));
+    await waitFor(() =>
+      expect(journeyActions.approveSafe).toHaveBeenCalledWith(expect.objectContaining({ job_id: "ig-1", job_version: 4 })),
+    );
+    expect(journeyActions.decide).not.toHaveBeenCalled();
+    expect(where()).toBe("/journey/ig-1/review"); // stays on the review stage; the arsenic row still needs a person
+  });
+
+  it("verifies the passport signature and shows that an edited copy fails", async () => {
+    const exported = { content: { record: { normalized: { value: 12 } } }, hash_manifest: {} };
+    vi.mocked(journeyApi.get).mockResolvedValue({
+      ...view("clinical_context"),
+      stages: view("clinical_context").stages.map((s) =>
+        s.id === "verify"
+          ? {
+              ...s,
+              detail: {
+                signing: {
+                  enabled: true,
+                  algorithm: "Ed25519",
+                  key_id: "abc123",
+                  signer: "CLINI-CASE demo signer",
+                  scope: "A CLINI-CASE demo-system signature. Not a laboratory, clinician, government or third-party attestation.",
+                },
+              },
+            }
+          : s,
+      ),
+    });
+    vi.mocked(journeyActions.passport).mockResolvedValue(exported as never);
+    const verdict = (overall: "VERIFIED" | "FAILED") => ({
+      overall,
+      hash_chain: { status: "ok", valid: overall === "VERIFIED" },
+      signature: { status: overall === "VERIFIED" ? "SIGNATURE_VALID" : "SIGNATURE_INVALID", valid: overall === "VERIFIED", key_id: "abc123", signer: "s", scope: "" },
+      changed_artifacts: overall === "VERIFIED" ? [] : ["record"],
+    });
+    vi.mocked(journeyActions.verifyPassport)
+      .mockResolvedValueOnce(verdict("VERIFIED") as never)
+      .mockResolvedValueOnce(verdict("FAILED") as never);
+
+    page("/journey/ig-1/verify");
+    fireEvent.click(await screen.findByRole("button", { name: "Verify Passport signature" }));
+    expect(await screen.findByText("✓ Signature verified")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Change one value, then verify" }));
+    expect(await screen.findByText("✗ Verification failed")).toBeTruthy();
+    expect(screen.getByText(/measured value 12 → 121/)).toBeTruthy();
+    const sent = vi.mocked(journeyActions.verifyPassport).mock.calls[1][0] as typeof exported;
+    expect(sent.content.record.normalized.value).toBe(121); // an edited copy was sent...
+    expect(exported.content.record.normalized.value).toBe(12); // ...and the original was not touched
+    expect(screen.getByText(/Not a laboratory, clinician, government or third-party attestation/)).toBeTruthy();
   });
 
   it("starts a golden-path journey and lists recent journeys from the server", async () => {

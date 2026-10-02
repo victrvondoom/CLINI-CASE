@@ -2,6 +2,7 @@
 
 import argparse
 import asyncio
+import base64
 import json
 import os
 import secrets
@@ -19,6 +20,15 @@ import httpx
 ROOT = Path(__file__).resolve().parents[2]
 BACKEND = ROOT / "backend"
 CACHE = BACKEND / ".cache/track7"
+
+
+def demo_signing_key() -> str:
+    """A persistent demo-only Ed25519 seed, so passports exported earlier still verify after a restart."""
+    path = CACHE / "passport-signing.key"
+    if not path.exists():
+        CACHE.mkdir(parents=True, exist_ok=True)
+        path.write_text(base64.b64encode(secrets.token_bytes(32)).decode("ascii"), encoding="utf-8")
+    return path.read_text(encoding="utf-8").strip()
 
 
 def available(port: int) -> None:
@@ -99,6 +109,7 @@ async def main(args) -> None:
         "DEMO_USER_PASSWORD": password,
         "JWT_SECRET": secrets.token_urlsafe(48),
         "INTEROP_RECEIVER_TOKEN": token,
+        "PASSPORT_SIGNING_KEY": os.environ.get("PASSPORT_SIGNING_KEY") or demo_signing_key(),
         "INTEROP_RECEIVER_URL": f"http://127.0.0.1:{args.receiver_port}",
         "INTEROP_RECEIVER_DB": str(CACHE / "receiver.sqlite"),
         "TRACK7_DEMO_DB": str(CACHE / "evidence.sqlite") if args.sqlite else "",

@@ -16,6 +16,6 @@ The official criteria are Impact 30%, Innovation 20%, Technical execution 20%, U
 
 **Hygiene:** tracked duplicate frontends, backup assets and machine-specific scripts were moved into an archive, not deleted. No public default password is seeded by default. The license remains unchanged and AI assistance is disclosed.
 
-**Standards:** local PASS is separate from official validator WARNING and terminology NOT_TESTED. Synthetic model AUROC is not the submission headline.
+**Standards:** local PASS is separate from the official validator result (0 errors, warnings reported in full, see track7/VALIDATION.md). Synthetic model AUROC is not the submission headline.
 
 WHO estimates roughly 140 million people in at least 70 countries have consumed drinking water above its provisional arsenic guideline; this establishes problem relevance, not this prototype's impact ([WHO arsenic fact sheet](https://www.who.int/news-room/fact-sheets/detail/arsenic)).

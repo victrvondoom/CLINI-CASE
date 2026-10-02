@@ -62,7 +62,7 @@ export function TopBar({ onOpenSearch, oneHealth = false }: Props) {
         <Link
           to={oneHealth ? "/journey" : "/dashboard"}
           className="flex items-center gap-2 sm:gap-3 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-brand rounded-md min-w-0 lg:w-[228px] lg:shrink-0"
-          aria-label="ClinCase home"
+          aria-label="CLINI-CASE home"
         >
           <img
             src="/clincase-mark.svg"
@@ -74,10 +74,10 @@ export function TopBar({ onOpenSearch, oneHealth = false }: Props) {
           />
           <div className="leading-tight min-w-0">
             <div className="text-ui-primary tracking-[0.01em] text-ink-primary text-[15px] truncate">
-              ClinCase<span className="text-accent-cyan">.</span>
+              CLINI-CASE<span className="text-accent-cyan">.</span>
             </div>
             <div className="text-compact hidden sm:block text-[9px] text-ink-muted">
-              {oneHealth ? "One Health evidence workspace" : "Clinical AI Platform"}
+              One Health Interoperability Gateway
             </div>
           </div>
         </Link>

@@ -51,7 +51,7 @@ export default function Hero() {
             marginBottom: "1.25rem",
           }}
         >
-          AGENTIC PRIOR AUTHORIZATION FOR ONCOLOGY
+          CLINI-CASE / ONE CONNECTED EVIDENCE JOURNEY
         </Reveal>
 
         <Reveal
@@ -66,9 +66,9 @@ export default function Hero() {
             marginBottom: "1rem",
           }}
         >
-          You treat patients.
+          From Evidence to Action.
           <br />
-          We&rsquo;ll take the calls.
+          One Connected Clinical Journey.
         </Reveal>
 
         <Reveal
@@ -82,7 +82,7 @@ export default function Hero() {
             marginBottom: "1.5rem",
           }}
         >
-          Approve cancer treatment in minutes, not weeks.
+          One Health Interoperability Gateway
         </Reveal>
 
         <Reveal
@@ -96,10 +96,7 @@ export default function Hero() {
             marginBottom: "2.25rem",
           }}
         >
-          ClinCase reads the chart, finds the payer&rsquo;s current policy, matches every
-          criterion to the evidence that proves it, and submits the authorization &mdash;
-          with a citation behind each line. Your team stops chasing faxes and hold music,
-          and your patient starts therapy while it still matters.
+          CLINI-CASE connects intake, evidence, interoperability, review, clinical context and follow-up in one traceable workflow.
         </Reveal>
 
         <Reveal

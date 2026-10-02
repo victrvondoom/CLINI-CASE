@@ -11,7 +11,7 @@ from pydantic import Field
 
 from app.auth import require_role
 from app.config import settings
-from app.interop import adapter, adapters, repository, service
+from app.interop import adapter, adapters, external_fhir, repository, service, triage
 from app.interop.models import (
     TARGETS,
     Analyze,
@@ -255,6 +255,46 @@ async def approve(
     job_id: str, payload: Decision, user: dict[str, Any] = Depends(reviewer)
 ) -> dict[str, Any]:
     return await decide(job_id, payload, user, "accepted")
+
+
+@router.post("/mappings/{job_id}/approve-safe")
+async def approve_safe(
+    job_id: str, payload: Command, user: dict[str, Any] = Depends(reviewer)
+) -> dict[str, Any]:
+    """Approve only mappings that triage classifies as safe, atomically, one audit event each.
+
+    The generic arsenic label, unresolved targets, AI-only and low-confidence mappings never qualify;
+    they stay individual reviewer decisions. Eligibility is decided here, never by the client.
+    """
+    if payload.job_id != job_id:
+        raise HTTPException(422, "Job identity mismatch")
+    j = await current(payload, user)
+    if j.exposure_id:
+        raise HTTPException(
+            409, "Mapping is bound to an evidence record; import a new source to remap"
+        )
+    safe = [m for m in j.mappings if triage.classify(m.model_dump()) == "safe"]
+    if not safe:
+        raise HTTPException(409, "No pending mapping is eligible for batch approval")
+    for m in safe:
+        assert m.target is not None  # guaranteed by triage: safe mappings have an allowlisted target
+        m.fhir_target = TARGETS[m.target]
+        m.decision = "accepted"
+        m.reviewer = str(user["id"])
+        j.mapping_version += 1
+        service.event(
+            j,
+            "mapping_accepted",
+            user["id"],
+            source_field=m.source_field,
+            target=m.target,
+            previous_target=m.target,
+            concept=m.concept,
+            mapping_version=j.mapping_version,
+            batch="safe",
+        )
+    j.bundle = j.validation = j.normalized = None
+    return view(await repository.save(j, payload.expected_version))
 
 
 @router.post("/mappings/{job_id}/reject")
@@ -507,6 +547,44 @@ async def returned(payload: Command, user: dict[str, Any] = Depends(reviewer)) -
     }
 
 
+@router.post("/external-check")
+async def external_check(payload: Command, user: dict[str, Any] = Depends(reviewer)) -> dict[str, Any]:
+    """Optional third-party FHIR R4 check: POST the exact validated Bundle, read it back, compare.
+
+    Synthetic data only. Failure never changes the workflow; the attempt is recorded as an event.
+    """
+    j = await current(payload, user)
+    await check_binding(j)
+    if not j.bundle or not service.validate(j.bundle)["valid"]:
+        raise HTTPException(409, "Generate and validate a bundle before the third-party check")
+    try:
+        result = await external_fhir.exchange(
+            j.bundle,
+            synthetic=j.source.synthetic,
+            base_url=settings.EXTERNAL_FHIR_BASE_URL,
+            request_timeout_s=settings.EXTERNAL_FHIR_TIMEOUT_S,
+            system_trust=settings.EXTERNAL_FHIR_SYSTEM_TRUST,
+        )
+    except external_fhir.ExternalFhirRefusedError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    semantic = result["semantic"] or {}
+    service.event(
+        j,
+        "external_fhir_check_" + result["status"],
+        str(user["id"]),
+        status=result["status"],
+        endpoint=result["endpoint"],
+        resource_type=result["resource_type"],
+        resource_id=result["resource_id"],
+        fields_preserved=semantic.get("fields_preserved"),
+        fields_total=semantic.get("fields_total"),
+        detail=result["detail"],
+        scope_note=result["scope_note"],
+    )
+    saved = await repository.save(j, payload.expected_version)
+    return {"job": view(saved), "external": result}
+
+
 async def check_binding(j: Job) -> None:
     if j.exposure_id:
         record = await exposures.get(j.organization_id, j.exposure_id)
@@ -619,7 +697,7 @@ async def from_evidence(
         raise HTTPException(409, "Exchange disabled after consent withdrawal")
     # Existing normalized record is the source; no fabricated AI mapping decisions.
     source = Source(
-        source_system="ClinCase One Health reviewed evidence",
+        source_system="CLINI-CASE One Health reviewed evidence",
         original_record_id=record.id,
         payload={**record.sample.model_dump(mode="json"), "waterbody_name": record.waterbody_name},
         synthetic=record.synthetic,
@@ -663,6 +741,26 @@ async def passport_export(job_id: str, user: dict[str, Any] = Depends(reviewer))
         evidence=service.assessment(j.bundle) if j.bundle else None,
         loss_report=service.loss_report(j),
     )
+
+
+class PassportVerifyRequest(StrictModel):
+    package: dict[str, Any]
+
+
+@router.get("/passport-signing")
+async def passport_signing(user: dict[str, Any] = Depends(reviewer)) -> dict[str, Any]:
+    """Whether exports are signed and by which key (id only; never key material)."""
+    return passport.signing_status()
+
+
+@router.post("/passport/verify")
+async def passport_verify(
+    payload: PassportVerifyRequest, user: dict[str, Any] = Depends(reviewer)
+) -> dict[str, Any]:
+    """Stateless: verify a submitted passport package. Persists nothing, so it is safe to tamper with."""
+    if len(json.dumps(payload.package)) > 1_000_000:
+        raise HTTPException(413, "Passport package exceeds the 1 MB verification limit")
+    return passport.verify_package(payload.package)
 
 
 @router.post("/challenge-receiver")

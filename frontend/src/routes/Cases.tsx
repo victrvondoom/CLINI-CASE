@@ -1,3 +1,4 @@
+import { JourneyCases } from "../workflow/JourneyCases";
 ﻿/**
  * /cases — All Cases table. Filter pills + payer dropdown + search + table.
  *
@@ -157,6 +158,8 @@ export default function Cases() {
           New case
         </button>
       </header>
+
+      <JourneyCases />
 
       {/* Filter bar */}
       <div className="reveal-go bg-surface-raised border border-surface-border rounded-2xl mb-4 overflow-hidden" style={{ animationDelay: "60ms" }}>

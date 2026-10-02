@@ -9,15 +9,13 @@ export default function Track7Overview() {
           <p className="text-accent-cyan tracking-widest text-xs">
             ONEAQUAHEALTH · TRACK 7 · DIGITAL HEALTH STANDARDS
           </p>
-          <h1 className="text-4xl sm:text-6xl">ClinCase One Health</h1>
+          <h1 className="text-4xl sm:text-6xl">CLINI-CASE</h1>
           <p className="text-xl max-w-3xl">
-            Evidence-aware interoperability for urban water and human health.
+            One Health Interoperability Gateway
           </p>
           <p className="text-ink-muted max-w-3xl">
-            Move environmental, laboratory and health observations between
-            systems through validated OAH/FHIR exchanges, preserving provenance,
-            consent, human review and the limits of what the evidence can
-            support.
+            From Evidence to Action, Through One Connected Clinical Journey.
+            CLINI-CASE connects intake, evidence, interoperability, review, clinical context and follow-up in one traceable workflow.
           </p>
           <div className="flex flex-wrap gap-4">
             <Link
@@ -89,7 +87,7 @@ export default function Track7Overview() {
           <summary className="cursor-pointer">Shared platform context</summary>
           <p className="text-sm text-ink-muted mt-3">
             AquaHealth provides citizen observations. One Health governs
-            evidence and sharing. ClinCase, OncoTwin and CardioTwin retain their
+            evidence and sharing. CLINI-CASE, OncoTwin and CardioTwin retain their
             existing clinical workflows and can display consented evidence
             context; environmental measurements do not alter clinical
             conclusions.

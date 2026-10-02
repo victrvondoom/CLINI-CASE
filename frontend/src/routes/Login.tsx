@@ -31,7 +31,7 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const from =
-    (location.state as { from?: string } | null)?.from ?? "/journey";
+    (location.state as { from?: string } | null)?.from ?? "/dashboard";
 
   const [email, setEmail] = useState("admin@clincase.health");
   const [password, setPassword] = useState("");
@@ -100,7 +100,7 @@ export default function Login() {
         <Link
           to="/"
           className="flex flex-col items-center gap-3 mb-7 group"
-          aria-label="ClinCase home"
+          aria-label="CLINI-CASE home"
         >
           <div className="relative">
             {/* Two-layer pulsing halo — unmissable */}
@@ -114,7 +114,7 @@ export default function Login() {
             />
             <img
               src="/clincase-mark.svg"
-              alt="ClinCase"
+              alt="CLINI-CASE"
               className="relative w-24 h-24 object-contain drop-shadow-[0_12px_40px_rgba(18,18,18,0.5)] group-hover:scale-110 transition-transform duration-300"
               width={96}
               height={96}
@@ -122,10 +122,10 @@ export default function Login() {
           </div>
           <div className="text-center">
             <div className="text-display-primary text-2xl tracking-tight text-ink-primary">
-              ClinCase
+              CLINI-CASE
             </div>
             <div className="text-compact text-[11px] text-ink-muted">
-              One Health evidence workspace
+              One Health Interoperability Gateway
             </div>
           </div>
         </Link>

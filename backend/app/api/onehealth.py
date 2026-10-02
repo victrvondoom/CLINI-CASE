@@ -72,7 +72,7 @@ def patient(org: str, patient_id: str) -> Any:
 @router.get("/meta")
 async def meta() -> dict[str, Any]:
     return {
-        "product": "ClinCase One Health",
+        "product": "CLINI-CASE One Health Interoperability Gateway",
         "primary_track": "Track 7 — Digital Health Standards",
         "supporting_track": "Track 3 — AI-Supported Assessment",
         "standards": fhir.STANDARDS,

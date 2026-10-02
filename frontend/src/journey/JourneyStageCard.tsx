@@ -76,6 +76,20 @@ export function JourneyStageCard({
             {action.label}
           </button>
         )}
+        {stage.secondary_actions.map((secondary) => (
+          <button
+            key={secondary.id}
+            type="button"
+            className={BUTTON}
+            disabled={busyAction !== null}
+            onClick={() => onAction(secondary.id)}
+          >
+            {busyAction === secondary.id && (
+              <Loader2 size={13} className="motion-safe:animate-spin" aria-hidden="true" />
+            )}
+            {secondary.label}
+          </button>
+        ))}
         <button type="button" className={BUTTON} onClick={onOpenDetails}>
           View details{stage.evidence.length ? ` · ${stage.evidence.length} proof` : ""}
           <ChevronRight size={13} aria-hidden="true" />

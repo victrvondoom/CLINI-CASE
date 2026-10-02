@@ -33,6 +33,7 @@ SECRET_KEYS = {
     "INTEROP_RECEIVER_TOKEN",
     "DEMO_USER_PASSWORD",
     "POSTGRES_PASSWORD",
+    "PASSPORT_SIGNING_KEY",
 }
 DOWNWARD_API = {
     "POD_NAME": "metadata.name",
@@ -356,8 +357,10 @@ def test_interop_demo_payloads_ship_in_the_api_image():
     assert not {"/app/data", "/app/data/interop"} & set(mounts)
     names = {p.name for p in (ROOT / "backend" / "data" / "interop").iterdir() if p.is_file()}
     assert {"environmental.json", "environmental-dissolved.json"} <= names  # the two files /demo reads
-    interop_api = (ROOT / "backend" / "app" / "api" / "interop.py").read_text(encoding="utf-8")
-    assert '"data" / "interop"' in interop_api, "the demo endpoint no longer reads data/interop"
+    from app.api import interop as interop_api
+
+    # The demo endpoint resolves its payloads relative to the app package; the image must carry them there.
+    assert (Path(interop_api.__file__).parents[2] / "data" / "interop" / "environmental.json").is_file()
 
 
 def test_receiver_environment_contract():

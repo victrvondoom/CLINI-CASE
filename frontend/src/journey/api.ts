@@ -30,7 +30,9 @@ export type ActionId =
   | "return"
   | "bind"
   | "export_passport"
-  | "open_evidence";
+  | "open_evidence"
+  | "approve_safe"
+  | "external_check";
 
 export interface StageEvidence {
   event_type: string;
@@ -47,6 +49,7 @@ export interface MappingRow {
   confidence: number;
   origin: string;
   decision: "pending" | "accepted" | "rejected";
+  triage?: "safe" | "review" | "unresolved" | "decided";
   concept: string | null;
   terminology_status: string;
   reason: string;
@@ -57,6 +60,25 @@ export interface Connection {
   capability: string;
   href: string | null;
   binding: string | null;
+}
+
+export interface ExternalCheck {
+  status: "passed" | "failed" | "unavailable" | "rejected" | string;
+  endpoint: string | null;
+  resource_type: string | null;
+  resource_id: string | null;
+  fields_preserved: number | null;
+  fields_total: number | null;
+  detail: string | null;
+  scope_note: string | null;
+  checked_at: string;
+}
+
+export interface PassportVerdict {
+  overall: "VERIFIED" | "FAILED" | "HASH_CHAIN_ONLY";
+  hash_chain: { status: string; valid: boolean };
+  signature: { status: string; valid: boolean; key_id: string | null; signer: string; scope: string };
+  changed_artifacts: string[];
 }
 
 export interface StageDetail {
@@ -88,6 +110,9 @@ export interface StageDetail {
   challenges?: { id: string; status: string; receiver_http: number | null }[];
   roundtrip_fields?: { field: string; preserved: boolean }[];
   passport?: { valid?: boolean; status?: string; revision_count?: number; head?: string };
+  triage?: { safe: string[]; review: string[]; unresolved: string[] };
+  signing?: { enabled: boolean; algorithm: string; key_id: string | null; signer: string; scope: string };
+  external_check?: ExternalCheck | null;
   connections?: Connection[];
   epistemic_ceiling?: { level: string; allowed: string; not_allowed: string[]; missing_gates?: string[] } | null;
   assessment_gates?: { id: string; label: string; passed: boolean }[];
@@ -109,6 +134,7 @@ export interface Stage {
   facts: { label: string; value: string | number }[];
   evidence: StageEvidence[];
   next_action: { id: ActionId; label: string } | null;
+  secondary_actions: { id: ActionId; label: string }[];
   links: { label: string; href: string }[];
   detail: StageDetail;
 }
@@ -221,4 +247,9 @@ export const journeyActions = {
   returnTrip: (view: JourneyView) => interop<{ job: Job }>("/return", command(view)),
   bind: (view: JourneyView) => interop<Job>("/bind-evidence", command(view)),
   passport: (view: JourneyView) => interop<unknown>(`/passport/${encodeURIComponent(view.job_id)}/export`),
+  approveSafe: (view: JourneyView) =>
+    interop<Job>(`/mappings/${encodeURIComponent(view.job_id)}/approve-safe`, command(view)),
+  externalCheck: (view: JourneyView) => interop<unknown>("/external-check", command(view)),
+  /** Stateless: the server verifies the submitted package and persists nothing. */
+  verifyPassport: (pkg: unknown) => interop<PassportVerdict>("/passport/verify", { package: pkg }),
 };

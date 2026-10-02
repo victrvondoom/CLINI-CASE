@@ -27,6 +27,7 @@ const AquaDashboard = lazy(() => import("./routes/AquaDashboard"));
 const AquaEvaluation = lazy(() => import("./routes/AquaEvaluation"));
 const Interop = lazy(() => import("./routes/Interop"));
 const Journey = lazy(() => import("./routes/Journey"));
+const WorkflowArea = lazy(() => import("./routes/WorkflowArea"));
 const Runtime = lazy(() => import("./routes/Runtime"));
 const OneHealth = lazy(() => import("./routes/OneHealth"));
 const Track7Overview = lazy(() => import("./routes/Track7Overview"));
@@ -96,6 +97,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             <Route path="/journey" element={<Journey />} />
             <Route path="/journey/:jobId" element={<Journey />} />
             <Route path="/journey/:jobId/:stageId" element={<Journey />} />
+            {["/intake-tools", "/evidence", "/review", "/clinical-context", "/follow-up", "/research"].map(path => <Route key={path} path={path} element={<WorkflowArea />} />)}
             <Route path="/runtime" element={<Runtime />} />
 
             <Route path="/dashboard" element={<Dashboard />} />
