@@ -139,7 +139,7 @@ export function AppShell() {
               ) : (
                 <div
                   key={location.pathname}
-                  className="reveal-go [&_h1]:text-2xl [&_h1]:font-semibold [&_h1]:leading-tight [&_h1]:text-ink-primary [&_h1]:tracking-normal"
+                  className="page-typography reveal-go [&_h1]:text-2xl [&_h1]:font-semibold [&_h1]:leading-tight [&_h1]:text-ink-primary"
                 >
                   <Outlet />
                 </div>
