@@ -1,0 +1,50 @@
+# Build context for backend/Dockerfile. The image needs pyproject.toml, app/, db/ and data/; everything
+# below is local state, secrets, caches or test artifacts that must never be baked into an image
+# (.mypy_cache alone is hundreds of MB).
+
+# Version control and editor state
+.git
+.gitignore
+.dockerignore
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# Secrets and local environment files
+.env
+.env.*
+**/.env
+**/.env.*
+*.pem
+*.key
+
+# Virtual environments and Python caches
+.venv
+venv
+env
+**/__pycache__
+**/*.py[cod]
+*.egg-info
+.cache
+.hypothesis
+.mypy_cache
+.pytest_cache
+.ruff_cache
+
+# Tests and coverage artifacts
+tests
+.coverage
+.coverage.*
+coverage.xml
+htmlcov
+
+# Local runtime state under data/ must never be baked into an image (the image ships only the
+# checked-in reference data: data/interop and data/cardiotwin).
+data/policies
+data/**/*.db
+data/**/*.sqlite*
+data/**/*.pdf
+
+# Logs
+*.log

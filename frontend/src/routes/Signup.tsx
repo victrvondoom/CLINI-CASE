@@ -45,7 +45,7 @@ export default function Signup() {
             <Activity size={22} strokeWidth={2.5} />
           </div>
           <div>
-            <div className="font-semibold text-xl text-ink-primary">ClinCase</div>
+            <div className="font-semibold text-xl text-ink-primary">CLINI-CASE</div>
             <div className="text-[11px] text-ink-muted text-mono-tech">
               Prior Authorisation Copilot
             </div>

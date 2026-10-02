@@ -1,0 +1,29 @@
+# Non-secret runtime configuration for the api (consumed with envFrom). Secrets (DATABASE_URL,
+# JWT_SECRET, INTEROP_RECEIVER_TOKEN, DEMO_USER_PASSWORD, POSTGRES_PASSWORD) live in the Secret
+# `clinicase-secrets`, which `python k8s/cluster.py up` generates locally and which is never
+# committed. Changing a value here needs `kubectl -n clinicase rollout restart deployment/api`.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: clinicase-config
+  labels:
+    app.kubernetes.io/name: clinicase-config
+    app.kubernetes.io/part-of: clinicase
+    app.kubernetes.io/component: config
+data:
+  # Dev mode enables the seeded demo users (the password still comes from the Secret).
+  ENVIRONMENT: "dev"
+  # Browser origin as published by the kind NodePort mapping (host 8080 -> node 30080).
+  CORS_ORIGINS: "http://localhost:8080"
+  # Empty = in-process SSE pub/sub; this stack runs exactly one api replica and no Redis.
+  REDIS_URL: ""
+  AUTH_DBLESS_DEMO_ENABLED: "false"
+  SEED_ON_BOOT: "false"
+  # Track 7 System B runs as its own Deployment; the api reaches it over the cluster network.
+  INTEROP_RECEIVER_URL: "http://receiver:8091"
+  # Read by GET /api/v1/runtime so the /runtime page reports the real configured topology.
+  RUNTIME_PLATFORM: "kind"
+  RUNTIME_FRONTEND_URL: "http://frontend:5173"
+  RUNTIME_FRONTEND_IMAGE: "clinicase-web:local"
+  RUNTIME_RECEIVER_IMAGE: "clinicase-api:local"
+  CLINICASE_IMAGE: "clinicase-api:local"

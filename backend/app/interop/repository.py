@@ -89,6 +89,30 @@ async def bound_jobs(org: str, exposure_id: str) -> list[Job]:
         ]
 
 
+def _last_activity(job: Job) -> str:
+    return job.events[-1].timestamp if job.events else ""
+
+
+async def recent(org: str, limit: int = 12) -> list[Job]:
+    """Read-only: the tenant's most recently active jobs, newest first."""
+    if mode() == "postgresql":
+        rows = await db.fetch(
+            "SELECT j.id FROM interop_jobs j LEFT JOIN interop_artifacts a"
+            " ON a.organization_id=j.organization_id AND a.job_id=j.id AND a.kind='events'"
+            " WHERE j.organization_id=$1"
+            " ORDER BY a.payload->-1->>'timestamp' DESC NULLS LAST, j.id LIMIT $2",
+            org,
+            limit,
+        )
+        return [await get(org, row["id"]) for row in rows]
+    if mode() == "sqlite_synthetic_demo_only":
+        jobs = [Job.model_validate(data) for data in demo_store.rows("job", org)]
+    else:
+        with _lock:
+            jobs = [job.model_copy(deep=True) for (tenant, _), job in _memory.items() if tenant == org]
+    return sorted(jobs, key=_last_activity, reverse=True)[:limit]
+
+
 async def save(job: Job, expected: int | None = None) -> Job:
     j = job.model_copy(deep=True)
     j.version = 1 if expected is None else expected + 1

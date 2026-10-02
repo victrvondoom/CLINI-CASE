@@ -1,0 +1,43 @@
+{
+  "status": "passed",
+  "endpoint": "https://hapi.fhir.org/baseR4",
+  "resource_type": "Bundle",
+  "resource_id": "76658",
+  "request": {
+    "status_code": 201,
+    "elapsed_ms": 742
+  },
+  "retrieval": {
+    "status_code": 200,
+    "elapsed_ms": 179
+  },
+  "semantic": {
+    "fields": [
+      {
+        "field": "sample",
+        "preserved": true
+      },
+      {
+        "field": "history",
+        "preserved": true
+      },
+      {
+        "field": "waterbody_name",
+        "preserved": true
+      },
+      {
+        "field": "source_observation_id",
+        "preserved": true
+      },
+      {
+        "field": "provenance",
+        "preserved": true
+      }
+    ],
+    "fields_preserved": 5,
+    "fields_total": 5
+  },
+  "detail": "All compared evidence fields were preserved",
+  "checked_at": "2026-10-02T05:55:14.843156+00:00",
+  "scope_note": "Additional external FHIR R4 interoperability path. A generic FHIR server does not validate OAH profiles; this is not an OAH conformance result."
+}

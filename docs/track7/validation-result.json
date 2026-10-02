@@ -1,80 +1,489 @@
 {
-  "recorded_on": "2026-10-01",
-  "status": "NOT_RUN",
+  "recorded_on": "2026-10-02",
+  "status": "RUN",
+  "claim": "Raw validator output for one synthetic Bundle. Not certification, not full conformance, not a clinical standard.",
+  "input_bundle": {
+    "sha256": "3e0e2260bd20ff55601d45a634a1e2b3cab5fdcaba4cbb8428259a4366978542",
+    "generator": "backend/scripts/export_track7_validator_bundle.py",
+    "synthetic": true
+  },
+  "validator": {
+    "name": "official HL7 validator_cli.jar",
+    "version": "6.10.4",
+    "jar_sha256": "1106b9d58f9e363e47bea7c4fc065841e5fc91fe9d062775c3bfdd212bd653cc",
+    "java": "openjdk version \"21.0.12.1\" 2026-08-18 LTS"
+  },
   "fhir_version": "4.0.1",
   "oah_ig": {
     "package": "hl7.eu.fhir.oah#0.1.0-ci-build",
     "source_commit": "b907cf0869b59d82d9138b3d147fca66f333d911",
     "publication_status": "draft CI build; not an authorized publication",
-    "immutable_package_sha256": null
+    "package_origin": "built locally with SUSHI from the pinned commit; no published package exists",
+    "local_package_sha256": "9010a86f5c83db419d89179b0f439c4558b785878bc05361e202021073412e65"
   },
-  "validator": {
-    "name": "official HL7 validator_cli.jar",
-    "version": "6.10.4 (recorded by an earlier core-only run; not installed in this verification)",
-    "java_runtime": "missing",
-    "validator_artifact_present": false
-  },
-  "command_executed": null,
-  "command_template": "python scripts/export_track7_validator_bundle.py; java -jar .cache/track7/validator_cli.jar .cache/track7/oah-validation-bundle.json -version 4.0.1 -ig .cache/track7/hl7.eu.fhir.oah-0.1.0-ci-build.tgz -tx n/a -output .cache/track7/oah-validation-outcome.json",
-  "local_application_validation": {
-    "status": "PASS",
-    "scope": "FHIR R4B base models plus explicit partial OAH and CLINI-CASE contract checks; not full profile validation",
-    "synthetic_bundle_sha256": "547a879a8f0276b500e7ffcf5b14c6add4e9bd7c769ff2ca670a4dd9a58a88f4",
-    "bundle_export_command": "python scripts/export_track7_validator_bundle.py",
-    "tests": {
-      "backend_full_suite_passed": 540,
-      "backend_full_suite_deselected": 105,
-      "onehealth_and_interop_passed": 75,
-      "frontend_passed": 111,
-      "frontend_test_files_passed": 23
+  "runs": [
+    {
+      "label": "core R4 4.0.1 only (no OAH, terminology off)",
+      "status": "RUN",
+      "command": [
+        "C:/Users/ADMINI~1/AppData/Local/Temp/claude/c--Users-Administrator-Downloads-CLINICASE---ONCOTWIN/569d0e2b-4962-4820-957f-dd143b6922e2/scratchpad/hl7/jdk-21.0.12.1+1-jre/bin/java.exe",
+        "-Djavax.net.ssl.trustStoreType=Windows-ROOT",
+        "-jar",
+        "C:/Users/ADMINI~1/AppData/Local/Temp/claude/c--Users-Administrator-Downloads-CLINICASE---ONCOTWIN/569d0e2b-4962-4820-957f-dd143b6922e2/scratchpad/hl7/validator_cli.jar",
+        "backend\\.cache\\track7\\current-validation\\bundle.json",
+        "-version",
+        "4.0.1",
+        "-tx",
+        "n/a",
+        "-output",
+        "backend\\.cache\\track7\\current-validation\\core.json"
+      ],
+      "errors": 0,
+      "warnings": 21,
+      "information": 7,
+      "issues": [
+        {
+          "severity": "information",
+          "code": "unknown",
+          "location": "Bundle.meta.tag[0].system",
+          "message": "A definition for CodeSystem 'https://github.com/victrvondoom/CLINI-CASE/fhir/CodeSystem/one-health' could not be found, so the code cannot be validated"
+        },
+        {
+          "severity": "information",
+          "code": "unknown",
+          "location": "Bundle.meta.tag[1].system",
+          "message": "A definition for CodeSystem 'https://github.com/victrvondoom/CLINI-CASE/fhir/CodeSystem/one-health' could not be found, so the code cannot be validated"
+        },
+        {
+          "severity": "information",
+          "code": "invalid",
+          "location": "Bundle.entry[0].resource/*Location/waterbody*/.meta.profile[0]",
+          "message": "A definition could not be found for Canonical URL 'http://hl7.eu/fhir/ig/oah/StructureDefinition/location-oah'"
+        },
+        {
+          "severity": "warning",
+          "code": "invariant",
+          "location": "Bundle.entry[0].resource/*Location/waterbody*/",
+          "message": "Constraint failed: dom-6: 'A resource should have narrative for robust management' (defined in http://hl7.org/fhir/StructureDefinition/DomainResource) (Best Practice Recommendation)"
+        },
+        {
+          "severity": "warning",
+          "code": "structure",
+          "location": "Bundle.entry[0].resource/*Location/waterbody*/.meta.profile[0]",
+          "message": "Profile reference 'http://hl7.eu/fhir/ig/oah/StructureDefinition/location-oah' has not been checked because it could not be found, and fetching it resulted in the error org.hl7.fhir.r4.utils.client.EFhirClientException: Error from https://hl7.eu/fhir/ig/oah: Page Not Found body { background-color: #f5f5f5; margin-top: 8%; color: #5d5d5d; font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, \"Noto Sans\", sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"; text-shadow: 0px 1px 1px rgba(255, 255, 255, 0.75); text-align: center; } h1 { font-size: 2.45em; font-weight: 700; color: #5d5d5d; letter-spacing: -0.02em; margin-bottom: 30px; margin-top: 30px; } .container { width: 100%; margin-right: auto; margin-left: auto; } .animate__animated { animation-duration: 1s; animation-fill-mode: both; } .animate__fadeIn { animation-name: fadeIn; } .info { color: #5594cf; fill: #5594cf; } .error { color: #c92127; fill: #c92127; } .warning { color: #ffcc33; fill: #ffcc33; } .success { color: #5aba47; fill: #5aba47; } .icon-large { height: 132px; width: 132px; } .description-text { color: #707070; letter-spacing: -0.01em; font-size: 1.25em; line-height: 20px; } .footer { margin-top: 40px; font-size: 0.7em; } @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } } Page Not Found Oops! We couldn't find the page that you're looking for. Please check the address and try again. Error Code: 404"
+        },
+        {
+          "severity": "information",
+          "code": "invalid",
+          "location": "Bundle.entry[1].resource/*Location/sample-site*/.meta.profile[0]",
+          "message": "A definition could not be found for Canonical URL 'http://hl7.eu/fhir/ig/oah/StructureDefinition/location-oah'"
+        },
+        {
+          "severity": "warning",
+          "code": "code-invalid",
+          "location": "Bundle.entry[1].resource/*Location/sample-site*/.type[0]",
+          "message": "No code provided, and a code should be provided from the value set 'ServiceDeliveryLocationRoleType' (http://terminology.hl7.org/ValueSet/v3-ServiceDeliveryLocationRoleType|3.0.0)"
+        },
+        {
+          "severity": "warning",
+          "code": "invariant",
+          "location": "Bundle.entry[1].resource/*Location/sample-site*/",
+          "message": "Constraint failed: dom-6: 'A resource should have narrative for robust management' (defined in http://hl7.org/fhir/StructureDefinition/DomainResource) (Best Practice Recommendation)"
+        },
+        {
+          "severity": "warning",
+          "code": "structure",
+          "location": "Bundle.entry[1].resource/*Location/sample-site*/.meta.profile[0]",
+          "message": "Profile reference 'http://hl7.eu/fhir/ig/oah/StructureDefinition/location-oah' has not been checked because it could not be found, and fetching it resulted in the error org.hl7.fhir.r4.utils.client.EFhirClientException: Error from https://hl7.eu/fhir/ig/oah: Page Not Found body { background-color: #f5f5f5; margin-top: 8%; color: #5d5d5d; font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, \"Noto Sans\", sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"; text-shadow: 0px 1px 1px rgba(255, 255, 255, 0.75); text-align: center; } h1 { font-size: 2.45em; font-weight: 700; color: #5d5d5d; letter-spacing: -0.02em; margin-bottom: 30px; margin-top: 30px; } .container { width: 100%; margin-right: auto; margin-left: auto; } .animate__animated { animation-duration: 1s; animation-fill-mode: both; } .animate__fadeIn { animation-name: fadeIn; } .info { color: #5594cf; fill: #5594cf; } .error { color: #c92127; fill: #c92127; } .warning { color: #ffcc33; fill: #ffcc33; } .success { color: #5aba47; fill: #5aba47; } .icon-large { height: 132px; width: 132px; } .description-text { color: #707070; letter-spacing: -0.01em; font-size: 1.25em; line-height: 20px; } .footer { margin-top: 40px; font-size: 0.7em; } @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } } Page Not Found Oops! We couldn't find the page that you're looking for. Please check the address and try again. Error Code: 404"
+        },
+        {
+          "severity": "warning",
+          "code": "invariant",
+          "location": "Bundle.entry[2].resource/*Organization/laboratory*/",
+          "message": "Constraint failed: dom-6: 'A resource should have narrative for robust management' (defined in http://hl7.org/fhir/StructureDefinition/DomainResource) (Best Practice Recommendation)"
+        },
+        {
+          "severity": "warning",
+          "code": "invariant",
+          "location": "Bundle.entry[3].resource/*PractitionerRole/collector*/",
+          "message": "Constraint failed: dom-6: 'A resource should have narrative for robust management' (defined in http://hl7.org/fhir/StructureDefinition/DomainResource) (Best Practice Recommendation)"
+        },
+        {
+          "severity": "information",
+          "code": "invalid",
+          "location": "Bundle.entry[4].resource/*Specimen/sample*/.meta.profile[0]",
+          "message": "A definition could not be found for Canonical URL 'http://hl7.eu/fhir/ig/oah/StructureDefinition/specimen-oah'"
+        },
+        {
+          "severity": "warning",
+          "code": "invariant",
+          "location": "Bundle.entry[4].resource/*Specimen/sample*/",
+          "message": "Constraint failed: dom-6: 'A resource should have narrative for robust management' (defined in http://hl7.org/fhir/StructureDefinition/DomainResource) (Best Practice Recommendation)"
+        },
+        {
+          "severity": "warning",
+          "code": "structure",
+          "location": "Bundle.entry[4].resource/*Specimen/sample*/.meta.profile[0]",
+          "message": "Profile reference 'http://hl7.eu/fhir/ig/oah/StructureDefinition/specimen-oah' has not been checked because it could not be found, and fetching it resulted in the error org.hl7.fhir.r4.utils.client.EFhirClientException: Error from https://hl7.eu/fhir/ig/oah: Page Not Found body { background-color: #f5f5f5; margin-top: 8%; color: #5d5d5d; font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, \"Noto Sans\", sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"; text-shadow: 0px 1px 1px rgba(255, 255, 255, 0.75); text-align: center; } h1 { font-size: 2.45em; font-weight: 700; color: #5d5d5d; letter-spacing: -0.02em; margin-bottom: 30px; margin-top: 30px; } .container { width: 100%; margin-right: auto; margin-left: auto; } .animate__animated { animation-duration: 1s; animation-fill-mode: both; } .animate__fadeIn { animation-name: fadeIn; } .info { color: #5594cf; fill: #5594cf; } .error { color: #c92127; fill: #c92127; } .warning { color: #ffcc33; fill: #ffcc33; } .success { color: #5aba47; fill: #5aba47; } .icon-large { height: 132px; width: 132px; } .description-text { color: #707070; letter-spacing: -0.01em; font-size: 1.25em; line-height: 20px; } .footer { margin-top: 40px; font-size: 0.7em; } @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } } Page Not Found Oops! We couldn't find the page that you're looking for. Please check the address and try again. Error Code: 404"
+        },
+        {
+          "severity": "information",
+          "code": "invalid",
+          "location": "Bundle.entry[5].resource/*Observation/lab-result*/.meta.profile[0]",
+          "message": "A definition could not be found for Canonical URL 'http://hl7.eu/fhir/ig/oah/StructureDefinition/observation-indicators-oah'"
+        },
+        {
+          "severity": "warning",
+          "code": "not-found",
+          "location": "Bundle.entry[5].resource/*Observation/lab-result*/.code.coding[0].system",
+          "message": "A definition for CodeSystem 'http://hl7.eu/fhir/ig/oah/CodeSystem/temporarySystem-oah-eu' could not be found, so the code cannot be validated"
+        },
+        {
+          "severity": "warning",
+          "code": "business-rule",
+          "location": "Bundle.entry[5].resource/*Observation/lab-result*/.value.ofType(Quantity)",
+          "message": "Unable to validate code 'ug/L' in system 'http://unitsofmeasure.org' because the validator is running without terminology services"
+        },
+        {
+          "severity": "warning",
+          "code": "invariant",
+          "location": "Bundle.entry[5].resource/*Observation/lab-result*/",
+          "message": "Constraint failed: dom-6: 'A resource should have narrative for robust management' (defined in http://hl7.org/fhir/StructureDefinition/DomainResource) (Best Practice Recommendation)"
+        },
+        {
+          "severity": "warning",
+          "code": "structure",
+          "location": "Bundle.entry[5].resource/*Observation/lab-result*/.meta.profile[0]",
+          "message": "Profile reference 'http://hl7.eu/fhir/ig/oah/StructureDefinition/observation-indicators-oah' has not been checked because it could not be found, and fetching it resulted in the error org.hl7.fhir.r4.utils.client.EFhirClientException: Error from https://hl7.eu/fhir/ig/oah: Page Not Found body { background-color: #f5f5f5; margin-top: 8%; color: #5d5d5d; font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, \"Noto Sans\", sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"; text-shadow: 0px 1px 1px rgba(255, 255, 255, 0.75); text-align: center; } h1 { font-size: 2.45em; font-weight: 700; color: #5d5d5d; letter-spacing: -0.02em; margin-bottom: 30px; margin-top: 30px; } .container { width: 100%; margin-right: auto; margin-left: auto; } .animate__animated { animation-duration: 1s; animation-fill-mode: both; } .animate__fadeIn { animation-name: fadeIn; } .info { color: #5594cf; fill: #5594cf; } .error { color: #c92127; fill: #c92127; } .warning { color: #ffcc33; fill: #ffcc33; } .success { color: #5aba47; fill: #5aba47; } .icon-large { height: 132px; width: 132px; } .description-text { color: #707070; letter-spacing: -0.01em; font-size: 1.25em; line-height: 20px; } .footer { margin-top: 40px; font-size: 0.7em; } @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } } Page Not Found Oops! We couldn't find the page that you're looking for. Please check the address and try again. Error Code: 404"
+        },
+        {
+          "severity": "warning",
+          "code": "not-found",
+          "location": "Bundle.entry[6].resource/*Task/environmental-followup*/.code.coding[0].system",
+          "message": "A definition for CodeSystem 'https://github.com/victrvondoom/CLINI-CASE/fhir/CodeSystem/one-health' could not be found, so the code cannot be validated"
+        },
+        {
+          "severity": "warning",
+          "code": "invariant",
+          "location": "Bundle.entry[6].resource/*Task/environmental-followup*/",
+          "message": "Constraint failed: dom-6: 'A resource should have narrative for robust management' (defined in http://hl7.org/fhir/StructureDefinition/DomainResource) (Best Practice Recommendation)"
+        },
+        {
+          "severity": "information",
+          "code": "required",
+          "location": "Bundle.entry[7].resource/*QuestionnaireResponse/exposure-history*/",
+          "message": "No questionnaire is identified, so no validation can be performed against the base questionnaire"
+        },
+        {
+          "severity": "warning",
+          "code": "invariant",
+          "location": "Bundle.entry[7].resource/*QuestionnaireResponse/exposure-history*/",
+          "message": "Constraint failed: dom-6: 'A resource should have narrative for robust management' (defined in http://hl7.org/fhir/StructureDefinition/DomainResource) (Best Practice Recommendation)"
+        },
+        {
+          "severity": "warning",
+          "code": "invariant",
+          "location": "Bundle.entry[8].resource/*Practitioner/actor-0*/",
+          "message": "Constraint failed: dom-6: 'A resource should have narrative for robust management' (defined in http://hl7.org/fhir/StructureDefinition/DomainResource) (Best Practice Recommendation)"
+        },
+        {
+          "severity": "warning",
+          "code": "code-invalid",
+          "location": "Bundle.entry[9].resource/*Provenance/audit-0*/.reason[0]",
+          "message": "No code provided, and a code should be provided from the value set 'PurposeOfUse' (http://terminology.hl7.org/ValueSet/v3-PurposeOfUse|3.1.0)"
+        },
+        {
+          "severity": "warning",
+          "code": "not-found",
+          "location": "Bundle.entry[9].resource/*Provenance/audit-0*/.activity.coding[0].system",
+          "message": "A definition for CodeSystem 'https://github.com/victrvondoom/CLINI-CASE/fhir/CodeSystem/one-health' could not be found, so the code cannot be validated"
+        },
+        {
+          "severity": "warning",
+          "code": "code-invalid",
+          "location": "Bundle.entry[9].resource/*Provenance/audit-0*/.activity",
+          "message": "None of the codings provided are in the value set 'Provenance activity type' (http://hl7.org/fhir/ValueSet/provenance-activity-type|4.0.1), and a coding should come from this value set unless it has no suitable code (note that the validator cannot judge what is suitable) (codes = https://github.com/victrvondoom/CLINI-CASE/fhir/CodeSystem/one-health#synthetic_validator_fixture_created)"
+        },
+        {
+          "severity": "warning",
+          "code": "invariant",
+          "location": "Bundle.entry[9].resource/*Provenance/audit-0*/",
+          "message": "Constraint failed: dom-6: 'A resource should have narrative for robust management' (defined in http://hl7.org/fhir/StructureDefinition/DomainResource) (Best Practice Recommendation)"
+        }
+      ]
     },
-    "frontend_production_build": "PASS",
-    "ruff_check_app_tests": "PASS",
-    "warnings": [
-      "Starlette reports PendingDeprecationWarning recommending python_multipart; no test failed."
-    ]
-  },
-  "network_interoperability": {
-    "status": "PASS",
-    "command": "python backend/scripts/track7_network_demo.py",
-    "receiver_url": "http://127.0.0.1:8091",
-    "separate_api_and_receiver_processes": true,
-    "http_transfer_and_return": true,
-    "receiver_reassigned_resource_ids_and_rewrote_references": true,
-    "semantic_roundtrip": {
-      "status": "passed",
-      "fields_preserved": 13,
-      "fields_total": 13
+    {
+      "label": "core + OAH package (terminology off)",
+      "status": "RUN",
+      "command": [
+        "C:/Users/ADMINI~1/AppData/Local/Temp/claude/c--Users-Administrator-Downloads-CLINICASE---ONCOTWIN/569d0e2b-4962-4820-957f-dd143b6922e2/scratchpad/hl7/jdk-21.0.12.1+1-jre/bin/java.exe",
+        "-Djavax.net.ssl.trustStoreType=Windows-ROOT",
+        "-jar",
+        "C:/Users/ADMINI~1/AppData/Local/Temp/claude/c--Users-Administrator-Downloads-CLINICASE---ONCOTWIN/569d0e2b-4962-4820-957f-dd143b6922e2/scratchpad/hl7/validator_cli.jar",
+        "backend\\.cache\\track7\\current-validation\\bundle.json",
+        "-version",
+        "4.0.1",
+        "-ig",
+        "C:\\Users\\ADMINI~1\\AppData\\Local\\Temp\\claude\\c--Users-Administrator-Downloads-CLINICASE---ONCOTWIN\\569d0e2b-4962-4820-957f-dd143b6922e2\\scratchpad\\hl7\\oah-via-script.tgz",
+        "-tx",
+        "n/a",
+        "-output",
+        "backend\\.cache\\track7\\current-validation\\oah.json"
+      ],
+      "errors": 0,
+      "warnings": 16,
+      "information": 3,
+      "issues": [
+        {
+          "severity": "information",
+          "code": "unknown",
+          "location": "Bundle.meta.tag[0].system",
+          "message": "A definition for CodeSystem 'https://github.com/victrvondoom/CLINI-CASE/fhir/CodeSystem/one-health' could not be found, so the code cannot be validated"
+        },
+        {
+          "severity": "information",
+          "code": "unknown",
+          "location": "Bundle.meta.tag[1].system",
+          "message": "A definition for CodeSystem 'https://github.com/victrvondoom/CLINI-CASE/fhir/CodeSystem/one-health' could not be found, so the code cannot be validated"
+        },
+        {
+          "severity": "warning",
+          "code": "invariant",
+          "location": "Bundle.entry[0].resource/*Location/waterbody*/",
+          "message": "Constraint failed: dom-6: 'A resource should have narrative for robust management' (defined in http://hl7.org/fhir/StructureDefinition/DomainResource) (Best Practice Recommendation)"
+        },
+        {
+          "severity": "warning",
+          "code": "code-invalid",
+          "location": "Bundle.entry[1].resource/*Location/sample-site*/.type[0]",
+          "message": "No code provided, and a code should be provided from the value set 'ServiceDeliveryLocationRoleType' (http://terminology.hl7.org/ValueSet/v3-ServiceDeliveryLocationRoleType|3.0.0)"
+        },
+        {
+          "severity": "warning",
+          "code": "invariant",
+          "location": "Bundle.entry[1].resource/*Location/sample-site*/",
+          "message": "Constraint failed: dom-6: 'A resource should have narrative for robust management' (defined in http://hl7.org/fhir/StructureDefinition/DomainResource) (Best Practice Recommendation)"
+        },
+        {
+          "severity": "warning",
+          "code": "invariant",
+          "location": "Bundle.entry[2].resource/*Organization/laboratory*/",
+          "message": "Constraint failed: dom-6: 'A resource should have narrative for robust management' (defined in http://hl7.org/fhir/StructureDefinition/DomainResource) (Best Practice Recommendation)"
+        },
+        {
+          "severity": "warning",
+          "code": "invariant",
+          "location": "Bundle.entry[3].resource/*PractitionerRole/collector*/",
+          "message": "Constraint failed: dom-6: 'A resource should have narrative for robust management' (defined in http://hl7.org/fhir/StructureDefinition/DomainResource) (Best Practice Recommendation)"
+        },
+        {
+          "severity": "warning",
+          "code": "invariant",
+          "location": "Bundle.entry[4].resource/*Specimen/sample*/",
+          "message": "Constraint failed: dom-6: 'A resource should have narrative for robust management' (defined in http://hl7.org/fhir/StructureDefinition/DomainResource) (Best Practice Recommendation)"
+        },
+        {
+          "severity": "warning",
+          "code": "business-rule",
+          "location": "Bundle.entry[5].resource/*Observation/lab-result*/.value.ofType(Quantity)",
+          "message": "Unable to validate code 'ug/L' in system 'http://unitsofmeasure.org' because the validator is running without terminology services"
+        },
+        {
+          "severity": "warning",
+          "code": "invariant",
+          "location": "Bundle.entry[5].resource/*Observation/lab-result*/",
+          "message": "Constraint failed: dom-6: 'A resource should have narrative for robust management' (defined in http://hl7.org/fhir/StructureDefinition/DomainResource) (Best Practice Recommendation)"
+        },
+        {
+          "severity": "warning",
+          "code": "not-found",
+          "location": "Bundle.entry[6].resource/*Task/environmental-followup*/.code.coding[0].system",
+          "message": "A definition for CodeSystem 'https://github.com/victrvondoom/CLINI-CASE/fhir/CodeSystem/one-health' could not be found, so the code cannot be validated"
+        },
+        {
+          "severity": "warning",
+          "code": "invariant",
+          "location": "Bundle.entry[6].resource/*Task/environmental-followup*/",
+          "message": "Constraint failed: dom-6: 'A resource should have narrative for robust management' (defined in http://hl7.org/fhir/StructureDefinition/DomainResource) (Best Practice Recommendation)"
+        },
+        {
+          "severity": "information",
+          "code": "required",
+          "location": "Bundle.entry[7].resource/*QuestionnaireResponse/exposure-history*/",
+          "message": "No questionnaire is identified, so no validation can be performed against the base questionnaire"
+        },
+        {
+          "severity": "warning",
+          "code": "invariant",
+          "location": "Bundle.entry[7].resource/*QuestionnaireResponse/exposure-history*/",
+          "message": "Constraint failed: dom-6: 'A resource should have narrative for robust management' (defined in http://hl7.org/fhir/StructureDefinition/DomainResource) (Best Practice Recommendation)"
+        },
+        {
+          "severity": "warning",
+          "code": "invariant",
+          "location": "Bundle.entry[8].resource/*Practitioner/actor-0*/",
+          "message": "Constraint failed: dom-6: 'A resource should have narrative for robust management' (defined in http://hl7.org/fhir/StructureDefinition/DomainResource) (Best Practice Recommendation)"
+        },
+        {
+          "severity": "warning",
+          "code": "code-invalid",
+          "location": "Bundle.entry[9].resource/*Provenance/audit-0*/.reason[0]",
+          "message": "No code provided, and a code should be provided from the value set 'PurposeOfUse' (http://terminology.hl7.org/ValueSet/v3-PurposeOfUse|3.1.0)"
+        },
+        {
+          "severity": "warning",
+          "code": "not-found",
+          "location": "Bundle.entry[9].resource/*Provenance/audit-0*/.activity.coding[0].system",
+          "message": "A definition for CodeSystem 'https://github.com/victrvondoom/CLINI-CASE/fhir/CodeSystem/one-health' could not be found, so the code cannot be validated"
+        },
+        {
+          "severity": "warning",
+          "code": "code-invalid",
+          "location": "Bundle.entry[9].resource/*Provenance/audit-0*/.activity",
+          "message": "None of the codings provided are in the value set 'Provenance activity type' (http://hl7.org/fhir/ValueSet/provenance-activity-type|4.0.1), and a coding should come from this value set unless it has no suitable code (note that the validator cannot judge what is suitable) (codes = https://github.com/victrvondoom/CLINI-CASE/fhir/CodeSystem/one-health#synthetic_validator_fixture_created)"
+        },
+        {
+          "severity": "warning",
+          "code": "invariant",
+          "location": "Bundle.entry[9].resource/*Provenance/audit-0*/",
+          "message": "Constraint failed: dom-6: 'A resource should have narrative for robust management' (defined in http://hl7.org/fhir/StructureDefinition/DomainResource) (Best Practice Recommendation)"
+        }
+      ]
     },
-    "fail_closed_invalid_unit_demo": "PASS"
-  },
-  "external_hl7_oah_validation": {
-    "status": "NOT_RUN",
-    "errors": null,
-    "warnings": null,
-    "information": null,
-    "reason": [
-      "Java runtime and validator JAR are unavailable in the current environment.",
-      "The pinned OAH CI package archive was not available from the checked package and guide endpoints; those requests returned HTTP 404.",
-      "A passing application-level validation is not a substitute for full OAH profile validation."
-    ]
-  },
-  "terminology_validation": {
-    "status": "NOT_RUN",
-    "errors": null,
-    "warnings": null,
-    "reason": "No terminology service was configured; the documented CLI template uses -tx n/a."
-  },
-  "prior_core_only_record": {
-    "path": "backend/data/interop/validation/summary.json",
-    "validator": "official HL7 validator_cli 6.10.4",
-    "status": "WARNING",
-    "errors": 0,
-    "warnings": 22,
-    "information": 7,
-    "applies_to_current_bundle": false,
-    "oah_package_loaded": false,
-    "terminology_enabled": false
-  },
-  "certified": false
+    {
+      "label": "core + OAH package + terminology server https://tx.fhir.org/r4",
+      "status": "RUN",
+      "command": [
+        "C:/Users/ADMINI~1/AppData/Local/Temp/claude/c--Users-Administrator-Downloads-CLINICASE---ONCOTWIN/569d0e2b-4962-4820-957f-dd143b6922e2/scratchpad/hl7/jdk-21.0.12.1+1-jre/bin/java.exe",
+        "-Djavax.net.ssl.trustStoreType=Windows-ROOT",
+        "-jar",
+        "C:/Users/ADMINI~1/AppData/Local/Temp/claude/c--Users-Administrator-Downloads-CLINICASE---ONCOTWIN/569d0e2b-4962-4820-957f-dd143b6922e2/scratchpad/hl7/validator_cli.jar",
+        "backend\\.cache\\track7\\current-validation\\bundle.json",
+        "-version",
+        "4.0.1",
+        "-ig",
+        "C:\\Users\\ADMINI~1\\AppData\\Local\\Temp\\claude\\c--Users-Administrator-Downloads-CLINICASE---ONCOTWIN\\569d0e2b-4962-4820-957f-dd143b6922e2\\scratchpad\\hl7\\oah-via-script.tgz",
+        "-tx",
+        "https://tx.fhir.org/r4",
+        "-output",
+        "backend\\.cache\\track7\\current-validation\\oah-tx.json"
+      ],
+      "errors": 0,
+      "warnings": 15,
+      "information": 3,
+      "issues": [
+        {
+          "severity": "information",
+          "code": "unknown",
+          "location": "Bundle.meta.tag[0].system",
+          "message": "A definition for CodeSystem 'https://github.com/victrvondoom/CLINI-CASE/fhir/CodeSystem/one-health' could not be found, so the code cannot be validated"
+        },
+        {
+          "severity": "information",
+          "code": "unknown",
+          "location": "Bundle.meta.tag[1].system",
+          "message": "A definition for CodeSystem 'https://github.com/victrvondoom/CLINI-CASE/fhir/CodeSystem/one-health' could not be found, so the code cannot be validated"
+        },
+        {
+          "severity": "warning",
+          "code": "invariant",
+          "location": "Bundle.entry[0].resource/*Location/waterbody*/",
+          "message": "Constraint failed: dom-6: 'A resource should have narrative for robust management' (defined in http://hl7.org/fhir/StructureDefinition/DomainResource) (Best Practice Recommendation)"
+        },
+        {
+          "severity": "warning",
+          "code": "code-invalid",
+          "location": "Bundle.entry[1].resource/*Location/sample-site*/.type[0]",
+          "message": "No code provided, and a code should be provided from the value set 'ServiceDeliveryLocationRoleType' (http://terminology.hl7.org/ValueSet/v3-ServiceDeliveryLocationRoleType|3.0.0)"
+        },
+        {
+          "severity": "warning",
+          "code": "invariant",
+          "location": "Bundle.entry[1].resource/*Location/sample-site*/",
+          "message": "Constraint failed: dom-6: 'A resource should have narrative for robust management' (defined in http://hl7.org/fhir/StructureDefinition/DomainResource) (Best Practice Recommendation)"
+        },
+        {
+          "severity": "warning",
+          "code": "invariant",
+          "location": "Bundle.entry[2].resource/*Organization/laboratory*/",
+          "message": "Constraint failed: dom-6: 'A resource should have narrative for robust management' (defined in http://hl7.org/fhir/StructureDefinition/DomainResource) (Best Practice Recommendation)"
+        },
+        {
+          "severity": "warning",
+          "code": "invariant",
+          "location": "Bundle.entry[3].resource/*PractitionerRole/collector*/",
+          "message": "Constraint failed: dom-6: 'A resource should have narrative for robust management' (defined in http://hl7.org/fhir/StructureDefinition/DomainResource) (Best Practice Recommendation)"
+        },
+        {
+          "severity": "warning",
+          "code": "invariant",
+          "location": "Bundle.entry[4].resource/*Specimen/sample*/",
+          "message": "Constraint failed: dom-6: 'A resource should have narrative for robust management' (defined in http://hl7.org/fhir/StructureDefinition/DomainResource) (Best Practice Recommendation)"
+        },
+        {
+          "severity": "warning",
+          "code": "invariant",
+          "location": "Bundle.entry[5].resource/*Observation/lab-result*/",
+          "message": "Constraint failed: dom-6: 'A resource should have narrative for robust management' (defined in http://hl7.org/fhir/StructureDefinition/DomainResource) (Best Practice Recommendation)"
+        },
+        {
+          "severity": "warning",
+          "code": "not-found",
+          "location": "Bundle.entry[6].resource/*Task/environmental-followup*/.code.coding[0].system",
+          "message": "A definition for CodeSystem 'https://github.com/victrvondoom/CLINI-CASE/fhir/CodeSystem/one-health' could not be found, so the code cannot be validated"
+        },
+        {
+          "severity": "warning",
+          "code": "invariant",
+          "location": "Bundle.entry[6].resource/*Task/environmental-followup*/",
+          "message": "Constraint failed: dom-6: 'A resource should have narrative for robust management' (defined in http://hl7.org/fhir/StructureDefinition/DomainResource) (Best Practice Recommendation)"
+        },
+        {
+          "severity": "information",
+          "code": "required",
+          "location": "Bundle.entry[7].resource/*QuestionnaireResponse/exposure-history*/",
+          "message": "No questionnaire is identified, so no validation can be performed against the base questionnaire"
+        },
+        {
+          "severity": "warning",
+          "code": "invariant",
+          "location": "Bundle.entry[7].resource/*QuestionnaireResponse/exposure-history*/",
+          "message": "Constraint failed: dom-6: 'A resource should have narrative for robust management' (defined in http://hl7.org/fhir/StructureDefinition/DomainResource) (Best Practice Recommendation)"
+        },
+        {
+          "severity": "warning",
+          "code": "invariant",
+          "location": "Bundle.entry[8].resource/*Practitioner/actor-0*/",
+          "message": "Constraint failed: dom-6: 'A resource should have narrative for robust management' (defined in http://hl7.org/fhir/StructureDefinition/DomainResource) (Best Practice Recommendation)"
+        },
+        {
+          "severity": "warning",
+          "code": "code-invalid",
+          "location": "Bundle.entry[9].resource/*Provenance/audit-0*/.reason[0]",
+          "message": "No code provided, and a code should be provided from the value set 'PurposeOfUse' (http://terminology.hl7.org/ValueSet/v3-PurposeOfUse|3.1.0)"
+        },
+        {
+          "severity": "warning",
+          "code": "not-found",
+          "location": "Bundle.entry[9].resource/*Provenance/audit-0*/.activity.coding[0]",
+          "message": "A definition for CodeSystem 'https://github.com/victrvondoom/CLINI-CASE/fhir/CodeSystem/one-health' could not be found, so the code cannot be validated"
+        },
+        {
+          "severity": "warning",
+          "code": "code-invalid",
+          "location": "Bundle.entry[9].resource/*Provenance/audit-0*/.activity",
+          "message": "None of the codings provided are in the value set 'Provenance activity type' (http://hl7.org/fhir/ValueSet/provenance-activity-type|4.0.1), and a coding should come from this value set unless it has no suitable code (note that the validator cannot judge what is suitable) (codes = https://github.com/victrvondoom/CLINI-CASE/fhir/CodeSystem/one-health#synthetic_validator_fixture_created)"
+        },
+        {
+          "severity": "warning",
+          "code": "invariant",
+          "location": "Bundle.entry[9].resource/*Provenance/audit-0*/",
+          "message": "Constraint failed: dom-6: 'A resource should have narrative for robust management' (defined in http://hl7.org/fhir/StructureDefinition/DomainResource) (Best Practice Recommendation)"
+        }
+      ]
+    }
+  ],
+  "unmeasured": [
+    "Terminology validation of CLINI-CASE and OAH temporary code systems (definitions not published)"
+  ]
 }

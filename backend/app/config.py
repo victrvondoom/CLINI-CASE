@@ -112,6 +112,19 @@ class Settings(BaseSettings):
     INTEROP_RECEIVER_DB: str = ":memory:"
     TRACK7_DEMO_DB: str = ""  # Explicit durable synthetic-only development storage.
 
+    # Evidence Passport signing: base64 of a 32-byte Ed25519 seed. Empty = exports are marked UNSIGNED.
+    # Generate: python -c "import base64,secrets;print(base64.b64encode(secrets.token_bytes(32)).decode())"
+    # This is a CLINI-CASE demo-system signature, not a laboratory, clinician or third-party attestation.
+    PASSPORT_SIGNING_KEY: str = ""
+
+    # Optional third-party FHIR R4 interoperability check (synthetic Bundles only; a public server
+    # retains what it receives). The URL comes only from here, never from a request. Empty disables it.
+    EXTERNAL_FHIR_BASE_URL: str = "https://hapi.fhir.org/baseR4"
+    EXTERNAL_FHIR_TIMEOUT_S: float = 15.0
+    # Trust the operating-system certificate store (needed behind TLS-inspecting antivirus/proxies).
+    # Verification stays on; this only changes which roots are trusted. Needs `pip install truststore`.
+    EXTERNAL_FHIR_SYSTEM_TRUST: bool = False
+
     # Raw image/PDF OCR sends visible identifiers to a remote processor.
     # Enable only after the deployment has approved provider data handling.
     CLOUD_DOCUMENT_PROCESSING_ENABLED: bool = False

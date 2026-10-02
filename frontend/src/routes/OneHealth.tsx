@@ -38,7 +38,7 @@ export default function OneHealth() {
     <Workbench />
   ) : (
     <div className="p-8 max-w-4xl">
-      <h1 className="text-2xl text-ink-primary">ClinCase One Health</h1>
+      <h1 className="text-2xl text-ink-primary">CLINI-CASE / One Health</h1>
       <p className="mt-3 text-ink-muted">
         Track 7 · Digital Health Standards. Patient-linked exposure evidence is
         restricted to reviewers and administrators.
@@ -130,14 +130,14 @@ function Workbench() {
               PRIMARY TRACK 7 · DIGITAL HEALTH STANDARDS
             </div>
             <h1 className="text-display text-3xl text-ink-primary mt-2">
-              ClinCase One Health
+              CLINI-CASE / One Health
             </h1>
             <p className="text-sm text-ink-body mt-2">
               Evidence-aware One Health interoperability.
             </p>
             <p className="text-xs text-ink-muted mt-2 max-w-2xl">
               One traceable connection across AquaHealth, OncoTwin, CardioTwin
-              and ClinCase. Evidence and consent travel with the record;
+              and CLINI-CASE. Evidence and consent travel with the record;
               clinical judgment stays with the reviewer.
             </p>
           </div>
@@ -400,7 +400,7 @@ function Connection({
       .catch((e) => {
         if (active)
           setCaseCandidatesError(
-            e instanceof Error ? e.message : "ClinCase cases unavailable",
+            e instanceof Error ? e.message : "CLINI-CASE cases unavailable",
           );
       });
     return () => {
@@ -685,7 +685,7 @@ function Connection({
             }
           />
           <ContextCard
-            title="ClinCase"
+            title="CLINI-CASE"
             text="Attach reviewed evidence to an existing case for the same patient. No treatment decision or authorization score changes."
             href={r.case_id ? `/cases/${r.case_id}` : undefined}
           />
@@ -695,10 +695,10 @@ function Connection({
         </p>
         <details className="mt-4">
           <summary className="text-xs cursor-pointer text-accent-cyan">
-            Link reviewed evidence to an existing ClinCase case
+            Link reviewed evidence to an existing CLINI-CASE case
           </summary>
           <div className="mt-3 space-y-3">
-            <Field label="Existing ClinCase case (same organisation)">
+            <Field label="Existing CLINI-CASE case (same organisation)">
               <select
                 className={INPUT}
                 value={caseId}
@@ -755,7 +755,7 @@ function Connection({
             <p className="text-xs text-ink-muted">
               {r.persistence === "postgresql"
                 ? "Requires an existing case in this organisation and reviewer confirmation of patient identity."
-                : "Case linking is unavailable in volatile demo mode; connect PostgreSQL to enable persistent ClinCase linkage."}
+                : "Case linking is unavailable in volatile demo mode; connect PostgreSQL to enable persistent CLINI-CASE linkage."}
               Nothing is submitted to a payer.
             </p>
           </div>

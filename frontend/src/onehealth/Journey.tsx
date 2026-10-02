@@ -109,6 +109,14 @@ export function EvidenceJourney({
           Exchange this evidence update
         </button>
       </div>
+      {r.gateway_job_id && (
+        <Link
+          className="block text-sm text-accent-cyan underline"
+          to={`/journey/${encodeURIComponent(r.gateway_job_id)}`}
+        >
+          Continue in unified journey
+        </Link>
+      )}
       {r.passport_integrity && (
         <p role="status" className="text-xs">
           Passport: {r.passport_integrity.status} ·{" "}

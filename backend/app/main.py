@@ -431,6 +431,9 @@ from app.api import (  # noqa: E402
     jobs as jobs_api,
 )
 from app.api import (  # noqa: E402
+    journey as journey_api,
+)
+from app.api import (  # noqa: E402
     kiro as kiro_api,
 )
 from app.api import (  # noqa: E402
@@ -477,6 +480,9 @@ from app.api import (  # noqa: E402
 )
 from app.api import (  # noqa: E402
     reviewer_queue as reviewer_queue_api,
+)
+from app.api import (  # noqa: E402
+    runtime as runtime_api,
 )
 from app.api import (  # noqa: E402
     sagas as sagas_api,
@@ -552,6 +558,9 @@ app.include_router(aquahealth_api.router, prefix="/api/v1")
 
 app.include_router(onehealth_api.router, prefix="/api/v1")
 app.include_router(interop_api.router, prefix="/api/v1")
+# Unified journey (read-only projection over interop + One Health) and runtime topology.
+app.include_router(journey_api.router, prefix="/api/v1")
+app.include_router(runtime_api.router, prefix="/api/v1")
 # fhir_bulk router carries its own /fhir prefix
 app.include_router(fhir_bulk_api.router)
 

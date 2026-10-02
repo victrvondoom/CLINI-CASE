@@ -20,6 +20,8 @@ RUN python -m pip install --upgrade pip && \
 
 COPY app /app/app
 COPY db  /app/db
+# Synthetic Track 7 payloads read by POST /api/v1/interop/demo, plus CardioTwin reference data.
+COPY data /app/data
 
 # Run unprivileged: the app only needs to read /app and write under /app/data (policy store).
 RUN useradd --system --uid 10001 --home-dir /app clincase \

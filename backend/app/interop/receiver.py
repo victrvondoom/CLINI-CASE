@@ -13,6 +13,7 @@ import time
 from typing import Any
 
 from fastapi import FastAPI, Header, HTTPException
+from fastapi.responses import JSONResponse
 
 from app.config import settings
 from app.interop.models import Receive
@@ -71,6 +72,20 @@ def _reidentify(bundle: dict[str, Any], correlation_id: str, source_digest: str)
     ).hexdigest()[:20]
     references(returned)
     return returned
+
+
+@app.get("/healthz")
+def healthz() -> JSONResponse:
+    """Unauthenticated probe: process is up and its receipt store answers a query."""
+    try:
+        with _lock:
+            _connection.execute("SELECT 1").fetchone()
+    except sqlite3.Error:
+        return JSONResponse(
+            {"status": "unavailable", "service": "interop-receiver", "storage": "sqlite"},
+            status_code=503,
+        )
+    return JSONResponse({"status": "ok", "service": "interop-receiver", "storage": "sqlite"})
 
 
 def authorize(tenant: str, token: str) -> None:
