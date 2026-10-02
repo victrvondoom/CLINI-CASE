@@ -26,6 +26,8 @@ const AquaCommunity = lazy(() => import("./routes/AquaCommunity"));
 const AquaDashboard = lazy(() => import("./routes/AquaDashboard"));
 const AquaEvaluation = lazy(() => import("./routes/AquaEvaluation"));
 const Interop = lazy(() => import("./routes/Interop"));
+const Journey = lazy(() => import("./routes/Journey"));
+const Runtime = lazy(() => import("./routes/Runtime"));
 const OneHealth = lazy(() => import("./routes/OneHealth"));
 const Track7Overview = lazy(() => import("./routes/Track7Overview"));
 const AquaMap = lazy(() => import("./routes/AquaMap"));
@@ -90,6 +92,12 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
               </RequireAuth>
             }
           >
+            {/* Unified CLINI-CASE evidence journey + runtime topology. Every route below is preserved. */}
+            <Route path="/journey" element={<Journey />} />
+            <Route path="/journey/:jobId" element={<Journey />} />
+            <Route path="/journey/:jobId/:stageId" element={<Journey />} />
+            <Route path="/runtime" element={<Runtime />} />
+
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/cases" element={<Cases />} />
             <Route path="/cases/bulk-import" element={<BulkImport />} />
