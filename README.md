@@ -6,13 +6,15 @@ Environmental, laboratory and health systems often use incompatible schemas and 
 
 An independent System B process receives the Bundle over HTTP, validates and stores it, changes resource IDs and references, then returns it for semantic round-trip verification. The Evidence Passport records mapping decisions, validation, transfer acknowledgement, hashes and round-trip results. The Track 7 journey uses synthetic data and does not infer health causation.
 
-The interoperability workflow has no cloud dependency. Docker and kind files are a small optional deployment showcase; AWS and Bedrock remain optional adapters, not prerequisites. Existing oncology, OncoTwin, CardioTwin and AquaHealth functionality remains available through the same application.
+The interoperability workflow has no cloud dependency. The whole application (frontend, API, independent System B receiver and PostgreSQL) runs as Docker containers orchestrated by Kubernetes on a local kind cluster ([runbook](docs/KUBERNETES.md)); AWS and Bedrock remain optional adapters, not prerequisites. Existing oncology, OncoTwin, CardioTwin and AquaHealth functionality remains available through the same application.
 
-**OneAquaHealth IEEE Global Hackathon — Track 7: Digital Health Standards.** Start at `/onehealth`; use `/interop` for the cross-system demonstration. The previous platform landing page is retained at `/platform`.
+**One evidence journey.** Start at `/journey`: ingest → understand → map → review → standardize → validate → exchange → verify → clinical context → follow-up, as one continuous flow over the existing capabilities. Each stage's status is a read-only server projection of the persisted gateway job and its bound evidence, and every completed stage cites the logged event that proves it. `/runtime` shows the real deployment topology (live cluster identity only when running in Kubernetes). See [the unified journey](docs/UNIFIED_JOURNEY.md).
+
+**OneAquaHealth IEEE Global Hackathon — Track 7: Digital Health Standards.** Start at `/journey`; `/onehealth` (evidence workbench) and `/interop` (gateway workbench) remain available and link back into the journey. The previous platform landing page is retained at `/platform`.
 
 [![CI](https://github.com/victrvondoom/CLINI-CASE/actions/workflows/ci.yml/badge.svg)](https://github.com/victrvondoom/CLINI-CASE/actions/workflows/ci.yml)
 
-Citizen observation ? laboratory evidence ? human mapping review ? FHIR/OAH validation ? independent receiver ? consented clinical context ? new retest ? verified return exchange.
+Citizen observation → laboratory evidence → human mapping review → FHIR/OAH validation → independent receiver → consented clinical context → new retest → verified return exchange.
 
 The flagship story uses a persisted **Evidence Passport**, a computed **epistemic ceiling** and six evidence gates. These connect the existing capabilities into one evidence journey. A stream photo cannot establish arsenic exposure; imported consent and verification are not automatically trusted. Environmental evidence never changes cancer authorization or OncoTwin/CardioTwin model inputs.
 
