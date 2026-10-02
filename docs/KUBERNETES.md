@@ -21,7 +21,7 @@ PowerShell:
 ```powershell
 python k8s/cluster.py up            # first run 15-30 min (node image, Python and npm builds); later runs ~1 min
 python k8s/cluster.py verify        # PASS/FAIL table, exit code 1 on any failure
-python k8s/cluster.py credentials   # prints the generated demo password (explicit opt-in)
+python k8s/cluster.py credentials   # writes the generated demo login to k8s/.cache/kind-login.json (git-ignored)
 python k8s/cluster.py down          # deletes the cluster, its volumes and the generated Secret
 ```
 
