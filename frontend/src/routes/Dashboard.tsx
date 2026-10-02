@@ -125,9 +125,9 @@ export default function Dashboard() {
               staggerMs={60}
               className="editorial-hero text-[34px] sm:text-[44px] lg:text-[52px] text-ink-primary mt-5"
               parts={[
-                "Approve Cancer Treatment in ",
-                { accent: "Minutes," },
-                " Not Weeks.",
+                "ONE HEALTH ",
+                { accent: "INTEROPERABILITY" },
+                " GATEWAY",
               ]}
             />
 
