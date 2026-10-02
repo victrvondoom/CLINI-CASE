@@ -239,8 +239,12 @@ def loaded_image_ids() -> dict[str, str]:
     return dict(pair.rsplit("=", 1) for pair in value.split(",") if "=" in pair)
 
 
-def load_images(kind: str) -> bool:
-    """Side-load local images that are new or changed since the last load; True if an app image was loaded.
+def load_images(kind: str) -> tuple[bool, str | None]:
+    """Side-load local images that are new or changed since the last load.
+
+    Returns (restart, record): whether an app image was loaded, and the annotation value to store via
+    `record_loaded` once the deploy has succeeded. Recording earlier would let a failed rollout be
+    mistaken for success on the next run, leaving pods on the old :local image.
 
     `kind load docker-image` imports every platform in an image index, but Docker's containerd image store
     keeps BuildKit attestation manifests (and other platforms' manifests of pulled images) whose blobs are not
@@ -254,7 +258,7 @@ def load_images(kind: str) -> bool:
     stale = [tag for tag, ident in wanted.items() if loaded.get(tag) != ident]
     if not stale:
         say("images already on the node; nothing to load")
-        return False
+        return False, None
     say(f"loading {', '.join(stale)} into the cluster")
     daemon = run(["docker", "version", "--format", "{{.Server.Os}}/{{.Server.Arch}}"], timeout=30).stdout.strip()
     with tempfile.TemporaryDirectory() as tmp:
@@ -265,8 +269,12 @@ def load_images(kind: str) -> bool:
         else:
             run([kind, "load", "docker-image", *stale, "--name", CLUSTER], timeout=1800, stream=True)
     record = ",".join(f"{tag}={ident}" for tag, ident in {**loaded, **wanted}.items())
-    kubectl("annotate", "node", NODE_CONTAINER, "--overwrite", f"{IMAGE_IDS_ANNOTATION}={record}")
-    return any(tag in (API_IMAGE, WEB_IMAGE) for tag in stale)
+    return any(tag in (API_IMAGE, WEB_IMAGE) for tag in stale), record
+
+
+def record_loaded(record: str | None) -> None:
+    if record:
+        kubectl("annotate", "node", NODE_CONTAINER, "--overwrite", f"{IMAGE_IDS_ANNOTATION}={record}")
 
 
 def ensure_secret() -> None:
@@ -356,7 +364,9 @@ def cmd_up(args: argparse.Namespace) -> int:
             raise ClusterError(f"--skip-build but image(s) not built yet: {', '.join(missing)}")
     else:
         build_images(Path(args.build_ca) if args.build_ca else None)
-    deploy(restart=load_images(args.kind))
+    restart, record = load_images(args.kind)
+    deploy(restart=restart)
+    record_loaded(record)  # only after a successful rollout, so a failed run is retried in full
     print(kubectl("get", "pods", "-o", "wide").stdout)
     say(f"ready: http://localhost:{host_port()}  (next: python k8s/cluster.py verify)")
     return 0

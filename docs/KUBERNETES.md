@@ -38,7 +38,7 @@ Then open <http://localhost:8080> and sign in as `reviewer@clincase.health` (or 
 
 | Command | What it does |
 |---|---|
-| `up [--skip-build] [--host-port N] [--build-ca PEM]` | Idempotent. Creates the cluster if absent, builds the images, loads the ones that changed, creates the Secret if absent, refreshes the schema and demo-data ConfigMaps, applies `k8s/`, restarts the app Deployments if an image changed, and waits for every rollout. `--build-ca` trusts one extra root certificate for pip/npm during the builds (TLS-inspecting antivirus or proxy; see Troubleshooting). |
+| `up [--skip-build] [--host-port N] [--build-ca PEM]` | Idempotent. Creates the cluster if absent, builds the images, loads the ones that changed, creates the Secret if absent, refreshes the schema ConfigMap, applies `k8s/`, restarts the app Deployments if an image changed, and waits for every rollout. `--build-ca` trusts one extra root certificate for pip/npm during the builds (TLS-inspecting antivirus or proxy; see Troubleshooting). |
 | `verify [--python PATH]` | Live checks (below). Prints a table and exits non-zero on any failure. |
 | `credentials` | Prints the demo e-mail and the generated password. Nothing else ever prints it. |
 | `down` | `kind delete cluster --name clinicase`. Everything in the cluster, including the database volume, is gone. |

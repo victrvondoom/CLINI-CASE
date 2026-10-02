@@ -39,5 +39,12 @@ tests
 coverage.xml
 htmlcov
 
+# Local runtime state under data/ must never be baked into an image (the image ships only the
+# checked-in reference data: data/interop and data/cardiotwin).
+data/policies
+data/**/*.db
+data/**/*.sqlite*
+data/**/*.pdf
+
 # Logs
 *.log
