@@ -62,7 +62,7 @@ For a local Kubernetes (kind) cluster that runs the whole application (frontend,
 ```powershell
 python k8s/cluster.py up           # build, create the kind cluster, deploy, wait until Ready
 python k8s/cluster.py verify       # health, login, Track 7 network demo, NetworkPolicy checks
-python k8s/cluster.py credentials  # print the generated demo password (explicit opt-in)
+python k8s/cluster.py credentials  # write the generated demo login to k8s/.cache/kind-login.json (git-ignored)
 python k8s/cluster.py down         # delete the cluster when the disposable showcase is done
 ```
 

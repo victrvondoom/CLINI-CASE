@@ -3,7 +3,7 @@
 
     python k8s/cluster.py up            # cluster + images + secrets + deploy, wait until Ready
     python k8s/cluster.py verify        # health, login, Track 7 network demo, NetworkPolicy proof
-    python k8s/cluster.py credentials   # print the demo login (explicit opt-in)
+    python k8s/cluster.py credentials   # write the demo login to k8s/.cache/kind-login.json (git-ignored)
     python k8s/cluster.py down          # delete the cluster and everything in it
 
 Python 3.11+, standard library only. External tools: docker, kubectl and kind (`--kind PATH` or the
@@ -280,7 +280,7 @@ def record_loaded(record: str | None) -> None:
 def ensure_secret() -> None:
     """Create clinicase-secrets only when absent: re-running `up` must never rotate live credentials."""
     if kubectl("get", "secret", SECRET_NAME, check=False).returncode == 0:
-        say(f"secret {SECRET_NAME} already exists; keeping it")
+        say("generated credentials already exist in the cluster; keeping them")
         ensure_signing_key()
         return
     db_password = secrets.token_urlsafe(32)
@@ -303,7 +303,7 @@ def ensure_secret() -> None:
         },
     }
     kubectl("create", "-f", "-", stdin=json.dumps(manifest))  # values travel on stdin, not argv
-    say(f"generated secret {SECRET_NAME} (random values, kept only in the cluster)")
+    say("generated random credentials (kept only in the cluster)")
 
 
 def new_signing_key() -> str:
@@ -328,7 +328,7 @@ def ensure_signing_key() -> None:
     kubectl(
         "apply", "--server-side", "--field-manager", "clinicase-signing-key", "-f", "-", stdin=json.dumps(patch)
     )
-    say("added PASSPORT_SIGNING_KEY to the existing secret (other values untouched)")
+    say("added the passport signing credential to the cluster (other values untouched)")
 
 
 def refresh_configmap(name: str, source: str, origin: Path) -> None:
@@ -543,14 +543,24 @@ def cmd_verify(args: argparse.Namespace) -> int:
 
 
 def cmd_credentials(_args: argparse.Namespace) -> int:
-    print(f"URL:      http://localhost:{host_port()}")
-    print(f"Email:    {DEMO_EMAIL}  (also admin@clincase.health, coordinator@clincase.health)")
-    print(f"Password: {secret_value('DEMO_USER_PASSWORD')}")
+    # The login goes to a private, git-ignored file (like the local demo launcher), never to the terminal or logs.
+    target = ROOT / "k8s" / ".cache" / "kind-login.json"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    login = {
+        "url": f"http://localhost:{host_port()}",
+        "email": DEMO_EMAIL,
+        "also": ["admin@clincase.health", "coordinator@clincase.health"],
+        "password": secret_value("DEMO_USER_PASSWORD"),
+    }
+    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+    with os.fdopen(os.open(target, flags, 0o600), "w", encoding="utf-8") as handle:
+        json.dump(login, handle, indent=2)
+    print(f"Demo login written to {target.relative_to(ROOT)} (ignored by Git). Open it to read the password.")
     return 0
 
 
 def cmd_down(args: argparse.Namespace) -> int:
-    say(f"deleting kind cluster '{CLUSTER}' (all pods, volumes and the generated secret go with it)")
+    say(f"deleting kind cluster '{CLUSTER}' (all pods, volumes and the generated credentials go with it)")
     run([args.kind, "delete", "cluster", "--name", CLUSTER], timeout=300, stream=True)
     return 0
 
