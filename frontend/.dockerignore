@@ -1,0 +1,44 @@
+# Build context for frontend/Dockerfile, which runs `COPY . .` after `npm ci`. Host node_modules and
+# dist must never overwrite the container's own install/build output, and no secret or local state
+# may be copied into the image layers.
+
+# Version control and editor state
+.git
+.gitignore
+.dockerignore
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# Secrets and local environment files
+.env
+.env.*
+**/.env
+**/.env.*
+*.pem
+*.key
+
+# Dependencies and build output (rebuilt inside the image)
+node_modules
+**/node_modules
+dist
+build
+.vite
+*.tsbuildinfo
+
+# Caches
+.cache
+.ruff_cache
+.eslintcache
+.parcel-cache
+
+# Tests and coverage artifacts (tsconfig only includes src/)
+tests
+coverage
+playwright-report
+test-results
+
+# Logs
+*.log
+npm-debug.log*
