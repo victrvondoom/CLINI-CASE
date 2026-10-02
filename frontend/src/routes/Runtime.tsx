@@ -132,8 +132,10 @@ function Orchestration({ data }: { data: RuntimeTopology }) {
 export default function Runtime() {
   const live = useLive(fetchRuntime, [], 15_000);
   const [tab, setTab] = useState<Tab>("Services");
-  const [selected, setSelected] = useState<RuntimeService | null>(null);
+  const [selectedId, setSelectedId] = useState<RuntimeService["id"] | null>(null);
   const data = live.data;
+  // Look the service up in the latest poll so the open drawer never shows a stale snapshot.
+  const selected = data?.services.find((s) => s.id === selectedId) ?? null;
 
   function onTabKey(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
@@ -204,15 +206,15 @@ export default function Runtime() {
             {tab === "Services" && (
               <div className="mx-auto max-w-3xl">
                 {service("frontend") && (
-                  <RuntimeTopologyCard service={service("frontend")!} onOpen={() => setSelected(service("frontend")!)} />
+                  <RuntimeTopologyCard service={service("frontend")!} onOpen={() => setSelectedId("frontend")} />
                 )}
                 <Edge label={edge("api")} />
-                {service("api") && <RuntimeTopologyCard service={service("api")!} onOpen={() => setSelected(service("api")!)} />}
+                {service("api") && <RuntimeTopologyCard service={service("api")!} onOpen={() => setSelectedId("api")} />}
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {backends.map((s) => (
                     <div key={s.id}>
                       <Edge label={edge(s.id)} />
-                      <RuntimeTopologyCard service={s} onOpen={() => setSelected(s)} />
+                      <RuntimeTopologyCard service={s} onOpen={() => setSelectedId(s.id)} />
                     </div>
                   ))}
                 </div>
@@ -272,7 +274,7 @@ export default function Runtime() {
         open={selected !== null}
         title={selected?.name ?? ""}
         subtitle={selected?.role}
-        onClose={() => setSelected(null)}
+        onClose={() => setSelectedId(null)}
       >
         {selected && (
           <dl className="grid grid-cols-[auto,1fr] gap-x-4 gap-y-2 text-sm">

@@ -11,7 +11,10 @@ import {
   type StageId,
   type StageStatus,
 } from "../src/journey/api";
+import { useAuth } from "../src/components/AuthContext";
 import Journey from "../src/routes/Journey";
+
+vi.mock("../src/components/AuthContext", () => ({ useAuth: vi.fn() }));
 
 vi.mock("../src/journey/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../src/journey/api")>();
@@ -127,6 +130,7 @@ function page(path: string) {
 const where = () => screen.getByTestId("where").textContent;
 
 beforeEach(() => {
+  vi.mocked(useAuth).mockReturnValue({ user: { role: "reviewer" } } as ReturnType<typeof useAuth>);
   vi.mocked(journeyApi.get).mockResolvedValue(view("review"));
   vi.mocked(journeyApi.list).mockResolvedValue({
     journeys: [
@@ -151,6 +155,14 @@ afterEach(() => {
 });
 
 describe("unified evidence journey", () => {
+  it("sends roles the API would refuse to a page they can use", async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { role: "coordinator" } } as ReturnType<typeof useAuth>);
+    page("/journey");
+    expect(await screen.findByText("elsewhere")).toBeTruthy();
+    expect(where()).toBe("/dashboard");
+    expect(journeyApi.list).not.toHaveBeenCalled();
+  });
+
   it("redirects a bare journey URL to the stage that needs work next", async () => {
     page("/journey/ig-1");
     await waitFor(() => expect(where()).toBe("/journey/ig-1/review"));

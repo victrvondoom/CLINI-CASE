@@ -25,6 +25,7 @@ import { BUTTON, PRIMARY_BUTTON, StageDetailBody } from "../journey/cards";
 import { Drawer } from "../journey/Drawer";
 import { JourneyStageCard } from "../journey/JourneyStageCard";
 import { JourneyStepper, STATUS_TEXT, STATUS_TONE, StatusIcon } from "../journey/JourneyStepper";
+import { useAuth } from "../components/AuthContext";
 import { useLive } from "../lib/useLive";
 import { downloadPassport } from "../onehealth/Journey";
 
@@ -32,6 +33,9 @@ const PAGE = "mx-auto max-w-6xl space-y-6 px-4 py-6 sm:px-6";
 
 export default function Journey() {
   const { jobId } = useParams();
+  const { user } = useAuth();
+  // The journey is reviewer/admin only (the API answers 403 otherwise): send other roles to a page they can use.
+  if (user && user.role !== "reviewer" && user.role !== "admin") return <Navigate to="/dashboard" replace />;
   return jobId ? <JourneyRun key={jobId} jobId={jobId} /> : <JourneyHome />;
 }
 
@@ -304,7 +308,7 @@ function JourneyHome() {
 /* One journey                                                                                 */
 /* ------------------------------------------------------------------------------------------ */
 
-function useJourney(jobId: string) {
+function useJourney(jobId: string, paused: { current: boolean }) {
   const [view, setView] = useState<JourneyView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -327,20 +331,27 @@ function useJourney(jobId: string) {
   }, [jobId]);
   useEffect(() => {
     void load();
-    const onFocus = () => void load(); // another reviewer may have advanced the job
+    // Another reviewer may have advanced the job. Skipped while this tab runs an action, so a refocus
+    // cannot supersede the action's own reload.
+    const onFocus = () => {
+      if (!paused.current) void load();
+    };
     window.addEventListener("focus", onFocus);
     return () => {
       seq.current++;
       window.removeEventListener("focus", onFocus);
     };
-  }, [load]);
+  }, [load, paused]);
   return { view, error, loading, load };
 }
 
 function JourneyRun({ jobId }: { jobId: string }) {
   const { stageId } = useParams();
   const navigate = useNavigate();
-  const { view, error, loading, load } = useJourney(jobId);
+  const actionRunning = useRef(false);
+  const { view, error, loading, load } = useJourney(jobId, actionRunning);
+  const stageRef = useRef(stageId);
+  stageRef.current = stageId;
   const [busy, setBusy] = useState<ActionId | null>(null);
   const [actionError, setActionError] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -377,18 +388,28 @@ function JourneyRun({ jobId }: { jobId: string }) {
   const next = journey.stages.find((s) => s.id === journey.current_stage);
 
   async function perform(action: ActionId, run: () => Promise<unknown>, follow = true) {
+    const startedAt = stageRef.current;
+    actionRunning.current = true;
     setBusy(action);
     setActionError("");
     try {
       await run();
       const fresh = await load();
-      if (follow && fresh?.current_stage && fresh.current_stage !== stage.id) {
+      if (!fresh) {
+        setActionError("The action was accepted, but the journey could not be refreshed. Use Refresh before continuing.");
+      } else if (
+        follow &&
+        fresh.current_stage &&
+        fresh.current_stage !== startedAt &&
+        stageRef.current === startedAt // the reviewer has not navigated elsewhere meanwhile
+      ) {
         navigate(`/journey/${encodeURIComponent(jobId)}/${fresh.current_stage}`);
       }
     } catch (e) {
       setActionError(e instanceof Error ? e.message : String(e));
       await load(); // e.g. 409: someone else changed the job — show the server's current state
     } finally {
+      actionRunning.current = false;
       setBusy(null);
     }
   }
@@ -458,7 +479,7 @@ function JourneyRun({ jobId }: { jobId: string }) {
             {journey.progress.complete} of {journey.progress.total} stages complete
           </span>
           <span className="ml-auto flex gap-2">
-            <button type="button" className={BUTTON} onClick={() => void load()} disabled={loading}>
+            <button type="button" className={BUTTON} onClick={() => void load()} disabled={loading || busy !== null}>
               <RefreshCw size={13} className={clsx(loading && "motion-safe:animate-spin")} aria-hidden="true" /> Refresh
             </button>
             <Link to={`/interop?job=${encodeURIComponent(journey.job_id)}`} className={BUTTON}>

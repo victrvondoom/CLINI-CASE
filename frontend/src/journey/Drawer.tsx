@@ -31,7 +31,8 @@ export function Drawer({
     const opener = document.activeElement as HTMLElement | null;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    panel.current?.querySelector<HTMLElement>(FOCUSABLE)?.focus();
+    const first = panel.current?.querySelector<HTMLElement>(FOCUSABLE);
+    (first ?? panel.current)?.focus();
 
     function onKey(event: KeyboardEvent) {
       if (event.key === "Escape") {
@@ -69,6 +70,7 @@ export function Drawer({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        tabIndex={-1}
         className="relative h-full w-full max-w-xl overflow-y-auto border-l border-surface-border bg-surface-panel p-6 shadow-2xl motion-safe:animate-fade-in"
       >
         <div className="flex items-start gap-3">

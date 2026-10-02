@@ -57,8 +57,8 @@ export function EvidenceTimeline({ evidence }: { evidence: StageEvidence[] }) {
   return (
     <Section title="Proof from the event log">
       <ol className="space-y-2">
-        {evidence.map((e) => (
-          <li key={`${e.event_type}-${e.timestamp}`} className="text-xs">
+        {evidence.map((e, i) => (
+          <li key={`${e.event_type}-${e.timestamp}-${i}`} className="text-xs">
             <span className="text-mono-tech text-accent-cyan">{e.event_type}</span>
             <span className="text-ink-muted"> · {new Date(e.timestamp).toLocaleString()} · {e.actor}</span>
             <div className="text-[11px] text-ink-faint text-mono-tech break-all">correlation {e.correlation_id}</div>
