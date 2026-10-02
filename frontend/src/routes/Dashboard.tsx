@@ -7,7 +7,6 @@
  *   3. Two-column row: Recent cases ribbon (left) + Agent health panel (right)
  *   4. Footer band: 7-agent DAG flow + CMS-0057-F countdown
  */
-import { WorkflowOverview } from "../workflow/WorkflowNavigation";
 import clsx from "clsx";
 import { ArrowRight, ScrollText, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -117,7 +116,7 @@ export default function Dashboard() {
             <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md border border-accent-brand/25 bg-accent-brand/[0.06]">
               <span className="w-1.5 h-1.5 rounded-full bg-accent-cyan animate-pulse" />
               <span className="text-compact text-[10px] text-accent-brand-glow">
-                One Health · Interoperability · Evidence
+                Healthcare · Prior Authorisation Automation
               </span>
             </div>
 
@@ -126,14 +125,17 @@ export default function Dashboard() {
               staggerMs={60}
               className="editorial-hero text-[34px] sm:text-[44px] lg:text-[52px] text-ink-primary mt-5"
               parts={[
-                "From Evidence to Action, ",
-                { accent: "Through One Connected" },
-                " Clinical Journey.",
+                "Approve Cancer Treatment in ",
+                { accent: "Minutes," },
+                " Not Weeks.",
               ]}
             />
 
             <p className="text-ui-secondary text-ink-body leading-relaxed mt-4 max-w-[58ch] text-[14.5px]">
-              CLINI-CASE connects intake, evidence, interoperability, review, clinical context and follow-up in one traceable workflow.
+              Provider-side, FHIR-native copilot. Seven agents read clinical evidence and
+              payer policy, then ship a verdict with a citation chain. On denial, an
+              NCCN-grounded appeal letter is drafted automatically. Deploys natively to
+              <strong className="text-accent-brand"> TriZetto AI Gateway</strong>.
             </p>
 
             <div className="mt-6 flex items-center gap-2 flex-wrap">
@@ -172,8 +174,6 @@ export default function Dashboard() {
           <LivePipelineConsole run={pipeline} fixtures={fixtures} />
         </div>
       </section>
-
-      <WorkflowOverview />
 
       {/* KPI ROW — staggered reveal so the tiles settle in sequence rather
           than popping in as one flat block once orgValue resolves. */}

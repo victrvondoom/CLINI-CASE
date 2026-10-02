@@ -78,8 +78,9 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
         <RouteBoundary>
         <Routes>
           {/* Public marketing landing — the app's front door */}
-          <Route path="/" element={<Track7Overview />} />
+          <Route path="/" element={<Landing />} />
           <Route path="/platform" element={<Landing />} />
+          <Route path="/track7" element={<Track7Overview />} />
 
           {/* Public auth pages */}
           <Route path="/login"  element={<Login />} />
