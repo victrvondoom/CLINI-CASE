@@ -163,6 +163,14 @@ jobs:
           PGPASSWORD: clincase
         run: psql -h localhost -U clincase -d clincase -v ON_ERROR_STOP=1 -f backend/db/schema.sql
 
+      - name: Replay Supabase migration history and verify RLS
+        env:
+          PGPASSWORD: clincase
+          MIGRATION_TEST_DATABASE_URL: postgresql://clincase:clincase@localhost:5432/clincase_migrations_ci
+        run: |
+          createdb -h localhost -U clincase clincase_migrations_ci
+          python .github/scripts/check_supabase_migrations.py
+
       - name: PostgreSQL integration tests
         working-directory: backend
         run: pytest -o addopts="-q --strict-markers" -m "integration and postgres and not live"
@@ -202,24 +210,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Verify README has all expected sections
-        shell: bash
-        run: |
-          set -e
-          required=(
-            "Why ClinCase"
-            "What it does"
-            "Architecture"
-            "The 7-agent pipeline"
-            "Oncology capabilities"
-            "OncoTwin"
-            "Getting started"
-          )
-          for s in "${required[@]}"; do
-            grep -F "$s" README.md > /dev/null || { echo "::error::missing README section containing: $s"; exit 1; }
-            echo "  OK  README contains: $s"
-          done
-          echo "README has all required sections."
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Verify current README sections and workflow diagrams
+        run: python .github/scripts/check_readme.py
+
+      - name: Verify README contract catches missing or empty sections
+        run: python -m unittest discover -s .github/scripts -p "test_*.py"
 
   # ===========================================================================
   # 6. OncoTwin — tests, end-to-end synthetic journey, red-team stress test

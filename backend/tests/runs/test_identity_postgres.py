@@ -114,9 +114,9 @@ async def test_gateway_stamps_llm_invocations_with_the_run():
         )
     )  # fmt: skip
     try:
-        await GenAIGateway(_Fake()).complete(
-            system="s", user="u", model_id="anthropic/claude-sonnet-4.6"
-        )
+        # Exercise run attribution with the configured provider's allowed default;
+        # a NVIDIA deployment need not allow a hard-coded Claude model.
+        await GenAIGateway(_Fake()).complete(system="s", user="u")
     finally:
         reset_call_context(tok)
     row = await db.fetchrow(
@@ -372,16 +372,17 @@ async def test_failed_sync_run_is_marked_failed_and_releases_its_context(client,
     assert run_registry.active_count() == 0
 
 
-async def test_create_case_stores_the_intelligence_id(client):
+async def test_create_case_stores_the_intelligence_id(client, fhir_bundle_factory):
     a = await _org()
+    bundle = fhir_bundle_factory("stage3_her2pos_breast")
     r = await client.post(
         "/api/v1/cases",
         headers=_h(a["token"]),
         json={
             "payer_id": "aetna",
             "patient_initials": "T.T.",
-            "fhir_bundle": {},
-            "requested_treatment": {"name": "x"},
+            "fhir_bundle": bundle,
+            "requested_treatment": {"name": "Trastuzumab", "j_code": "J9355"},
         },
     )
     assert r.status_code == 200, r.text
@@ -389,6 +390,27 @@ async def test_create_case_stores_the_intelligence_id(client):
     assert await db.fetchval(
         "SELECT case_intelligence_id FROM cases WHERE id=$1", cid
     ) == case_intelligence_id(a["org"], cid)
+    stored = await db.fetchval("SELECT fhir_bundle FROM cases WHERE id=$1", cid)
+    assert (json.loads(stored) if isinstance(stored, str) else stored) == bundle
+
+
+@pytest.mark.parametrize("bundle", [{}, {"resourceType": "Bundle", "type": "collection", "entry": []}])
+async def test_create_case_rejects_empty_patient_data_before_persistence(client, bundle):
+    a = await _org()
+    r = await client.post(
+        "/api/v1/cases",
+        headers=_h(a["token"]),
+        json={
+            "payer_id": "aetna",
+            "patient_initials": "T.T.",
+            "fhir_bundle": bundle,
+            "requested_treatment": {"name": "Trastuzumab"},
+        },
+    )
+    assert r.status_code == 422, r.text
+    assert "patient data" in r.json()["detail"]
+    assert "documented diagnosis" in r.json()["detail"]
+    assert await db.fetchval("SELECT count(*) FROM cases WHERE organization_id=$1", a["org"]) == 0
 
 
 async def test_twin_and_run_history_reflect_reruns_and_resume(client, monkeypatch):

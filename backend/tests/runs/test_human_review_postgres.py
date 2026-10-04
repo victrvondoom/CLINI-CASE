@@ -52,7 +52,7 @@ async def _resume(client, a, cid, verdict="DENY", note="reviewed"):
     return await client.post(
         f"/api/v1/cases/{cid}/resume",
         headers=_h(a["token"]),
-        json={"verdict": verdict, "reviewer_note": note},
+        json={"verdict": verdict, "reviewer_note": note, "continuation_mode": "worker"},
     )
 
 
@@ -193,6 +193,9 @@ async def test_a_case_paused_before_pause_state_existed_still_gets_its_decision(
         "queued": False,
         "job_id": None,
         "reason": "no_pause_state",
+        "completed": False,
+        "error": None,
+        "mode": "worker",
     }
     assert await db.fetchval("SELECT status FROM cases WHERE id=$1", cid) == "approved"
     assert [x["status"] for x in await list_runs(a["org"], cid)] == ["completed"]
@@ -380,6 +383,9 @@ async def test_a_pause_without_the_agent_outputs_records_the_decision_but_queues
         "queued": False,
         "job_id": None,
         "reason": "incomplete_pause_state",
+        "completed": False,
+        "error": None,
+        "mode": "worker",
     }
     assert await db.fetchval("SELECT status FROM cases WHERE id=$1", cid) == "denied"
     run = next(x for x in await list_runs(a["org"], cid) if x["run_id"] == r["run_id"])
