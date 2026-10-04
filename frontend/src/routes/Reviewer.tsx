@@ -16,6 +16,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 
 import { PayerCell } from "../components/PayerCell";
 import { api } from "../lib/api";
@@ -86,7 +87,7 @@ export default function Reviewer() {
           Reviewer queue
         </h1>
         <p className="text-sm text-ink-muted mt-1">
-          <span className="text-mono-tech text-ink-body" data-testid="queue-total">{queue.length}</span> REFER cases awaiting human review
+          <span className="text-mono-tech text-ink-body" data-testid="queue-total">{queue.length}</span> cases awaiting human review
           <span className="mx-2 text-ink-faint">·</span>
           <span className="text-accent-red font-medium">{counts.high} high</span>
           <span className="mx-2 text-ink-faint">·</span>
@@ -311,7 +312,8 @@ function HITLPausedPanel() {
     setResumingId(caseId);
     setError(null);
     try {
-      await api.resumeCase(caseId, { verdict, reviewer_note: note });
+      const resumed = await api.resumeCase(caseId, { verdict, reviewer_note: note, continuation_mode: "inline" });
+      if (resumed.continuation?.error) throw new Error(resumed.continuation.error);
       setNote("");
       // Optimistic remove
       setPaused((prev) => prev.filter((c) => c.case_id !== caseId));
@@ -335,9 +337,7 @@ function HITLPausedPanel() {
     return (
       <section className="mb-5 border border-accent-green/20 rounded-2xl bg-accent-green/5 px-5 py-4 text-sm text-ink-muted flex items-center gap-2">
         <CheckCircle2 size={14} className="text-accent-green" />
-        No cases currently paused at the LangGraph <code className="text-mono-tech text-[12px] text-ink-body">review_gate</code> node.
-        Confidence threshold:{" "}
-        <code className="text-mono-tech text-[12px] text-ink-body">HITL_CONFIDENCE_THRESHOLD = 0.75</code>.
+        No cases currently awaiting clinician sign-off. Every AI DENY recommendation requires review.
       </section>
     );
   }
@@ -366,9 +366,10 @@ function HITLPausedPanel() {
                   <code className="text-mono-tech text-[11px] text-ink-muted">{c.case_id}</code>
                 </div>
                 <p className="text-xs text-ink-muted leading-snug">
-                  Necessity Reasoner overall_confidence below threshold.
-                  ClinCase's draft assessment is in the audit trail; supply your verdict to resume the workflow.
+                  AI DENY recommendations and uncertain assessments require clinician sign-off.
+                  Review the evidence and draft letters before recording your verdict.
                 </p>
+                <Link to={`/cases/${c.case_id}`} className="inline-block mt-1 text-xs underline text-accent-brand">Review evidence and draft letters</Link>
               </div>
               <PayerCell payer_id={(c.payer_id ?? "aetna") as "aetna" | "uhc" | "bcbs" | "anthem"} showLabel={false} />
             </div>

@@ -360,6 +360,10 @@ export function normalizeRunResult(raw: any): RunResult {
     policy_excerpts,
     necessity_assessment,
     decision,
+    provisional_decision: raw.provisional_decision ?? null,
+    human_review_required: raw.human_review_required,
+    documents_draft: raw.documents_draft,
+    pause_kind: raw.pause_kind,
     denial_forecast: raw.denial_forecast ?? null,
     appeal_draft: raw.appeal_draft ?? null,
     patient_communication: raw.patient_communication ?? null,
@@ -478,6 +482,9 @@ export const api = {
     physician_note: string | null;
     requested_treatment: { name: string; j_code: string | null };
     created_at: string | null;
+    pending_review?: RunResult | null;
+    latest_result?: RunResult | null;
+    continuation?: { status: string; can_retry: boolean } | null;
   }> {
     const res = await authedFetch(`${BASE}/cases/${caseId}`);
     return jsonOrThrow(res);
@@ -548,18 +555,25 @@ export const api = {
    */
   async resumeCase(
     caseId: string,
-    body: { verdict: "APPROVE" | "DENY" | "REFER"; reviewer_note?: string },
+    body: { verdict: "APPROVE" | "DENY" | "REFER"; reviewer_note?: string; continuation_mode?: "inline" | "worker" },
   ): Promise<{
     case_id: string;
     verdict: string;
     status: string;
     reviewer_id: string;
+    result?: RunResult | null;
+    continuation?: { mode: string; completed: boolean; error: string | null; queued: boolean };
   }> {
     const res = await authedFetch(`${BASE}/cases/${caseId}/resume`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
+    return jsonOrThrow(res);
+  },
+
+  async retryCaseLetters(caseId: string): Promise<{ status: string }> {
+    const res = await authedFetch(`${BASE}/cases/${caseId}/resume/retry?continuation_mode=inline`, { method: "POST" });
     return jsonOrThrow(res);
   },
 

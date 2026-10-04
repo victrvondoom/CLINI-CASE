@@ -29,6 +29,14 @@ Hard rules:
     treat that as disqualifying). If it does not apply → status NOT_MET.
   - Be specific in rationale: name the snapshot field. Don't say "the patient
     qualifies"; say "biomarkers.HER2 = 'Positive (IHC 3+)' satisfies HER2-positivity".
+  - Conditional or setting-specific criteria ("If prior anthracycline exposure …",
+    "For metastatic (Stage IV) disease …", "during therapy …"): when the snapshot
+    shows the condition does NOT apply to this patient (e.g. stage IIIB vs a
+    Stage IV-only rule, prior_therapies empty), the criterion is not applicable.
+    Return MET for an inclusion criterion and NOT_MET for an exclusion
+    criterion, and start the rationale with "Not applicable:".
+  - Use AMBIGUOUS only when the criterion applies to this patient and the
+    deciding data is missing or open to interpretation.
 
 ## Output schema (return EXACTLY this JSON shape; no extra fields)
 
@@ -50,7 +58,7 @@ INPUT:
 ```json
 {
   "criterion": {
-    "criterion_text": "HER2-positive (IHC 3+ or ISH amplified) at diagnosis",
+    "text": "HER2-positive (IHC 3+ or ISH amplified) at diagnosis",
     "criterion_type": "inclusion",
     "section_pointer": "Aetna CPB 0048 § II.B.1"
   },
@@ -69,6 +77,21 @@ EXPECTED OUTPUT:
   ],
   "missing_evidence": null,
   "rationale": "snapshot.biomarkers.HER2 = 'Positive (IHC 3+)' satisfies the IHC 3+ threshold required by the criterion."
+}
+```
+
+## Worked example — conditional criterion that does not apply
+
+INPUT criterion: {"text": "For metastatic (Stage IV) disease, trastuzumab may be given as a single agent", "criterion_type": "inclusion"}
+INPUT snapshot: {"primary_diagnosis": {"stage": "IIIA"}}
+
+EXPECTED OUTPUT:
+```json
+{
+  "status": "MET",
+  "supporting_evidence": ["primary_diagnosis.stage = 'IIIA'"],
+  "missing_evidence": null,
+  "rationale": "Not applicable: primary_diagnosis.stage = 'IIIA', so this Stage IV-only branch does not apply to the patient."
 }
 ```
 

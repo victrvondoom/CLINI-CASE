@@ -8,13 +8,13 @@ export default defineConfig({
     host: "127.0.0.1",
     proxy: {
       "/api": {
-        target: "http://localhost:8000",
+        target: process.env.VITE_API_BASE || "http://localhost:8000",
         changeOrigin: true,
         ws: false,
       },
       // MCP tool server (JSON-RPC + GET /mcp/manifest) lives outside /api
       "/mcp": {
-        target: "http://localhost:8000",
+        target: process.env.VITE_API_BASE || "http://localhost:8000",
         changeOrigin: true,
         ws: false,
       },

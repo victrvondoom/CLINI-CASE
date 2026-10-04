@@ -6,8 +6,11 @@ rationale points to either a clinical evidence resource or a policy excerpt.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import ClassVar
+
+from pydantic import ValidationError
 
 from app.agents.decision_composer.schemas import CitationLinkerInput, CitationLinkerOutput
 from app.agents.framework import (
@@ -16,6 +19,7 @@ from app.agents.framework import (
     CitationCompletenessGuardrail,
     SchemaGuardrail,
 )
+from app.agents.framework.json_text import extract_json_text
 
 _PROMPT = (
     Path(__file__).resolve().parents[3]
@@ -48,6 +52,24 @@ class CitationLinkerAgent(Agent[CitationLinkerInput, CitationLinkerOutput]):
         SchemaGuardrail(CitationLinkerOutput),
         CitationCompletenessGuardrail(),
     ]
+
+    def _parse_response(self, text: str) -> CitationLinkerOutput:
+        try:
+            return super()._parse_response(text)
+        except ValidationError as exc:
+            if not any(e.get("type") == "too_long" for e in exc.errors()):
+                raise
+        # Some models repeat citations past the schema cap: drop exact duplicates, keep the first 10.
+        data = json.loads(extract_json_text(text), strict=False)
+        seen: set[tuple[str, str, str]] = set()
+        unique = []
+        for c in data.get("citations") or []:
+            key = (str(c.get("kind")), str(c.get("pointer", "")).strip(), str(c.get("text", "")).strip())
+            if key not in seen:
+                seen.add(key)
+                unique.append(c)
+        data["citations"] = unique[:10]
+        return CitationLinkerOutput.model_validate(data)
 
 
 citation_linker = CitationLinkerAgent()

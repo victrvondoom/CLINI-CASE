@@ -7,7 +7,10 @@ import pytest
 from pydantic import ValidationError
 
 from app.agents.decision_composer import derive_verdict
-from app.agents.decision_composer.integrity import validate_citation_provenance
+from app.agents.decision_composer.integrity import (
+    normalize_citation_pointers,
+    validate_citation_provenance,
+)
 from app.agents.decision_composer.schemas import (
     CitationLinkerInput,
     CitationLinkerOutput,
@@ -207,6 +210,36 @@ def test_invented_citation_sources_rejected(pointer, kind):
 @pytest.mark.parametrize("pointer", ["policy_excerpts[0]", "payer 0048 Eligibility"])
 def test_supplied_policy_pointers_resolve(pointer):
     validate_citation_provenance(citation_input(), citation_output(pointer, "policy"))
+
+
+@pytest.mark.parametrize(
+    "pointer,kind,expected",
+    [
+        ("performance_status = '1'", "clinical", ("performance_status", "clinical")),
+        ("snapshot.primary_diagnosis.description", "clinical", ("primary_diagnosis.description", "clinical")),
+        ("excerpts[0]", "policy", ("policy_excerpts[0]", "policy")),
+        ("performance_status = '1'", "policy", ("performance_status", "clinical")),
+    ],
+)
+def test_model_pointer_spellings_normalize_to_supplied_evidence(pointer, kind, expected):
+    out = normalize_citation_pointers(citation_input(), citation_output(pointer, kind))
+    assert (out.citations[0].pointer, out.citations[0].kind) == expected
+    validate_citation_provenance(citation_input(), out)
+
+
+@pytest.mark.parametrize(
+    "pointer,kind",
+    [
+        ("invented_field = 'x'", "clinical"),
+        ("snapshot.biomarkers[0]", "clinical"),
+        ("excerpts[1]", "policy"),
+        ("FDA imaginary label", "fda_label"),
+    ],
+)
+def test_normalization_never_rescues_unsupplied_evidence(pointer, kind):
+    out = normalize_citation_pointers(citation_input(), citation_output(pointer, kind))
+    with pytest.raises(ValueError):
+        validate_citation_provenance(citation_input(), out)
 
 
 def test_linker_incomplete_coverage_rejected():

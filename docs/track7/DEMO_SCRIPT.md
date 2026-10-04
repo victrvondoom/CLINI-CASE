@@ -53,6 +53,8 @@ independent system returns the information without relying on the original ids, 
 
 ## Navigation and backup
 
+Optional oncology example: upload `demo_pdfs/01_APPROVE_breast_cancer_her2pos.pdf` through Intake or Cases, check the extracted patient/treatment, choose the payer, and create the case. Explicit source facts become a linked FHIR Bundle; incomplete documents show missing fields before case creation. Every AI-proposed DENY requires human review, with appeal and patient letters visible as drafts. Reviewer continuation runs inline on Vercel. See [upload/review repair evidence](../ONCOLOGY_UPLOAD_REVIEW_REPAIR.md) for verification and live-deployment limits.
+
 After signing in, Dashboard is the default entry. Cases shows existing clinical cases plus evidence-case cards that resume their exact journey stage. Sidebar areas expose contextual tools; Oncology, OncoTwin and CardioTwin are optional Clinical Context branches. Back to Journey returns to the last open job/stage.
 
 Primary demo: plain local launcher with deterministic synthetic evidence. The public FHIR check is optional; failure does not stop System B. Kubernetes is a secondary topology showcase. Backup screenshots captured during this verification are in ignored `backend/.cache/track7/` (`dashboard.png`, `journey-verified.png`, `runtime.png`). Browser video recording requires ffmpeg, which is absent on this workstation; no completed submission video is claimed.

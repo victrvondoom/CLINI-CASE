@@ -68,5 +68,23 @@ Claude and Codex assisted development. Author names in Git history include "Clau
 | OncoTwin / CardioTwin | Reused optional context | Commits recorded within period | Yes | `c8e032a`, `6015337`; not claimed as Track 7 inventions |
 | AquaHealth | Reused freshwater module | Commit recorded within period | Yes | `5d24d3e` |
 | One Health evidence workflow | Track 7 integration | Yes, by commit date | Yes | `55c4e32` and later commits above |
-| Unified journey / runtime UI / compact contextual navigation | Existing foundations reused | Final UI not claimed within period | Yes | Current uncommitted working tree, October 2 |
-| Passport Ed25519 signature / bulk approval / external FHIR and dataset / official validation evidence | Existing foundations reused | This implementation not claimed within period | Yes | Current uncommitted working tree, October 2; verification report |
+| Unified journey / runtime UI / compact contextual navigation | Existing foundations reused | Final UI not claimed within period | Yes | `2e4ecac` 2026-10-02 and earlier journey commits above |
+| Passport Ed25519 signature / bulk approval / external FHIR and dataset / official validation evidence | Existing foundations reused | This implementation not claimed within period | Yes | `2e4ecac` 2026-10-02; [dated verification report](track7/FINAL_REVIEW.md) |
+
+## October 4 publication update
+
+The tables above preserve the recorded development-period distinction. The October 2 work
+previously described as uncommitted was subsequently recorded in `2e4ecac`; this update does
+not rewrite dates or move that work into the September period.
+
+October 4 deployment fixes add document-to-FHIR clinical intake, mandatory human review of
+every AI-proposed DENY, visible draft letters, and bounded inline continuation/retry for
+serverless review requests. The README and supporting evidence documentation are refreshed
+with the verified workflow and explicit clinical/standards boundaries. These are post-period
+hardening; see [the repair ledger](ONCOLOGY_UPLOAD_REVIEW_REPAIR.md). Existing Claude Code
+changes, pre-existing platform capabilities, authorship and repository history are preserved.
+
+A synthetic NVIDIA connectivity check passed on October 4 using the configured compatible
+client and `nvidia/nemotron-3-super-120b-a12b`; this is provider connectivity evidence, not
+proof of live completion by all seven clinical agents or clinical effectiveness. Track 7's
+reliable demonstration remains deterministic and separately verifies the HTTP exchange.

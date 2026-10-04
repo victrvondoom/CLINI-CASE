@@ -18,11 +18,14 @@ real agent. The grader is what closes the loop.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 
 from pydantic import BaseModel, Field
 
+from app.agents.framework.json_text import parse_model
 from app.agents.framework.models import HAIKU_GRADER, ModelSpec, resolve_model_id
+from app.config import settings
 from app.llm import get_llm_client
 
 # =============================================================================
@@ -92,6 +95,10 @@ class LLMGrader:
             f"\nCANDIDATE_OUTPUT_JSON:\n{candidate.output_payload_json}\n"
             f"\nOutput the GraderScore JSON now."
         )
+        if settings.LLM_APPEND_OUTPUT_SCHEMA:
+            user_msg += "\n\nGraderScore JSON schema (use these exact field names):\n" + json.dumps(
+                GraderScore.model_json_schema()
+            )
         client = get_llm_client()
         response = await client.complete(
             system=_GRADER_SYSTEM_PROMPT,
@@ -100,10 +107,7 @@ class LLMGrader:
             temperature=self.model.temperature,
             model_id=resolve_model_id(self.model),
         )
-        text = response.text.strip()
-        if text.startswith("```"):
-            text = "\n".join(text.split("\n")[1:-1])
-        score = GraderScore.model_validate_json(text.strip())
+        score = parse_model(GraderScore, response.text)
         usage = {
             "input_tokens": response.input_tokens,
             "output_tokens": response.output_tokens,

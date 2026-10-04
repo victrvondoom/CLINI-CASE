@@ -146,6 +146,9 @@ def _default_policy(org_id: str) -> TenantPolicy:
     return TenantPolicy(
         organization_id=org_id,
         allowed_model_ids=[m for m in _DEFAULT_ALLOWED if m],
+        daily_input_token_cap=settings.GATEWAY_DEFAULT_DAILY_INPUT_TOKENS,
+        daily_output_token_cap=settings.GATEWAY_DEFAULT_DAILY_OUTPUT_TOKENS,
+        daily_usd_cap=settings.GATEWAY_DEFAULT_DAILY_USD,
         bedrock_guardrail_id=settings.BEDROCK_GUARDRAIL_ID or None,
     )
 

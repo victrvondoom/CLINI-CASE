@@ -29,6 +29,7 @@ from app.auth import get_current_user
 from app.db import db
 from app.models.appeal import AppealArgument, AppealDraft
 from app.render import render_appeal_pdf
+from app.review.pause_state import load_pause_state
 
 router = APIRouter(tags=["appeals"])
 
@@ -48,7 +49,7 @@ async def render_appeal_pdf_preview(
     endpoint mirrors the existing `/llm/ping` pattern; production deploys
     can layer auth at the ingress / WAF level.
     """
-    pdf_bytes = render_appeal_pdf(draft)
+    pdf_bytes = render_appeal_pdf(draft, requires_review=True)
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
@@ -57,6 +58,7 @@ async def render_appeal_pdf_preview(
                 f'inline; filename="appeal-{draft.patient_initials}-' f'{draft.payer_id}.pdf"'
             ),
             "X-ClinCase-Source": "preview",
+            "X-ClinCase-Document-Status": "draft",
         },
     )
 
@@ -73,36 +75,45 @@ async def render_case_appeal_pdf(
     case_id: str,
     user: dict[str, Any] = Depends(get_current_user),
 ) -> Response:
-    """Production path — read the appeal from the DB, render, stream."""
+    """Render the current run's letter; pending DENY previews remain clearly drafts."""
     async with db.pool.acquire() as conn:
         row = await conn.fetchrow(
-            """
-            SELECT
-                a.appeal_body,
-                a.structured_arguments_json,
-                c.id                       AS case_id,
-                c.payer_id,
-                c.patient_initials,
-                c.requested_treatment_name,
-                c.created_at
-            FROM appeals a
-            JOIN cases c ON c.id = a.case_id
-            WHERE a.case_id = $1
-              AND c.organization_id = $2
-            ORDER BY a.created_at DESC
-            LIMIT 1
-            """,
+            """SELECT id, payer_id, patient_initials, requested_treatment_name, status, created_at
+               FROM cases WHERE id = $1 AND organization_id = $2""",
             case_id,
             user["organization_id"],
         )
-
-    if row is None:
-        raise HTTPException(
-            status_code=404,
-            detail=f"No appeal letter found for case {case_id}",
+        if row is None:
+            raise HTTPException(status_code=404, detail="Case or appeal not found")
+        latest_run = await conn.fetchrow(
+            "SELECT run_id, status FROM case_runs WHERE case_id = $1 ORDER BY attempt_no DESC LIMIT 1",
+            case_id,
         )
+        requires_review = row["status"] == "awaiting_review"
+        if requires_review:
+            paused = (
+                await load_pause_state(conn, latest_run["run_id"])
+                if latest_run and latest_run["status"] == "paused"
+                else None
+            )
+            raw_draft = ((paused or {}).get("state", {}).get("draft_outputs") or {}).get(
+                "appeal_draft"
+            )
+            if not raw_draft:
+                raise HTTPException(status_code=404, detail="No draft appeal for the current review")
+            draft = AppealDraft.model_validate(raw_draft)
+            return _case_pdf_response(draft, case_id, requires_review=True)
+        appeal = await conn.fetchrow(
+            """SELECT appeal_body, structured_arguments_json FROM appeals
+               WHERE case_id = $1 AND run_id IS NOT DISTINCT FROM $2
+               ORDER BY created_at DESC, id DESC LIMIT 1""",
+            case_id,
+            latest_run["run_id"] if latest_run else None,
+        )
+    if appeal is None:
+        raise HTTPException(status_code=404, detail="No appeal for the current case run")
 
-    structured_args_raw = row["structured_arguments_json"]
+    structured_args_raw = appeal["structured_arguments_json"]
     if isinstance(structured_args_raw, str):
         structured_args_raw = json.loads(structured_args_raw)
 
@@ -111,13 +122,17 @@ async def render_case_appeal_pdf(
         payer_id=row["payer_id"],
         requested_treatment=row["requested_treatment_name"] or "—",
         denial_date=row["created_at"].strftime("%Y-%m-%d"),
-        appeal_body=row["appeal_body"],
+        appeal_body=appeal["appeal_body"],
         structured_arguments=[AppealArgument(**a) for a in structured_args_raw],
         attachments_referenced=[],
         requested_action=(f"Overturn the denial and authorise {row['requested_treatment_name']}."),
     )
 
-    pdf_bytes = render_appeal_pdf(draft, case_id=case_id)
+    return _case_pdf_response(draft, case_id, requires_review=False)
+
+
+def _case_pdf_response(draft: AppealDraft, case_id: str, *, requires_review: bool) -> Response:
+    pdf_bytes = render_appeal_pdf(draft, case_id=case_id, requires_review=requires_review)
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
@@ -125,5 +140,6 @@ async def render_case_appeal_pdf(
             "Content-Disposition": (f'inline; filename="appeal-{case_id}.pdf"'),
             "X-ClinCase-Case-Id": case_id,
             "X-ClinCase-Source": "live",
+            "X-ClinCase-Document-Status": "draft" if requires_review else "case-record",
         },
     )

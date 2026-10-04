@@ -53,7 +53,7 @@ class PyPDFEngine(OCREngine):
 
             reader = PdfReader(io.BytesIO(image_bytes))
             page_texts = [page.extract_text() or "" for page in reader.pages]
-            full_text = "\n\n".join(t for t in page_texts if t.strip())
+            full_text = "\n\f\n".join(page_texts)
             n_pages = len(reader.pages)
         except Exception as exc:
             raise EngineUnavailableError(

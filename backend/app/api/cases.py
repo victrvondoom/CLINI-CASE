@@ -12,6 +12,7 @@ Day-2 minimum:
 from __future__ import annotations
 
 import json
+import os
 from typing import Any, Literal
 from uuid import uuid4
 
@@ -29,6 +30,7 @@ from app.graph.state import ClinCaseState, state_for_run
 from app.identity import RunIdentity, case_intelligence_id
 from app.llm.factory import llm_unavailable_reason
 from app.quotas import QuotaExceededError, consume_case_quota, quota_exceeded_to_http
+from app.review.human import ai_case_status, public_run_outputs, require_denial_review
 from app.review.pause_state import has_continuation_inputs, load_pause_state, save_pause_state
 from app.runs import (
     latest_run_id,
@@ -37,6 +39,7 @@ from app.runs import (
     settle_execution_run,
     start_run,
 )
+from app.services.intake_fhir import bundle_from_note, clinical_document_text
 from app.streaming import publish
 
 # Compile both graphs once at module load (compile is non-trivial)
@@ -91,6 +94,46 @@ class CreateCaseRequest(BaseModel):
 
 class CreateCaseResponse(BaseModel):
     case_id: str
+
+
+def _bundle_from_note(initials: str, note: str) -> dict[str, Any]:
+    """Shape explicit note facts for older upload clients."""
+    return bundle_from_note(initials, note)
+
+
+def _validate_case_input(req: CreateCaseRequest) -> None:
+    """Reject incomplete input before storing a case that agent 1 cannot run."""
+    bundle = req.fhir_bundle
+    entries = bundle.get("entry") if bundle.get("resourceType") == "Bundle" else None
+    resources = [e.get("resource", {}) for e in entries if isinstance(e, dict)] if isinstance(entries, list) else []
+    resources = [r for r in resources if isinstance(r, dict)]
+    missing = []
+    if not req.patient_initials.strip() or not any(r.get("resourceType") == "Patient" for r in resources):
+        missing.append("patient data")
+    conditions = [r for r in resources if r.get("resourceType") == "Condition"]
+    def has_diagnosis(resource: dict[str, Any]) -> bool:
+        code = resource.get("code")
+        if not isinstance(code, dict):
+            return False
+        text = code.get("text")
+        if isinstance(text, str) and text.strip():
+            return True
+        coding = code.get("coding")
+        return isinstance(coding, list) and any(
+            isinstance(c, dict) and any(isinstance(c.get(key), str) and c[key].strip()
+                                       for key in ("code", "display"))
+            for c in coding
+        )
+
+    if not any(has_diagnosis(r) for r in conditions):
+        missing.append("a documented diagnosis")
+    treatment_name = req.requested_treatment.get("name")
+    if not isinstance(treatment_name, str) or not treatment_name.strip():
+        missing.append("a requested treatment")
+    if not req.payer_id.strip():
+        missing.append("a payer")
+    if missing:
+        raise HTTPException(status_code=422, detail="Cannot create case yet: supply " + ", ".join(missing) + ".")
 
 
 @router.get("")
@@ -161,8 +204,9 @@ async def list_cases(
                 "status": r["status"],
                 "treatment": r["requested_treatment_name"],
                 "j_code": r["requested_j_code"],
-                "verdict": r["verdict"],
-                "confidence": r["confidence"],
+                "verdict": None if r["status"] == "awaiting_review" else r["verdict"],
+                "confidence": None if r["status"] == "awaiting_review" else r["confidence"],
+                "human_review_required": r["status"] == "awaiting_review",
                 "created_at": r["created_at"].isoformat() if r["created_at"] else None,
             }
             for r in rows
@@ -177,6 +221,10 @@ async def create_case(
     user: dict[str, Any] = Depends(get_current_user),
 ) -> CreateCaseResponse:
     case_id = "case_" + uuid4().hex[:8]
+    if not (req.fhir_bundle or {}).get("entry") and (req.physician_note or "").strip():
+        req.fhir_bundle = _bundle_from_note(req.patient_initials, req.physician_note or "")
+    req.physician_note = clinical_document_text(req.physician_note) if req.physician_note else None
+    _validate_case_input(req)
     try:
         await db.execute(
             """INSERT INTO cases (id, organization_id, created_by_user_id,
@@ -256,11 +304,58 @@ async def get_case(
         ) from exc
     if row is None:
         raise HTTPException(status_code=404, detail=f"Case {case_id} not found")
+    pending_review = None
+    latest_result = None
+    continuation = None
+    if row["status"] == "awaiting_review":
+        run_id = await paused_run_id(case_id)
+        paused = await load_pause_state(db, run_id) if run_id else None
+        if paused:
+            pending_review = {
+                "case_id": case_id,
+                "run_id": run_id,
+                "clinical_snapshot": paused["state"].get("snapshot"),
+                "necessity_assessment": paused["state"].get("assessment"),
+                "policy_excerpts": paused["state"].get("excerpts", []),
+                **(paused["state"].get("draft_outputs") or {}),
+                "decision": None,
+                "paused_for_review": True,
+                "human_review_required": True,
+                "documents_draft": True,
+                "pause_kind": paused["pause_kind"],
+                "pause_reason": paused["pause_reason"],
+            }
+    else:
+        # Select the newest run before checking completion, so an earlier
+        # proposed DENY can never replace a newer human APPROVE or REFER.
+        stored = await db.fetchrow(
+            """SELECT r.status AS run_status, r.trigger, j.status AS job_status, j.result_json,
+                      COALESCE(j.heartbeat_at,j.claimed_at,j.created_at)
+                        < now() - interval '60 seconds' AS lease_expired
+               FROM case_runs r LEFT JOIN case_jobs j ON j.id = r.job_id
+                 AND j.organization_id = r.organization_id AND j.case_id = r.case_id
+               WHERE r.case_id = $1 AND r.organization_id = $2
+               ORDER BY r.attempt_no DESC LIMIT 1""",
+            case_id,
+            user["organization_id"],
+        )
+        if stored and stored["run_status"] == "completed" and stored["job_status"] == "done":
+            raw = stored["result_json"]
+            latest_result = json.loads(raw) if isinstance(raw, str) else raw
+        if stored and stored.get("trigger") == "resume" and stored["run_status"] != "completed":
+            continuation = {
+                "status": stored["run_status"],
+                "can_retry": stored["run_status"] == "failed"
+                or (stored["job_status"] == "running" and bool(stored.get("lease_expired"))),
+            }
     return {
         "case_id": row["id"],
         "payer_id": row["payer_id"],
         "patient_initials": row["patient_initials"],
         "status": row["status"],
+        "pending_review": pending_review,
+        "latest_result": latest_result,
+        "continuation": continuation,
         "physician_note": row["physician_note"],
         "requested_treatment": {
             "name": row["requested_treatment_name"],
@@ -394,6 +489,7 @@ async def run_full(
             if isinstance(final_raw, ClinCaseState)
             else ClinCaseState.model_validate(final_raw)
         )
+        final = require_denial_review(final)
 
         # HITL pause: graph stopped at review_gate. Persist what we have, mark
         # the case as awaiting_review, and return without writing a decision.
@@ -426,7 +522,7 @@ async def run_full(
         # in the SAME transaction (transactional outbox pattern). Downstream
         # consumers (analytics, audit lake, customer's MDM) subscribe to
         # `clincase.case.decided.v1` on the EventBridge bus.
-        if final.decision is not None:
+        if final.decision is not None and not final.paused_for_review:
             from app.events.outbox import emit_appeal_drafted, emit_case_decided
             from app.observability.otel import get_current_trace_id
 
@@ -447,10 +543,8 @@ async def run_full(
                 )
 
                 # Update case status
-                status_map = {"APPROVE": "approved", "DENY": "denied", "REFER": "referred"}
-                new_status = status_map.get(final.decision.verdict, "pending")
-                if final.appeal_draft is not None:
-                    new_status = "appealed"
+                # Pending decisions are held above; only authoritative outcomes reach this table.
+                new_status = ai_case_status(final.decision.verdict)
                 await conn.execute(
                     "UPDATE cases SET status = $1 WHERE id = $2", new_status, case_id
                 )
@@ -514,21 +608,7 @@ async def run_full(
         "case_id": case_id,
         **identity.event_fields(),
         "attempt_no": identity.attempt_no,
-        "clinical_snapshot": final.clinical_snapshot.model_dump()
-        if final.clinical_snapshot
-        else None,
-        "policy_excerpts": [e.model_dump() for e in final.policy_excerpts],
-        "necessity_assessment": final.necessity_assessment.model_dump()
-        if final.necessity_assessment
-        else None,
-        "decision": final.decision.model_dump() if final.decision else None,
-        "denial_forecast": final.denial_forecast.model_dump() if final.denial_forecast else None,
-        "appeal_draft": final.appeal_draft.model_dump() if final.appeal_draft else None,
-        "patient_communication": final.patient_communication.model_dump()
-        if final.patient_communication
-        else None,
-        "paused_for_review": final.paused_for_review,
-        "pause_reason": final.pause_reason,
+        **public_run_outputs(final),
     }
 
 
@@ -543,6 +623,12 @@ class ResumeRequest(BaseModel):
         default="",
         description="Reviewer's clinical justification — appears in the audit trail.",
     )
+    continuation_mode: Literal["auto", "inline", "worker"] = "auto"
+
+
+def _inline_continuation(mode: str | None = "auto") -> bool:
+    """Vercel has no persistent worker; finish the durable continuation in this request."""
+    return mode == "inline" or (mode in (None, "auto") and os.getenv("VERCEL") == "1")
 
 
 @router.post("/{case_id}/resume")
@@ -570,6 +656,9 @@ async def resume_after_review(
     new_status = STATUS_FOR_VERDICT.get(req.verdict, "referred")
     identity: RunIdentity | None = None
     job_id: str | None = None
+    inline_job = None
+    inline_worker = f"review-inline:{uuid4().hex}"
+    inline = _inline_continuation(req.continuation_mode)
     no_continuation_reason: str | None = None
     try:
         async with db.pool.acquire() as conn, conn.transaction():
@@ -689,10 +778,15 @@ async def resume_after_review(
                         "payer_id": row["payer_id"],
                     },
                     idempotency_key=f"resume:{identity.run_id}",
+                    max_attempts=1 if inline else 3,
                     conn=conn,
                 )
                 job_id = str(job.id)
                 await mark_run(identity.run_id, "running", job_id=job.id, finished=False, conn=conn)
+                if inline:
+                    inline_job = await jq.claim_job(job.id, worker_id=inline_worker, conn=conn)
+                    if inline_job is None:
+                        raise RuntimeError("Unable to reserve inline continuation")
     except HTTPException:
         raise
     except Exception as exc:
@@ -709,6 +803,24 @@ async def resume_after_review(
             **identity.event_fields(),
         },
     )
+    continuation_completed = False
+    continuation_error = None
+    continuation_result = None
+    if inline_job is not None:
+        from app.workers.case_runner import _process_job
+
+        await _process_job(inline_job, inline_worker, timeout_seconds=240)
+        completed_job = await jq.get_job(inline_job.id)
+        continuation_completed = completed_job is not None and completed_job.status == "done"
+        continuation_error = completed_job.error if completed_job else "Continuation unavailable"
+        continuation_result = completed_job.result if completed_job else None
+        status_row = await db.fetchrow(
+            "SELECT status FROM cases WHERE id=$1 AND organization_id=$2",
+            case_id,
+            user["organization_id"],
+        )
+        if status_row:
+            new_status = status_row["status"]
     if job_id is None:
         await publish(case_id, {"type": "done", "case_id": case_id, **identity.event_fields()})
     # else: the worker publishes `done` when the continuation finishes.
@@ -719,10 +831,14 @@ async def resume_after_review(
         "verdict": req.verdict,
         "status": new_status,
         "reviewer_id": user["id"],
+        "result": continuation_result,
         "continuation": {
-            "queued": job_id is not None,
+            "queued": job_id is not None and not inline,
             "job_id": job_id,
             "reason": no_continuation_reason,
+            "mode": "inline" if inline else "worker",
+            "completed": continuation_completed,
+            "error": continuation_error,
         },
     }
 
@@ -731,12 +847,18 @@ async def resume_after_review(
 async def retry_continuation(
     case_id: str,
     user: dict[str, Any] = Depends(require_role("reviewer", "admin")),
+    continuation_mode: Literal["inline", "worker"] | None = None,
 ) -> dict[str, Any]:
     """Re-queue a human-review continuation that failed (its job was dead-lettered).
 
     The human decision is untouched; only the remaining agents (forecast / appeal / patient letter) are run
     again, under the same resume run. Refused (409) unless the latest resume run is `failed` and no newer run
     has started since."""
+    from app.jobs import queue as jq
+
+    inline = _inline_continuation(continuation_mode)
+    inline_job = None
+    inline_worker = f"review-retry-inline:{uuid4().hex}"
     try:
         async with db.pool.acquire() as conn, conn.transaction():
             row = await conn.fetchrow(
@@ -753,11 +875,6 @@ async def retry_continuation(
             )
             if run is None:
                 raise HTTPException(status_code=404, detail="No human-review continuation to retry")
-            if run["status"] != "failed" or run["job_id"] is None:
-                raise HTTPException(
-                    status_code=409,
-                    detail=f"The continuation is {run['status']!r}; only a failed one can be retried.",
-                )
             newer = await conn.fetchval(
                 "SELECT 1 FROM case_runs WHERE case_id = $1 AND attempt_no > $2 LIMIT 1",
                 case_id,
@@ -768,13 +885,39 @@ async def retry_continuation(
                     status_code=409,
                     detail="A newer run exists; this continuation is no longer current.",
                 )
+            run_status = run["status"]
+            if inline and run_status == "running" and run["job_id"] is not None:
+                # A serverless request may be killed before its finally block.
+                # There is no janitor on Vercel: recover only this current job,
+                # and only after its lease stopped heartbeating. A live attempt
+                # cannot be displaced; attempts increments below fence old writes.
+                stale = await conn.fetchval(
+                    """UPDATE case_jobs SET status='dead', finished_at=now(),
+                              error_text='Inline continuation lease expired'
+                       WHERE id=$1 AND case_id=$2 AND organization_id=$3
+                         AND status='running'
+                         AND COALESCE(heartbeat_at,claimed_at,created_at) < now() - interval '60 seconds'
+                       RETURNING id""",
+                    run["job_id"],
+                    case_id,
+                    user["organization_id"],
+                )
+                if stale is not None:
+                    await mark_run(run["run_id"], "failed", conn=conn)
+                    run_status = "failed"
+            if run_status != "failed" or run["job_id"] is None:
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"The continuation is {run_status!r}; only a failed or expired one can be retried.",
+                )
             requeued = await conn.fetchval(
                 # Attempts are NOT reset: job_attempt stays unique per (run, attempt), so the retry's agent rows
                 # can never be confused with the dead attempts'. The retry just gets a fresh allowance.
-                """UPDATE case_jobs SET status = 'queued', max_attempts = attempts + 3, error_text = NULL,
+                """UPDATE case_jobs SET status = 'queued', max_attempts = attempts + $2, error_text = NULL,
                           finished_at = NULL, claimed_at = NULL, claimed_by = NULL, heartbeat_at = NULL
                    WHERE id = $1 AND status = 'dead' RETURNING id""",
                 run["job_id"],
+                1 if inline else 3,
             )
             if requeued is None:
                 raise HTTPException(
@@ -784,16 +927,27 @@ async def retry_continuation(
                 "UPDATE case_runs SET status = 'queued', finished_at = NULL WHERE run_id = $1",
                 run["run_id"],
             )
+            if inline:
+                inline_job = await jq.claim_job(run["job_id"], worker_id=inline_worker, conn=conn)
+                if inline_job is None:
+                    raise RuntimeError("Unable to reserve inline retry")
     except HTTPException:
         raise
     except Exception as exc:
         log.warning("case.resume.retry_failed", case_id=case_id, error=str(exc)[:200])
         raise HTTPException(status_code=503, detail="Review service unavailable") from exc
+    status = "queued"
+    if inline_job is not None:
+        from app.workers.case_runner import _process_job
+
+        await _process_job(inline_job, inline_worker, timeout_seconds=240)
+        completed = await jq.get_job(inline_job.id)
+        status = completed.status if completed else "failed"
     return {
         "case_id": case_id,
         "run_id": run["run_id"],
         "job_id": str(run["job_id"]),
-        "status": "queued",
+        "status": status,
     }
 
 
@@ -829,6 +983,38 @@ async def submit_review(
             status_code=400, detail=f"Invalid action. Must be one of {valid_actions}"
         )
 
+    # A pending outcome must use the same authenticated, transactional decision
+    # path as /resume; a status-only override would leave no reviewed Decision.
+    verdict = {
+        "approve": "APPROVE",
+        "override_to_approve": "APPROVE",
+        "override_to_deny": "DENY",
+    }.get(req.action)
+    if verdict:
+        try:
+            async with db.pool.acquire() as conn:
+                row = await conn.fetchrow(
+                    "SELECT status FROM cases WHERE id=$1 AND organization_id=$2",
+                    case_id,
+                    user["organization_id"],
+                )
+        except Exception as exc:
+            raise HTTPException(status_code=503, detail="Review service unavailable") from exc
+        if row is None:
+            raise HTTPException(status_code=404, detail=f"Case {case_id} not found")
+        if row["status"] == "awaiting_review":
+            resumed = await resume_after_review(
+                case_id,
+                ResumeRequest(verdict=verdict, reviewer_note=req.note or ""),
+                user,
+            )
+            return {
+                **resumed,
+                "action": req.action,
+                "old_status": "awaiting_review",
+                "new_status": resumed["status"],
+            }
+
     try:
         async with db.pool.acquire() as conn, conn.transaction():
             row = await conn.fetchrow(
@@ -842,6 +1028,13 @@ async def submit_review(
                 raise HTTPException(status_code=404, detail=f"Case {case_id} not found")
 
             old_status = row["status"]
+            if verdict and old_status == "awaiting_review":
+                # The case may have entered review after the preflight read.
+                # Never let that race fall through to a status-only override.
+                raise HTTPException(
+                    status_code=409,
+                    detail="Case entered human review; submit the verdict through /resume.",
+                )
             new_status = old_status
             if req.action in ("approve", "override_to_approve"):
                 new_status = "approved"

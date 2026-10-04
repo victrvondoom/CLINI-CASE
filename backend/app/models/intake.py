@@ -79,7 +79,9 @@ class ExtractedField(BaseModel):
     value: str
     confidence: float = Field(..., ge=0.0, le=1.0)
     source_excerpt: str = Field(..., description="The verbatim text/region this came from")
-    page: int = Field(default=1, ge=1)
+    page: int | None = Field(
+        default=1, ge=1, description="Source page; null when OCR lacks page boundaries"
+    )
 
 
 class OCRResult(BaseModel):
@@ -131,6 +133,11 @@ class IntakeResult(BaseModel):
     classification: DocumentClassification
     ocr: OCRResult
     clinical_snapshot_partial: dict[str, Any]
+    fhir_bundle: dict[str, Any] = Field(default_factory=dict)
+    requested_treatment: dict[str, Any] = Field(default_factory=dict)
+    patient_initials: str | None = None
+    case_ready: bool = False
+    missing_fields: list[str] = Field(default_factory=list)
     risk_flags: list[str] = Field(
         default_factory=list,
         description=(

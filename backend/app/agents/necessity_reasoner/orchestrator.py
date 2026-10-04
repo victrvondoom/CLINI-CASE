@@ -15,6 +15,7 @@ BudgetTracker on the shared AgentContext.
 from __future__ import annotations
 
 import asyncio
+import re
 from typing import ClassVar
 
 from app.agents.framework import (
@@ -25,6 +26,7 @@ from app.agents.framework import (
 from app.agents.necessity_reasoner.schemas import (
     ConfidenceCalibratorInput,
     CriterionSplitterInput,
+    EvidenceMatch,
     EvidenceMatcherInput,
     NecessityReasonerInput,
     NecessityReasonerOutput,
@@ -40,6 +42,33 @@ from app.config import settings
 SUB_AGENTS = [criterion_splitter, evidence_matcher, confidence_calibrator]
 
 HITL_THRESHOLD = getattr(settings, "HITL_CONFIDENCE_THRESHOLD", 0.75)
+
+_CONDITIONAL = re.compile(r"^\s*(?:for|if|when)\b", re.IGNORECASE)
+
+
+def _conditional_not_met_to_ambiguous(match: EvidenceMatch) -> EvidenceMatch:
+    """A conditional inclusion criterion ("For metastatic disease, …", "If prior …") that comes
+    back NOT_MET is ambiguous: it can mean "the condition is absent" (criterion not applicable)
+    or "the requirement failed". It must never decide DENY on its own. When the matcher's own
+    rationale explicitly says "Not applicable:" (the prompt's marker), the criterion is vacuously
+    satisfied → MET, as the prompt instructs. Otherwise send it to review as AMBIGUOUS."""
+    c = match.criterion
+    if (
+        c is None
+        or c.criterion_type != "inclusion"
+        or match.status != "NOT_MET"
+        or not _CONDITIONAL.match(c.text)
+    ):
+        return match
+    if match.rationale.lstrip().casefold().startswith("not applicable"):
+        return match.model_copy(update={"status": "MET", "missing_evidence": None})
+    return match.model_copy(
+        update={
+            "status": "AMBIGUOUS",
+            "missing_evidence": match.missing_evidence
+            or "Conditional criterion: a reviewer must confirm whether it applies to this patient.",
+        }
+    )
 
 
 class NecessityReasonerAgent(Agent[NecessityReasonerInput, NecessityReasonerOutput]):
@@ -100,7 +129,7 @@ class NecessityReasonerAgent(Agent[NecessityReasonerInput, NecessityReasonerOutp
         # Backfill `criterion` onto each EvidenceMatch — the LLM doesn't
         # echo it back; the parent owns the (criterion, match) pairing.
         matches = [
-            r.output.model_copy(update={"criterion": c})
+            _conditional_not_met_to_ambiguous(r.output.model_copy(update={"criterion": c}))
             for r, c in zip(match_results, atomic, strict=True)
         ]
 

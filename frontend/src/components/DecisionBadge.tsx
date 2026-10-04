@@ -6,6 +6,7 @@ import type { Decision, Verdict } from "../lib/types";
 interface DecisionBadgeProps {
   decision: Decision;
   appealInProgress?: boolean;
+  pendingReview?: boolean;
 }
 
 const verdictConfig: Record<
@@ -45,7 +46,7 @@ const verdictConfig: Record<
   },
 };
 
-export function DecisionBadge({ decision, appealInProgress }: DecisionBadgeProps) {
+export function DecisionBadge({ decision, appealInProgress, pendingReview = false }: DecisionBadgeProps) {
   const c = verdictConfig[decision.verdict];
   const Icon = c.icon;
 
@@ -63,18 +64,18 @@ export function DecisionBadge({ decision, appealInProgress }: DecisionBadgeProps
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1 flex-wrap">
             <span className="text-xs uppercase tracking-widest font-bold opacity-80">
-              {c.label}
+              {pendingReview ? `AI proposed ${decision.verdict}` : c.label}
             </span>
             <span className="text-xs text-mono-tech opacity-70">
               confidence {(decision.confidence * 100).toFixed(0)}%
             </span>
             {appealInProgress && decision.verdict === "DENY" && (
               <span className="text-xs text-mono-tech px-2 py-0.5 rounded bg-white/60">
-                Appeal drafting...
+                Draft appeal available
               </span>
             )}
           </div>
-          <div className="text-xl font-bold mb-2">{c.headline}</div>
+          <div className="text-xl font-bold mb-2">{pendingReview ? "AI recommendation — awaiting clinician review" : c.headline}</div>
           <p className="text-sm leading-relaxed opacity-90">{decision.rationale}</p>
 
           {decision.risk_flags.length > 0 && (

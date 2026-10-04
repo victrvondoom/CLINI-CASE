@@ -238,6 +238,23 @@ async def claim_next(*, worker_id: str) -> Job | None:
         return _row_to_job(dict(updated))
 
 
+async def claim_job(job_id: uuid.UUID, *, worker_id: str, conn: Any = None) -> Job | None:
+    """Claim one specific queued job for an in-request continuation.
+
+    The conditional UPDATE provides the same lease fencing as normal workers;
+    passing a transaction connection reserves a newly enqueued job atomically.
+    """
+    fetchrow = conn.fetchrow if conn is not None else db.fetchrow
+    row = await fetchrow(
+        """UPDATE case_jobs SET status='running', attempts=attempts+1,
+                  claimed_at=now(), claimed_by=$2, heartbeat_at=now()
+           WHERE id=$1 AND status='queued' RETURNING *""",
+        job_id,
+        worker_id,
+    )
+    return _row_to_job(dict(row)) if row else None
+
+
 async def heartbeat(job_id: uuid.UUID, *, worker_id: str, attempt: int) -> bool:
     """Worker pings every N seconds while running. Janitor reaps if stale."""
     result = await db.execute(

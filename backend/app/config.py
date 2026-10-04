@@ -52,6 +52,26 @@ class Settings(BaseSettings):
     # OpenRouter (development-time choice; Anthropic-compatible models)
     OPENROUTER_API_KEY: str = ""
     OPENROUTER_MODEL: str = "anthropic/claude-sonnet-4.6"
+    # Any OpenAI-compatible endpoint works here, e.g. NVIDIA: https://integrate.api.nvidia.com/v1
+    OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
+    # Optional JSON object merged into every request body, for provider-specific switches,
+    # e.g. NVIDIA reasoning models: {"chat_template_kwargs": {"enable_thinking": false}}
+    OPENROUTER_EXTRA_BODY: str = ""
+    # Verify the LLM endpoint against the OS certificate store (needed behind TLS-inspecting
+    # antivirus/proxies on Windows). Verification stays on. Needs `pip install truststore`.
+    LLM_SYSTEM_TRUST: bool = False
+    # Append each agent's output JSON schema to its request. Claude follows the prose prompts;
+    # other models (e.g. NVIDIA Nemotron) need the exact field names to emit valid output.
+    LLM_APPEND_OUTPUT_SCHEMA: bool = False
+    # OpenAI-compatible client: max in-flight requests per process (0 = unlimited) and SDK retries
+    # with exponential backoff on 429/5xx. Free tiers (e.g. NVIDIA) need a small cap.
+    LLM_MAX_CONCURRENCY: int = 0
+    LLM_MAX_RETRIES: int = 2
+    # Client-side requests-per-minute ceiling per process (0 = off), for rate-limited free tiers.
+    LLM_MAX_RPM: int = 0
+    # Max grader-driven regenerations per agent call (-1 = each agent's own max_iterations).
+    # 0 still grades and records the score once but never regenerates (halves graded-agent calls).
+    AGENT_MAX_REFLECTION_RETRIES: int = -1
 
     # Bedrock (used on May 6)
     AWS_REGION: str = "ap-south-1"
@@ -154,6 +174,14 @@ class Settings(BaseSettings):
     # allowlist + 24h rolling token + USD caps + content-safety pre-check
     # + audit row in llm_invocations. See app/llm/gateway.py.
     GENAI_GATEWAY_ENABLED: bool = True
+    # Daily caps for tenants without a tenant_policies row. Lower them on public demos so
+    # one tenant cannot exhaust a free provider quota.
+    GATEWAY_DEFAULT_DAILY_INPUT_TOKENS: int = 50_000_000
+    GATEWAY_DEFAULT_DAILY_OUTPUT_TOKENS: int = 10_000_000
+    GATEWAY_DEFAULT_DAILY_USD: float = 1_000.0
+
+    # Anonymous POST /auth/signup creates an organisation + admin. Disable on public demos.
+    SIGNUP_ENABLED: bool = True
 
     # --- TriZetto AI Gateway (Aug 2025; MCP-native) ------------
     # When TRIZETTO_GATEWAY_URL is empty, the in-process mock receiver

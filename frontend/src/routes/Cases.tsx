@@ -12,6 +12,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { authHeader } from "../lib/auth";
+import { caseCreationError, manualCaseBundle } from "../lib/caseIntake";
 
 import { PayerCell } from "../components/PayerCell";
 import { SLABadge } from "../components/SLABadge";
@@ -55,6 +56,7 @@ const STATUS_PILLS: { value: StatusFilter; label: string }[] = [
   { value: "all",        label: "All" },
   { value: "pending",    label: "Pending" },
   { value: "running",    label: "Running" },
+  { value: "awaiting_review", label: "Awaiting review" },
   { value: "approved",   label: "Approved" },
   { value: "denied",     label: "Denied" },
   { value: "referred",   label: "Referred" },
@@ -435,21 +437,12 @@ function ConfidenceBar({
 // New Case Modal
 // =============================================================================
 
-const TREATMENT_JCODES: Record<string, string> = {
-  "trastuzumab":                    "J9355",
-  "osimertinib":                    "J9335",
-  "pembrolizumab":                  "J9271",
-  "olaparib":                       "J9305",
-  "T-DXd (trastuzumab deruxtecan)": "J9358",
-  "nivolumab":                      "J9299",
-  "bevacizumab":                    "J9035",
-  "ribociclib":                     "J9999",
-  "enzalutamide":                   "J9180",
-  "lorlatinib":                     "J9999",
-  "brentuximab vedotin":            "J9042",
-  "dabrafenib + trametinib":        "J9999",
-};
-const TREATMENT_LIST = Object.keys(TREATMENT_JCODES);
+const TREATMENT_LIST = [
+  "trastuzumab", "osimertinib", "pembrolizumab", "olaparib",
+  "T-DXd (trastuzumab deruxtecan)", "nivolumab", "bevacizumab",
+  "ribociclib", "enzalutamide", "lorlatinib", "brentuximab vedotin",
+  "dabrafenib + trametinib",
+];
 
 function toInitials(name: string): string {
   return (
@@ -471,15 +464,16 @@ interface NewCaseModalProps {
 function NewCaseModal({ onClose, onCreated }: NewCaseModalProps) {
   const [patientName, setPatientName] = useState("");
   const [treatment, setTreatment]     = useState("trastuzumab");
+  const [jCode, setJCode]             = useState("");
   const [payer, setPayer]             = useState<SyntheticCase["payer_id"]>("aetna");
   const [diagnosis, setDiagnosis]     = useState("");
-  const [stage, setStage]             = useState("IIIA");
+  const [stage, setStage]             = useState("");
   const [busy, setBusy]               = useState(false);
+  const [error, setError]             = useState<string | null>(null);
   const firstRef                      = useRef<HTMLInputElement>(null);
 
   useEffect(() => { firstRef.current?.focus(); }, []);
 
-  const jCode    = TREATMENT_JCODES[treatment] ?? "J9999";
   const initials = toInitials(patientName);
   const canSubmit = patientName.trim().length > 0 && diagnosis.trim().length > 0;
 
@@ -488,60 +482,43 @@ function NewCaseModal({ onClose, onCreated }: NewCaseModalProps) {
     if (!canSubmit || busy) return;
     setBusy(true);
 
-    const localId = `case_${Math.random().toString(36).slice(2, 10)}`;
-    const newCase: SyntheticCase = {
-      case_id:          localId,
-      status:           "running",
-      patient_initials: initials,
-      treatment,
-      j_code:           jCode,
-      payer_id:         payer,
-      verdict:          null,
-      confidence:       null,
-      submitted_at:     new Date().toISOString(),
-      ago:              "just now",
-      diagnosis,
-      stage,
-      is_synthetic:     false,
-    };
+    setError(null);
 
     try {
       const body = {
         payer_id:            payer,
         patient_initials:    initials,
-        requested_treatment: { name: treatment, j_code: jCode },
-        physician_note:      `${initials} — ${diagnosis} Stage ${stage}. Requesting ${treatment} (${jCode}).`,
-        fhir_bundle:         { resourceType: "Bundle", type: "document", entry: [] },
+        requested_treatment: { name: treatment, j_code: jCode.trim() || null },
+        physician_note:      `${initials}: ${diagnosis}${stage ? ` Stage ${stage}` : ""}. Requesting ${treatment}${jCode.trim() ? ` (${jCode.trim()})` : ""}.`,
+        fhir_bundle:         manualCaseBundle(patientName, diagnosis, stage),
       };
       const res = await fetch("/api/v1/cases", {
         method:  "POST",
         headers: { ...authHeader(), "Content-Type": "application/json" },
         body:    JSON.stringify(body),
       });
-      if (res.ok) {
-        const json = await res.json();
-        newCase.case_id = json.case_id;
-      }
-    } catch {
-      // fail-soft: keep the locally-generated ID
+      if (!res.ok) throw new Error(await caseCreationError(res));
+      const json = await res.json();
+      onCreated({
+        case_id: json.case_id,
+        status: "pending",
+        patient_initials: initials,
+        treatment,
+        j_code: jCode,
+        payer_id: payer,
+        verdict: null,
+        confidence: null,
+        submitted_at: new Date().toISOString(),
+        ago: "just now",
+        diagnosis,
+        stage,
+        is_synthetic: false,
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not create case. Please retry.");
     } finally {
       setBusy(false);
     }
-
-    // Stash demo case text so verdict-routing in api.ts can pick the realistic verdict.
-    try {
-      localStorage.setItem(
-        `clincase_demo_case_${newCase.case_id}`,
-        JSON.stringify({
-          text: `${patientName} ${diagnosis} Stage ${stage} treatment ${treatment} payer ${payer}`,
-          treatment,
-          payer_id: payer,
-          diagnosis,
-        }),
-      );
-    } catch { /* ignore quota */ }
-
-    onCreated(newCase);
   };
 
   return (
@@ -561,7 +538,7 @@ function NewCaseModal({ onClose, onCreated }: NewCaseModalProps) {
               New prior-authorization case
             </h2>
             <p className="text-[11px] text-ink-muted mt-0.5">
-              ClinCase 7-agent DAG will begin evaluation immediately
+              Enter clinical details, then run the 7-agent evaluation from the case page.
             </p>
           </div>
           <button
@@ -581,6 +558,7 @@ function NewCaseModal({ onClose, onCreated }: NewCaseModalProps) {
             </label>
             <input
               ref={firstRef}
+              aria-label="Patient name"
               value={patientName}
               onChange={(e) => setPatientName(e.target.value)}
               placeholder="e.g. Priya Sharma"
@@ -613,11 +591,9 @@ function NewCaseModal({ onClose, onCreated }: NewCaseModalProps) {
             </div>
             <div>
               <label className="block text-xs font-medium text-ink-body mb-1">
-                J-code (auto)
+                J-code (optional)
               </label>
-              <div className="px-3 py-2 rounded-lg border border-surface-border bg-surface-raised text-sm text-mono-tech text-accent-amber">
-                {jCode}
-              </div>
+              <input aria-label="J-code (optional)" value={jCode} onChange={(e) => setJCode(e.target.value)} placeholder="From source report" className="w-full px-3 py-2 rounded-lg border border-surface-border bg-surface-raised text-sm text-mono-tech text-ink-primary" />
             </div>
           </div>
 
@@ -628,6 +604,7 @@ function NewCaseModal({ onClose, onCreated }: NewCaseModalProps) {
             </label>
             <input
               value={diagnosis}
+              aria-label="Diagnosis / ICD-10"
               onChange={(e) => setDiagnosis(e.target.value)}
               placeholder="e.g. Breast cancer (C50.911)"
               required
@@ -643,9 +620,11 @@ function NewCaseModal({ onClose, onCreated }: NewCaseModalProps) {
               </label>
               <select
                 value={stage}
+                aria-label="Stage"
                 onChange={(e) => setStage(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-surface-border bg-surface-bg text-sm text-ink-primary focus:outline-none focus:ring-2 focus:ring-accent-brand/40"
               >
+                <option value="">Not documented</option>
                 {["I", "II", "IIIA", "IIIB", "IV"].map((s) => (
                   <option key={s} value={s}>Stage {s}</option>
                 ))}
@@ -667,6 +646,7 @@ function NewCaseModal({ onClose, onCreated }: NewCaseModalProps) {
             </div>
           </div>
 
+          {error && <p role="alert" className="text-sm text-accent-red">{error}</p>}
           {/* Actions */}
           <div className="flex items-center justify-between pt-1">
             <button
@@ -686,7 +666,7 @@ function NewCaseModal({ onClose, onCreated }: NewCaseModalProps) {
               ) : (
                 <Play size={13} />
               )}
-              {busy ? "Creating…" : "Create & run ClinCase →"}
+              {busy ? "Creating…" : "Create case →"}
             </button>
           </div>
         </form>

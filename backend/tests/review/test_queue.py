@@ -83,6 +83,36 @@ def test_priority_thresholds_and_staleness_bump():
     assert priority_for(0.1, STALE_AFTER_MINUTES) == "high"  # capped
 
 
+def test_pending_deny_uses_pause_reason_and_wait_time_without_final_decision():
+    item = build_item(
+        row(
+            status="awaiting_review",
+            rationale=None,
+            decision_confidence=None,
+            decided_at=None,
+            paused_at=NOW - timedelta(minutes=5),
+            pause_reason="AI proposed DENY; clinician review is required.",
+        ),
+        NOW,
+    )
+    assert item["status"] == "awaiting_review"
+    assert item["reason"] == "AI proposed DENY; clinician review is required."
+    assert item["age_minutes"] == 5
+
+
+async def test_query_includes_paused_cases_and_preserves_tenant_scope(monkeypatch):
+    async def fetch(sql, organization_id, limit):
+        assert organization_id == "org_rq" and limit == 20
+        assert "c.status IN ('referred', 'awaiting_review')" in sql
+        assert "c.organization_id = $1" in sql
+        assert "s.organization_id = c.organization_id" in sql
+        return [row(status="awaiting_review", decided_at=None, rationale=None)]
+
+    monkeypatch.setattr(db, "fetch", fetch)
+    items = await fetch_review_queue("org_rq", 20)
+    assert len(items) == 1 and items[0]["status"] == "awaiting_review"
+
+
 @pytest.fixture()
 def client():
     app.dependency_overrides[get_current_user] = lambda: {

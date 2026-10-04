@@ -35,9 +35,10 @@ INGEST → UNDERSTAND → MAP → REVIEW → STANDARDIZE → VALIDATE → EXCHAN
 | 9 | Clinical context | `POST /interop/bind-evidence` → One Health evidence record → `GET /onehealth/exposures/{id}/journey` (AquaHealth observation, evidence review, gateway, and consent-gated OncoTwin / CardioTwin / ClinCase case links) | consent recorded (`onehealth_evidence_bound`) |
 | 10 | Follow-up | One Health follow-up and laboratory retest (`/onehealth/exposures/{id}/followup`, `/retest`) in the evidence workbench | follow-up completed or retest linked |
 
-The round-trip count is whatever the backend measured (currently 17 semantic fields: the 13 laboratory
-sample fields plus waterbody, source observation id, exposure history and provenance). The UI never
-hard-codes it.
+The round-trip count is whatever the backend measured for that record. The built-in interactive
+fixture includes 17 semantic fields (13 laboratory sample fields plus waterbody, source observation
+id, exposure history and provenance); the separate-process network fixture reports 13/13. These
+are fixture-specific evidence counts, not model-accuracy scores. The UI never hard-codes the count.
 
 ## Routes
 
@@ -51,7 +52,8 @@ hard-codes it.
 Every pre-existing route is preserved (a frontend test asserts the full route inventory). The
 gateway workbench (`/interop`) and evidence workbench (`/onehealth`) offer **Continue in unified
 journey**; the journey links back to them for advanced operations such as the receiver challenge,
-consent capture and retest forms. After sign-in, users land on `/journey`.
+consent capture and retest forms. After sign-in, Dashboard is the default entry; its workflow
+navigation opens `/journey`, and evidence-case cards resume the saved job/stage.
 
 ## Golden-path demo (about 4 minutes)
 

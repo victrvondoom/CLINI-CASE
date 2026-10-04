@@ -77,6 +77,8 @@ class UserResponse(BaseModel):
 @router.post("/signup", response_model=TokenResponse)
 async def signup(req: SignupRequest) -> TokenResponse:
     """Create a new organization + admin user + return access token."""
+    if not settings.SIGNUP_ENABLED:
+        raise HTTPException(status_code=403, detail="Sign-up is disabled on this deployment")
     existing = await db.fetchrow("SELECT id FROM users WHERE email = $1", req.email.lower())
     if existing is not None:
         raise HTTPException(status_code=400, detail="Email already registered")

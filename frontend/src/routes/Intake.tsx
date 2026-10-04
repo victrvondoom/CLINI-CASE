@@ -15,13 +15,15 @@ import { useCallback, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { authHeader } from "../lib/auth";
+import { caseCreationError, stripDemoHints } from "../lib/caseIntake";
+import { PAYERS } from "../lib/syntheticCases";
 
 interface ExtractedField {
   name: string;
   value: string;
   confidence: number;
   source_excerpt: string;
-  page: number;
+  page: number | null;
 }
 
 interface DocumentClassification {
@@ -47,6 +49,11 @@ interface IntakeResult {
   risk_flags: string[];
   requires_human_review: boolean;
   audit: Record<string, unknown>;
+  fhir_bundle: { resourceType: string; entry?: unknown[] } | null;
+  requested_treatment: { name?: string; j_code?: string | null };
+  patient_initials: string | null;
+  missing_fields: string[];
+  case_ready: boolean;
 }
 
 const ACCEPT = [
@@ -191,61 +198,47 @@ export default function Intake() {
   const [busy, setBusy] = useState(false);
   const [creatingCase, setCreatingCase] = useState(false);
   const [createCaseError, setCreateCaseError] = useState<string | null>(null);
+  const [payer, setPayer] = useState("");
+  const [patientInitials, setPatientInitials] = useState("");
+  const [treatmentName, setTreatmentName] = useState("");
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const createCaseFromIntake = useCallback(async () => {
-    if (!result || creatingCase) return;
+    if (!result?.case_ready || !result.fhir_bundle?.entry?.length || !payer || !patientInitials.trim() || !treatmentName.trim() || creatingCase) return;
     setCreatingCase(true);
     setCreateCaseError(null);
     try {
-      const partial = result.clinical_snapshot_partial as {
-        patient_initials?: string;
-        payer_id?: string;
-        requested_treatment?: { name?: string; j_code?: string };
-        physician_note?: string;
-      };
       const body = {
-        payer_id: partial.payer_id || "aetna",
-        patient_initials: partial.patient_initials || "JD",
+        payer_id: payer,
+        patient_initials: patientInitials.trim(),
         requested_treatment: {
-          name: partial.requested_treatment?.name || "(parsed from intake)",
-          j_code: partial.requested_treatment?.j_code || null,
+          name: treatmentName.trim(),
+          j_code: treatmentName.trim() === result.requested_treatment?.name ? result.requested_treatment.j_code || null : null,
         },
-        physician_note: result.ocr.full_text.slice(0, 2000) || partial.physician_note || null,
-        fhir_bundle: { resourceType: "Bundle", type: "document", entry: [] },
+        physician_note: stripDemoHints(result.ocr.full_text) || null,
+        fhir_bundle: result.fhir_bundle,
       };
       const res = await fetch("/api/v1/cases", {
         method: "POST",
         headers: { ...authHeader(), "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status} — ${(await res.text()).slice(0, 160)}`);
+      if (!res.ok) throw new Error(await caseCreationError(res));
       const json = await res.json();
-      // Stash extracted clinical text so demo verdict-routing can pick the
-      // realistic APPROVE / DENY / REFER path on Run ClinCase.
-      try {
-        localStorage.setItem(
-          `clincase_demo_case_${json.case_id}`,
-          JSON.stringify({
-            text: result.ocr.full_text ?? "",
-            treatment: body.requested_treatment.name,
-            payer_id: body.payer_id,
-            diagnosis: partial.physician_note ?? "",
-          }),
-        );
-      } catch { /* ignore quota */ }
       navigate(`/cases/${json.case_id}`);
     } catch (e) {
       setCreateCaseError(e instanceof Error ? e.message : String(e));
     } finally {
       setCreatingCase(false);
     }
-  }, [result, creatingCase, navigate]);
+  }, [result, creatingCase, navigate, payer, patientInitials, treatmentName]);
 
   const handleFile = useCallback((f: File) => {
     setError(null);
     setResult(null);
+    setCreateCaseError(null);
+    setFile(null);
     if (!ACCEPT.split(",").includes(f.type)) {
       setError(`Unsupported type ${f.type}. Use PNG, JPEG, WebP, or PDF.`);
       return;
@@ -277,6 +270,10 @@ export default function Intake() {
       }
       const json: IntakeResult = await res.json();
       setResult(json);
+      setPatientInitials(json.patient_initials ?? "");
+      setTreatmentName(json.requested_treatment?.name ?? "");
+      const extractedPayer = String(json.clinical_snapshot_partial.payer_id ?? "");
+      setPayer(PAYERS.some((p) => p.id === extractedPayer) ? extractedPayer : "");
     } catch (e) {
       setError(String(e));
     } finally {
@@ -463,11 +460,11 @@ export default function Intake() {
                 <div className="border border-gray-300 bg-gray-50 text-gray-800 text-sm p-3 rounded-md flex gap-2">
                   <AlertTriangle size={16} className="flex-shrink-0 mt-0.5" />
                   <div>
-                    <div className="font-semibold">Routes to Reviewer queue (HITL)</div>
+                    <div className="font-semibold">Human review is recommended before case creation</div>
                     <div className="text-xs mt-0.5">
                       Risk flags: {result.risk_flags.join(", ") || "—"}.
                       Confidence ({(result.ocr.overall_confidence * 100).toFixed(0)}%)
-                      below 70% threshold or a binding field is missing.
+                      — check missing fields and source evidence before continuing.
                     </div>
                   </div>
                 </div>
@@ -522,15 +519,14 @@ export default function Intake() {
                         {result.ocr.engine}
                       </code>{" "}
                       ({result.ocr.full_text.length.toLocaleString()} chars).
-                      Structured fields (patient, biomarkers, drug name, ICD-10) are
-                      parsed downstream by the Clinical Extractor agent — that's
-                      where named entities surface, not at OCR.
+                      Patient, diagnosis, and treatment evidence are checked before
+                      case creation. Biomarkers remain subject to clinical review.
                     </div>
                   )}
                   {result.ocr.extracted_fields.length === 0 && !result.ocr.full_text.trim() && (
                     <div className="text-sm text-gray-600 italic">
-                      No text extracted — all engines failed. Routing to the
-                      Reviewer queue (HITL).
+                      No text extracted. Upload a readable clinical report or
+                      enter the clinical details on the Cases page.
                     </div>
                   )}
                 </div>
@@ -578,21 +574,43 @@ export default function Intake() {
               </div>
 
               {/* Action: route to case-creation, else HITL */}
-              {!result.requires_human_review && (
+              {!result.case_ready && (
+                <div role="alert" className="border border-gray-300 bg-gray-50 text-gray-800 text-sm p-3 rounded-md">
+                  <div className="font-semibold">More clinical information is needed before creating a case.</div>
+                  <p className="mt-1">Missing: {(result.missing_fields ?? ["validated clinical intake"]).map((field) => field.replaceAll("_", " ")).join(", ")}.</p>
+                  <p className="mt-1">Upload a readable report with the patient, diagnosis, and requested treatment, or enter these details on the Cases page.</p>
+                </div>
+              )}
+              {result.case_ready && (
+                <div className="border border-neutral-200 rounded-xl p-4 bg-white space-y-3">
+                  <div className="text-sm font-medium">Confirm extracted case details</div>
+                  <label className="block text-xs">Patient initials
+                    <input aria-label="Patient initials" value={patientInitials} onChange={(e) => setPatientInitials(e.target.value)} className="mt-1 w-full border rounded p-2 text-sm" />
+                  </label>
+                  <label className="block text-xs">Requested treatment
+                    <input aria-label="Requested treatment" value={treatmentName} onChange={(e) => setTreatmentName(e.target.value)} className="mt-1 w-full border rounded p-2 text-sm" />
+                  </label>
+                  <label className="block text-xs">Payer
+                    <select aria-label="Payer" value={payer} onChange={(e) => setPayer(e.target.value)} className="mt-1 w-full border rounded p-2 text-sm">
+                      <option value="">Select the patient's payer</option>
+                      {PAYERS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+                    </select>
+                  </label>
                 <div className="border border-gray-300 bg-gray-50 text-gray-800 text-sm p-3 rounded-md flex items-center gap-2">
                   <CheckCircle2 size={16} className="flex-shrink-0" />
                   <span className="flex-1">
-                    Confidence ≥ 70% — ready to dispatch to the Clinical Extractor.
+                    Extracted Patient and Condition are ready for clinical evaluation.
                   </span>
                   <button
                     type="button"
                     onClick={createCaseFromIntake}
-                    disabled={creatingCase}
+                    disabled={creatingCase || !payer || !patientInitials.trim() || !treatmentName.trim() || !result.fhir_bundle?.entry?.length}
                     className="bg-gray-600 hover:bg-gray-700 disabled:bg-neutral-300 text-white text-xs font-medium px-3 py-1.5 rounded flex items-center gap-1.5"
                   >
                     {creatingCase ? <Loader2 size={12} className="animate-spin" /> : null}
                     {creatingCase ? "Creating…" : "Create case →"}
                   </button>
+                </div>
                 </div>
               )}
               {createCaseError && (

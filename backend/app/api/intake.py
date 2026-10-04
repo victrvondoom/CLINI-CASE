@@ -44,6 +44,7 @@ from app.models.intake import (
     IntakeResult,
     OCRResult,
 )
+from app.services.intake_fhir import shape_intake
 
 log = logging.getLogger(__name__)
 
@@ -341,12 +342,15 @@ async def parse_document_endpoint(
         or not new_ocr.full_text.strip()
         or "non-clinical-content" in new_flags
     )
-    return result.model_copy(
-        update={
-            "ocr": new_ocr,
-            "risk_flags": new_flags,
-            "requires_human_review": result.requires_human_review or requires_review,
-        }
+    return _with_privacy_receipt(
+        result.model_copy(
+            update={
+                "ocr": new_ocr,
+                "risk_flags": new_flags,
+                "requires_human_review": result.requires_human_review or requires_review,
+                "audit": {**result.audit, "filename": filename, "document_sha256": sha256},
+            }
+        )
     )
 
 
@@ -359,7 +363,7 @@ def _with_privacy_receipt(result: IntakeResult) -> IntakeResult:
             "privacy_notice": "OCR is not de-identification. Review identifiers before sharing extracted content.",
         }
     )
-    return result.model_copy(update={"audit": audit})
+    return shape_intake(result.model_copy(update={"audit": audit}))
 
 
 def _ext(filename: str) -> str:
@@ -733,7 +737,7 @@ def _pypdf_extract(raw: bytes) -> OCRResult:
     except Exception as e:  # noqa: BLE001 — surface as clean failure
         raise _PDFExtractFailureError(f"pypdf parse error: {e}") from e
 
-    full_text = "\n\n".join(t for t in page_texts if t.strip())
+    full_text = "\n\f\n".join(page_texts)
     if not full_text.strip():
         raise _PDFExtractFailureError("PDF has no text layer (image-only / scanned)")
 
@@ -926,7 +930,7 @@ def _pdfium_tesseract_extract(raw: bytes) -> OCRResult:
     with contextlib.suppress(Exception):
         pdf.close()
 
-    full_text = "\n\n".join(page_texts).strip()
+    full_text = "\n\f\n".join(page_texts).strip(" \r\n\t")
     if not full_text:
         raise _PDFExtractFailureError("tesseract produced no text from any page")
 

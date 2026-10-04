@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import io
 from datetime import UTC, datetime
+from functools import partial
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import LETTER
@@ -193,7 +194,7 @@ _FOOTER_STYLE = ParagraphStyle(
 # ---------------------------------------------------------------------------
 # Letterhead — drawn on every page via SimpleDocTemplate's onFirstPage / onLaterPages
 # ---------------------------------------------------------------------------
-def _draw_letterhead(canvas, doc) -> None:
+def _draw_letterhead(canvas, doc, *, requires_review: bool = False) -> None:
     canvas.saveState()
     width, height = LETTER
 
@@ -212,6 +213,14 @@ def _draw_letterhead(canvas, doc) -> None:
         height - 0.28 * inch,
         "Provider-Side Prior Authorization · Oncology",
     )
+    if requires_review:
+        canvas.setFillColor(_BRAND_INDIGO)
+        canvas.setFont("Helvetica-Bold", 9)
+        canvas.drawString(
+            0.75 * inch,
+            height - 0.65 * inch,
+            "DRAFT - clinician review required before use",
+        )
 
     # Footer line — page number, generation timestamp, audit anchor
     canvas.setStrokeColor(_BORDER)
@@ -236,12 +245,15 @@ def _draw_letterhead(canvas, doc) -> None:
 # ---------------------------------------------------------------------------
 # Main entry point
 # ---------------------------------------------------------------------------
-def render_appeal_pdf(draft: AppealDraft, *, case_id: str | None = None) -> bytes:
+def render_appeal_pdf(
+    draft: AppealDraft, *, case_id: str | None = None, requires_review: bool = False
+) -> bytes:
     """Render an AppealDraft into a complete payer-ready PDF letter.
 
     Args:
         draft: the structured appeal letter from the Appeals Drafter agent.
         case_id: optional ClinCase case_id, included in the audit reference.
+        requires_review: label every page as a draft awaiting clinician review.
 
     Returns:
         PDF file as bytes (typically 30-60 KB for a standard 2-3 page letter).
@@ -410,8 +422,8 @@ def render_appeal_pdf(draft: AppealDraft, *, case_id: str | None = None) -> byte
 
     doc.build(
         story,
-        onFirstPage=_draw_letterhead,
-        onLaterPages=_draw_letterhead,
+        onFirstPage=partial(_draw_letterhead, requires_review=requires_review),
+        onLaterPages=partial(_draw_letterhead, requires_review=requires_review),
     )
     return buf.getvalue()
 

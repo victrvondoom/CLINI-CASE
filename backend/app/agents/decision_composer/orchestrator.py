@@ -13,7 +13,11 @@ from __future__ import annotations
 
 from typing import ClassVar
 
-from app.agents.decision_composer.integrity import validate_citation_provenance
+from app.agents.decision_composer.integrity import (
+    drop_unresolvable_citations,
+    normalize_citation_pointers,
+    validate_citation_provenance,
+)
 from app.agents.decision_composer.schemas import (
     CitationLinkerInput,
     DecisionComposerInput,
@@ -85,14 +89,19 @@ class DecisionComposerAgent(Agent[DecisionComposerInput, DecisionComposerOutput]
             citation_input,
             ctx=ctx,
         )
-        validate_citation_provenance(citation_input, cit_result.output)
+        citations_out = normalize_citation_pointers(citation_input, cit_result.output)
+        citations_out, dropped = drop_unresolvable_citations(citation_input, citations_out)
+        validate_citation_provenance(citation_input, citations_out)
+        risk_flags = list(rat_result.output.risk_flags)
+        if dropped:
+            risk_flags.append("unverified_citations_removed")
 
         decision = Decision(
             verdict=verdict_out.verdict,
             rationale=rat_result.output.rationale,
-            citations=cit_result.output.citations,
+            citations=citations_out.citations,
             confidence=input.assessment.overall_confidence,
-            risk_flags=rat_result.output.risk_flags,
+            risk_flags=risk_flags,
         )
 
         return DecisionComposerOutput(

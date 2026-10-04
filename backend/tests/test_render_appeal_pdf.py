@@ -89,6 +89,96 @@ def test_render_appeal_pdf_contains_payer_grade_fields():
     assert "case_8f4ad9c2" in text
 
 
+def test_unreviewed_appeal_is_labeled_on_every_page():
+    draft = _sample_draft()
+    draft.appeal_body = "\n\n".join([draft.appeal_body] * 12)
+    reader = PdfReader(io.BytesIO(render_appeal_pdf(draft, requires_review=True)))
+    assert len(reader.pages) > 1
+    for page in reader.pages:
+        assert "DRAFT - clinician review required before use" in page.extract_text()
+
+
+def test_preview_endpoint_always_labels_unverified_document_as_draft():
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+
+    response = TestClient(app).post("/api/v1/appeals/render.pdf", json=_sample_draft().model_dump())
+    assert response.status_code == 200
+    assert response.headers["X-ClinCase-Document-Status"] == "draft"
+    reader = PdfReader(io.BytesIO(response.content))
+    assert "DRAFT - clinician review required" in reader.pages[0].extract_text()
+
+
+@pytest.mark.parametrize("scenario", ["pending", "stale_appeal", "other_tenant", "current"])
+async def test_case_pdf_uses_owned_current_run_and_preserves_draft_label(monkeypatch, scenario):
+    from datetime import UTC, datetime
+
+    from fastapi import HTTPException
+
+    from app.api.appeals import render_case_appeal_pdf
+    from app.db import db
+
+    class Connection:
+        async def fetchrow(self, sql, *args):
+            if "FROM cases WHERE" in sql:
+                assert args == ("case-pdf", "org-owner")
+                if scenario == "other_tenant":
+                    return None
+                return {
+                    "id": "case-pdf",
+                    "payer_id": "aetna",
+                    "patient_initials": "J.D.",
+                    "requested_treatment_name": "trastuzumab",
+                    "created_at": datetime.now(UTC),
+                    "status": "awaiting_review" if scenario == "pending" else "denied",
+                }
+            if "FROM case_runs" in sql:
+                return {
+                    "run_id": "newest-run",
+                    "status": "paused" if scenario == "pending" else "completed",
+                }
+            if "FROM case_run_states" in sql:
+                assert args == ("newest-run",)
+                return {
+                    "pause_kind": "ai_denial",
+                    "pause_reason": "Review required",
+                    "schema_version": 1,
+                    "state_json": {"draft_outputs": {"appeal_draft": _sample_draft().model_dump()}},
+                }
+            assert "run_id IS NOT DISTINCT FROM $2" in sql
+            assert args == ("case-pdf", "newest-run")
+            if scenario == "stale_appeal":
+                return None
+            return {
+                "appeal_body": _sample_draft().appeal_body,
+                "structured_arguments_json": [],
+            }
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_):
+            pass
+
+    class Pool:
+        def acquire(self):
+            return Connection()
+
+    monkeypatch.setattr(db, "_pool", Pool())
+    if scenario in {"other_tenant", "stale_appeal"}:
+        with pytest.raises(HTTPException) as caught:
+            await render_case_appeal_pdf("case-pdf", {"organization_id": "org-owner"})
+        assert caught.value.status_code == 404
+    else:
+        response = await render_case_appeal_pdf("case-pdf", {"organization_id": "org-owner"})
+        text = "\n".join(page.extract_text() for page in PdfReader(io.BytesIO(response.body)).pages)
+        assert ("DRAFT - clinician review required" in text) == (scenario == "pending")
+        assert response.headers["X-ClinCase-Document-Status"] == (
+            "draft" if scenario == "pending" else "case-record"
+        )
+
+
 def test_render_appeal_pdf_with_unknown_payer():
     """Unknown payer_id should NOT crash — uses generic fallback block."""
     draft = _sample_draft()

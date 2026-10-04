@@ -27,13 +27,15 @@ AgentContext.WorkingMemory and the AgentTrace.
 from __future__ import annotations
 
 import contextlib
+import hashlib
+import json
 import time
 import uuid
 from abc import ABC
 from datetime import UTC, datetime
 from typing import Any, ClassVar, Generic, TypeVar, cast
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from app.agents.framework import cache as response_cache
 from app.agents.framework.budget import BudgetExceededError
@@ -43,6 +45,7 @@ from app.agents.framework.guardrails import (
     Guardrail,
     GuardrailDecision,
 )
+from app.agents.framework.json_text import extract_json_text, parse_model
 from app.agents.framework.models import (
     ModelRouter,
     ModelSpec,
@@ -58,6 +61,7 @@ from app.agents.framework.types import (
     SpanStatus,
     TokenUsage,
 )
+from app.config import settings
 from app.llm import LLMResponse, get_llm_client
 from app.llm.gateway import (
     GatewayCallContext,
@@ -70,12 +74,7 @@ O = TypeVar("O", bound=BaseModel)
 
 
 def _strip_code_fence(text: str) -> str:
-    text = text.strip()
-    if text.startswith("```"):
-        lines = text.split("\n")
-        end = len(lines) - 1 if lines[-1].strip().startswith("```") else len(lines)
-        text = "\n".join(lines[1:end])
-    return text.strip()
+    return extract_json_text(text)
 
 
 # =============================================================================
@@ -154,6 +153,13 @@ class Agent(ABC, Generic[I, O]):
     # Abstract hooks — subclasses implement ONE of these two
     # ------------------------------------------------------------------
 
+    def _cache_version(self) -> str:
+        """Response-cache version: output schema + system prompt, so editing either a schema or
+        a prompt invalidates cached outputs (they were produced under the old instructions)."""
+        prompt = getattr(self, "system_prompt", "") or ""
+        digest = hashlib.sha256(prompt.encode("utf-8")).hexdigest()[:12]
+        return f"{response_cache.schema_version_for(self.output_schema)}:p{digest}"
+
     def _build_user_message(self, input: I) -> str:
         """LLM agents: render input as the user message. Default is JSON dump."""
         return input.model_dump_json(indent=2)
@@ -167,9 +173,7 @@ class Agent(ABC, Generic[I, O]):
         post-process the parsed output — e.g. confidence_calibrator enforces
         its min-aggregation invariant here, after schema validation.
         """
-        return self.output_schema.model_validate_json(  # type: ignore[return-value]
-            _strip_code_fence(text)
-        )
+        return parse_model(self.output_schema, text)  # type: ignore[return-value]
 
     async def _execute_deterministic(self, input: I, ctx: AgentContext) -> O:
         """Deterministic agents override this. LLM agents leave it raising."""
@@ -329,7 +333,7 @@ class Agent(ABC, Generic[I, O]):
                     cache_key = response_cache.CacheKey.derive(
                         agent_qualified_name=self.qualified_name,
                         organization_id=ctx.organization_id,
-                        schema_version=response_cache.schema_version_for(self.output_schema),
+                        schema_version=self._cache_version(),
                         input_json=input.model_dump_json(by_alias=False),
                     )
                     hit = await response_cache.lookup(cache_key)
@@ -377,6 +381,7 @@ class Agent(ABC, Generic[I, O]):
             # ----- 2/3. Plan + Act (with retry-on-failure loop) -----
             # Skipped entirely on cache hit — output is already populated.
             attempt = 0
+            reflection_retries = 0
             current_model = self.primary_model
             grader_feedback: str | None = None
 
@@ -411,6 +416,13 @@ class Agent(ABC, Generic[I, O]):
                     else:
                         # LLM agent — single completion call
                         user_msg = self._build_user_message(input)
+                        if settings.LLM_APPEND_OUTPUT_SCHEMA:
+                            # Non-Claude models follow field names reliably only when they see them.
+                            user_msg += (
+                                "\n\n--- OUTPUT JSON SCHEMA (reply with one JSON object that "
+                                "validates against it; use these exact field names) ---\n"
+                                + json.dumps(self.output_schema.model_json_schema())
+                            )
                         if grader_feedback:
                             user_msg = (
                                 user_msg
@@ -514,14 +526,20 @@ class Agent(ABC, Generic[I, O]):
                 # ---- Reflection (if enabled) ----
                 if self.quality_threshold > 0 and current_model is not None:
                     grader = self.grader or get_default_grader()
-                    score, grader_usage = await grader.grade(
-                        GraderInput(
-                            agent_name=self.qualified_name,
-                            purpose=self.description or self.role or self.name,
-                            expected_schema_name=self.output_schema.__name__,
-                            output_payload_json=output.model_dump_json(indent=2),
+                    try:
+                        score, grader_usage = await grader.grade(
+                            GraderInput(
+                                agent_name=self.qualified_name,
+                                purpose=self.description or self.role or self.name,
+                                expected_schema_name=self.output_schema.__name__,
+                                output_payload_json=output.model_dump_json(indent=2),
+                            )
                         )
-                    )
+                    except ValidationError as grade_err:
+                        # An unreadable grader reply is a missing quality signal, not a clinical
+                        # failure: keep the schema-valid output and record it as ungraded.
+                        span.add_event("grader_unparseable", error=str(grade_err)[:300])
+                        break
                     grader_score = score.score
                     span.add_event(
                         "grader_score",
@@ -545,10 +563,16 @@ class Agent(ABC, Generic[I, O]):
                         output_tokens=grader_usage["output_tokens"],
                     )
 
-                    if score.score < self.quality_threshold and attempt < self.max_iterations:
+                    cap = settings.AGENT_MAX_REFLECTION_RETRIES
+                    if (
+                        score.score < self.quality_threshold
+                        and attempt < self.max_iterations
+                        and (cap < 0 or reflection_retries < cap)
+                    ):
                         grader_feedback = score.feedback
                         current_model = ModelRouter.escalate(current_model)
                         retries += 1
+                        reflection_retries += 1
                         continue
 
                 # If we got here, we're done.
@@ -576,7 +600,7 @@ class Agent(ABC, Generic[I, O]):
                         agent_qualified_name=self.qualified_name,
                         organization_id=ctx.organization_id,
                         output_json=self._safe_dump(output),
-                        schema_version=response_cache.schema_version_for(self.output_schema),
+                        schema_version=self._cache_version(),
                         model_id=self._final_model_id_for_db(),
                         input_tokens=tokens.input_tokens,
                         output_tokens=tokens.output_tokens,

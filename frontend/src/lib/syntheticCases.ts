@@ -10,6 +10,7 @@ import type { Verdict } from "./types";
 export type CaseStatus =
   | "pending"
   | "running"
+  | "awaiting_review"
   | "approved"
   | "denied"
   | "referred"
@@ -202,5 +203,5 @@ export const PAYERS: { id: SyntheticCase["payer_id"]; label: string }[] = [
 ];
 
 export const STATUSES: CaseStatus[] = [
-  "pending", "running", "approved", "denied", "referred", "appealed", "overturned",
+  "pending", "running", "awaiting_review", "approved", "denied", "referred", "appealed", "overturned",
 ];

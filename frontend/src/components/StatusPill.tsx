@@ -8,6 +8,7 @@ import type { CaseStatus } from "../lib/syntheticCases";
 const STATUS_TINT: Record<CaseStatus, string> = {
   pending:    "bg-surface-border           text-ink-muted",
   running:    "bg-accent-brand/10          text-accent-brand",
+  awaiting_review: "bg-accent-amber/10      text-accent-amber",
   approved:   "bg-accent-green/10          text-accent-green",
   denied:     "bg-accent-red/10            text-accent-red",
   referred:   "bg-accent-amber/10          text-accent-amber",
@@ -29,7 +30,7 @@ export function StatusPill({ status, className }: Props) {
         className,
       )}
     >
-      {status}
+      {status.replaceAll("_", " ")}
     </span>
   );
 }

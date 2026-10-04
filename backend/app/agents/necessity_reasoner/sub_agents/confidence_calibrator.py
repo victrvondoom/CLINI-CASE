@@ -8,14 +8,21 @@ of LLM output.
 
 from __future__ import annotations
 
+import json
+import re
 from pathlib import Path
 from typing import ClassVar
 
+from pydantic import ValidationError
+
 from app.agents.framework import HAIKU_LITE, Agent, SchemaGuardrail
+from app.agents.framework.json_text import extract_json_text
 from app.agents.necessity_reasoner.schemas import (
     ConfidenceCalibratorInput,
     ConfidenceCalibratorOutput,
 )
+
+_UNQUOTED_SUMMARY = re.compile(r'("summary"\s*:\s*)(?!["\s])(.+?)(\s*\}\s*)$', re.DOTALL)
 
 _PROMPT_PATH = (
     Path(__file__).resolve().parents[3]
@@ -53,7 +60,15 @@ class ConfidenceCalibratorAgent(Agent[ConfidenceCalibratorInput, ConfidenceCalib
         )
 
     def _parse_response(self, text: str) -> ConfidenceCalibratorOutput:
-        out = super()._parse_response(text)
+        try:
+            out = super()._parse_response(text)
+        except ValidationError:
+            # Some models leave the free-text `summary` unquoted; quote it and parse once more.
+            repaired = _UNQUOTED_SUMMARY.sub(
+                lambda m: m.group(1) + json.dumps(m.group(2).strip()) + m.group(3),
+                extract_json_text(text),
+            )
+            out = super()._parse_response(repaired)
         # Enforce min-aggregation invariant deterministically
         if out.confidences:
             true_overall = min(out.confidences)

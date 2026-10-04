@@ -172,7 +172,6 @@ export default function Login() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                minLength={6}
                 autoComplete="current-password"
                 className="w-full px-3 py-2.5 rounded-lg border border-surface-border bg-surface-bg text-sm text-ink-primary placeholder:text-ink-faint focus:border-accent-brand focus:ring-2 focus:ring-accent-brand/20 focus:outline-none transition-all"
                 placeholder="••••••••"
@@ -250,7 +249,7 @@ export default function Login() {
           </span>
         </div>
         <div className="text-micro mt-2 text-center text-ink-faint leading-relaxed">
-          7-agent LangGraph DAG · AWS Bedrock · Claude Sonnet 4.6 + Haiku 4.5 ·
+          7-agent LangGraph DAG · governed model gateway · configured AI provider ·
           MCP-compatible
         </div>
       </div>

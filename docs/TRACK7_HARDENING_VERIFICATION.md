@@ -2,6 +2,15 @@
 
 Repository: `victrvondoom/CLINI-CASE`. This report distinguishes tested behavior from remaining external requirements.
 
+**Historical snapshot:** the counts and unavailable-provider/validator statuses below describe
+October 1. Later recorded official validator and third-party checks are in
+[track7/VALIDATION.md](track7/VALIDATION.md) and
+[track7/THIRD_PARTY_INTEROP.md](track7/THIRD_PARTY_INTEROP.md); current optional Ed25519
+demo-system signing is described in [EVIDENCE_PASSPORT.md](EVIDENCE_PASSPORT.md).
+The refreshed [self-audit](TRACK7_SELF_AUDIT.md) records October 4 NVIDIA connectivity and
+[the repair ledger](ONCOLOGY_UPLOAD_REVIEW_REPAIR.md) records intake/mandatory-review checks.
+The earlier results remain visible rather than being replaced with later counts.
+
 | Check | Result |
 |---|---|
 | Complete deterministic backend suite | 522 passed, 1 skipped, 105 live/integration tests deselected |

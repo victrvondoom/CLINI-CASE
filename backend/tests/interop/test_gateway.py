@@ -452,7 +452,7 @@ async def test_model_cannot_assign_analyte_concept_or_terminology_code(monkeypat
     )
     await service.analyze(job, True)
     mapping = job.mappings[0]
-    assert job.ai_status.startswith("model_failed")
+    assert job.ai_status.startswith("unresolved fields require manual review")
     assert mapping.concept is None
     assert mapping.decision == "pending"
     assert mapping.terminology_status == "unresolved"
@@ -575,9 +575,54 @@ async def test_model_failure_is_not_fake_success(monkeypatch):
         ),
     )
     await service.analyze(j, True)
-    assert j.ai_status.startswith("model_failed")
+    assert j.ai_status.startswith("unresolved fields require manual review")
     assert j.mappings[0].origin == "unresolved"
-    assert j.events[-2].status == "failed"
+    assert j.events[-2].status == "manual_review"
+
+
+@pytest.mark.parametrize(
+    ("answer", "expected_target", "accepted"),
+    [
+        ("Location.name (waterbody)", "waterbody_name", True),  # FHIR path → its allowlisted key
+        ("waterbody_name", "waterbody_name", True),
+        ("Patient.name", None, False),  # off-allowlist stays fail-closed
+    ],
+)
+async def test_model_target_path_maps_to_key(monkeypatch, answer, expected_target, accepted):
+    import app.llm
+
+    class PathModel:
+        async def complete(self, **kwargs):
+            return LLMResponse(
+                text=json.dumps(
+                    {
+                        "mappings": [
+                            {
+                                "source_field": "stream",
+                                "target": answer,
+                                "confidence": 0.8,
+                                "reason": "Name of the stream",
+                            }
+                        ]
+                    }
+                ),
+                model_id="path-test-model",
+                input_tokens=1,
+                output_tokens=1,
+                stop_reason="end",
+            )
+
+    monkeypatch.setattr(app.llm, "get_llm_client", lambda: PathModel())
+    j = Job(
+        organization_id="a",
+        source=Source(
+            source_system="SYN", original_record_id="s", payload={"stream": "Mill Brook"}, synthetic=True
+        ),
+    )
+    await service.analyze(j, True)
+    assert j.mappings[0].target == expected_target
+    assert j.mappings[0].origin == ("ai_suggested" if accepted else "unresolved")
+    assert j.ai_status.startswith("model_suggestions_received" if accepted else "unresolved fields")
 
 
 @pytest.mark.parametrize("failure", ["rejected", "ack_mismatch"])

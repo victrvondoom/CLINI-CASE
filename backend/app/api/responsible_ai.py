@@ -145,10 +145,14 @@ def _build_model_card() -> dict[str, Any]:
         # ---- 7. Human oversight (HITL) -------------------------------------
         "human_oversight": {
             "hitl_policy": (
-                "All adverse determinations route through review_gate (LangGraph "
-                "node) for qualified clinician review. ClinCase never auto-denies. "
+                "Every AI-proposed DENY is held as awaiting_review before final "
+                "decision persistence, regardless of model confidence. Draft appeals "
+                "and patient letters remain advisory until qualified clinician review. "
+                "ClinCase never auto-denies. "
                 "Reviewer signoff is row-level audited in reviewer_actions."
             ),
+            "ai_deny_requires_human_review": True,
+            "draft_documents_available_during_review": True,
             "sb1120_compliance": True,
             "review_gate_threshold": 0.75,
             "reviewer_action_log": "/api/v1/cases/{case_id}/audit",

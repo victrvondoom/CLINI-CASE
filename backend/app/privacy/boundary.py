@@ -12,7 +12,6 @@ _IDENTITY_FIELDS = frozenset(
         "address",
         "contact",
         "photo",
-        "text",
         "meta",
         "fullUrl",
         "presentedForm",
@@ -23,6 +22,18 @@ _IDENTITY_FIELDS = frozenset(
     }
 )
 _PERSON_TYPES = {"Patient", "Practitioner", "RelatedPerson", "Organization"}
+_CLINICAL_CONCEPT_FIELDS = {
+    "code",
+    "valueCodeableConcept",
+    "dataAbsentReason",
+    "medicationCodeableConcept",
+    "bodySite",
+    "clinicalStatus",
+    "verificationStatus",
+    "category",
+    "interpretation",
+    "summary",
+}
 
 
 def screen_text(text: str) -> str:
@@ -54,6 +65,10 @@ def prepare_fhir(bundle: dict[str, Any]) -> tuple[dict[str, Any], dict[str, str]
             for field, item in value.items():
                 if (
                     field in _IDENTITY_FIELDS
+                    or (
+                        field == "text"
+                        and (key not in _CLINICAL_CONCEPT_FIELDS or not isinstance(item, str))
+                    )
                     or (person and field in {"name", "birthDate"})
                     or ("reference" in value and field == "display")
                     or field in {"family", "given", "prefix", "suffix"}

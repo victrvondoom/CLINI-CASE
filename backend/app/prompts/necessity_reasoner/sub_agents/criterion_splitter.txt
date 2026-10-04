@@ -32,6 +32,18 @@ Hard rules:
   - For ambiguous policy language ("consider on a case-by-case basis"), emit
     one atomic criterion that captures that ambiguity literally; the
     EvidenceMatcher sub-agent downstream will mark it AMBIGUOUS.
+  - Scope: emit ONLY criteria that decide the INITIAL authorization of the
+    requested treatment. Skip continuation / renewal criteria, monitoring
+    during therapy (e.g. "LVEF reassessment every 3 months"), maximum-duration
+    limits (e.g. "limited to 12 months total") and re-evaluation criteria
+    (e.g. "stable disease at the most recent re-evaluation").
+  - Keep a setting-specific condition inside the criterion text
+    ("For metastatic (Stage IV) disease: …", "If prior anthracycline exposure: …")
+    so the EvidenceMatcher can tell whether it applies to this patient.
+  - Alternative branches for different settings (e.g. "early-stage: adjuvant or
+    neoadjuvant with chemotherapy" vs "metastatic: single agent or combination")
+    are ONE inclusion criterion joined with OR — never separate criteria, because
+    a patient can only ever satisfy one branch.
 
 ## Output schema (return EXACTLY this JSON shape; no extra fields)
 
@@ -39,7 +51,7 @@ Hard rules:
 {
   "atomic_criteria": [
     {
-      "criterion_text": "<one atomic check, ≤ 200 chars, payer language>",
+      "text": "<one atomic check, ≤ 200 chars, payer language>",
       "criterion_type": "inclusion" | "exclusion",
       "policy_excerpt_index": <int — index into the input excerpts list>,
       "section_pointer": "<string like 'Aetna CPB 0048 § Initial Authorization Criteria'>"
@@ -61,10 +73,10 @@ EXPECTED OUTPUT:
 ```json
 {
   "atomic_criteria": [
-    {"criterion_text": "HER2-positive (IHC 3+ or ISH amplified) at diagnosis", "criterion_type": "inclusion", "policy_excerpt_index": 0, "section_pointer": "Aetna CPB 0048 § II.B.1"},
-    {"criterion_text": "Stage I-IV breast cancer", "criterion_type": "inclusion", "policy_excerpt_index": 0, "section_pointer": "Aetna CPB 0048 § II.B.2"},
-    {"criterion_text": "Baseline LVEF ≥ 50% by ECHO or MUGA within 60 days of trastuzumab initiation", "criterion_type": "inclusion", "policy_excerpt_index": 0, "section_pointer": "Aetna CPB 0048 § II.B.3"},
-    {"criterion_text": "ECOG performance status 0, 1, or 2", "criterion_type": "inclusion", "policy_excerpt_index": 0, "section_pointer": "Aetna CPB 0048 § II.B.4"}
+    {"text": "HER2-positive (IHC 3+ or ISH amplified) at diagnosis", "criterion_type": "inclusion", "policy_excerpt_index": 0, "section_pointer": "Aetna CPB 0048 § II.B.1"},
+    {"text": "Stage I-IV breast cancer", "criterion_type": "inclusion", "policy_excerpt_index": 0, "section_pointer": "Aetna CPB 0048 § II.B.2"},
+    {"text": "Baseline LVEF ≥ 50% by ECHO or MUGA within 60 days of trastuzumab initiation", "criterion_type": "inclusion", "policy_excerpt_index": 0, "section_pointer": "Aetna CPB 0048 § II.B.3"},
+    {"text": "ECOG performance status 0, 1, or 2", "criterion_type": "inclusion", "policy_excerpt_index": 0, "section_pointer": "Aetna CPB 0048 § II.B.4"}
   ]
 }
 ```

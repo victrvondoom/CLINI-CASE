@@ -24,7 +24,7 @@ class PauseStateError(ValueError):
 
 def dump_pause_state(final: ClinCaseState) -> dict[str, Any]:
     """The agent outputs a resume needs (everything produced before the review gate)."""
-    return {
+    out = {
         "snapshot": final.clinical_snapshot.model_dump(mode="json")
         if final.clinical_snapshot
         else None,
@@ -33,6 +33,13 @@ def dump_pause_state(final: ClinCaseState) -> dict[str, Any]:
         if final.necessity_assessment
         else None,
     }
+    # Additive to version 1: older states remain resumable. These are previews,
+    # never restored as the human decision or reused after an APPROVE/REFER.
+    if final.decision is not None:
+        from app.review.human import public_run_outputs
+
+        out["draft_outputs"] = public_run_outputs(final)
+    return out
 
 
 def restore_pause_outputs(blob: dict[str, Any], version: int) -> dict[str, Any]:

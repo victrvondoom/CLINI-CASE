@@ -1,660 +1,570 @@
-# CLINI-CASE One Health Interoperability Gateway
+# CLINI-CASE
+## One Health Evidence & Interoperability Platform
 
-CLINI-CASE is a OneAquaHealth Track 7 interoperability gateway.
+**"From Evidence to Action, Through One Connected Clinical Journey."**
 
-Environmental, laboratory and health systems often use incompatible schemas and terminology. CLINI-CASE discovers source fields, suggests constrained semantic mappings, and requires an authenticated human reviewer to approve them before generating an OAH/FHIR exchange. Application-level validation can block invalid data before transfer.
-
-An independent System B process receives the Bundle over HTTP, validates and stores it, changes resource IDs and references, then returns it for semantic round-trip verification. The Evidence Passport records mapping decisions, validation, transfer acknowledgement, hashes and round-trip results. The Track 7 journey uses synthetic data and does not infer health causation.
-
-The interoperability workflow has no cloud dependency. The whole application (frontend, API, independent System B receiver and PostgreSQL) runs as Docker containers orchestrated by Kubernetes on a local kind cluster ([runbook](docs/KUBERNETES.md)); AWS and Bedrock remain optional adapters, not prerequisites. Existing oncology, OncoTwin, CardioTwin and AquaHealth functionality remains available through the same application.
-
-**One evidence journey.** Start at `/journey`: ingest → understand → map → review → standardize → validate → exchange → verify → clinical context → follow-up, as one continuous flow over the existing capabilities. Each stage's status is a read-only server projection of the persisted gateway job and its bound evidence, and every completed stage cites the logged event that proves it. `/runtime` shows the real deployment topology (live cluster identity only when running in Kubernetes). See [the unified journey](docs/UNIFIED_JOURNEY.md).
-
-**OneAquaHealth IEEE Global Hackathon — Track 7: Digital Health Standards.** Start at `/journey`; `/onehealth` (evidence workbench) and `/interop` (gateway workbench) remain available and link back into the journey. The previous platform landing page is retained at `/platform`.
+CLINI-CASE connects intake, environmental and clinical evidence, interoperability, human review, AI-assisted analysis, clinical context and follow-up in one traceable workflow.
 
 [![CI](https://github.com/victrvondoom/CLINI-CASE/actions/workflows/ci.yml/badge.svg)](https://github.com/victrvondoom/CLINI-CASE/actions/workflows/ci.yml)
 
-Citizen observation → laboratory evidence → human mapping review → FHIR/OAH validation → independent receiver → consented clinical context → new retest → verified return exchange.
+**Built for OneAquaHealth IEEE Global Hackathon — Track 7: Digital Health Standards.**
 
-The flagship story uses a persisted **Evidence Passport**, a computed **epistemic ceiling** and six evidence gates. These connect the existing capabilities into one evidence journey. A stream photo cannot establish arsenic exposure; imported consent and verification are not automatically trusted. Environmental evidence never changes cancer authorization or OncoTwin/CardioTwin model inputs.
+Environmental, laboratory and clinical systems describe evidence with incompatible fields, units, terminology and identifiers. CLINI-CASE makes those differences visible, requires human approval of their interpretation, generates standards-based exchanges and tests whether another system preserves their meaning.
 
-Run `./start-track7.ps1` for the complete synthetic, deterministic reference journey. The launcher starts separate application/receiver processes, generates private demo credentials and records actual runtime metrics. Optional `-AI` uses the existing governed provider; the current credential was rejected, so live AI remains unverified.
+One platform combines evidence intake, environmental observations, laboratory data, semantic mapping, human review, FHIR/OAH standardization, validation, independent exchange, round-trip verification and provenance. Optional clinical contexts connect this journey to oncology decision support, OncoTwin, CardioTwin and follow-up. Docker and local Kubernetes support reproducible deployment of the same application.
 
-- [Demo runbook](docs/DEMO_RUNBOOK.md) and [manual items remaining](docs/TRACK7_MANUAL_CHECKLIST.md)
-- [Track 7 architecture and APIs](docs/ONEHEALTH_TRACK7.md)
-- [Evidence Passport](docs/EVIDENCE_PASSPORT.md), [epistemic ceiling](docs/EPISTEMIC_CEILING.md) and [conformance statement](docs/OAH_CONFORMANCE.md)
-- [Verification](docs/TRACK7_HARDENING_VERIFICATION.md), [build scope / AI assistance](docs/HACKATHON_BUILD_SCOPE.md) and [self-audit](docs/TRACK7_SELF_AUDIT.md)
+> **Central Track 7 contribution:** heterogeneous environmental, laboratory and health data can be transformed into a governed standards-based exchange without allowing AI to silently invent clinical meaning.
 
-**Validation scope:** FHIR R4-targeted exchange with selected pinned OAH constraints, local contract checks and semantic round-trip tests. The official HL7 validator (6.10.4) was run on the Bundle the current code generates: 0 errors, 15 warnings and 3 informational messages with the OAH draft guide and a terminology server (21/16/15 warnings across three configurations; nothing suppressed). The OAH package was built locally from the pinned guide commit because no package is published, and the guide is a draft CI build. This is not certification and not a claim of full OAH conformance. See [the validation record](docs/track7/VALIDATION.md). An independent public FHIR R4 server also accepted the Bundle and returned it intact ([third-party check](docs/track7/THIRD_PARTY_INTEROP.md)); that shows generic FHIR R4 interoperability, not OAH conformance. Evidence Passports carry an Ed25519 signature that is a CLINI-CASE demo-system signature only, not a laboratory, clinician, government or third-party attestation. All demo data is synthetic; no real pilot or clinical-performance claim is made.
+> **Clinical boundary:** CLINI-CASE does not infer that an environmental measurement caused a specific disease in an individual. It preserves the evidence chain and provides structured context for appropriate human review. Environmental evidence does not change cancer authorization or OncoTwin/CardioTwin model inputs.
 
-**License:** [proprietary terms](LICENSE) are unchanged. The owner is credited by the existing license/history. You confirmed authorization exists; judges' signed run/review rights still need documentary verification. See [judge access](docs/JUDGE_ACCESS.md). Public availability alone grants no license.
+## Start here
 
-The following sections retain the existing platform reference documentation. This hardening phase did not create the entire repository; the dated build-scope document describes reuse and additions accurately.
-
-## Contents
-
-- [CLINI-CASE / One Health — primary OneAquaHealth Track 7](docs/ONEHEALTH_TRACK7.md)
-- [AquaHealth Sentinel — supporting OneAquaHealth Track 3](docs/AQUAHEALTH_TRACK3.md)
-- [Why ClinCase](#-why-clincase)
-- [What it does](#-what-it-does)
-- [Try the four reference cases](#-try-the-four-reference-cases)
-- [Live Agent Pipeline console](#-live-agent-pipeline-console)
-- [Architecture](#%EF%B8%8F-architecture)
-- [The 7-agent pipeline](#-the-7-agent-pipeline)
-- [Oncology capabilities](#-oncology-capabilities)
-- [OncoTwin: the patient digital twin](#-oncotwin-the-patient-digital-twin)
-- [Beyond oncology](#-beyond-oncology)
-- [Tech stack](#%EF%B8%8F-tech-stack)
-- [Regulatory alignment](#-regulatory-alignment)
-- [FHIR / Da Vinci PAS conformance](#-fhir--da-vinci-pas-conformance)
-- [Audit trail](#-audit-trail)
-- [Accountable authorization](#-accountable-authorization-identity-review-verification)
-- [Business case](#-business-case)
-- [Getting started](#-getting-started)
-- [Roadmap](#%EF%B8%8F-roadmap)
-- [Repository layout](#-repository-layout)
-- [Glossary](#-glossary)
-
----
-
-## 🩺 Why ClinCase
-
-```text
-13 hours / week           29% of physicians           80.7%                    27 days
-per physician on PA       report PA-driven harm       of denials overturned    average treatment delay
-(AMA 2024)                (AMA 2024)                  (CMS 2024)               (JCO 2023)
-```
-
-Prior authorization (PA) is the largest administrative burden in US oncology. It costs an estimated **$35B a year**, takes about **13 hours a week per physician**, and **29% of physicians report that a PA delay led to a serious adverse event**. The CMS-0057-F final rule requires FHIR-native PA APIs from **January 1, 2027**, with **72-hour expedited and 7-day standard** decision windows. Most payers and providers are not ready.
-
-| Metric | Value | Source |
-|---|---|---|
-| Hours per week per physician on PA | **13** | AMA Prior Auth Survey 2024 |
-| PA requests per physician per week | **39** | AMA 2024 |
-| Physicians reporting PA-caused care delay | **93%** | AMA 2024 |
-| Physicians reporting PA-caused serious adverse events | **29%** | AMA 2024 |
-| Annual US PA administrative spend | **$35B** | Sahni et al., *Health Affairs* / McKinsey |
-| Average oncology treatment delay on a denial | **27 days** | *Journal of Clinical Oncology* 2023 |
-| Denials overturned on appeal | **80.7%** | CMS Medicare Advantage data |
-| Denials that are ever appealed | **11.7%** | CMS Medicare Advantage data |
-| CMS-0057-F FHIR PA API deadline | **Jan 1, 2027** | 89 FR 8758 |
-
-Payers deny, four out of five of those denials are overturned when appealed, and only about one in nine denials is ever appealed, because the appeal process costs a coordinator too much time.
-
----
-
-## 💡 What it does
-
-ClinCase takes a clinical packet (a chart note, a pathology report or a payer PDF) and returns a structured determination: **`APPROVE`**, **`DENY`** or **`REFER`**, with a citation for every criterion. When the verdict is DENY, it drafts an NCCN-grounded appeal letter from the same evidence.
-
-```text
-  Chart note, pathology report or payer packet arrives
-    → identifiers screened and minimized, with a receipt, before model calls
-    → ClinicalSnapshot (typed Pydantic, FHIR R4)
-    → 7-agent LangGraph DAG, streamed live over SSE
-    → APPROVE / DENY / REFER + full citation chain
-    → On DENY: NCCN-grounded appeal letter drafted automatically
-    → Low-confidence cases go to a human reviewer
-    → Every agent step persisted; SHA-256 evidence pack per case
-```
-
-The goal is to shorten the work between intake and a reviewable verdict. Production latency depends on the configured models, evidence sources, and workload and must be measured in each deployment. ClinCase does not submit anything on its own. Low-confidence cases wait in a reviewer queue, and a coordinator sees every step.
-
----
-
-## 🎬 Try the four reference cases
-
-After [getting started](#-getting-started), open `/dashboard` and use the **Live Agent Pipeline** console. Or sign in and upload one of these under **Drop a scan**:
-
-| # | Sample PDF | Verdict | What it shows |
-|---|---|---|---|
-| 1 | [`01_APPROVE_breast_cancer_her2pos.pdf`](demo_pdfs/01_APPROVE_breast_cancer_her2pos.pdf) | ✅ **APPROVE** | HER2 IHC 3+, FISH-amplified, LVEF 62%, ECOG 1: every Aetna 0048 criterion met |
-| 2 | [`02_DENY_breast_cancer_lvef_low.pdf`](demo_pdfs/02_DENY_breast_cancer_lvef_low.pdf) | ❌ **DENY** | LVEF 32% plus prior anthracycline: cardiotoxicity contraindication, FDA Black Box warning, risk flags raised |
-| 3 | [`03_REFER_breast_cancer_her2_equivocal.pdf`](demo_pdfs/03_REFER_breast_cancer_her2_equivocal.pdf) | ⚠️ **REFER** | HER2 IHC 2+ equivocal, FISH not yet performed: sent to the reviewer queue instead of guessing |
-| 4 | [`04_APPROVE_hepc_daa_genotype1.pdf`](demo_pdfs/04_APPROVE_hepc_daa_genotype1.pdf) | ✅ **APPROVE** | Same agents, different disease: Hepatitis C, AASLD-IDSA guidelines |
-
-Two payer policy bundles support case 4:
-
-- [`policy_aetna_hcv_daa.pdf`](demo_pdfs/policy_aetna_hcv_daa.pdf): Aetna CPB 0860 (DAA therapy criteria)
-- [`policy_aetna_liver_transplant.pdf`](demo_pdfs/policy_aetna_liver_transplant.pdf): Aetna CPB 0596 (MELD-Na, Milan criteria)
-
----
-
-## 🧬 Live Agent Pipeline console
-
-Most prior-auth tools show only the verdict. The ClinCase dashboard also shows the agents working on it.
-
-The backend streams per-agent progress over Server-Sent Events and saves every step to Postgres: `agent_started`, `agent_finished` and `agent_error` events, with latency, model ID and token counts, one row per agent per case (`backend/app/observability/trace.py`, `backend/app/api/stream.py`). The dashboard console shows that stream. Pick a reference case and watch all seven agents, and the sub-agents under them, move from pending to running to done. The console uses the same authenticated, org-scoped stream as the case-detail page.
-
-The console reports failures plainly. A partial run shows as `completed with errors`, `ended early` or `awaiting review`, never as a green "complete". If no queue worker is attached, the console runs the pipeline inline instead of waiting on an empty queue. If the stream drops mid-run, the console rebuilds the run from the saved audit trail.
-
----
-
-## 🏛️ Architecture
-
-### Five layers
-
-```mermaid
-flowchart TB
-    subgraph EX["Layer 1 - Experience"]
-        UI["React 18 + Vite SPA"]
-        FAB["FAB 'New Case' modal + Drop-a-scan intake"]
-        TRACE["Live Agent Pipeline console (SSE, org-scoped, auth'd)"]
-    end
-
-    subgraph ORCH["Layer 2 - Orchestration"]
-        LG["LangGraph DAG (7 agents - 22 sub-agents - conditional edges)"]
-        QUEUE["Postgres job queue + HITL reviewer gate"]
-    end
-
-    subgraph CTX["Layer 3 - Context Retrieval"]
-        RET["Policy Retriever (keyword filter + LLM rerank)"]
-        S3P["Policy corpus (local file store, S3-backed when configured)"]
-        NCCN["NCCN-style guideline corpus"]
-    end
-
-    subgraph GAI["Layer 4 - LLM Gateway"]
-        GW["Provider-agnostic LLM client (Anthropic - OpenRouter - Bedrock)"]
-        SON["Claude Sonnet 4.6 (Necessity - Decision - Appeal)"]
-        HAI["Claude Haiku 4.5 (Extractor - Reranker)"]
-        GR["Bedrock Guardrails (when BEDROCK_GUARDRAIL_ID is set)"]
-    end
-
-    subgraph TEL["Layer 5 - Telemetry and Audit"]
-        RUNS["agent_runs table (every step, every model, every cost)"]
-        AUDIT["SHA-256 evidence pack (per-case, re-hashable, tamper-evident)"]
-        SCORE["Compliance and ROI scorecards (computed from real rows)"]
-    end
-
-    subgraph EXT["Integrations"]
-        TZ["TriZetto adapter (Facets / QNXT write-back)"]
-        FHIR["Da Vinci PAS stub (Claim submit)"]
-    end
-
-    UI --> LG
-    FAB --> LG
-    TRACE -.SSE, authenticated.-> LG
-    LG --> RET
-    LG --> GW
-    GW --> GR
-    LG --> RUNS
-    LG --> QUEUE
-    QUEUE -.HITL paused.-> UI
-    RET --> S3P
-    RET --> NCCN
-    GW --> SON
-    GW --> HAI
-    RUNS --> AUDIT
-    AUDIT --> SCORE
-    LG --> TZ
-    LG --> FHIR
-
-    classDef ex   fill:#dbeafe,stroke:#1d4ed8,color:#0f172a
-    classDef or   fill:#ede9fe,stroke:#5b21b6,color:#0f172a
-    classDef ctx  fill:#fef3c7,stroke:#b45309,color:#0f172a
-    classDef gai  fill:#dcfce7,stroke:#15803d,color:#0f172a
-    classDef tel  fill:#fee2e2,stroke:#b91c1c,color:#0f172a
-    classDef ext  fill:#f1f5f9,stroke:#334155,color:#0f172a
-
-    class UI,FAB,TRACE ex
-    class LG,QUEUE or
-    class RET,S3P,NCCN ctx
-    class GW,SON,HAI,GR gai
-    class RUNS,AUDIT,SCORE tel
-    class TZ,FHIR ext
-```
-
-### How a run executes
-
-```mermaid
-flowchart LR
-    U[Coordinator clicks Run] --> C{Case created}
-    C --> ASYNC["POST /cases/id/run-async (enqueues to Postgres job queue)"]
-    C --> SYNC["POST /cases/id/run (executes in-request)"]
-
-    ASYNC --> W{Worker claims job within grace window?}
-    W -->|yes| WORKER["case_runner.py (polls via SELECT FOR UPDATE SKIP LOCKED)"]
-    W -->|no - no worker deployed| SYNC
-
-    WORKER --> DAG[7-agent LangGraph DAG]
-    SYNC --> DAG
-
-    DAG -->|every step| PUB["app.streaming.publish() - in-process, or Redis pub/sub when REDIS_URL is set"]
-    PUB --> SSE["GET /cases/id/stream (authenticated SSE)"]
-    SSE --> CONSOLE[Live Agent Pipeline console]
-
-    classDef path fill:#dbeafe,stroke:#1d4ed8,color:#0f172a
-    classDef real fill:#dcfce7,stroke:#15803d,color:#0f172a
-    class ASYNC,SYNC,WORKER,DAG path
-    class PUB,SSE,CONSOLE real
-```
-
-A queued job with no worker attached would otherwise sit at `status=queued` indefinitely. The console detects this and falls back to the synchronous path.
-
-### Three verdict paths
-
-```mermaid
-flowchart LR
-    IN[/"Clinical note (any format)"/] --> EXT[Clinical Extractor]
-    EXT --> RET[Policy Retriever]
-    RET --> NEC[Necessity Reasoner]
-    NEC --> DEC{Decision Composer}
-
-    DEC -->|"all criteria met"| APP[APPROVE]
-    DEC -->|"contraindication or exclusion fired"| DEN[DENY]
-    DEC -->|"missing / equivocal evidence"| REF[REFER to reviewer queue]
-
-    APP --> SUB[Submitted via TriZetto adapter]
-    DEN --> AP[Appeals Drafter - NCCN-grounded letter]
-    REF --> RV[HITL reviewer resumes the case]
-
-    classDef green  fill:#dcfce7,stroke:#15803d,color:#0f172a
-    classDef red    fill:#fee2e2,stroke:#b91c1c,color:#0f172a
-    classDef amber  fill:#fef3c7,stroke:#b45309,color:#0f172a
-    classDef neutral fill:#f1f5f9,stroke:#334155,color:#0f172a
-
-    class APP,SUB green
-    class DEN,AP red
-    class REF,RV amber
-    class IN,EXT,RET,NEC,DEC neutral
-```
-
-For a deeper walkthrough, see [ARCHITECTURE.md](ARCHITECTURE.md).
-
----
-
-## 🤖 The 7-agent pipeline
-
-| # | Agent | Purpose | Model | Output (typed) |
-|---|---|---|---|---|
-| 1 | **Clinical Extractor** | Parses FHIR and the physician note into a structured snapshot. Uses 3 sub-agents: FHIR validator, PHI sanitizer, biomarker specialist | Haiku 4.5 | `ClinicalSnapshot` |
-| 2 | **Policy Retriever** | Retrieves the payer's current policy excerpts for the requested treatment | Haiku (rerank) | `PolicyExcerpt[]` |
-| 3 | **Necessity Reasoner** | Marks every policy criterion MET, NOT-MET or UNDOCUMENTED | Sonnet 4.6 | `NecessityAssessment` |
-| 4 | **Decision Composer** | Produces the verdict and the citation chain behind it | Sonnet 4.6 | `Decision` |
-| 5 | **Denial Forecaster** | Estimates denial risk and likely reasons before submission | Sonnet 4.6 | `DenialForecast` |
-| 6 | **Appeals Drafter** *(DENY branch only)* | Drafts an NCCN-grounded appeal letter | Sonnet 4.6 | `AppealDraft` |
-| 7 | **Patient Communicator** | Explains the verdict and next steps in plain language | Haiku 4.5 | `PatientCommunication` |
-
-Orchestration is a [LangGraph](https://github.com/langchain-ai/langgraph) `StateGraph` (`backend/app/graph/build.py`), not a hand-rolled loop. A conditional edge after `necessity_reasoner` routes to a human-in-the-loop review gate. A second conditional edge after `denial_forecaster` sends a DENY to the Appeals Drafter and an APPROVE or REFER to patient communication. Every agent has a typed Pydantic input and output, a system prompt under `backend/app/prompts/`, and a contract test under `backend/tests/agents/`.
-
-Each of the 7 agents is built from 2 to 4 focused sub-agents, 21 in total. For example, the Clinical Extractor's `fhir_resource_validator` and `phi_sanitizer` are deterministic Python that run in under 10 ms with no LLM call, while `biomarker_specialist` calls the model. Every sub-agent publishes its own `agent_started` and `agent_finished` events, which drive the console's per-agent progress bars.
-
----
-
-## 🏆 Oncology capabilities
-
-Each capability is a callable endpoint under `/api/v1/oncology-stack/*` (`backend/app/api/oncology_stack.py`):
-
-| # | Capability | Endpoint |
-|---|---|---|
-| 1 | 📚 **OncoGuideline Engine**: NCCN/ASCO guideline search | `GET /guidelines/search` |
-| 2 | 🧬 **Genomic parsing**: biomarker extraction and regimen lookup by variant | `POST /genomic/parse`, `GET /genomic/regimens` |
-| 3 | 🛡️ **Denial prediction and appeal drafting** | `POST /denial/predict`, `POST /appeal/draft` |
-| 4 | 📡 **Da Vinci PAS / CRD / DTR**: FHIR submission and coverage discovery hooks | `POST /davinci/pas/submit`, `/davinci/crd`, `/davinci/dtr/questionnaire` |
-| 5 | 🧾 **Peer-to-peer briefing kit**: a 1-page PDF for the physician's P2P call | `POST /p2p/briefing-kit` |
-| 6 | 💬 **Off-label justification**: a proposer, opponent and judge multi-agent debate | `POST /off-label/justify` |
-| 7 | 🔗 **Bundled regimen PA**: one authorization request covers a whole NCCN regimen | `GET /regimen/templates`, `POST /regimen/bundle` |
-| 8 | 💰 **Site-of-care cost comparison**: hospital, office or home infusion | `POST /site-of-care/compare` |
-| 9 | 🔄 **Multi-payer policy reconciler**: tracks policy changes across payers | `GET /policies/diffs`, `POST /policies/reconcile` |
-| 10 | 🔐 **Tamper-evident audit chain**: see [Audit trail](#-audit-trail) | `GET /audit/trail`, `GET /audit/trail/{id}` |
-
----
-
-## 🫀 OncoTwin: the patient digital twin
-
-ClinCase decides whether a treatment is approved. **OncoTwin** watches the patient between visits. It keeps a per-patient model measured against the patient's own baseline and flags when their trajectory changes. It estimates risk only at horizons the data supports, simulates what-if scenarios, and passes findings a clinician has accepted into the ClinCase prior-auth workflow.
-
-OncoTwin is an **add-on layer**. The 7-agent pipeline, its endpoints, FHIR handling and audit tables are unchanged, and a test pins that (`backend/tests/oncotwin/test_twin.py::test_clincase_seven_agent_architecture_is_unchanged`).
-
-**What it models.** `OT-ACUTE-7`: an unplanned ED visit or admission for one of the 10 CMS OP-35 chemotherapy-related conditions within 7 days, plus 24-hour and 72-hour horizons. It does not offer a 6-hour horizon because its signals are daily aggregates.
-
-**Seven core capabilities**
-
-| Capability | What it does |
+| Purpose | Entry point |
 |---|---|
-| Living Twin State | 19 dimensions tracked daily. Each state is SHA-256 hashed and never overwritten, with a transition ledger and hysteresis to stop flapping |
-| Personalised baseline | Robust median ± MAD per signal, so every deviation is expressed in the patient's own standard deviations |
-| Multimodal fusion | EHR, pathology, genomics, labs, treatment, wearables, home devices and patient-reported symptoms, feeding a 42-feature store with lineage |
-| Trajectory and change points | Bayesian online change-point detection, cross-signal lead/lag, and a multi-horizon survival model |
-| What-if and counterfactual | 64 Monte Carlo runs per scenario (antibiotics, hydration, G-CSF, dose changes) and a "nothing changed" counterfactual |
-| Twin Memory | Deterioration and recovery per cycle, ANC nadir, and similarity between cycles |
-| ClinCase handoff | Explainable alerts, safety gates and clinician review before anything reaches prior auth |
+| Complete evidence journey | `/journey` · [workflow guide](docs/UNIFIED_JOURNEY.md) |
+| Deterministic local demo | `./start-track7.ps1 -SQLite` · [runbook](docs/DEMO_RUNBOOK.md) |
+| Independent HTTP proof | `python backend/scripts/track7_network_demo.py` |
+| Actual deployment topology | `/runtime` · [Kubernetes runbook](docs/KUBERNETES.md) |
+| Standards evidence | [validation](docs/track7/VALIDATION.md) · [conformance](docs/track7/CONFORMANCE.md) |
+| Publication checks | [final verification](docs/FINAL_PUBLICATION_VERIFICATION.md) |
 
-**Measured on synthetic data.** On a held-out set of 200 synthetic patients, the multimodal twin reached **AUROC 0.866 [0.832, 0.902]** and alerted before **39 of 40** events, with a median lead of **4 days**. Population vital-sign thresholds caught 12 of 40 events. All patients, signals and outcomes are simulated and tagged `SYNTHETIC`, so these numbers show that the method works end to end, not that it performs clinically. OncoTwin is clinical decision support: it never diagnoses, orders or submits anything, and a clinician reviews every alert.
+## One connected evidence journey
 
-Full details, including limitations, are in [docs/ONCOTWIN.md](docs/ONCOTWIN.md). In the app, go to **Digital twin** in the sidebar (`/twin`).
+The journey orchestrates existing APIs. A persisted interoperability job carries its source, mapping decisions, bundle, validation and exchange events. Stage status is a read-only server projection; completed stages cite their proof events. Clinical context and follow-up use the bound One Health evidence.
 
----
+```mermaid
+flowchart TD
+    START["CLINI-CASE<br/>Unified Evidence Journey"]
+    START --> A["1. INTAKE<br/>JSON / CSV / FHIR import<br/>Reviewed environmental evidence"]
+    A --> B["2. UNDERSTAND<br/>Fields, types and source context"]
+    B --> C["3. MAP<br/>Deterministic matches first<br/>Optional governed AI suggestions"]
+    C --> D["4. REVIEW<br/>Human approves / rejects<br/>Resolve ambiguity and required fields"]
+    D --> E["5. STANDARDIZE<br/>Typed normalization<br/>FHIR R4 + selected OAH profiles"]
+    E --> F{"6. VALIDATE<br/>Current bundle passes?"}
+    F -->|No| FIX["Block exchange<br/>Return issues for correction"]
+    FIX --> D
+    F -->|Yes| G["7. EXCHANGE<br/>HTTP to independent System B"]
+    G --> H["8. VERIFY<br/>Rewritten IDs and references<br/>Compare decoded semantic fields"]
+    H --> I["9. CLINICAL CONTEXT<br/>Consent-gated evidence link"]
+    I --> J["10. FOLLOW-UP<br/>Investigation, mitigation and retest"]
+    J --> A
+    I -. optional context .-> K["Existing clinical capabilities"]
+    K --> K1["General clinical case"]
+    K --> K2["Oncology<br/>Seven-agent decision support"]
+    K --> K3["OncoTwin<br/>Patient trajectory context"]
+    K --> K4["CardioTwin<br/>CAD / vessel probability context"]
+    K2 --> P["Governed model gateway<br/>Configured provider, including NVIDIA"]
+    D --> R["Evidence Passport<br/>Source + review + hashes<br/>Validation + receipt + semantic result"]
+    H --> R
+    J --> R
+    classDef stage fill:#e0f2fe,stroke:#0369a1,color:#0f172a
+    classDef human fill:#fef3c7,stroke:#b45309,color:#0f172a
+    classDef proof fill:#dcfce7,stroke:#15803d,color:#0f172a
+    class A,B,C,E,G,I,J stage
+    class D,F,FIX human
+    class H,R proof
+```
 
-## 🫀 CardioTwin: vessel-level cardiovascular risk
+| Stage | Advancement and safety |
+|---|---|
+| Intake | Preserve original payload, source identity, synthetic flag and ingest event. |
+| Understand | Display fields/types before interpreting them. |
+| Map | Retain source field, target, method, rationale and ambiguity. |
+| Review | Record authenticated decisions; unresolved required fields block generation. |
+| Standardize | Make analyte, units, times, laboratory and location explicit. |
+| Validate | Bind outcome to the current generated bundle digest. |
+| Exchange | Record HTTP acknowledgement, receipt and transfer identity. |
+| Verify | Compare semantics independently of resource IDs. |
+| Clinical context | Require appropriate consent; association is contextual evidence. |
+| Follow-up | Add investigation/new retest without overwriting earlier history. |
 
-CardioTwin estimates the probability of angiographic CAD and of stenosis in the LAD, LCX and RCA from clinical,
-ECG, laboratory and echo features, and shows them on an interactive schematic 3D heart at `/cardiotwin`.
-It is deliberately honest about what a 303-patient tabular dataset can support: probabilities are calibrated and
-drawn with their uncertainty, an out-of-cohort profile triggers a warning instead of false confidence, every
-explanation and what-if is an exact re-evaluation of an integrity-checked model, and the view never claims to show
-*where* a lesion is. **Decision support / educational only — not a substitute for diagnostic imaging.**
-Reproduce with `make cardio.train` and `make cardio.test`; full write-up in [`docs/CARDIOTWIN.md`](docs/CARDIOTWIN.md).
+`/onehealth` and `/interop` remain available as workbenches. Regeneration requires fresh validation. Binding new evidence changes the exchange's evidence and requires regeneration for an up-to-date Passport.
 
-## 🌍 Beyond oncology
+## OneAquaHealth Track 7 — Digital Health Standards
 
-ClinCase is not limited to oncology. The same agents and retrieval pipeline work on any prior-auth problem that has a payer policy and a body of clinical evidence. Reference case 4 shows this with **Hepatitis C direct-acting antiviral therapy**: the same seven agents and the same code path, with a different policy corpus and guideline set (AASLD-IDSA instead of NCCN).
+### Fragmentation and the governed boundary
+
+A laboratory CSV may report `sample_no`, `arsenic_dissolved` and `ug/l`; another system expects FHIR resources, terminology, UCUM units and references. A syntactically valid file can still carry the wrong analyte meaning. CLINI-CASE addresses the interpretation as well as the transport:
+
+**Source → schema discovery → constrained mapping → human review → OAH/FHIR → validation → independent HTTP exchange → semantic round trip.**
 
 ```mermaid
 flowchart TB
-    A["ClinCase Core (7-agent DAG - policy retrieval - FHIR R4)"]:::core
-
-    A --> B1[Oncology - NCCN]
-    A --> B2[Hepatitis-C / DAA therapy - AASLD-IDSA - Aetna CPB 0860]
-    A --> B3[Liver transplantation - Aetna CPB 0596 - MELD-Na - Milan]
-    A --> B4[Specialty pharmacy - biosimilars, step therapy]
-    A --> B5[Behavioural health - parity-law criteria]
-
-    classDef core fill:#0b3d91,color:#fff,stroke:#0b3d91,stroke-width:2px
-    classDef leaf fill:#dbeafe,stroke:#1d4ed8,color:#0f172a
-    class B1,B2,B3,B4,B5 leaf
+    subgraph SOURCES["HETEROGENEOUS SOURCES"]
+        S1["Environmental JSON<br/>Context + measurements"]
+        S2["Laboratory CSV<br/>Fraction, value, unit, time, method"]
+        S3["FHIR source Bundle"]
+        S4["Reviewed One Health / AquaHealth<br/>Observation + verification + consent"]
+    end
+    subgraph GATEWAY["GOVERNED INTEROPERABILITY GATEWAY"]
+        D["Schema discovery"]
+        M["Deterministic semantic mapper"]
+        AI["Optional governed AI<br/>Constrained proposals"]
+        SAFE["Target allowlist + safety<br/>Preserve ambiguity"]
+        H["Authenticated human review"]
+        N["Typed normalization"]
+        F["FHIR R4 collection Bundle<br/>Selected pinned OAH constraints"]
+        V{"Current-bundle validation"}
+        BLOCK["Fail closed<br/>No invalid transfer"]
+        STORE["Persisted job + event history"]
+    end
+    subgraph EXCHANGE["INDEPENDENT CROSS-SYSTEM PROOF"]
+        B["System B<br/>Separate process + own storage"]
+        IDS["Reassign IDs<br/>Rewrite internal references"]
+        R["Return stored Bundle"]
+        RT["Decode and compare semantics<br/>IDs excluded from equality"]
+    end
+    subgraph PROOF["REVIEWABLE RESULT"]
+        EP["Evidence Passport<br/>Chain + hashes + review<br/>Validation + receipt"]
+        SIG["Optional Ed25519 signature<br/>Demo-system scope"]
+        CTX["Consented clinical context<br/>Follow-up / retest"]
+    end
+    S1 --> D
+    S2 --> D
+    S3 --> D
+    S4 --> D
+    D --> M
+    M --> SAFE
+    M -. unresolved fields .-> AI
+    AI --> SAFE
+    SAFE --> H --> N --> F --> V
+    V -->|invalid| BLOCK
+    V -->|valid| B
+    B --> IDS --> R --> RT
+    D --> STORE
+    H --> STORE
+    V --> STORE
+    RT --> STORE
+    STORE --> EP
+    EP -. configured key .-> SIG
+    RT --> CTX
 ```
 
-Add a new payer policy to the corpus and the Policy Retriever uses it on the next run.
+### Distinctive mechanisms
 
----
+| Mechanism | Purpose |
+|---|---|
+| Semantic firewall | Evidence cannot silently become stronger clinical meaning. |
+| Constrained mapping | Supported targets only; deterministic mapping precedes AI. |
+| Human approval | Authenticated reviewers decide what the source supports. |
+| Ambiguity protection | Generic arsenic never silently becomes dissolved, total or inorganic arsenic. |
+| OAH/FHIR generation | Explicit resources/references rather than opaque files. |
+| Independent HTTP receiver | Cross a process and storage boundary. |
+| Resource-ID independence | Challenge assumptions by changing identifiers/references. |
+| Semantic round trip | Compare decoded analyte, value, unit, time, lab, location and evidence. |
+| Evidence Passport | Inspect source, review, validation, receipts and results. |
+| Fail-closed validation | Invalid units, malformed bundles and stale validation block delivery. |
 
-## 🛠️ Tech stack
+These are implemented choices and demonstration evidence, not a claim that this is the first system to use FHIR, AI mapping or provenance.
 
-<table>
-<tr>
-<td valign="top" width="34%">
+### Semantic safety: AI can suggest; AI cannot certify
 
-### Backend
-- **Python 3.11**, typed throughout
-- **FastAPI**, async
-- **Pydantic v2**: every agent contract is a typed model
-- **LangGraph**: the 7-agent DAG with conditional edges
-- **`boto3`**: Bedrock Converse API, S3, Textract, SNS, Amazon Q Business
-- **asyncpg**: raw SQL over a Postgres pool, no ORM
-- **Server-Sent Events** (`sse_starlette`): authenticated live agent trace
-- **`ruff` + `mypy --strict`** in CI
+```mermaid
+flowchart TD
+    X["Source field + context"] --> D{"Deterministic supported match?"}
+    D -->|Yes| A["Allowlisted target proposal"]
+    D -->|No| AI["Optional governed AI suggestion"]
+    AI --> G{"Target and proposal allowed?"}
+    G -->|No| BLOCK["Reject proposal<br/>Keep unresolved evidence"]
+    G -->|Yes| HUMAN["Authenticated human review"]
+    A --> HUMAN
+    HUMAN --> AMB{"Ambiguous or missing evidence?"}
+    AMB -->|Yes| MANUAL["Resolve from source<br/>Edit / reject / clarify"]
+    MANUAL --> HUMAN
+    AMB -->|No| APPROVE["Approved mapping"]
+    APPROVE --> N["Typed normalization"]
+    N --> FHIR["Generate FHIR / OAH"]
+    FHIR --> VALID{"Validation passes?"}
+    VALID -->|No| BLOCK
+    VALID -->|Yes| SEND["Exchange eligible"]
+```
 
-</td>
-<td valign="top" width="33%">
+A bare `arsenic` field does not establish sample fraction or chemical speciation. Explicit `arsenic_dissolved` may use the pinned dissolved concept when the source supports it. Total and inorganic arsenic are distinct. Unsupported terminology remains text/local coding. The demonstrated contract blocks unsupported `ppm`; conversion is not guessed.
 
-### Frontend
-- **React 18** + React Router 6
-- **TypeScript 5.6**, strict
-- **Vite 5**
-- **Tailwind CSS**: token-driven light and dark themes
-- **`lucide-react`** icons
-- **EventSource / SSE**: live pipeline console with bounded reconnect
-- **JWT auth**, org-scoped
+Mapping AI receives field names/schema and allowlisted targets, not measured values or patient context. It cannot select arsenic speciation, invent terminology or approve its proposal. The governed AI path needs its PostgreSQL infrastructure; the deterministic SQLite demo works independently.
 
-</td>
-<td valign="top" width="33%">
+### Exchange: changed IDs, preserved meaning
 
-### LLM layer
-- **Provider-agnostic gateway**: Anthropic, OpenRouter or Bedrock behind one interface (`backend/app/llm/factory.py`)
-- **Default provider: OpenRouter** (`LLM_PROVIDER=openrouter`). Bedrock is fully implemented and one variable away
-- **Bedrock path**: Converse API and `converse_stream`, Claude Sonnet 4.6 and Haiku 4.5, optional Guardrails when `BEDROCK_GUARDRAIL_ID` is set
-- **Model IDs**: `apac.anthropic.claude-sonnet-4-6-20251022-v1:0`, `apac.anthropic.claude-haiku-4-5-20251001-v1:0`
+```mermaid
+sequenceDiagram
+    actor Reviewer as Authenticated reviewer
+    participant A as System A / source
+    participant C as CLINI-CASE
+    participant DB as Gateway job store
+    participant B as Independent System B
+    A->>C: Source JSON / CSV / FHIR
+    C->>DB: Persist source and discovery
+    C->>C: Deterministic mapping + optional proposals
+    C-->>Reviewer: Targets, rationale and ambiguity
+    Reviewer->>C: Approve / reject / resolve
+    C->>DB: Reviewer identity and decisions
+    C->>C: Generate OAH/FHIR and validate current digest
+    alt Invalid or stale validation
+        C-->>Reviewer: Issues and exchange blocked
+    else Valid exchange
+        C->>B: Authenticated HTTP FHIR Bundle
+        B->>B: Validate and store
+        B->>B: Reassign IDs and rewrite references
+        B-->>C: Receipt / acknowledgement
+        C->>B: Retrieve returned Bundle
+        B-->>C: Stored Bundle with rewritten IDs
+        C->>C: Decode and compare semantic fields
+        C->>DB: Transfer and round-trip events
+        C-->>Reviewer: Field-level result + Passport
+    end
+```
 
-</td>
-</tr>
-</table>
+The separate-process network fixture preserves **13/13 semantic fields** despite rewritten IDs and blocks invalid-unit/malformed-bundle transfers. Richer reviewed-evidence fixtures add fields; the UI reports the actual comparison count. Reproduce using the [network demo](backend/scripts/track7_network_demo.py) and [judge script](docs/track7/DEMO_SCRIPT.md).
 
----
+## From environmental evidence to human-health context
 
-## 📜 Regulatory alignment
+**Observation → laboratory evidence → exposure context → clinical review → optional specialist context → follow-up/retest.** A photo may justify investigation; it cannot establish arsenic concentration. A laboratory concentration does not establish an individual's exposure duration, dose, diagnosis or disease cause.
 
-| Regulation / standard | What it requires | How ClinCase addresses it today |
+| Exposure/evidence | Established health context | Platform boundary |
 |---|---|---|
-| **CMS-0057-F** (89 FR 8758) | FHIR PA APIs, 72h expedited / 7d standard, Jan 1 2027 | `POST /fhir/Claim/$submit` is a partial Da Vinci PAS contract. It accepts PAS-shaped Bundles and transactionally queues the agent DAG. Full IG validation, synchronous verdict response, and X12 278 conversion are not built yet. |
-| **HIPAA** | PHI safeguards, audit, access control | Org-scoped JWT auth on every case route, including the SSE stream. Optional Bedrock Guardrails PHI redaction when configured |
-| **Human-in-the-loop review** | A clinician can intervene on a low-confidence or adverse determination | HITL gate in the LangGraph DAG: `POST /cases/{id}/resume`, `POST /cases/{id}/review`, and a `/reviewer` queue in the frontend |
-| **HL7 Da Vinci CRD / DTR** | Coverage discovery and auto-filled PA forms | Endpoint stubs exist (`/davinci/crd`, `/davinci/dtr/questionnaire`), with the same caveat as PAS above |
-| **ASCO/CAP HER2 Testing Guideline 2023** | Equivocal IHC 2+ requires reflex FISH before HER2-targeted therapy | Encoded in the Necessity Reasoner's inclusion logic. This rule produces reference case 3's REFER verdict |
+| Long-term inorganic arsenic exposure through drinking water | WHO describes cancer/skin lesions and associations with cardiovascular disease and diabetes. [WHO arsenic fact sheet](https://www.who.int/news-room/fact-sheets/detail/arsenic) | The implemented arsenic workflow preserves analyte/fraction, source and review. It does not establish speciation, individual exposure or causality. |
+| Microbial contamination | Contaminated water can transmit intestinal infections associated with diarrhoeal disease. [WHO diarrhoeal disease fact sheet](https://www.who.int/news-room/fact-sheets/detail/diarrhoeal-disease) | Broader One Health motivation; pathogen diagnosis/prediction is not implemented by the arsenic gateway. |
 
----
+These are public-health relationships, not water-to-disease model outputs. Population indicators are not individual disease predictions.
 
-## 🧾 FHIR / Da Vinci PAS conformance
+```mermaid
+flowchart TD
+    OBS["Environmental observation<br/>Reason to investigate"] --> LAB["Laboratory evidence<br/>Analyte, unit, method and time"]
+    LAB --> VERIFIED["Reviewed evidence + provenance<br/>Gates and epistemic ceiling"]
+    VERIFIED --> CONSENT{"Appropriate consent and reviewed link?"}
+    CONSENT -->|No| ENV["Environmental investigation"]
+    CONSENT -->|Yes| CONTEXT["Contextual association<br/>No individual causal inference"]
+    CONTEXT --> GENERAL["General clinical case"]
+    CONTEXT --> ONC["Optional oncology<br/>Clinical packet + policy"]
+    CONTEXT --> OT["Optional OncoTwin<br/>Trajectory review"]
+    CONTEXT --> CT["Optional CardioTwin<br/>CAD / vessel probabilities"]
+    ONC --> AGENTS["Seven-agent workflow<br/>Patient-level clinical evidence"]
+    OT --> REVIEW["Clinician reviews supported findings"]
+    CT --> REVIEW
+    AGENTS --> REVIEW
+    REVIEW --> FOLLOW["Appropriate clinical follow-up"]
+    ENV --> RETEST["New sample / retest<br/>Earlier history preserved"]
+    FOLLOW --> RETEST
+    BOUNDARY["Environmental links do not feed<br/>authorization or twin inputs"] -. applies to .-> CONTEXT
+```
 
-- **PAS-shaped queue contract**: `POST /fhir/Claim/$submit` accepts a Da Vinci PAS-shaped `Bundle`, extracts treatment, diagnosis and payer, transactionally creates a case and worker job, and returns a queued `ClaimResponse`. It does not synchronously return a verdict and does not yet implement full IG validation, identifier signing, subscriptions, or X12 278 conversion.
-- **CRD / DTR**: endpoint stubs, with the same caveat.
-- **X12 278**: not implemented yet. It is on the roadmap.
+One Health computes an epistemic ceiling through six gates: laboratory verification, active consent, drinking pathway, point-of-use sample, treatment/use context and temporal overlap. Imported consent/verification is not automatically trusted. Oncology and twins are optional; many investigations need none of them. See [One Health](docs/ONEHEALTH_TRACK7.md), [evidence gates](docs/EPISTEMIC_CEILING.md) and [Passport](docs/EVIDENCE_PASSPORT.md).
 
-Endpoints are served under `/api/v1/fhir/*`.
+## Existing clinical and AI capabilities
 
----
+### Seven-agent oncology workflow
 
-## 🔐 Audit trail
+The existing LangGraph DAG has seven parent agents and **22 sub-agents: 15 LLM-backed and seven deterministic**. It is separate from Track 7 mapping. Both use the existing governed model infrastructure where AI is enabled; oncology agents do not perform Track 7 mapping.
 
-ClinCase has two tamper-evidence mechanisms at different levels of maturity.
-
-**Persisted and production-shaped.** Every agent call writes a row to the Postgres `agent_runs` table with the agent name, model ID, input and output tokens, latency, start and finish times, and any error text (`backend/app/observability/trace.py`). The per-case **evidence pack** (`GET /cases/{id}/evidence-pack`) re-serializes that data in canonical form and computes a `bundle_sha256` over it, plus a separate decision-level hash. A third party can re-hash the bundle to confirm nothing changed after the fact (`backend/app/api/evidence_pack.py`).
-
-**Working, but a prototype.** The chained audit trail (`GET /audit/trail`) links each record to the SHA-256 hash of the previous one, so edits are detectable. It is held in an **in-process Python list**, not the database, so it resets on restart and is not shared across replicas. The next step is to anchor each entry in QLDB or an append-only S3 Object Lock bucket.
-
----
-
-## 🧾 Accountable authorization: identity, review, verification
-
-Every decision is traceable to one execution and can be escalated to a human. All of this is additive; nothing is on by default that changes existing verdicts.
-
-| Capability | What it does | Docs |
-|---|---|---|
-| **Run identity** | Each execution has a `run_id`, a stable `case_intelligence_id` (`CI-…`) and a `trace_id`, carried through the queue, graph, agents, model calls and SSE, and stored on every artifact. | [`docs/RUN_IDENTITY.md`](docs/RUN_IDENTITY.md) |
-| **Human review (pause/resume)** | A low-confidence or disputed case pauses durably; a reviewer's decision (`/resume`) becomes the decision of record and a queued continuation drafts the downstream outputs. Prior runs are kept as `superseded`. | [`docs/HUMAN_REVIEW.md`](docs/HUMAN_REVIEW.md) |
-| **Independent verifier** | Re-derives the verdict from criterion-level evidence and checks that clinical citations resolve to the FHIR bundle, without reading the composer's reasoning. Disagreement pauses the case. Off by default: `VERIFIER_ENABLED=true`. | [`docs/PLATFORM_HARDENING.md`](docs/PLATFORM_HARDENING.md) |
-| **Case Digital Twin** | `GET /cases/{id}/twin`: one auditable projection (runs, evidence lineage, human decisions, verifications, gateway-audited cost reconciliation, tamper hash). | [`docs/CASE_DIGITAL_TWIN.md`](docs/CASE_DIGITAL_TWIN.md) |
-| **Model gateway** | Typed Bedrock errors, guardrail interventions never returned as answers, config-driven model registry, deterministic routing with no silent fallback, one price source. | [`docs/PLATFORM_HARDENING.md`](docs/PLATFORM_HARDENING.md) |
-| **Security** | Tenant-scoped MCP, platform-admin-only policy writes, login throttle, same-origin OIDC redirects, non-root containers. | [`docs/SECURITY_PROCESSING.md`](docs/SECURITY_PROCESSING.md) |
-| **Tracing** | `Agent.invoke` spans plus a W3C `traceparent` carried across the job queue. | [`docs/PLATFORM_HARDENING.md`](docs/PLATFORM_HARDENING.md) |
-
-Demo settings that make the verifier and human-review gate fire are in [`ops/demo.env.example`](ops/demo.env.example). Honest status, what is not yet proven, and the evaluation plan: [`docs/PENDING_WORK_AND_WIN_PLAN.md`](docs/PENDING_WORK_AND_WIN_PLAN.md) and [`docs/EVALUATION_RESULTS.md`](docs/EVALUATION_RESULTS.md) (synthetic verifier fault injection only; no live-model accuracy is claimed).
-
----
-
-## 💵 Business case
-
-The figures below start from **cited external sources** and apply them to a modeled 50-physician oncology practice with 10,000 PA requests a year. They are the economics the product is designed to deliver, not results measured in a production deployment.
-
-| Lever | Manual baseline (cited) | ClinCase target | Modeled annual gain |
+| # | Agent | Responsibility | Typed output |
 |---|---|---|---|
-| Time to decision | Establish from the deployment's current workflow | Measure through agent traces and queue telemetry | Calculate only from observed workload data |
-| Appeals | 80.7% of appealed denials are overturned (CMS), but only 11.7% of denials are appealed | An NCCN-grounded appeal letter is drafted for every DENY, so appealing takes little extra effort | Recovers revenue now lost to denials nobody had time to appeal |
-| Compute cost per case | n/a | Sonnet 4.6 and Haiku 4.5 on Bedrock at published per-token prices | A few dollars per case at list price, before prompt caching |
+| 1 | Clinical Extractor | Validate/minimize packet; structure facts | `ClinicalSnapshot` |
+| 2 | Policy Retriever | Retrieve configured payer-policy excerpts | Policy excerpts |
+| 3 | Necessity Reasoner | Criteria: met, not met, undocumented | `NecessityAssessment` |
+| 4 | Decision Composer | Evidence-linked advisory determination | `Decision` |
+| 5 | Denial Forecaster | Advisory denial reasons/risk, not disease prediction | `DenialForecast` |
+| 6 | Appeals Drafter | Appeal draft on DENY branch | `AppealDraft` |
+| 7 | Patient Communicator | Plain-language explanation/next steps | `PatientCommunication` |
 
-The underlying problem accounts for about **$35B a year in US PA administrative spend** (Sahni et al.).
+```mermaid
+flowchart TD
+    PACKET["PDF / clinical note / FHIR"] --> FACTS["Explicit source facts<br/>Patient + Condition + MedicationRequest<br/>Observations + document provenance"]
+    FACTS --> EXTRACT["1. Clinical Extractor"]
+    EXTRACT --> POLICY["2. Policy Retriever"]
+    POLICY --> REASON["3. Necessity Reasoner"]
+    REASON --> CONF{"Assessment sufficient<br/>and confidence gate passes?"}
+    CONF -->|No| EARLY["Durable human-review pause"]
+    CONF -->|Yes| COMPOSE["4. Decision Composer"]
+    COMPOSE --> VERIFY{"Optional verifier disagreement?"}
+    VERIFY -->|Yes| EARLY
+    VERIFY -->|No / disabled| FORECAST["5. Denial Forecaster"]
+    FORECAST --> VERDICT{"Advisory verdict"}
+    VERDICT -->|DENY| APPEAL["6. Appeals Drafter — DRAFT"]
+    VERDICT -->|APPROVE / REFER| PATIENT["7. Patient Communicator"]
+    APPEAL --> PATIENT
+    PATIENT --> SAVE{"Persistence boundary"}
+    SAVE -->|AI DENY| HOLD["Awaiting review<br/>Draft outputs visible<br/>No final DENY / case.decided"]
+    SAVE -->|Other outcomes| RECORD["Persist current-run outputs"]
+    EARLY --> HUMAN["Authenticated reviewer<br/>Decision of record"]
+    HOLD --> HUMAN
+    HUMAN --> RESUME["Durable continuation<br/>Worker or bounded inline execution"]
+    RESUME --> LETTERS["Current-run forecast / relevant appeal<br/>Patient communication"]
+    EXTRACT -. model calls .-> GW["Governed model gateway"]
+    REASON -. model calls .-> GW
+    COMPOSE -. model calls .-> GW
+    APPEAL -. model calls .-> GW
+    GW --> PROVIDER["Configured provider<br/>NVIDIA OpenAI-compatible endpoint<br/>Anthropic / OpenRouter / Bedrock"]
+```
 
----
+**PDF repair:** Intake and Cases now share conversion into a populated clinical FHIR packet from explicitly labeled facts. Missing/conflicting facts return actionable errors. Stage, dose, billing codes and DOB are not fabricated. Scans depend on configured OCR tools; arbitrary layouts still need review.
 
-## 🚀 Getting started
+**Every AI DENY requires human review.** Synchronous and worker persistence enforce this independently of the low-confidence gate. Draft appeals/patient communication remain visible while pending. Authenticated identity and the human decision are recorded transactionally. Continuation uses a worker or inline serverless execution; failure preserves the decision and allows fenced retry. [Repair evidence](docs/ONCOLOGY_UPLOAD_REVIEW_REPAIR.md) · [human review](docs/HUMAN_REVIEW.md).
 
-### Prerequisites
+### NVIDIA and model governance
 
-- Docker Desktop (for Postgres, and optionally Redis)
-- Node 20+ and npm
-- Python 3.11+
-- An API key for **one** of Anthropic, OpenRouter or AWS Bedrock, with access to Claude Sonnet 4.6 and Haiku 4.5
+NVIDIA uses the existing OpenAI-compatible adapter: `LLM_PROVIDER=openrouter`, `OPENROUTER_BASE_URL=https://integrate.api.nvidia.com/v1` and configured `OPENROUTER_MODEL`. Variable names identify the adapter, not necessarily the destination. `OPENROUTER_API_KEY` remains a backend environment secret.
 
-### Start the stack
+On **2026-10-04**, a live synthetic request through the existing provider client succeeded with `nvidia/nemotron-3-super-120b-a12b` (48 input tokens, six output tokens). This proves connectivity for that request, **not** full seven-agent live completion, clinical accuracy or mapping quality. Offline NVIDIA tests cover normalization/integrity without provider calls.
 
-```bash
-git clone https://github.com/victrvondoom/CLINI-CASE.git
-cd CLINI-CASE
-cp .env.example .env                  # then fill in your provider key
+The agent boundary uses the governed gateway for context, model policy, quotas, audit and circuit-breaking. Output schemas, provider-specific options, JSON repair, concurrency and retries support compatible models. Unknown pricing must not be presented as measured cost. `LLM_SYSTEM_TRUST=true` needs optional `truststore`; TLS verification stays enabled. Bedrock/Guardrails are configured adapters, not required infrastructure or proof of live AWS deployment.
 
-# 1. Postgres (Redis is optional and only needed for multi-replica SSE fan-out)
-docker compose up -d postgres
+Track 7 works without an LLM. The launcher's `-AI` enables governed suggestions when its infrastructure is available; connectivity does not certify suggestions.
 
-# 2. Backend
+### Oncology, OncoTwin and CardioTwin in depth
+
+| Capability | Implemented purpose | Evidence boundary |
+|---|---|---|
+| Oncology | Clinical extraction, policies, criterion evidence, advisory decisions, appeal/patient drafts | Demo policies/guidelines are not licensed current clinical feeds. AI DENY always awaits review. |
+| Oncology stack | Guideline search, genomics/regimens, denial/appeal helpers, peer-to-peer briefing, off-label review, regimen bundling, site-of-care comparison, policy reconciliation | Helpers/simulated economics differ from live payer submission or clinical validation. |
+| OncoTwin | Personal baselines, feature lineage, trajectory/change points, supported horizons, scenarios and reviewed ClinCase handoff | Demo patients/outcomes and evaluations are synthetic. No real-cohort performance claim. |
+| CardioTwin | Clinical/ECG/lab/echo features yield CAD and LAD/LCX/RCA stenosis probabilities with uncertainty/integrity checks | Cross-sectional context, not future events, lesion localization or diagnostic imaging. |
+| Case Digital Twin | Auditable runs, evidence, reviews, verification and cost reconciliation | Distinct from physiological modeling. |
+
+OncoTwin's prototype `OT-ACUTE-7` uses supported 24-hour, 72-hour and seven-day horizons. Living state, baseline, feature store, trajectory, simulation, memory and handoff are in [ONCOTWIN.md](docs/ONCOTWIN.md). Synthetic benchmarks are not clinical performance.
+
+CardioTwin uses a 303-row angiography cohort from [UCI dataset 411](https://archive.ics.uci.edu/dataset/411/extension+of+z+alizadeh+sani+dataset). Its heart visualization is schematic; what-if changes re-evaluate the model, not treatment effects. [CARDIOTWIN.md](docs/CARDIOTWIN.md).
+
+The Hepatitis C reference case uses the same policy-driven pipeline with a different corpus. Broader specialties require appropriate evidence and validation.
+
+## The complete platform remains available
+
+| Area | Preserved capabilities |
+|---|---|
+| Workspace | Dashboard, Cases, case detail, Intake, live agent console |
+| Evidence/standards | Journey, Environmental Evidence/AquaHealth, OneHealth, Track 7, Safety |
+| Clinical | Oncology, OncoTwin, CardioTwin, clinical handoff |
+| Research/evaluation | Research Lab, Cohorts, comparisons, evaluation harness, model operations |
+| Governance/operations | Reviewer, Observability, Insights, ROI, Compliance, Foundry/Architecture, Runtime |
+| Access/integration | Authentication, tenant/role controls, APIs, tests, FHIR intake, configured adapters |
+
+Navigation groups primary pages while preserving contextual/legacy routes. `/platform` retains the platform reference; `/track7` is the focused overview. [Architecture](ARCHITECTURE.md) · [journey design](docs/UNIFIED_JOURNEY.md).
+
+## Standards, validation and technical proof
+
+Exchange targets **FHIR R4 4.0.1** and selected constraints from the pinned **draft OneAquaHealth guide**. Local contracts/round-trip checks complement external validation; they do not replace full profile/terminology validation.
+
+The **recorded 2026-10-02 sample** was tested with official HL7 validator **6.10.4**. Its OAH package was compiled locally from source commit `b907cf0869b59d82d9138b3d147fca66f333d911`; no published package was available.
+
+| Recorded configuration | Errors | Warnings | Information |
+|---|---:|---:|---:|
+| FHIR R4, terminology disabled | 0 | 21 | 7 |
+| FHIR R4 + pinned OAH, terminology disabled | 0 | 16 | 3 |
+| FHIR R4 + pinned OAH + terminology server | 0 | 15 | 3 |
+
+Warnings include narrative, local terminology and provenance/location issues and were retained. The current exporter passes local checks and reproduces the recorded structure after timestamp normalization; the external validator was **not rerun for this publication**. [Exact hashes, commands and warnings](docs/track7/VALIDATION.md). This is not FHIR/OAH certification or full OAH conformance.
+
+An independent public FHIR R4 server accepted the recorded sample ([third-party check](docs/track7/THIRD_PARTY_INTEROP.md)). This proves generic exchange for that sample, not OAH validation or permanent availability.
+
+| Capability | Demonstration and scope |
+|---|---|
+| Mapping | Deterministic + governed adapter; connectivity alone does not prove live quality |
+| Human governance | Authenticated mapping review/audit; DENY review regression tests |
+| FHIR/OAH | Collection Bundle with selected pinned profiles/constraints |
+| Validation | Current local checks and recorded external results above |
+| Independent exchange | Separate-process HTTP System B with own storage |
+| ID independence | Reassigned IDs and rewritten references |
+| Round trip | Network fixture preserves 13/13 semantic fields |
+| Passport | Persisted chain, hashes, receipts, optional Ed25519 signing |
+| Fail closed | Invalid units/malformed bundles blocked; stale validation rejected |
+| Deployment | Docker/kind manifests; current availability reported separately |
+| AI | Existing governed seven-agent architecture; live NVIDIA connectivity probe passed |
+
+Optional Ed25519 signing attests to demo-system Passport bytes, not lab/clinician/government/third-party certification. Unsigned deployments report unsigned status. Chain validity and signature authenticity are separate.
+
+## Monitoring, observability and verification
+
+Progress connects to persisted evidence and reachable services. Failed or unfinished work remains visible.
+
+```mermaid
+flowchart LR
+    USER["Import / run / review / transfer"] --> API["Authenticated API<br/>Tenant and role boundary"]
+    API --> JOB["Persisted job / clinical run<br/>Run/trace identity where applicable"]
+    JOB --> EVENTS["Stage / agent / transfer events"]
+    EVENTS --> SSE["Authenticated clinical SSE<br/>In-process or configured Redis"]
+    SSE --> UI["Live console and case view"]
+    EVENTS --> AUDIT["Agent runs + model audit<br/>Latency, tokens, model, errors"]
+    EVENTS --> PASS["Interop chain<br/>Validation + receipt + semantic result"]
+    PASS --> PASSPORT["Evidence Passport"]
+    JOB --> FAIL["Failed / paused / retry state"]
+    FAIL --> UI
+    PROBE["Health / readiness"] --> RUNTIME["Runtime projection"]
+    DB["Database SELECT 1"] --> RUNTIME
+    RECEIVER["Configured receiver health"] --> RUNTIME
+    FRONT["Configured frontend health"] --> RUNTIME
+    REDIS["Redis PING if configured"] --> RUNTIME
+    K8S["Downward API identity<br/>Only when present"] --> RUNTIME
+    RUNTIME --> OPS["/runtime<br/>Mode, reachability, route inventory"]
+```
+
+- **Health:** API `/api/v1/healthz` and `/api/v1/readyz`; receiver/container frontend `/healthz`. Readiness checks DB availability.
+- **Clinical trace:** authenticated org-scoped SSE, persisted `agent_runs` and saved progress recovery.
+- **Artifacts:** run/trace identity, review attribution and current-run selection prevent stale drafts appearing as latest results.
+- **Exchange history:** discovery, mapping, review, generation, validation, receipts and semantics provide stage proof.
+- **Runtime:** `GET /api/v1/runtime` probes server-configured services; cluster identity appears only when actually supplied.
+- **kind verification:** checks workloads, services, readiness, login, runtime, exchange and isolation when available.
+
+Runtime does not fabricate CPU metrics, replicas, SLAs or accuracy. A separate legacy oncology chain is in-memory, distinct from persisted Track 7 events. [Run identity](docs/RUN_IDENTITY.md) · [hardening](docs/PLATFORM_HARDENING.md) · [testing](docs/TESTING.md).
+
+## Data, attribution and transformation
+
+| Class | Source/publisher | License/retrieval | Transformation and limits |
+|---|---|---|---|
+| Synthetic Track 7 | Handwritten CLINI-CASE JSON/CSV/evidence | Repository terms; `backend/data/interop/` | Mapping/normalization/FHIR; no real site/lab/patient claim. |
+| Synthetic clinical/twins | CLINI-CASE packets, trajectories, outcomes | Repository terms; local scripts | Demo/offline evaluation, not licensed live clinical feeds. |
+| Real water adapter | WQP; NWQMC, USGS, EPA | Retrieval recorded 2026-10-02; raw rows **not committed**, redistribution permission unconfirmed | Curated stream sample; source/query/time/transform history retained locally; proxies require review. |
+| Real CardioTwin cohort | UCI dataset 411 | **CC BY 4.0**; attribution/import/SHA pins in [dataset README](backend/data/cardiotwin/README.md) | 303-row cross-sectional data; derived artifact, not live EHR/prospective validation. |
+| Derived exchanges/scores | Corresponding evidence/model inputs | Inherit source restrictions/provenance | Normalization/probabilities do not create independent clinical evidence. |
+
+The WQP fetcher records query URLs, retrieval time, verbatim source/station rows and transformations. It retains explicit dissolved/total fraction and skips unsupported qualifiers/units. This is not a monitoring dataset and supports no health inference. Keep fetched output outside Git until terms are confirmed. [Source/license decision](docs/track7/DATA_SOURCES.md).
+
+```powershell
 cd backend
-pip install -e .
-export DATABASE_URL=postgresql://clincase:clincase@localhost:15432/clincase
-export LLM_PROVIDER=openrouter        # or anthropic / bedrock
-export OPENROUTER_API_KEY=sk-...      # the key for the provider you chose
-alembic upgrade head
-uvicorn app.main:app --reload --port 8000
+python scripts/fetch_external_water_data.py --out <path-outside-repo>/wqp_arsenic.json
+```
 
-# 3. Frontend (second terminal)
-cd ../frontend
+## Deployment: one application, several modes
+
+Docker provides containerization, Kubernetes orchestration and kind a local/free cluster. Deterministic exchange needs no cloud account or paid infrastructure; optional models/services may cost money. AWS/EKS material in `ops/` describes portability/configuration, not a claim of live deployment.
+
+```mermaid
+flowchart TD
+    USER["Browser / reviewer"] --> LOOP["Loopback entry<br/>localhost:8080"]
+    subgraph KIND["LOCAL KUBERNETES / kind — namespace clinicase"]
+        WEB["Frontend Deployment<br/>nginx + React SPA"]
+        API["API Deployment<br/>FastAPI application"]
+        INTEROP["Interop / One Health / clinical APIs<br/>Inside API service"]
+        DB["PostgreSQL StatefulSet<br/>pgvector + persistent volume"]
+        RECEIVER["Independent System B Deployment<br/>Own receipt SQLite"]
+        POLICY["NetworkPolicy<br/>Default deny + explicit paths"]
+        ID["Downward API identity<br/>Health / readiness / runtime"]
+    end
+    LOOP --> WEB
+    WEB -->|API proxy| API
+    API --> INTEROP
+    API -->|application persistence| DB
+    INTEROP -->|HTTP Bundle| RECEIVER
+    RECEIVER -->|receipt / return| INTEROP
+    POLICY -. governs .-> WEB
+    POLICY -. governs .-> API
+    POLICY -. governs .-> RECEIVER
+    ID --> API
+    API -. optional .-> MODEL["Configured model provider"]
+    subgraph SERVERLESS["ALTERNATIVE HOSTING — Vercel configuration"]
+        SPA["Frontend hosting"]
+        FN["FastAPI entrypoint<br/>backend/index.py"]
+        EXTERNALDB["External PostgreSQL"]
+        INLINE["Bounded inline execution<br/>Durable continuation + retry"]
+    end
+    SPA --> FN
+    FN --> EXTERNALDB
+    FN --> INLINE
+```
+
+System B owns storage and does not share application PostgreSQL. Local kind manifests supply no always-on clinical worker; queues need a worker or inline execution. Hosted Track 7 also needs a separately reachable configured receiver.
+
+### Local reference journey
+
+Prerequisites: Python 3.11+, Node.js 20+, npm. From repository root:
+
+```powershell
+python -m pip install -e "backend[dev]"
+cd frontend
 npm ci
-npm run dev   # http://localhost:5173, proxies /api to :8000
+cd ..
+./start-track7.ps1 -SQLite
 ```
 
-On first boot, the backend seeds three accounts: an admin, a reviewer and a coordinator. Their addresses are in `backend/app/main.py`. They share the password set by `DEMO_USER_PASSWORD`, which has no default. Seeding requires an explicitly configured nonempty development password. The Track 7 launcher generates a private reviewer account; review existing accounts before exposing the app. Sign in, open `/dashboard`, and run a reference case in the **Live Agent Pipeline** console.
+Open the launcher URL and start `/journey`. Runtime files are ignored; API/receiver are separate processes. The intentionally simple local-demo credential is in the [runbook](docs/DEMO_RUNBOOK.md); production auth retains its own configuration. Use `-AI` when choosing governed provider calls.
 
-> [!NOTE]
-> `docker compose up -d` on its own starts only Postgres and Redis. The `backend` and `frontend` services run with `docker compose --profile full up`. For local development, running them directly gives you hot reload.
->
-> `POST /cases/{id}/run-async` needs a worker consuming the queue: run `python -m app.workers.case_runner` in a third terminal. Without a worker, the dashboard console detects the stall and falls back to the synchronous `/run` endpoint.
+### Local Kubernetes
 
-### OncoTwin
+With Docker Desktop running, kind and kubectl installed:
 
-OncoTwin needs no database and no LLM key. From the repository root:
-
-```bash
-make twin.test        # OncoTwin unit, integration, API/RBAC and end-to-end tests
-make twin.demo        # flagship patient journey in one command (synthetic data)
-make twin.stress      # red-team stress test; exits non-zero on any unsafe result
-make twin.benchmark   # Research Lab benchmark
+```powershell
+python k8s/cluster.py up
+python k8s/cluster.py verify
+python k8s/cluster.py credentials
 ```
 
-### Tests and checks
+The helper targets its owned `kind-clinicase` context and writes credentials to an ignored file. `verify` proves current reachability/isolation; manifests alone do not. Docker's Linux engine was stopped at publication, so current cluster verification is **not passed**. [Runbook](docs/KUBERNETES.md).
 
-```bash
-make backend.test              # deterministic offline core suite (default)
-make backend.test.integration  # PostgreSQL-backed API contracts
-make backend.test.live         # metered model-provider contracts; requires credentials
-make backend.test.all          # every test; requires PostgreSQL and model credentials
-make backend.lint              # blocking Ruff + scoped strict mypy
-make frontend.build            # TypeScript + production build
+### Developer and hosted configuration
+
+- Copy `.env.example` to private `.env`; configure needed services. Never commit keys, DB/JWT credentials or Passport private keys.
+- Standard dev: PostgreSQL, `uvicorn app.main:app --reload --port 8000` from `backend/`, `npm run dev` from `frontend/`. Compose initializes the local DB; `--profile full` also starts API/frontend. [Setup/testing](docs/TESTING.md).
+- `docker-compose.track7.yml` includes System B and needs explicit local secrets. SQLite is the simpler deterministic demo.
+- Vercel entrypoint initializes app lifespan before requests. Review continuation is inline automatically on Vercel or with `HUMAN_REVIEW_CONTINUATION_MODE=inline`. Default timeout: 240 seconds; hosting limits must accommodate it. Timeout preserves the human decision and retry state.
+- Readiness cron is not a clinical worker. Production long-running work needs suitable capacity and operational validation.
+
+## Verification commands
+
+```powershell
+# backend/
+python -m pytest
+python -m pytest tests/onehealth tests/interop -q
+python -m ruff check app tests
+# frontend/
+npm test -- --run
+npm run typecheck
+npm run build
+# repository root
+python backend/scripts/track7_network_demo.py
+python k8s/cluster.py verify
+git diff --check
 ```
 
-Plain `pytest` uses the same deterministic offline selection as
-`make backend.test`: tests marked `integration` or `live` are excluded. CI runs
-that core suite on every change and runs the PostgreSQL integration group in a
-separate job with an initialized pgvector database. Live tests remain explicit
-because they make metered external model calls. See
-[`docs/TESTING.md`](docs/TESTING.md) for marker rules, prerequisites, and exact
-commands.
+Default pytest excludes marked `integration`/`live` tests. PostgreSQL contracts and metered models need separate checks; green offline tests are not clinical validation. [Final verification](docs/FINAL_PUBLICATION_VERIFICATION.md) records totals/browser proof/infrastructure limits.
 
----
-
-## 🛣️ Roadmap
-
-In rough priority order:
-
-0. **Prove it live**: run the pipeline on real cases with a real model, report accuracy, verifier catch rate and cost per case, and deploy a reachable demo (see the pending-work doc).
-1. **Durable audit chain**: move the hash chain from an in-process list to the persisted `agent_runs` rows or an append-only store, so it survives restarts and replica failover.
-2. **Full Da Vinci PAS conformance**: IG profile validation and the X12 278 bridge.
-3. **Bedrock as the default provider**: the code path is done and tested. The remaining work is setting `LLM_PROVIDER=bedrock` in deployment and moving the Policy Retriever to Bedrock Knowledge Bases.
-4. **An always-on worker**: make `run-async` the primary path in every environment, so the inline fallback is rare.
-5. **EHR integration**: a SMART on FHIR launcher so intake starts from the chart instead of an uploaded PDF.
-6. **OncoTwin on real cohorts**: validation on real longitudinal patient data before any clinical use.
-
----
-
-## 📂 Repository layout
+## Repository map
 
 ```text
-.
-├── frontend/                    # React 18 + Vite SPA
-│   └── src/
-│       ├── routes/              # Dashboard, Cases, Intake, Twin*, OncologyStack, ...
-│       ├── components/          # AppShell, LivePipelineConsole, ReasoningTracePanel, ...
-│       ├── oncotwin/            # OncoTwin UI
-│       └── lib/                 # api.ts, usePipelineRun.ts, sse.ts, types.ts
-│
-├── backend/                     # FastAPI, Python 3.11
-│   ├── app/
-│   │   ├── api/                 # cases, jobs, stream, oncology_stack, fhir_pas, oncotwin, ...
-│   │   ├── agents/              # 7 agents and their sub-agent packages
-│   │   ├── graph/               # LangGraph DAG build and state
-│   │   ├── llm/                 # provider-agnostic gateway: anthropic / openrouter / bedrock
-│   │   ├── oncotwin/            # digital twin engine, intelligence, safety gates
-│   │   ├── workers/             # case_runner.py, the async job consumer
-│   │   ├── models/              # Pydantic v2 contracts
-│   │   └── prompts/             # one system prompt per agent
-│   └── tests/                   # agents, API contracts, framework, OncoTwin
-│
-├── demo_pdfs/                   # 4 reference cases + 2 policy bundles
-├── docs/                        # product docs, including ONCOTWIN.md
-├── ops/                         # deployment scripts, Terraform, Kubernetes, SRE runbooks
+CLINI-CASE/
+├── frontend/
+│   ├── src/routes/        Journey, Runtime, Interop, OneHealth, clinical/twin pages
+│   ├── src/components/    Shell, agent console, review and evidence views
+│   ├── src/lib/           API, SSE and clinical intake conversion
+│   └── tests/             UI/workflow regressions
+├── backend/
+│   ├── app/interop/       Mapping, safety, exchange and System B
+│   ├── app/onehealth/     Evidence gates, FHIR and Passport
+│   ├── app/journey/       Persisted stage projection
+│   ├── app/api/           Authenticated APIs and Runtime
+│   ├── app/agents/        Clinical agents, intake and sub-agents
+│   ├── app/graph/         Clinical/review LangGraph DAGs
+│   ├── app/llm/           Governed gateway/provider adapters
+│   ├── app/oncotwin/      Trajectory, simulation, research, safety
+│   ├── app/cardiotwin/    Import, training, integrity, serving
+│   ├── app/workers/       Durable clinical worker
+│   ├── data/interop/      Synthetic deterministic fixtures
+│   ├── scripts/           HTTP demo, export, external-data fetch
+│   ├── tests/             Contracts, safety, regressions
+│   ├── index.py           Vercel entrypoint
+│   └── vercel.json        Backend hosting configuration
+├── k8s/                  Local kind helper/manifests
+├── ops/                  Cloud/container/worker references
+├── docs/                 Architecture, evidence, validation, runbooks
+├── demo_pdfs/            Synthetic clinical packets
 ├── docker-compose.yml
-├── Makefile
-└── README.md
+├── docker-compose.track7.yml
+├── start-track7.ps1
+└── Makefile
 ```
 
----
+## Limits and next validation work
 
-## 📚 Glossary
+The prototype demonstrates governed exchange, review and traceability. It does not establish individual environmental causality, prospective clinical accuracy, certification or production reliability.
 
-<details>
-<summary><b>Show glossary</b></summary>
+Remaining work: broader external profile/terminology coverage, licensed/current clinical feeds, real-cohort evaluation, full Da Vinci PAS/CRD/DTR and X12 278 integration, production workers and a reachable hosted receiver. PAS-shaped intake queues a case; CRD/DTR and payer adapters retain configured/stub status rather than implying live payer submission. Best-effort identifier minimization is not HIPAA de-identification certification.
 
-| Term | Meaning |
-|---|---|
-| **CMS-0057-F** | CMS final rule requiring FHIR PA APIs by Jan 1, 2027 (89 FR 8758) |
-| **Da Vinci PAS** | HL7 Prior Authorization Support Implementation Guide |
-| **CRD / DTR** | Coverage Requirements Discovery / Documentation Templates & Rules, companion Da Vinci IGs |
-| **FHIR R4** | HL7 Fast Healthcare Interoperability Resources, Release 4 |
-| **X12 278** | HIPAA EDI prior-auth transaction set. X12 278 conversion is not implemented here yet |
-| **NCCN Compendium** | National Comprehensive Cancer Network's reference for oncology drug regimens |
-| **LangGraph** | Directed-graph orchestration framework for multi-agent LLM workflows |
-| **SSE** | Server-Sent Events, the one-way streaming protocol behind the Live Agent Pipeline console |
-| **RAG** | Retrieval-Augmented Generation, the Policy Retriever's core pattern |
-| **HITL** | Human-in-the-loop: the reviewer queue that low-confidence cases go to |
-| **TriZetto** | Payer IT platform (Facets, QNXT). The ClinCase adapter sits upstream of it |
-| **OP-35** | CMS measure of ED visits and admissions after outpatient chemotherapy, used as OncoTwin's outcome |
-| **MELD-Na** | Liver transplant allocation score, used in the Hepatitis C case |
+## Documentation and project terms
 
-</details>
+- [Track 7 APIs](docs/ONEHEALTH_TRACK7.md) · [judge demo](docs/track7/DEMO_SCRIPT.md)
+- [Passport](docs/EVIDENCE_PASSPORT.md) · [epistemic ceiling](docs/EPISTEMIC_CEILING.md) · [conformance](docs/OAH_CONFORMANCE.md)
+- [Build scope/reuse](docs/HACKATHON_BUILD_SCOPE.md) · [self-audit](docs/TRACK7_SELF_AUDIT.md) · [judge access](docs/JUDGE_ACCESS.md)
+- [AquaHealth](docs/AQUAHEALTH_TRACK3.md) · [OncoTwin](docs/ONCOTWIN.md) · [CardioTwin](docs/CARDIOTWIN.md)
+- [Human review](docs/HUMAN_REVIEW.md) · [security processing](docs/SECURITY_PROCESSING.md) · [case twin](docs/CASE_DIGITAL_TWIN.md)
+- [Contributing](CONTRIBUTING.md) · [security reporting](SECURITY.md)
 
----
+Designed and built by **[vsrupeshkumar](https://github.com/vsrupeshkumar)**. Git history and scope records represent prior development/current hardening; this synchronization does not claim to have created the entire platform.
 
-## 🤝 Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md).
-
-## 🛡️ Security
-
-To report a vulnerability, see [SECURITY.md](SECURITY.md). **Do not open a public GitHub issue.**
-
-## 📄 License
-
-Copyright © 2026 **vsrupeshkumar**. **All rights reserved.** This is proprietary software, not open-source software.
-No permission is granted to use, copy, modify, distribute, deploy, host, sublicense, sell, or create derivative works
-unless the user has prior written authorization in an agreement signed by vsrupeshkumar and the authorized person or
-entity. See [LICENSE](LICENSE) for the complete terms.
-
----
-
-<div align="center">
-
-**ClinCase** is designed and built by **[vsrupeshkumar](https://github.com/vsrupeshkumar)**.
-
-`Approve cancer treatment in minutes, not weeks.`
-
-</div>
-
-
-### Track 7: OneAquaHealth interoperability gateway
-
-Fragmented environmental and health systems send data in incompatible schemas. The `/interop`
-workbench performs schema discovery, constrained deterministic/optional AI mapping, authenticated
-human approval, OAH/FHIR generation, and local validation before transfer. Invalid data is blocked.
-An independent System B process exchanges the Bundle over HTTP, reassigns resource IDs and updates
-references; CLINI-CASE decodes the returned Bundle and compares normalized semantic fields. The
-Evidence Passport records the journey and its evidence.
-
-A generic `arsenic` label never implies chemical speciation. The pinned OAH CI guide supports the
-exact dissolved-arsenic term, while other concepts remain text-only unless source evidence and a
-verified terminology mapping support them. This is custom, partial contract validation—not full
-HL7/OAH profile validation or certification. See the [validation record](docs/track7/VALIDATION.md)
-and [conformance note](docs/track7/CONFORMANCE.md). The existing `/onehealth`, oncology, OncoTwin,
-CardioTwin and AquaHealth workflows remain intact.
-
-Run `python backend/scripts/track7_network_demo.py` for the separate-process HTTP proof. For the
-interactive workbench use `./start-track7.ps1 -SQLite`; the service runs locally with synthetic
-data and no cloud dependency. Docker/kind are optional showcase material; AWS and Bedrock remain
-optional and are not required. The [4:40 interoperability demo script](docs/track7/DEMO_SCRIPT.md)
-reserves only the final 20 seconds for deployment portability.
+**License:** Copyright © 2026 vsrupeshkumar. All rights reserved. The [proprietary LICENSE](LICENSE) remains in force. Public visibility grants no usage/redistribution rights; written run/review authorization and third-party terms remain as documented in [judge access](docs/JUDGE_ACCESS.md).

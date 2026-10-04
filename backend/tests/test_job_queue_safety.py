@@ -106,3 +106,46 @@ async def test_lease_loss_cancels_expensive_handler(monkeypatch) -> None:
     assert cancelled.is_set()
     case_runner._commit_run.assert_not_awaited()
     mark_error.assert_awaited_once()
+
+
+@pytest.mark.parametrize("cancel_request", [False, True])
+async def test_inline_deadline_or_cancellation_stops_model_work_and_allows_retry(
+    monkeypatch, cancel_request
+):
+    started, stopped = asyncio.Event(), asyncio.Event()
+
+    async def handler(_job):
+        started.set()
+        try:
+            await asyncio.Event().wait()
+        finally:
+            stopped.set()
+
+    async def heartbeat(_job, _worker, stop):
+        await stop.wait()
+
+    job = queue._row_to_job(_row(uuid4(), "inline"))
+    job.status, job.attempts, job.max_attempts = "running", 1, 1
+    job.job_type = "resume_after_review"
+    monkeypatch.setitem(case_runner.JOB_HANDLERS, job.job_type, handler)
+    commit = AsyncMock()
+    monkeypatch.setitem(case_runner.JOB_COMMITTERS, job.job_type, commit)
+    monkeypatch.setattr(case_runner, "_heartbeat_loop", heartbeat)
+    mark_error, settle = AsyncMock(return_value=True), AsyncMock()
+    monkeypatch.setattr(queue, "mark_error", mark_error)
+    monkeypatch.setattr(case_runner, "settle_runs_for_job", settle)
+    monkeypatch.setattr(case_runner, "_publish_continuation_failed", AsyncMock())
+    task = asyncio.create_task(
+        case_runner._process_job(job, "review-inline:test", timeout_seconds=0.05)
+    )
+    await started.wait()
+    if cancel_request:
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+    else:
+        await task
+    assert stopped.is_set()
+    commit.assert_not_awaited()
+    mark_error.assert_awaited_once()
+    settle.assert_awaited_once_with(job.id, "failed")

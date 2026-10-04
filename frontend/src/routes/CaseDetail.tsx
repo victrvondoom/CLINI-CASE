@@ -22,6 +22,7 @@ import { PHIRedactionReceipt } from "../components/PHIRedactionReceipt";
 import { ReasoningTracePanel } from "../components/ReasoningTracePanel";
 import { TrizettoSubmitPanel } from "../components/TrizettoSubmitPanel";
 import { api } from "../lib/api";
+import { getStoredUser } from "../lib/auth";
 import { ExposureContext } from "../onehealth/ContextPanel";
 import { openTraceStream, type StreamHandle } from "../lib/sse";
 import type { Citation, RunResult, TraceEvent } from "../lib/types";
@@ -33,6 +34,9 @@ interface CaseInfo {
   physician_note: string | null;
   requested_treatment: { name: string; j_code: string | null };
   created_at: string | null;
+  pending_review?: RunResult | null;
+  latest_result?: RunResult | null;
+  continuation?: { status: string; can_retry: boolean } | null;
 }
 
 export default function CaseDetail() {
@@ -45,11 +49,20 @@ export default function CaseDetail() {
   const [phiBannerOpen, setPhiBannerOpen] = useState(false);
   const [citationOpen, setCitationOpen] = useState<Citation | null>(null);
   const streamRef = useRef<StreamHandle | null>(null);
+  const [retryingLetters, setRetryingLetters] = useState(false);
 
   useEffect(() => {
     if (!caseId) return;
-    api.getCase(caseId).then(setCaseInfo).catch((e) => setError(String(e)));
+    let cancelled = false;
+    setCaseInfo(null);
+    setResult(null);
+    api.getCase(caseId).then((info) => {
+      if (cancelled) return;
+      setCaseInfo(info);
+      setResult(info.pending_review ?? info.latest_result ?? null);
+    }).catch((e) => { if (!cancelled) setError(String(e)); });
     return () => {
+      cancelled = true;
       streamRef.current?.close();
     };
   }, [caseId]);
@@ -75,6 +88,7 @@ export default function CaseDetail() {
     try {
       const r = await api.runFull(caseId);
       setResult(r);
+      if (r.paused_for_review) setCaseInfo((info) => info ? { ...info, status: "awaiting_review" } : info);
     } catch (e) {
       setError(String(e));
     } finally {
@@ -85,6 +99,26 @@ export default function CaseDetail() {
   }, [caseId, running]);
 
   if (!caseId) return null;
+  const awaitingHumanReview = Boolean(result?.paused_for_review || result?.human_review_required || caseInfo?.status === "awaiting_review");
+  const displayDecision = result?.decision ?? result?.provisional_decision;
+  const documentsDraft = Boolean(result?.documents_draft || awaitingHumanReview);
+  const role = getStoredUser()?.role;
+
+  async function retryLetters() {
+    setRetryingLetters(true);
+    setError(null);
+    try {
+      const retried = await api.retryCaseLetters(caseId!);
+      if (retried.status !== "done") throw new Error("Letter generation needs another retry. The clinician decision is saved.");
+      const info = await api.getCase(caseId!);
+      setCaseInfo(info);
+      setResult(info.pending_review ?? info.latest_result ?? null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRetryingLetters(false);
+    }
+  }
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-6 relative">
@@ -154,7 +188,7 @@ export default function CaseDetail() {
           <button
             type="button"
             onClick={runClinCase}
-            disabled={running}
+            disabled={running || awaitingHumanReview}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-accent-brand text-ink-invert font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {running ? (
@@ -179,6 +213,25 @@ export default function CaseDetail() {
         </div>
       )}
 
+      {awaitingHumanReview && (
+        <div role="status" className="mb-5 p-4 rounded-lg border border-accent-amber/40 bg-accent-amber/10 text-sm">
+          <p className="font-semibold">Awaiting clinician review — no final decision has been recorded.</p>
+          <p className="mt-1">{result?.pause_reason || "The AI assessment requires human sign-off."} Appeal and patient letters shown below are drafts for review.</p>
+          <Link to="/reviewer" className="inline-block mt-2 underline text-accent-brand">Open reviewer queue</Link>
+        </div>
+      )}
+
+      {caseInfo?.continuation && (
+        <div role="status" className="mb-5 p-4 rounded-lg border border-accent-amber/40 text-sm">
+          <p>The clinician decision is saved. Reviewed letters are {caseInfo.continuation.can_retry ? "waiting for a retry" : "being generated"}.</p>
+          {caseInfo.continuation.can_retry && (role === "reviewer" || role === "admin") && (
+            <button type="button" onClick={retryLetters} disabled={retryingLetters} className="mt-2 underline text-accent-brand disabled:opacity-50">
+              {retryingLetters ? "Generating letters..." : "Retry letter generation"}
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="grid lg:grid-cols-[1fr_400px] gap-5">
         <div className="space-y-5">
           {caseInfo && (
@@ -192,20 +245,21 @@ export default function CaseDetail() {
             <ClinicalSummaryCard snapshot={result.clinical_snapshot} />
           )}
 
-          {result?.decision && (
+          {displayDecision && (
             <DecisionBadge
-              decision={result.decision}
-              appealInProgress={Boolean(result.appeal_draft)}
+              decision={displayDecision}
+              pendingReview={awaitingHumanReview}
+              appealInProgress={Boolean(result?.appeal_draft)}
             />
           )}
 
-          {result?.decision && result.decision.citations.length > 0 && (
+          {displayDecision && displayDecision.citations.length > 0 && (
             <div className="bg-surface-raised border border-surface-border rounded-2xl p-5">
               <div className="text-[10px] text-compact text-ink-muted mb-2">
-                Citation Chain ({result.decision.citations.length})
+                Citation Chain ({displayDecision.citations.length})
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {result.decision.citations.map((c, i) => (
+                {displayDecision.citations.map((c, i) => (
                   <CitationChip
                     key={i}
                     citation={c}
@@ -221,13 +275,14 @@ export default function CaseDetail() {
           )}
 
           {result?.appeal_draft && (
-            <AppealLetterEditor appeal={result.appeal_draft} caseId={caseId} />
+            <AppealLetterEditor appeal={result.appeal_draft} caseId={caseId} pendingReview={documentsDraft} />
           )}
 
           {result?.patient_communication && (
             <PatientCommunicationCard
               communication={result.patient_communication}
               patientInitials={caseInfo?.patient_initials}
+              pendingReview={documentsDraft}
             />
           )}
 
@@ -244,7 +299,7 @@ export default function CaseDetail() {
           )}
 
           {/* TriZetto AI Gateway one-click submit. */}
-          {result?.decision && (
+          {result?.decision && !awaitingHumanReview && !documentsDraft && (
             <TrizettoSubmitPanel caseId={caseId} hasDecision={Boolean(result.decision)} />
           )}
 

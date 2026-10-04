@@ -13,6 +13,7 @@ import type { PatientCommunication } from "../lib/types";
 interface Props {
   communication: PatientCommunication;
   patientInitials?: string;
+  pendingReview?: boolean;
 }
 
 const TONE_BG: Record<PatientCommunication["tone"], string> = {
@@ -28,7 +29,7 @@ const TIMING_LABEL: Record<string, string> = {
   after_decision: "After the final decision",
 };
 
-export function PatientCommunicationCard({ communication, patientInitials }: Props) {
+export function PatientCommunicationCard({ communication, patientInitials, pendingReview = false }: Props) {
   const [expanded, setExpanded] = useState(true);
   const grade = communication.reading_level_grade;
   const gradeOk = grade <= 7.0;
@@ -43,7 +44,7 @@ export function PatientCommunicationCard({ communication, patientInitials }: Pro
         <div className="flex items-center gap-2">
           <Heart size={16} className="text-accent-pink" />
           <h3 className="text-sm font-semibold text-ink-primary">
-            Patient Communication
+            {pendingReview ? "Draft Patient Communication" : "Patient Communication"}
           </h3>
           <span className="text-[10px] text-compact text-ink-muted">
             agent 7 / 7
@@ -66,6 +67,7 @@ export function PatientCommunicationCard({ communication, patientInitials }: Pro
       {expanded && (
         <>
           <div className="px-5 py-4 border-b border-surface-border">
+            {pendingReview && <p role="note" className="mb-3 p-2 border border-accent-amber/40 bg-accent-amber/10 text-xs">DRAFT — clinician review required. This letter describes a proposed outcome and must be checked before sharing with the patient.</p>}
             {patientInitials && (
               <div className="text-[10px] text-mono-tech text-ink-faint mb-2">
                 For: <span className="text-ink-body">{patientInitials}</span>
@@ -111,13 +113,14 @@ export function PatientCommunicationCard({ communication, patientInitials }: Pro
                 type="button"
                 onClick={() => window.print()}
                 className="flex items-center gap-1 hover:text-ink-body transition-colors"
-                title="Print this for the patient"
+                title={pendingReview ? "Print draft for clinical review" : "Print this for the patient"}
               >
                 <Printer size={11} />
-                Print
+                {pendingReview ? "Print draft" : "Print"}
               </button>
               <button
                 type="button"
+                disabled={pendingReview}
                 onClick={() => {
                   const subj = encodeURIComponent("Your insurance update");
                   const body = encodeURIComponent(
@@ -126,7 +129,7 @@ export function PatientCommunicationCard({ communication, patientInitials }: Pro
                   window.location.href = `mailto:?subject=${subj}&body=${body}`;
                 }}
                 className="flex items-center gap-1 hover:text-ink-body transition-colors"
-                title="Email this to the patient (mail client)"
+                title={pendingReview ? "Clinician review required before emailing the patient" : "Email this to the patient (mail client)"}
               >
                 <Mail size={11} />
                 Email

@@ -34,13 +34,13 @@ python3 k8s/cluster.py credentials
 python3 k8s/cluster.py down
 ```
 
-Then open <http://localhost:8080> and sign in as `reviewer@clincase.health` (or `admin@` / `coordinator@`) with the password printed by `credentials`.
+Then open <http://localhost:8080> and sign in as `reviewer@clincase.health` (or `admin@` / `coordinator@`) with the password in the private `k8s/.cache/kind-login.json` file.
 
 | Command | What it does |
 |---|---|
 | `up [--skip-build] [--host-port N] [--build-ca PEM]` | Idempotent. Creates the cluster if absent, builds the images, loads the ones that changed, creates the Secret if absent, refreshes the schema ConfigMap, applies `k8s/`, restarts the app Deployments if an image changed, and waits for every rollout. `--build-ca` trusts one extra root certificate for pip/npm during the builds (TLS-inspecting antivirus or proxy; see Troubleshooting). |
 | `verify [--python PATH]` | Live checks (below). Prints a table and exits non-zero on any failure. |
-| `credentials` | Prints the demo e-mail and the generated password. Nothing else ever prints it. |
+| `credentials` | Writes the demo login to private, git-ignored `k8s/.cache/kind-login.json`; no password is printed. |
 | `down` | `kind delete cluster --name clinicase`. Everything in the cluster, including the database volume, is gone. |
 
 Every subcommand accepts `--kind PATH` (or `KIND`). Every `kubectl` call is pinned to the context `kind-clinicase`, so the script never touches whichever cluster happens to be current.

@@ -1,4 +1,4 @@
-"""Reviewer queue — REFER cases waiting for a human, built from the caller's real cases.
+"""Reviewer queue — referred and paused cases waiting for a human, from the caller's real cases.
 
 Each item is assembled from what the pipeline actually recorded for the case: the latest decision (rationale,
 confidence) and the Necessity Reasoner's assessment (which criteria were ambiguous / not met and what evidence
@@ -68,7 +68,8 @@ def build_item(row: dict[str, Any], now: datetime | None = None) -> dict[str, An
         if m and m not in missing:
             missing.append(m)
     reason = (
-        _first_sentence(row.get("rationale"))
+        _first_sentence(row.get("pause_reason"))
+        or _first_sentence(row.get("rationale"))
         or _first_sentence(necessity.get("summary"))
         or (unresolved[0].get("criterion_text") if unresolved else None)
         or "Referred for human review."
@@ -79,7 +80,7 @@ def build_item(row: dict[str, Any], now: datetime | None = None) -> dict[str, An
         if isinstance(x, int | float)
     ]
     confidence = round(float(min(confs)), 2) if confs else None
-    since = row.get("decided_at") or row["created_at"]
+    since = row.get("paused_at") or row.get("decided_at") or row["created_at"]
     age = max(0.0, (now - since).total_seconds() / 60.0)
     return {
         "case_id": row["id"],
@@ -102,7 +103,7 @@ async def fetch_review_queue(organization_id: str, limit: int) -> list[dict[str,
         """SELECT c.id, c.patient_initials, c.requested_treatment_name AS treatment, c.payer_id,
                   c.created_at, c.status,
                   d.rationale, d.confidence AS decision_confidence, d.created_at AS decided_at,
-                  nr.output_json AS necessity
+                  nr.output_json AS necessity, ps.pause_reason, ps.created_at AS paused_at
            FROM cases c
            LEFT JOIN LATERAL (
                SELECT rationale, confidence, created_at FROM decisions
@@ -113,8 +114,15 @@ async def fetch_review_queue(organization_id: str, limit: int) -> list[dict[str,
                WHERE case_id = c.id AND agent_name = 'necessity_reasoner' AND output_json IS NOT NULL
                ORDER BY id DESC LIMIT 1
            ) nr ON TRUE
-           WHERE c.organization_id = $1 AND c.status = 'referred'
-           ORDER BY COALESCE(d.created_at, c.created_at) ASC
+           LEFT JOIN LATERAL (
+               SELECT s.pause_reason, s.created_at FROM case_run_states s
+               JOIN case_runs r ON r.run_id = s.run_id
+               WHERE s.case_id = c.id AND s.organization_id = c.organization_id
+                 AND r.status = 'paused' AND c.status = 'awaiting_review'
+               ORDER BY r.attempt_no DESC LIMIT 1
+           ) ps ON TRUE
+           WHERE c.organization_id = $1 AND c.status IN ('referred', 'awaiting_review')
+           ORDER BY COALESCE(ps.created_at, d.created_at, c.created_at) ASC
            LIMIT $2""",
         organization_id,
         limit,

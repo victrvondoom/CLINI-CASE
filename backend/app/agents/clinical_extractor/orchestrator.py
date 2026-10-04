@@ -35,6 +35,7 @@ from app.agents.framework import (
     SchemaGuardrail,
     TokenBudgetGuardrail,
 )
+from app.agents.framework.json_text import parse_model
 from app.llm import get_llm_client
 from app.models import ClinicalSnapshot
 from app.privacy.boundary import prepare_fhir, restore_source_ids, screen_text
@@ -149,7 +150,7 @@ class ClinicalExtractorAgent(Agent[ClinicalExtractorInput, ClinicalExtractorOutp
         )
         ctx.budget.spent_input_tokens += response.input_tokens
         ctx.budget.spent_output_tokens += response.output_tokens
-        snapshot = ClinicalSnapshot.model_validate_json(_strip_code_fence(response.text))
+        snapshot = parse_model(ClinicalSnapshot, response.text)
 
         if bio_result.output.biomarkers:
             snapshot = snapshot.model_copy(update={"biomarkers": bio_result.output.biomarkers})

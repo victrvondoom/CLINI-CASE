@@ -106,7 +106,9 @@ class _Connection:
         return self.tx
 
     async def fetchrow(self, _query: str, *_args: Any) -> dict[str, str]:
-        return {"id": "case-1", "status": "awaiting_review"}
+        # Legacy referred overrides retain this transaction contract. Pending
+        # DENY reviews exercise the authoritative /resume path in review tests.
+        return {"id": "case-1", "status": "referred"}
 
     async def fetchval(self, _query: str, *_args: Any) -> str:
         return "run-latest"  # latest_run_id(): the run a review action is attributed to

@@ -1,0 +1,20 @@
+# app/api/demo.py serves the dashboard demo cases from tests/fixtures/ at runtime.
+/tests/*
+!/tests/fixtures/
+scripts/
+__pycache__/
+**/__pycache__/
+*.egg-info/
+*.log
+/_*.py
+.env
+.env.*
+.cache/
+.hypothesis/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+data/policies/.trash/
+Dockerfile
+.dockerignore
+alembic.ini

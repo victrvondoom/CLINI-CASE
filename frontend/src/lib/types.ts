@@ -195,6 +195,10 @@ export interface RunResult {
   policy_excerpts: PolicyExcerpt[];
   necessity_assessment: NecessityAssessment | null;
   decision: Decision | null;
+  provisional_decision?: Decision | null;
+  human_review_required?: boolean;
+  documents_draft?: boolean;
+  pause_kind?: string | null;
   denial_forecast: DenialForecast | null;
   appeal_draft: AppealDraft | null;
   patient_communication: PatientCommunication | null;

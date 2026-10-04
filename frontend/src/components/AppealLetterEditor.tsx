@@ -6,6 +6,7 @@ import type { AppealDraft } from "../lib/types";
 interface Props {
   appeal: AppealDraft;
   caseId?: string;
+  pendingReview?: boolean;
 }
 
 /**
@@ -13,19 +14,19 @@ interface Props {
  * Falls back to the browser's native print → save-as-PDF if the endpoint
  * is unreachable (e.g. running the frontend without a live backend).
  */
-async function downloadAppealPdf(appeal: AppealDraft, caseId?: string): Promise<void> {
+async function downloadAppealPdf(appeal: AppealDraft, caseId?: string, pendingReview = false): Promise<void> {
   try {
     const response = await fetch("/api/v1/appeals/render.pdf", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(appeal),
+      body: JSON.stringify(pendingReview ? { ...appeal, appeal_body: `DRAFT — HUMAN REVIEW REQUIRED. No final denial recorded.\n\n${appeal.appeal_body}` } : appeal),
     });
     if (!response.ok) throw new Error(`PDF endpoint returned ${response.status}`);
     const blob = await response.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `appeal-${appeal.patient_initials}-${caseId ?? appeal.payer_id}.pdf`;
+    a.download = `${pendingReview ? "draft-" : ""}appeal-${appeal.patient_initials}-${caseId ?? appeal.payer_id}.pdf`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -36,14 +37,14 @@ async function downloadAppealPdf(appeal: AppealDraft, caseId?: string): Promise<
   }
 }
 
-export function AppealLetterEditor({ appeal, caseId }: Props) {
+export function AppealLetterEditor({ appeal, caseId, pendingReview = false }: Props) {
   const [showStructured, setShowStructured] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
   const handleDownload = async () => {
     setDownloading(true);
     try {
-      await downloadAppealPdf(appeal, caseId);
+      await downloadAppealPdf(appeal, caseId, pendingReview);
     } finally {
       setDownloading(false);
     }
@@ -81,6 +82,7 @@ export function AppealLetterEditor({ appeal, caseId }: Props) {
         </div>
       </div>
 
+      {pendingReview && <p role="note" className="px-5 py-3 text-xs bg-amber-50 text-amber-900 border-b border-amber-200">DRAFT — clinician review required. This proposed appeal has not been approved or submitted.</p>}
       <div className="p-6 max-h-[500px] overflow-auto">
         {!showStructured && (
           <div className="prose prose-sm max-w-none">

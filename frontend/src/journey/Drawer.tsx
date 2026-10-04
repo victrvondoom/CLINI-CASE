@@ -4,6 +4,7 @@
  */
 import { X } from "lucide-react";
 import { useEffect, useId, useRef, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -62,7 +63,9 @@ export function Drawer({
   }, [open]);
 
   if (!open) return null;
-  return (
+  // Route reveal animations create a containing/stacking context. A modal must
+  // stay above the fixed application header and use the viewport as its frame.
+  return createPortal(
     <div className="fixed inset-0 z-[90] flex justify-end">
       <div className="absolute inset-0 bg-black/50 motion-safe:animate-fade-in" onClick={onClose} aria-hidden="true" />
       <div
@@ -91,6 +94,7 @@ export function Drawer({
         </div>
         <div className="mt-5 space-y-5">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

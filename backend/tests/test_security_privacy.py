@@ -223,6 +223,59 @@ def test_text_screening_preserves_clinical_names():
     assert "Jane Smith" not in screen_text("Patient name: Jane Smith\nDiagnosis: Breast Cancer")
 
 
+def test_text_only_clinical_concepts_survive_but_narratives_and_person_text_do_not():
+    from app.privacy.boundary import prepare_fhir
+
+    bundle = {
+        "resourceType": "Bundle",
+        "entry": [
+            {
+                "resource": {
+                    "resourceType": "Patient",
+                    "id": "private-patient",
+                    "name": [{"text": "Jane Smith"}],
+                    "text": {"status": "generated", "div": "Jane Smith"},
+                }
+            },
+            {
+                "resource": {
+                    "resourceType": "Condition",
+                    "id": "diagnosis",
+                    "code": {"text": "Invasive breast carcinoma"},
+                    "stage": [{"summary": {"text": "Stage IIIA"}}],
+                }
+            },
+            {
+                "resource": {
+                    "resourceType": "Observation",
+                    "id": "marker",
+                    "code": {"text": "HER2"},
+                    "valueCodeableConcept": {"text": "positive"},
+                    "dataAbsentReason": {"text": "FISH not yet performed"},
+                    "note": [{"text": "Jane Smith at private@example.com"}],
+                }
+            },
+            {
+                "resource": {
+                    "resourceType": "MedicationRequest",
+                    "id": "treatment",
+                    "medicationCodeableConcept": {"text": "trastuzumab"},
+                }
+            },
+        ],
+    }
+    safe, _ = prepare_fhir(bundle)
+    patient, condition, observation, medication = (e["resource"] for e in safe["entry"])
+    assert "name" not in patient and "text" not in patient
+    assert condition["code"]["text"] == "Invasive breast carcinoma"
+    assert condition["stage"][0]["summary"]["text"] == "Stage IIIA"
+    assert observation["code"]["text"] == "HER2"
+    assert observation["valueCodeableConcept"]["text"] == "positive"
+    assert observation["dataAbsentReason"]["text"] == "FISH not yet performed"
+    assert observation["note"] == [{}]
+    assert medication["medicationCodeableConcept"]["text"] == "trastuzumab"
+
+
 def test_all_fhir_prompt_builders_minimize_identifiers():
     from app.agents.clinical_extractor.orchestrator import ClinicalExtractorAgent
     from app.agents.clinical_extractor.schemas import (

@@ -46,7 +46,7 @@ from app.graph.build import build_full_graph, build_resume_graph
 from app.graph.state import ClinCaseState, run_identity_of, state_for_run
 from app.identity import RunIdentity
 from app.jobs import queue as jq
-from app.review.human import STATUS_FOR_VERDICT
+from app.review.human import ai_case_status, public_run_outputs, require_denial_review
 from app.review.pause_state import (
     PauseStateError,
     load_pause_state,
@@ -142,6 +142,7 @@ async def _execute_run_full(job: jq.Job) -> tuple[ClinCaseState, dict[str, Any]]
             if isinstance(final_raw, ClinCaseState)
             else ClinCaseState.model_validate(final_raw)
         )
+        final = require_denial_review(final)
         cost_usd, duration_s = run_registry.run_cost(identity)
     finally:
         run_registry.release(identity)
@@ -150,7 +151,9 @@ async def _execute_run_full(job: jq.Job) -> tuple[ClinCaseState, dict[str, Any]]
         "case_id": job.case_id,
         **identity.event_fields(),
         "run_attempt_no": identity.attempt_no,
-        "verdict": final.decision.verdict if final.decision else None,
+        "verdict": final.decision.verdict
+        if final.decision and not final.paused_for_review
+        else None,
         "paused_for_review": final.paused_for_review,
         "n_policy_excerpts": len(final.policy_excerpts),
         "n_criteria": len(final.necessity_assessment.criteria) if final.necessity_assessment else 0,
@@ -160,6 +163,7 @@ async def _execute_run_full(job: jq.Job) -> tuple[ClinCaseState, dict[str, Any]]
         ),
         "cost_usd": cost_usd,
         "duration_seconds": duration_s,
+        **public_run_outputs(final),
     }
     return final, result
 
@@ -202,6 +206,10 @@ async def _commit_run(
     from app.events.outbox import emit_case_decided
 
     identity = run_identity_of(final)
+    final = require_denial_review(final)
+    result.update(public_run_outputs(final))
+    if final.paused_for_review:
+        result["verdict"] = None
     async with db.pool.acquire() as conn, conn.transaction():
         owns_lease = await conn.fetchval(
             """SELECT 1 FROM case_jobs WHERE id=$1 AND status='running'
@@ -234,9 +242,7 @@ async def _commit_run(
                 identity.run_id if identity else None,
                 identity.case_intelligence_id if identity else None,
             )
-            case_status = (
-                "appealed" if final.appeal_draft else STATUS_FOR_VERDICT[final.decision.verdict]
-            )
+            case_status = ai_case_status(final.decision.verdict)
             await conn.execute(
                 "UPDATE cases SET status=$1 WHERE id=$2 AND organization_id=$3",
                 case_status,
@@ -256,7 +262,7 @@ async def _commit_run(
                 conn=conn,
                 trace_id=identity.trace_id if identity else None,
             )
-        if final.appeal_draft is not None:
+        if final.appeal_draft is not None and not final.paused_for_review:
             await _persist_appeal(conn, job, final, identity)
         completed = await conn.fetchval(
             """UPDATE case_jobs SET status='done',result_json=$2,finished_at=now(),heartbeat_at=now()
@@ -348,6 +354,7 @@ async def _execute_resume(job: jq.Job) -> tuple[ClinCaseState, dict[str, Any]]:
         ),
         "cost_usd": cost_usd,
         "duration_seconds": duration_s,
+        **public_run_outputs(final),
     }
     return final, result
 
@@ -422,7 +429,9 @@ JOB_COMMITTERS = {"run_full": _commit_run, "resume_after_review": _commit_resume
 JOB_PUBLISHERS = {"run_full": _publish_outcome, "resume_after_review": _publish_resume_outcome}
 
 
-async def _process_job(job: jq.Job, worker_id: str) -> None:
+async def _process_job(
+    job: jq.Job, worker_id: str, *, timeout_seconds: float | None = None
+) -> None:
     """Run a single job with heartbeat + retry handling."""
     log.info(
         "worker.job.start",
@@ -445,6 +454,8 @@ async def _process_job(job: jq.Job, worker_id: str) -> None:
 
     stop_heartbeat = asyncio.Event()
     hb_task = asyncio.create_task(_heartbeat_loop(job, worker_id, stop_heartbeat))
+    handler_task = None
+    lease_signal = None
     try:
         started = time.time()
         from app.observability.otel import restored_trace_context
@@ -456,8 +467,15 @@ async def _process_job(job: jq.Job, worker_id: str) -> None:
         handler_task = asyncio.create_task(_traced())
         lease_signal = asyncio.create_task(stop_heartbeat.wait())
         done, _pending = await asyncio.wait(
-            {handler_task, lease_signal}, return_when=asyncio.FIRST_COMPLETED
+            {handler_task, lease_signal},
+            return_when=asyncio.FIRST_COMPLETED,
+            timeout=timeout_seconds,
         )
+        if not done:
+            handler_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await handler_task
+            raise TimeoutError("Inline continuation exceeded its request execution budget")
         if lease_signal in done and not handler_task.done():
             handler_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
@@ -481,6 +499,28 @@ async def _process_job(job: jq.Job, worker_id: str) -> None:
             elapsed_s=round(elapsed, 2),
             verdict=result.get("verdict"),
         )
+    except asyncio.CancelledError:
+        # Request cancellation must not leave paid model work running after
+        # the lease stops, or an inline job waiting forever for a worker.
+        if handler_task is not None:
+            handler_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await handler_task
+        owned = await jq.mark_error(
+            job.id,
+            "Execution cancelled",
+            worker_id=worker_id,
+            attempt=job.attempts,
+            dead=timeout_seconds is not None,
+        )
+        if owned:
+            await settle_runs_for_job(
+                job.id,
+                "failed"
+                if timeout_seconds is not None or job.attempts >= job.max_attempts
+                else "queued",
+            )
+        raise
     except Exception as e:  # noqa: BLE001
         log.error(
             "worker.job.error",
@@ -513,6 +553,11 @@ async def _process_job(job: jq.Job, worker_id: str) -> None:
                 # stream (the retry endpoint can re-queue it).
                 await _publish_continuation_failed(job, str(e))
     finally:
+        for task in (handler_task, lease_signal):
+            if task is not None and not task.done():
+                task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await task
         stop_heartbeat.set()
         with contextlib.suppress(Exception):  # noqa: BLE001
             await hb_task

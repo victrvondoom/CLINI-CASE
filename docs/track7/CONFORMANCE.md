@@ -54,11 +54,24 @@ selected pinned OAH constraints, supported resource roles, closed references, un
 synthetic package handling, and semantic decoding/round-trip. This is custom partial contract
 validation.
 
-Not performed: complete official FHIR R4 profile validation against the OAH IG package, full
-profile slicing/invariants, complete terminology validation using a terminology service, or
-certification. The official HL7 validator could not be run reproducibly in the recorded environment;
-see [`VALIDATION.md`](VALIDATION.md) and [`validation-result.json`](validation-result.json). The
-application check is not a substitute for those checks.
+Recorded external validation: on **2026-10-02**, official HL7 validator **6.10.4** checked one
+synthetic R4 `4.0.1` Bundle, both against core R4 and the locally SUSHI-built package from the
+pinned OAH source. Core-only produced **0 errors, 21 warnings, 7 information**; core plus OAH
+with terminology disabled produced **0 errors, 16 warnings, 3 information**; core plus OAH
+with `https://tx.fhir.org/r4` produced **0 errors, 15 warnings, 3 information**. Every finding,
+command and artifact hash is retained in [`validation-result.json`](validation-result.json);
+[`VALIDATION.md`](VALIDATION.md) explains the remaining warnings and local-package boundary.
+
+The **2026-10-04** publication audit confirmed that the retained validated file's byte SHA-256
+still matches `3e0e2260bd20ff55601d45a634a1e2b3cab5fdcaba4cbb8428259a4366978542`.
+A freshly exported Bundle passed application validation and matched that fixture after
+normalizing its generated timestamp values. Its bytes and hash differ because export uses
+the current time. The official validator was **not rerun** by this structural comparison.
+
+These are results for one synthetic sample, not certification or a claim that every Bundle,
+profile, terminology mapping or clinical deployment conforms. The OAH package was built locally
+from draft source, not obtained as an officially published package. Application checks remain
+partial and do not replace an official validator run for new inputs.
 
 ## Round-trip and network interoperability
 
