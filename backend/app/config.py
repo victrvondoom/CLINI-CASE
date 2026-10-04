@@ -126,6 +126,10 @@ class Settings(BaseSettings):
     # Explicitly opt in only for a local demonstration without a database.
     AUTH_DBLESS_DEMO_ENABLED: bool = False
 
+    # One-click demo sign-in (POST /auth/demo-login): the three seeded demo identities get a
+    # token without a password. Public-demo convenience only; refused outside ENVIRONMENT=dev.
+    DEMO_PASSWORDLESS_LOGIN: bool = False
+
     # Additive Track 7 simulator; an empty URL uses an independent embedded ASGI app.
     INTEROP_RECEIVER_URL: str = ""
     INTEROP_RECEIVER_TOKEN: str = ""
@@ -224,6 +228,8 @@ class Settings(BaseSettings):
         if self.ENVIRONMENT in ("staging", "production"):
             if self.AUTH_DBLESS_DEMO_ENABLED:
                 raise RuntimeError("DB-less demo authentication is restricted to ENVIRONMENT=dev")
+            if self.DEMO_PASSWORDLESS_LOGIN:
+                raise RuntimeError("Passwordless demo login is restricted to ENVIRONMENT=dev")
             if self.JWT_SECRET == _DEV_JWT_SECRET_SENTINEL:
                 raise RuntimeError(
                     f"FATAL: ENVIRONMENT={self.ENVIRONMENT} but JWT_SECRET is the "

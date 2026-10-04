@@ -79,7 +79,13 @@ async def signup(req: SignupRequest) -> TokenResponse:
     """Create a new organization + admin user + return access token."""
     if not settings.SIGNUP_ENABLED:
         raise HTTPException(status_code=403, detail="Sign-up is disabled on this deployment")
-    existing = await db.fetchrow("SELECT id FROM users WHERE email = $1", req.email.lower())
+    try:
+        existing = await db.fetchrow("SELECT id FROM users WHERE email = $1", req.email.lower())
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Account creation needs the database, which is not connected on this server yet.",
+        ) from exc
     if existing is not None:
         raise HTTPException(status_code=400, detail="Email already registered")
 
@@ -259,6 +265,60 @@ async def _login_impl(req: LoginRequest) -> TokenResponse:
         )
 
     raise HTTPException(status_code=401, detail="Invalid email or password")
+
+
+class DemoLoginRequest(BaseModel):
+    email: EmailStr
+
+
+@router.post("/demo-login", response_model=TokenResponse)
+async def demo_login(req: DemoLoginRequest) -> TokenResponse:
+    """One-click sign-in for the three seeded demo identities (no password).
+
+    Off unless DEMO_PASSWORDLESS_LOGIN=true (dev environment only). Uses the seeded DB row when
+    the database is reachable, otherwise the in-memory demo identity (needs AUTH_DBLESS_DEMO_ENABLED).
+    """
+    email = req.email.lower()
+    demo = _DEMO_USERS_DBLESS.get(email)
+    if not settings.DEMO_PASSWORDLESS_LOGIN or settings.ENVIRONMENT != "dev" or demo is None:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    row = None
+    db_error = False
+    try:
+        row = await db.fetchrow(
+            """SELECT u.id, u.email, u.full_name, u.role, u.organization_id,
+                      o.name AS organization_name
+               FROM users u JOIN organizations o ON o.id = u.organization_id
+               WHERE u.email = $1""",
+            email,
+        )
+    except Exception:
+        db_error = True
+
+    if row is not None:
+        user = {
+            "id": row["id"],
+            "email": row["email"],
+            "full_name": row["full_name"],
+            "organization_id": row["organization_id"],
+            "organization_name": row["organization_name"],
+            "role": row["role"],
+        }
+    elif db_error and settings.AUTH_DBLESS_DEMO_ENABLED:
+        user = {"email": email, **demo}
+    else:
+        raise HTTPException(status_code=503, detail="Demo accounts are not available yet")
+
+    token = create_access_token(
+        user_id=user["id"],
+        organization_id=user["organization_id"],
+        role=user["role"],
+        email=email,
+    )
+    return TokenResponse(
+        access_token=token, expires_in=settings.JWT_EXPIRE_MINUTES * 60, user=user
+    )
 
 
 @router.get("/me", response_model=UserResponse)

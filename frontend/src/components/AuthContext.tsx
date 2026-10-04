@@ -14,6 +14,7 @@ import {
   fetchMe,
   getToken,
   login as loginApi,
+  demoLogin as demoLoginApi,
   signup as signupApi,
 } from "../lib/auth";
 
@@ -22,6 +23,7 @@ interface AuthContextValue {
   loading: boolean;
   verificationError: string | null;
   login: (email: string, password: string) => Promise<void>;
+  demoLogin: (email: string) => Promise<void>;
   signup: (req: {
     email: string;
     password: string;
@@ -73,6 +75,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(false);
   }, []);
 
+  const demoLogin = useCallback(async (email: string) => {
+    const { user } = await demoLoginApi(email);
+    verificationAttempt.current += 1;
+    setVerificationError(null);
+    setUser(user);
+    setLoading(false);
+  }, []);
+
   const signup = useCallback(
     async (req: {
       email: string;
@@ -115,7 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <Ctx.Provider value={{ user, loading, verificationError, login, signup, logout, refresh }}>
+    <Ctx.Provider value={{ user, loading, verificationError, login, demoLogin, signup, logout, refresh }}>
       {children}
     </Ctx.Provider>
   );

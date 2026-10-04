@@ -10,6 +10,10 @@ services:
     autoDeploy: true
     healthCheckPath: /api/v1/healthz
     envVars:
+      - key: DEMO_PASSWORDLESS_LOGIN   # one-click Admin/Reviewer/Coordinator sign-in (dev environment only)
+        value: "true"
+      - key: AUTH_DBLESS_DEMO_ENABLED  # lets the demo identities work before a database is attached
+        value: "true"
       - key: DATABASE_URL
         sync: false
       - key: JWT_SECRET

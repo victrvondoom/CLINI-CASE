@@ -98,6 +98,29 @@ export async function login(
   return { token: data.access_token, user: data.user };
 }
 
+/** One-click demo sign-in (no password). Rejects with status 404 when the server has it switched off. */
+export async function demoLogin(email: string): Promise<{ token: string; user: AuthUser }> {
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}/auth/demo-login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+  } catch {
+    throw new Error("Cannot reach the ClinCase API.");
+  }
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    const detail = typeof body?.detail === "string" ? body.detail : `Demo sign-in failed (HTTP ${res.status})`;
+    throw Object.assign(new Error(detail), { status: res.status });
+  }
+  const data = await res.json();
+  setToken(data.access_token);
+  setStoredUser(data.user);
+  return { token: data.access_token, user: data.user };
+}
+
 export async function signup(req: {
   email: string;
   password: string;

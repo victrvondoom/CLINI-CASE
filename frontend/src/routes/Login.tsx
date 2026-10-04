@@ -26,7 +26,7 @@ const DEMO_ACCOUNTS = [
 ];
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, demoLogin } = useAuth();
   const { theme, toggle } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
@@ -57,7 +57,28 @@ export default function Login() {
 
   async function loginAs(account: { email: string }) {
     setEmail(account.email);
-    if (password) await handleSubmit(null, { email: account.email, password });
+    setLoading(true);
+    setError(null);
+    try {
+      await demoLogin(account.email);
+      navigate(from, { replace: true });
+    } catch (e) {
+      // Server has one-click demo sign-in switched off: fall back to the typed password.
+      if ((e as { status?: number }).status === 404 && password) {
+        setLoading(false);
+        await handleSubmit(null, { email: account.email, password });
+        return;
+      }
+      setError(
+        (e as { status?: number }).status === 404
+          ? "One-click demo sign-in is off on this server. Enter the demo password."
+          : e instanceof Error
+            ? e.message
+            : "Demo sign-in failed",
+      );
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -136,8 +157,8 @@ export default function Login() {
             Sign in to your workspace
           </h1>
           <p className="text-ui-secondary text-sm text-ink-muted mb-5">
-            Enter your credentials. The local demo launcher generates a private
-            password; account shortcuts select an address only.
+            Click a demo account below to go straight in, or sign in with your own
+            credentials.
           </p>
 
           <form onSubmit={(e) => handleSubmit(e)} className="space-y-3">
@@ -201,7 +222,7 @@ export default function Login() {
 
           <div className="text-compact my-5 flex items-center gap-3 text-[10px] text-ink-faint">
             <span className="flex-1 h-px bg-surface-border" />
-            Demo account addresses · password required
+            Demo accounts · one click, no password
             <span className="flex-1 h-px bg-surface-border" />
           </div>
 
