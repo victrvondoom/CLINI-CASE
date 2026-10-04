@@ -32,7 +32,7 @@ dependencies = [
 
   # --- Document rendering + intake (round 17) -------------------------
   "reportlab==4.5.0",       # appeal-letter PDF renderer
-  "python-multipart==0.0.18", # FastAPI multipart/form-data for /intake uploads
+  "python-multipart==0.0.31", # FastAPI multipart/form-data for /intake uploads
   "Pillow==12.3.0",         # PIL classifier in Document Intake
   "python-docx==1.2.0",     # DOCX policy uploads
   "pypdfium2==4.30.0",      # PDF page rasterization for OCR fallback
