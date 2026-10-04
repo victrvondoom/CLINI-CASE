@@ -575,3 +575,31 @@ app.include_router(mcp_router)
 # /api/v2 scaffold — proof-of-life of the deprecation pipeline.
 # v2 router carries its own /api/v2 prefix; no extra prefix here.
 app.include_router(v2_api.router)
+
+
+# Single-service deploy: when the built frontend is baked into the image (root Dockerfile sets
+# FRONTEND_DIST_DIR), serve it from this process so one Render service hosts UI + API on one
+# origin. Registered last so every /api, /fhir and /mcp route above wins; no-op in local dev.
+def _mount_frontend() -> None:
+    import os
+    from pathlib import Path
+
+    from fastapi import HTTPException
+    from fastapi.responses import FileResponse
+
+    raw = os.environ.get("FRONTEND_DIST_DIR")
+    dist = Path(raw).resolve() if raw else None
+    if dist is None or not (dist / "index.html").is_file():
+        return
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def _spa(full_path: str) -> FileResponse:
+        if full_path.startswith(("api/", "fhir/", "mcp")):
+            raise HTTPException(status_code=404)
+        candidate = (dist / full_path).resolve()
+        if candidate.is_file() and dist in candidate.parents:
+            return FileResponse(candidate)
+        return FileResponse(dist / "index.html")
+
+
+_mount_frontend()
