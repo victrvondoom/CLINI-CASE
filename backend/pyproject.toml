@@ -47,7 +47,7 @@ dependencies = [
 # (~2 GB). We install only when we actually need pgvector embeddings.
 [project.optional-dependencies]
 embeddings = [
-  "sentence-transformers==3.2.1",
+  "sentence-transformers==5.6.0",
 ]
 # CardioTwin training / evaluation (offline). Serving the API needs only numpy: the model is a JSON artifact.
 cardiotwin = [
