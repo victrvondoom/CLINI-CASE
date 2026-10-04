@@ -3,6 +3,7 @@ services:
   - type: web
     name: clincase
     runtime: docker
+    plan: free
     dockerfilePath: ./Dockerfile
     dockerContext: .
     branch: main
