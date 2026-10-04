@@ -593,7 +593,7 @@ def _mount_frontend() -> None:
         return
 
     @app.get("/{full_path:path}", include_in_schema=False)
-    async def _spa(full_path: str) -> FileResponse:
+    async def _spa(full_path: str):
         if full_path.startswith(("api/", "fhir/", "mcp")):
             raise HTTPException(status_code=404)
         candidate = (dist / full_path).resolve()
