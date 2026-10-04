@@ -27,7 +27,7 @@ dependencies = [
   "langchain-anthropic==0.2.4",
   "langgraph==0.2.45",
   "fhir.resources==7.1.0",
-  "pypdf==5.0.1",
+  "pypdf==6.19.0",
   "pgvector==0.3.6",
 
   # --- Document rendering + intake (round 17) -------------------------
