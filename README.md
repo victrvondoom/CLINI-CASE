@@ -5,6 +5,18 @@
 
 CLINI-CASE connects intake, environmental and clinical evidence, interoperability, human review, AI-assisted analysis, clinical context and follow-up in one traceable workflow.
 
+**Live demo (deployed from this repository on Render):**
+
+| | Link |
+|---|---|
+| Application | https://clini-case.onrender.com |
+| Sign in | https://clini-case.onrender.com/login — click **Admin**, **Reviewer** or **Coordinator**; no password needed |
+| API documentation | https://clini-case.onrender.com/docs |
+| Health check | https://clini-case.onrender.com/api/v1/healthz |
+| Source | https://github.com/victrvondoom/CLINI-CASE |
+
+The demo runs on a free instance, so the first request after a quiet period can take about a minute to wake it. Every push to `main` redeploys automatically from the root [`Dockerfile`](Dockerfile) and [`render.yaml`](render.yaml): one container serves the React interface and the FastAPI backend on a single address.
+
 [![CI](https://github.com/victrvondoom/CLINI-CASE/actions/workflows/ci.yml/badge.svg)](https://github.com/victrvondoom/CLINI-CASE/actions/workflows/ci.yml)
 
 **Built for OneAquaHealth IEEE Global Hackathon — Track 7: Digital Health Standards.**
