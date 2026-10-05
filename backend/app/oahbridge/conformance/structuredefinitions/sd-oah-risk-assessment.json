@@ -1,0 +1,86 @@
+{
+  "resourceType": "StructureDefinition",
+  "id": "oah-risk-assessment",
+  "url": "http://oneaquahealth.eu/fhir/StructureDefinition/oah-risk-assessment",
+  "version": "0.1.0",
+  "name": "OAHRiskAssessmentProfile",
+  "title": "OneAquaHealth Population Environmental Risk Assessment Profile",
+  "status": "active",
+  "experimental": true,
+  "date": "2026-10-02",
+  "publisher": "OneAquaHealth Consortium",
+  "description": "FHIR R4 RiskAssessment profile for population-level health risk predictions derived from aquatic environmental hazard evidence.",
+  "fhirVersion": "4.0.1",
+  "kind": "resource",
+  "abstract": false,
+  "type": "RiskAssessment",
+  "baseDefinition": "http://hl7.org/fhir/StructureDefinition/RiskAssessment",
+  "derivation": "constraint",
+  "differential": {
+    "element": [
+      {
+        "id": "RiskAssessment.subject",
+        "path": "RiskAssessment.subject",
+        "min": 1,
+        "type": [
+          {
+            "code": "Reference",
+            "targetProfile": [
+              "http://hl7.org/fhir/StructureDefinition/Group"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "RiskAssessment.basis",
+        "path": "RiskAssessment.basis",
+        "min": 1,
+        "type": [
+          {
+            "code": "Reference",
+            "targetProfile": [
+              "http://hl7.org/fhir/StructureDefinition/Observation"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "RiskAssessment.method",
+        "path": "RiskAssessment.method",
+        "min": 1,
+        "binding": {
+          "strength": "required",
+          "valueSet": "http://oneaquahealth.eu/fhir/vs/assessment-method"
+        }
+      },
+      {
+        "id": "RiskAssessment.prediction",
+        "path": "RiskAssessment.prediction",
+        "min": 1
+      },
+      {
+        "id": "RiskAssessment.prediction.outcome",
+        "path": "RiskAssessment.prediction.outcome",
+        "min": 1,
+        "type": [
+          {
+            "code": "CodeableConcept"
+          }
+        ],
+        "binding": {
+          "strength": "example",
+          "description": "SNOMED CT concept representing predicted clinical health outcome"
+        }
+      },
+      {
+        "id": "RiskAssessment.prediction.qualitativeRisk",
+        "path": "RiskAssessment.prediction.qualitativeRisk",
+        "min": 1,
+        "binding": {
+          "strength": "required",
+          "valueSet": "http://hl7.org/fhir/ValueSet/risk-probability"
+        }
+      }
+    ]
+  }
+}

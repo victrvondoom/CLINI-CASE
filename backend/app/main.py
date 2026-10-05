@@ -364,6 +364,7 @@ from app.api import (  # noqa: E402
     fhir_pas,
     healthz,
     llm_ping,
+    oah_bridge,
     oncology_stack,
     stream,
 )
@@ -499,6 +500,9 @@ from app.api import (  # noqa: E402
 from app.api import (  # noqa: E402
     v2 as v2_api,
 )
+from app.api import (  # noqa: E402
+    web_push as web_push_api,
+)
 from app.integrations.trizetto.router import router as trizetto_router  # noqa: E402
 from app.mcp.server import router as mcp_router  # noqa: E402
 
@@ -555,6 +559,8 @@ app.include_router(case_twin_api.router, prefix="/api/v1")
 # AquaHealth — OneAquaHealth freshwater ecosystem module (additive; own tables,
 # own agents, own routes. ClinCase's clinical workflow is unchanged).
 app.include_router(aquahealth_api.router, prefix="/api/v1")
+app.include_router(oah_bridge.router, prefix="/api/v1")
+app.include_router(web_push_api.router, prefix="/api/v1")
 
 app.include_router(onehealth_api.router, prefix="/api/v1")
 app.include_router(interop_api.router, prefix="/api/v1")

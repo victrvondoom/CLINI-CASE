@@ -1,0 +1,32 @@
+{
+  "resourceType": "CodeSystem",
+  "id": "oah-evidence-status",
+  "url": "http://oneaquahealth.eu/fhir/cs/evidence-status",
+  "version": "0.1.0",
+  "name": "OAHEvidenceStatus",
+  "title": "OneAquaHealth Epistemic Evidence Status",
+  "status": "active",
+  "experimental": true,
+  "date": "2026-10-02",
+  "publisher": "OneAquaHealth Consortium - Semantic Interoperability Working Group",
+  "description": "Epistemic validity and certainty classification for environmental health assertions.",
+  "caseSensitive": true,
+  "content": "complete",
+  "concept": [
+    {
+      "code": "observed",
+      "display": "Direct Empirical Observation",
+      "definition": "Direct empirical ascertainment from physical field sensors or human observer reports without model inference."
+    },
+    {
+      "code": "inferred",
+      "display": "Modeled Inference",
+      "definition": "Synthesized assertion derived from multi-source corroboration, predictive modeling, or algorithmic evidence fusion without definitive laboratory confirmation."
+    },
+    {
+      "code": "confirmed",
+      "display": "Laboratory Confirmed",
+      "definition": "Reference verification established through analytical laboratory testing or formal public health epidemiological confirmation."
+    }
+  ]
+}

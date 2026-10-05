@@ -1,0 +1,20 @@
+{
+  "resourceType": "ValueSet",
+  "id": "oah-hazard-type-vs",
+  "url": "http://oneaquahealth.eu/fhir/vs/hazard-type",
+  "version": "0.1.0",
+  "name": "OAHHazardTypeValueSet",
+  "title": "OneAquaHealth Hazard Type Value Set",
+  "status": "active",
+  "experimental": true,
+  "date": "2026-10-02",
+  "publisher": "OneAquaHealth Consortium",
+  "description": "Value set including all codes from the OneAquaHealth Hazard Type CodeSystem.",
+  "compose": {
+    "include": [
+      {
+        "system": "http://oneaquahealth.eu/fhir/cs/hazard-type"
+      }
+    ]
+  }
+}

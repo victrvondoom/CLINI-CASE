@@ -1,0 +1,132 @@
+{
+  "system": "http://snomed.info/sct",
+  "name": "OneAquaHealth Clinical Outcome Terminology Manifest",
+  "version": "2026-03-International",
+  "pinned_release": "SNOMED CT International Edition — March 2026 (20260301)",
+  "publisher": "OneAquaHealth Horizon Europe Track 7",
+  "verified_concepts_count": 3,
+  "concepts": [
+    {
+      "code": "40275004",
+      "preferred_term": "Contact dermatitis",
+      "display_label": "Contact dermatitis",
+      "display": "Contact dermatitis",
+      "fully_specified_name": "Contact dermatitis (disorder)",
+      "hierarchy": "Clinical finding / Disorder",
+      "status": "Active",
+      "pinned_release": "SNOMED CT International Edition — March 2026 (20260301)",
+      "verification_source": "NIH MedGen (C0011616) / SNOMED CT International Edition",
+      "reference_url": "https://www.ncbi.nlm.nih.gov/medgen/8329",
+      "validation_status": "VERIFIED_ACTIVE",
+      "scenarios": [
+        "coimbra-cyanobacteria"
+      ],
+      "clinical_rationale": "Recreational freshwater immersion in the presence of Microcystin-LR and cyanobacterial surface scum is associated with an environmental exposure context relevant to contact dermatitis."
+    },
+    {
+      "code": "416113008",
+      "preferred_term": "Disorder characterized by fever",
+      "display_label": "Acute febrile illness",
+      "display": "Acute febrile illness",
+      "fully_specified_name": "Febrile disorder (disorder)",
+      "hierarchy": "Clinical finding / Disorder",
+      "status": "Active",
+      "pinned_release": "SNOMED CT International Edition — March 2026 (20260301)",
+      "verification_source": "BioPortal (conceptid=416113008) / CSIRO Ontoserver / SNOMED CT International Edition",
+      "reference_url": "https://bioportal.bioontology.org/ontologies/SNOMEDCT?conceptid=416113008",
+      "validation_status": "VERIFIED_ACTIVE",
+      "scenarios": [
+        "toulouse-diptera"
+      ],
+      "clinical_rationale": "Arthropod vector bite exposure in urban riparian margins presenting with acute febrile syndrome requiring differential triage for arboviral transmission."
+    },
+    {
+      "code": "69776003",
+      "preferred_term": "Acute gastroenteritis",
+      "display_label": "Acute gastroenteritis",
+      "display": "Acute gastroenteritis",
+      "fully_specified_name": "Acute gastroenteritis (disorder)",
+      "hierarchy": "Clinical finding / Disorder",
+      "status": "Active",
+      "pinned_release": "SNOMED CT International Edition — March 2026 (20260301)",
+      "verification_source": "NCBI MedGen (540688) / BioPortal / OHDSI Athena / SNOMED CT International Edition",
+      "reference_url": "https://www.ncbi.nlm.nih.gov/medgen/540688",
+      "validation_status": "VERIFIED_ACTIVE",
+      "scenarios": [
+        "mondego-storm-surge"
+      ],
+      "clinical_rationale": "Recreational water ingestion or immersion following storm runoff contaminated with high E. coli (>2400 CFU/100mL) represents an environmental exposure context relevant to acute gastroenteritis."
+    }
+  ],
+  "canonical_codesystems_verified": [
+    {
+      "url": "http://oneaquahealth.eu/fhir/cs/hazard-type",
+      "concept_count": 3,
+      "status": "VERIFIED"
+    },
+    {
+      "url": "http://oneaquahealth.eu/fhir/cs/evidence-status",
+      "concept_count": 3,
+      "status": "VERIFIED"
+    },
+    {
+      "url": "http://oneaquahealth.eu/fhir/cs/observation-technique",
+      "concept_count": 4,
+      "status": "VERIFIED"
+    },
+    {
+      "url": "http://oneaquahealth.eu/fhir/cs/exposure-pathway",
+      "concept_count": 4,
+      "status": "VERIFIED"
+    },
+    {
+      "url": "http://oneaquahealth.eu/fhir/cs/assessment-metrics",
+      "concept_count": 4,
+      "status": "VERIFIED"
+    },
+    {
+      "url": "http://oneaquahealth.eu/fhir/cs/semantic-component",
+      "concept_count": 3,
+      "status": "VERIFIED"
+    },
+    {
+      "url": "http://oneaquahealth.eu/fhir/cs/assessment-method",
+      "concept_count": 1,
+      "status": "VERIFIED"
+    }
+  ],
+  "external_standards_verified": [
+    {
+      "system": "http://terminology.hl7.org/CodeSystem/risk-probability",
+      "concepts": [
+        "negligible",
+        "low",
+        "moderate",
+        "high",
+        "certain"
+      ],
+      "status": "VERIFIED_HL7_OFFICIAL"
+    },
+    {
+      "system": "http://terminology.hl7.org/CodeSystem/v3-EntityCode",
+      "concepts": [
+        "RIV"
+      ],
+      "status": "VERIFIED_HL7_OFFICIAL"
+    },
+    {
+      "system": "http://terminology.hl7.org/CodeSystem/flag-category",
+      "concepts": [
+        "env"
+      ],
+      "status": "VERIFIED_HL7_OFFICIAL"
+    },
+    {
+      "system": "http://terminology.hl7.org/CodeSystem/communication-category",
+      "concepts": [
+        "alert"
+      ],
+      "status": "VERIFIED_HL7_OFFICIAL"
+    }
+  ]
+}

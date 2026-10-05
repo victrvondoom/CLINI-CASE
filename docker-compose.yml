@@ -60,6 +60,10 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        VITE_SMART_FHIR_BASE: ${VITE_SMART_FHIR_BASE:-}
+        VITE_SMART_CLIENT_ID: ${VITE_SMART_CLIENT_ID:-}
+        VITE_SMART_REDIRECT_URI: ${VITE_SMART_REDIRECT_URI:-}
     container_name: clincase-frontend
     restart: unless-stopped
     depends_on:

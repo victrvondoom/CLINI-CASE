@@ -27,10 +27,11 @@ export const areas = [
   {
     path: "/interop",
     label: "Interoperability",
-    summary: "Map, standardize, validate, exchange and verify evidence.",
+    summary: "The Track 7 home: review meaning, validate, exchange and prove the round trip.",
     links: [
-      ["Connected standards journey", "/journey"],
-      ["Gateway", "/interop"],
+      ["Track 7 exchange workbench", "/interop"],
+      ["Context explorer (synthetic, optional)", "/oah-bridge"],
+      ["Evidence journey and passport", "/journey"],
     ],
   },
   {
@@ -60,6 +61,7 @@ export const areas = [
       ["Twin overview", "/twin/overview"],
       ["CardioTwin", "/cardiotwin"],
       ["CardioTwin evaluation", "/cardiotwin/evaluation"],
+      ["SMART on FHIR EHR launch (optional)", "/smart-on-fhir"],
     ],
   },
   {
@@ -69,6 +71,7 @@ export const areas = [
       "Return to the evidence workbench to review follow-up tasks and retest evidence. Clinical twins are optional.",
     links: [
       ["Follow-up / retest workbench", "/onehealth"],
+      ["Notification preferences (opt-in)", "/notifications"],
       ["Continue without a clinical twin", "/journey"],
       ["Cases", "/cases"],
     ],

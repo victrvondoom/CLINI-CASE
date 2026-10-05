@@ -1,0 +1,20 @@
+{
+  "resourceType": "ValueSet",
+  "id": "oah-observation-technique-vs",
+  "url": "http://oneaquahealth.eu/fhir/vs/observation-technique",
+  "version": "0.1.0",
+  "name": "OAHObservationTechniqueValueSet",
+  "title": "OneAquaHealth Observation Technique Value Set",
+  "status": "active",
+  "experimental": true,
+  "date": "2026-10-02",
+  "publisher": "OneAquaHealth Consortium",
+  "description": "Value set containing allowed ascertainment techniques for Observation.method.",
+  "compose": {
+    "include": [
+      {
+        "system": "http://oneaquahealth.eu/fhir/cs/observation-technique"
+      }
+    ]
+  }
+}

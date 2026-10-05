@@ -1,0 +1,83 @@
+{
+  "resourceType": "StructureDefinition",
+  "id": "oah-evidence-support",
+  "url": "http://oneaquahealth.eu/fhir/StructureDefinition/oah-evidence-support",
+  "version": "0.1.0",
+  "name": "OAHEvidenceSupportProfile",
+  "title": "OneAquaHealth Evidence Support Score Observation Profile",
+  "status": "active",
+  "experimental": true,
+  "date": "2026-10-02",
+  "publisher": "OneAquaHealth Consortium",
+  "description": "FHIR R4 Observation profile for multi-source environmental evidence corroboration metrics.",
+  "fhirVersion": "4.0.1",
+  "kind": "resource",
+  "abstract": false,
+  "type": "Observation",
+  "baseDefinition": "http://hl7.org/fhir/StructureDefinition/Observation",
+  "derivation": "constraint",
+  "differential": {
+    "element": [
+      {
+        "id": "Observation.focus",
+        "path": "Observation.focus",
+        "min": 1,
+        "max": "1",
+        "type": [
+          {
+            "code": "Reference",
+            "targetProfile": [
+              "http://hl7.org/fhir/StructureDefinition/Observation"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "Observation.code",
+        "path": "Observation.code",
+        "min": 1,
+        "patternCodeableConcept": {
+          "coding": [
+            {
+              "system": "http://oneaquahealth.eu/fhir/cs/assessment-metrics",
+              "code": "evidence-support-score"
+            }
+          ]
+        }
+      },
+      {
+        "id": "Observation.valueDecimal",
+        "path": "Observation.valueDecimal",
+        "min": 1,
+        "type": [
+          {
+            "code": "decimal"
+          }
+        ]
+      },
+      {
+        "id": "Observation.component",
+        "path": "Observation.component",
+        "min": 1
+      },
+      {
+        "id": "Observation.component.code",
+        "path": "Observation.component.code",
+        "binding": {
+          "strength": "required",
+          "valueSet": "http://oneaquahealth.eu/fhir/vs/assessment-metrics"
+        }
+      },
+      {
+        "id": "Observation.component.valueDecimal",
+        "path": "Observation.component.valueDecimal",
+        "min": 1,
+        "type": [
+          {
+            "code": "decimal"
+          }
+        ]
+      }
+    ]
+  }
+}

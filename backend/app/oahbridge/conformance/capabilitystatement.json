@@ -1,0 +1,142 @@
+{
+  "resourceType": "CapabilityStatement",
+  "id": "oah-bridge-server",
+  "url": "http://oneaquahealth.eu/fhir/CapabilityStatement/oah-bridge-server",
+  "version": "0.1.0",
+  "name": "OAHBridgeCapabilityStatement",
+  "title": "OneAquaHealth Semantic Interoperability Bridge Server Conformance",
+  "status": "active",
+  "experimental": true,
+  "date": "2026-10-02",
+  "publisher": "OneAquaHealth Consortium",
+  "kind": "instance",
+  "software": {
+    "name": "OneAquaHealth Semantic Interoperability Bridge (OAH-Bridge)",
+    "version": "0.1.0",
+    "releaseDate": "2026-10-02"
+  },
+  "implementation": {
+    "description": "FHIR R4 Reference Server bridging aquatic environmental evidence to public-health decision artifacts.",
+    "url": "http://localhost:8000/api/fhir"
+  },
+  "fhirVersion": "4.0.1",
+  "format": [
+    "application/fhir+json",
+    "application/json"
+  ],
+  "rest": [
+    {
+      "mode": "server",
+      "documentation": "Standard FHIR R4 resource endpoints with documented OneAquaHealth custom search parameters for environmental health surveillance.",
+      "security": {
+        "cors": true,
+        "description": "Demonstration mode allows open CORS for hackathon review."
+      },
+      "resource": [
+        {
+          "type": "Observation",
+          "profile": "http://oneaquahealth.eu/fhir/StructureDefinition/oah-hazard-observation",
+          "supportedProfile": [
+            "http://oneaquahealth.eu/fhir/StructureDefinition/oah-hazard-observation",
+            "http://oneaquahealth.eu/fhir/StructureDefinition/oah-evidence-support"
+          ],
+          "interaction": [
+            { "code": "read" },
+            { "code": "search-type" }
+          ],
+          "searchParam": [
+            {
+              "name": "code",
+              "definition": "http://hl7.org/fhir/SearchParameter/Observation-code",
+              "type": "token",
+              "documentation": "Standard FHIR search on observation code."
+            },
+            {
+              "name": "subject",
+              "definition": "http://hl7.org/fhir/SearchParameter/Observation-subject",
+              "type": "reference",
+              "documentation": "Standard FHIR search on observation subject (Location)."
+            },
+            {
+              "name": "oah-hazard",
+              "definition": "http://oneaquahealth.eu/fhir/SearchParameter/Observation-oah-hazard",
+              "type": "token",
+              "documentation": "OAH custom search parameter: filter observations by OAH hazard type code."
+            }
+          ]
+        },
+        {
+          "type": "Location",
+          "interaction": [
+            { "code": "read" },
+            { "code": "search-type" }
+          ]
+        },
+        {
+          "type": "Group",
+          "profile": "http://oneaquahealth.eu/fhir/StructureDefinition/oah-exposure-group",
+          "interaction": [
+            { "code": "read" },
+            { "code": "search-type" }
+          ]
+        },
+        {
+          "type": "RiskAssessment",
+          "profile": "http://oneaquahealth.eu/fhir/StructureDefinition/oah-risk-assessment",
+          "interaction": [
+            { "code": "read" },
+            { "code": "search-type" }
+          ],
+          "searchParam": [
+            {
+              "name": "subject",
+              "definition": "http://hl7.org/fhir/SearchParameter/RiskAssessment-subject",
+              "type": "reference",
+              "documentation": "Standard FHIR search on subject (definitional Group)."
+            },
+            {
+              "name": "oah-hazard",
+              "definition": "http://oneaquahealth.eu/fhir/SearchParameter/RiskAssessment-oah-hazard",
+              "type": "token",
+              "documentation": "OAH custom search parameter: filter risk assessments by associated hazard code."
+            },
+            {
+              "name": "oah-location",
+              "definition": "http://oneaquahealth.eu/fhir/SearchParameter/RiskAssessment-oah-location",
+              "type": "reference",
+              "documentation": "OAH custom search parameter: filter risk assessments by geographic site ID."
+            }
+          ]
+        },
+        {
+          "type": "Provenance",
+          "interaction": [
+            { "code": "read" },
+            { "code": "search-type" }
+          ]
+        },
+        {
+          "type": "Flag",
+          "interaction": [
+            { "code": "read" },
+            { "code": "search-type" }
+          ]
+        },
+        {
+          "type": "CommunicationRequest",
+          "interaction": [
+            { "code": "read" },
+            { "code": "search-type" }
+          ]
+        },
+        {
+          "type": "Bundle",
+          "interaction": [
+            { "code": "read" },
+            { "code": "search-type" }
+          ]
+        }
+      ]
+    }
+  ]
+}

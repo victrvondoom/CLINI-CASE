@@ -1,0 +1,37 @@
+{
+  "resourceType": "CodeSystem",
+  "id": "oah-assessment-metrics",
+  "url": "http://oneaquahealth.eu/fhir/cs/assessment-metrics",
+  "version": "0.1.0",
+  "name": "OAHAssessmentMetrics",
+  "title": "OneAquaHealth Assessment Metrics & Corroboration Subcomponents",
+  "status": "active",
+  "experimental": true,
+  "date": "2026-10-02",
+  "publisher": "OneAquaHealth Consortium - Semantic Interoperability Working Group",
+  "description": "Standardized metrics and decomposition sub-scores used in multi-source environmental evidence fusion.",
+  "caseSensitive": true,
+  "content": "complete",
+  "concept": [
+    {
+      "code": "evidence-support-score",
+      "display": "Environmental Evidence Support Score",
+      "definition": "Normalized composite multi-source corroboration score (range 0.00–1.00) measuring empirical evidence support."
+    },
+    {
+      "code": "sensor-corroboration",
+      "display": "Sensor Corroboration",
+      "definition": "Normalized index (0.00–1.00) reflecting congruence and severity among calibrated physical-chemical sensor probes."
+    },
+    {
+      "code": "citizen-agreement",
+      "display": "Citizen Agreement",
+      "definition": "Normalized index (0.00–1.00) quantifying density, spatial concordance, and consensus of citizen science field reports."
+    },
+    {
+      "code": "temporal-consistency",
+      "display": "Temporal Consistency",
+      "definition": "Normalized index (0.00–1.00) evaluating persistence and multi-timestep trend consistency of the environmental anomaly."
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "resourceType": "ValueSet",
+  "id": "oah-exposure-pathway-vs",
+  "url": "http://oneaquahealth.eu/fhir/vs/exposure-pathway",
+  "version": "0.1.0",
+  "name": "OAHExposurePathwayValueSet",
+  "title": "OneAquaHealth Exposure Pathway Value Set",
+  "status": "active",
+  "experimental": true,
+  "date": "2026-10-02",
+  "publisher": "OneAquaHealth Consortium",
+  "description": "Allowed exposure pathways.",
+  "compose": {
+    "include": [
+      {
+        "system": "http://oneaquahealth.eu/fhir/cs/exposure-pathway"
+      }
+    ]
+  }
+}

@@ -32,6 +32,9 @@ const Runtime = lazy(() => import("./routes/Runtime"));
 const OneHealth = lazy(() => import("./routes/OneHealth"));
 const Track7Overview = lazy(() => import("./routes/Track7Overview"));
 const AquaMap = lazy(() => import("./routes/AquaMap"));
+const OahBridge = lazy(() => import("./routes/OahBridge"));
+const SmartOnFhir = lazy(() => import("./routes/SmartOnFhir"));
+const NotificationPreferences = lazy(() => import("./routes/NotificationPreferences"));
 const AquaObservationDetail = lazy(() => import("./routes/AquaObservationDetail"));
 const AquaObservationNew = lazy(() => import("./routes/AquaObservationNew"));
 const AquaObservations = lazy(() => import("./routes/AquaObservations"));
@@ -81,6 +84,8 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
           <Route path="/" element={<Landing />} />
           <Route path="/platform" element={<Landing />} />
           <Route path="/track7" element={<Track7Overview />} />
+          {/* SMART launch callback is public-client OAuth; it has its own EHR authorization. */}
+          <Route path="/smart-on-fhir" element={<SmartOnFhir />} />
 
           {/* Public auth pages */}
           <Route path="/login"  element={<Login />} />
@@ -100,6 +105,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             <Route path="/journey/:jobId/:stageId" element={<Journey />} />
             {["/intake-tools", "/evidence", "/review", "/clinical-context", "/follow-up", "/research"].map(path => <Route key={path} path={path} element={<WorkflowArea />} />)}
             <Route path="/runtime" element={<Runtime />} />
+            <Route path="/notifications" element={<NotificationPreferences />} />
 
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/cases" element={<Cases />} />
@@ -159,6 +165,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
                 Existing ClinCase routes above are unchanged. */}
             <Route path="/aquahealth" element={<AquaDashboard />} />
             <Route path="/onehealth" element={<OneHealth />} />
+            <Route path="/oah-bridge" element={<OahBridge />} />
             <Route path="/interop" element={<Interop />} />
             <Route path="/aquahealth/observations" element={<AquaObservations />} />
             <Route path="/aquahealth/observations/new" element={<AquaObservationNew />} />

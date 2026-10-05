@@ -74,6 +74,7 @@ export function AppShell() {
   const oneHealth =
     location.pathname === "/onehealth" ||
     location.pathname === "/interop" ||
+    location.pathname === "/oah-bridge" ||
     location.pathname.startsWith("/journey") ||
     location.pathname.startsWith("/aquahealth");
   const showFab = !_SUPPRESS_FAB_ROUTES.has(location.pathname);

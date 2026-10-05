@@ -52,6 +52,7 @@ export interface Job {
     source_system: string;
     original_record_id: string;
     payload: unknown;
+    synthetic?: boolean;
   };
   fields: Record<string, unknown>;
   mappings: Mapping[];
@@ -105,6 +106,17 @@ export interface Job {
     correlation_id: string;
     provenance: unknown;
   }[];
+}
+
+export interface ExternalFhirCheck {
+  status: "passed" | "failed" | "unavailable" | "rejected";
+  endpoint: string;
+  resource_type: string;
+  resource_id: string | null;
+  detail: string;
+  scope_note: string;
+  checked_at: string;
+  semantic: { fields_preserved: number; fields_total: number; fields: { field: string; preserved: boolean }[] } | null;
 }
 export async function interop<T>(path: string, body?: unknown): Promise<T> {
   const res = await fetch(`/api/v1/interop${path}`, {

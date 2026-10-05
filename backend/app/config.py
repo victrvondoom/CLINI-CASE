@@ -149,6 +149,12 @@ class Settings(BaseSettings):
     # Verification stays on; this only changes which roots are trusted. Needs `pip install truststore`.
     EXTERNAL_FHIR_SYSTEM_TRUST: bool = False
 
+    # Optional user-opt-in Web Push. Subscription payloads are AES-GCM encrypted at rest.
+    VAPID_PUBLIC_KEY: str = ""
+    VAPID_PRIVATE_KEY: str = ""
+    VAPID_SUBJECT: str = "mailto:security@clincase.health"
+    WEB_PUSH_ENCRYPTION_KEY: str = ""
+
     # Raw image/PDF OCR sends visible identifiers to a remote processor.
     # Enable only after the deployment has approved provider data handling.
     CLOUD_DOCUMENT_PROCESSING_ENABLED: bool = False

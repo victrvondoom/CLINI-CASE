@@ -1,0 +1,38 @@
+{
+  "resourceType": "StructureDefinition",
+  "id": "oah-exposure-group",
+  "url": "http://oneaquahealth.eu/fhir/StructureDefinition/oah-exposure-group",
+  "version": "0.1.0",
+  "name": "OAHExposureGroupProfile",
+  "title": "OneAquaHealth Definitional Exposed Population Group Profile",
+  "status": "active",
+  "experimental": true,
+  "date": "2026-10-02",
+  "publisher": "OneAquaHealth Consortium",
+  "description": "FHIR R4 Group profile representing a definitional cohort (actual = false) determined by spatial exposure criteria.",
+  "fhirVersion": "4.0.1",
+  "kind": "resource",
+  "abstract": false,
+  "type": "Group",
+  "baseDefinition": "http://hl7.org/fhir/StructureDefinition/Group",
+  "derivation": "constraint",
+  "differential": {
+    "element": [
+      {
+        "id": "Group.type",
+        "path": "Group.type",
+        "fixedCode": "person"
+      },
+      {
+        "id": "Group.actual",
+        "path": "Group.actual",
+        "fixedBoolean": false
+      },
+      {
+        "id": "Group.characteristic",
+        "path": "Group.characteristic",
+        "min": 1
+      }
+    ]
+  }
+}

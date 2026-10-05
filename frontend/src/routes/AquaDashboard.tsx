@@ -45,6 +45,7 @@ import type {
   ObservationSummary,
 } from "../aquahealth/types";
 import { useAuth } from "../components/AuthContext";
+import GlobalControlCard from "../components/GlobalControlCard";
 import { onehealth, type EnvironmentalTask } from "../onehealth/api";
 
 const STATUS_ORDER: EcosystemStatus[] = [
@@ -138,6 +139,7 @@ export default function AquaDashboard() {
           <h2 className="text-lg text-ink-primary mt-1">From water evidence to clinical action →</h2>
           <p className="text-xs text-ink-muted mt-2">Open the exposure workbench: laboratory provenance, consented patient context, human review and FHIR exchange. Track 3 remains the supporting assessment layer.</p>
         </Link>
+        <GlobalControlCard />
         <EnvironmentalFollowup />
         <PrototypeNotice />
 

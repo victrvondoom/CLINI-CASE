@@ -1,0 +1,20 @@
+{
+  "resourceType": "ValueSet",
+  "id": "oah-assessment-method-vs",
+  "url": "http://oneaquahealth.eu/fhir/vs/assessment-method",
+  "version": "0.1.0",
+  "name": "OAHAssessmentMethodValueSet",
+  "title": "OneAquaHealth Risk Assessment Method Value Set",
+  "status": "active",
+  "experimental": true,
+  "date": "2026-10-02",
+  "publisher": "OneAquaHealth Consortium",
+  "description": "Allowed algorithms and methods for population-level aquatic risk assessments.",
+  "compose": {
+    "include": [
+      {
+        "system": "http://oneaquahealth.eu/fhir/cs/assessment-method"
+      }
+    ]
+  }
+}

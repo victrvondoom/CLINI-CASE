@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../components/AuthContext";
 import { BUTTON, INPUT } from "../onehealth/Forms";
-import { interop, type Job, type Mapping } from "../interop/api";
+import { interop, type ExternalFhirCheck, type Job, type Mapping } from "../interop/api";
 import { downloadPassport } from "../onehealth/Journey";
 const CARD = "rounded-2xl border border-surface-border bg-surface-raised p-5";
 const json = (v: unknown) => JSON.stringify(v, null, 2);
@@ -27,6 +27,7 @@ export default function Interop() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [returned, setReturned] = useState<unknown>(null);
+  const [externalCheck, setExternalCheck] = useState<ExternalFhirCheck | null>(null);
   const [useAI, setUseAI] = useState(false);
   const [resume, setResume] = useState("");
   const canReview = user?.role === "reviewer" || user?.role === "admin";
@@ -125,6 +126,14 @@ export default function Interop() {
         <Link className="text-accent-cyan underline" to="/onehealth">
           One Health evidence journey
         </Link>
+        <Link className="ml-4 text-accent-cyan underline" to="/smart-on-fhir">
+          Optional SMART on FHIR connection
+        </Link>
+        <div className="mt-4 rounded-xl border border-accent-cyan/30 bg-accent-cyan/5 p-4">
+          <p className="text-sm font-medium">Optional context before the exchange</p>
+          <p className="mt-1 text-xs text-ink-muted">Inspect a synthetic OneAquaHealth location and weather scenario, then return here for the governed mapping, human approval, validation, transfer, and round-trip workflow. Scenario data is illustrative and is not imported into this transaction.</p>
+          <Link className="mt-2 inline-block text-sm text-accent-cyan underline" to="/oah-bridge">Open One Health context explorer →</Link>
+        </div>
         <div
           className="mt-4 flex gap-3"
           role="group"
@@ -191,6 +200,7 @@ export default function Interop() {
           () =>
             void run(async () => {
               const j = await interop<Job>(`/demo?variant=${demoVariant}`, {});
+              setExternalCheck(null);
               setSource(json(j.source.payload));
               setReturned(null);
               return j;
@@ -650,6 +660,34 @@ export default function Interop() {
               <p className="text-sm mt-3">{job.assessment.notice}</p>
             </section>
           )}
+          <section className={CARD}>
+            <h2 className="text-xl">Optional HAPI FHIR R4 server check</h2>
+            <p className="my-2 text-sm">This sends the current synthetic Bundle to the configured HAPI FHIR test server, reads it back, and compares selected evidence fields. The public test server may retain the synthetic resource. This check does not validate OAH profiles.</p>
+            <button
+              className={BUTTON}
+              disabled={busy || !job.bundle || !job.validation?.valid || !job.source.synthetic}
+              onClick={() => {
+                setBusy(true);
+                setError("");
+                interop<{ job: Job; external: ExternalFhirCheck }>("/external-check", command())
+                  .then((result) => {
+                    setJob(result.job);
+                    setExternalCheck(result.external);
+                  })
+                  .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+                  .finally(() => setBusy(false));
+              }}
+            >
+              Send synthetic Bundle to HAPI and read back
+            </button>
+            {externalCheck && <div className="mt-3 rounded-lg border border-surface-border p-3" role="status">
+              <p className="text-sm font-semibold">{externalCheck.status.toUpperCase()} · {externalCheck.resource_type}/{externalCheck.resource_id ?? "no id"}</p>
+              <p className="mt-1 text-xs">{externalCheck.detail}</p>
+              <p className="mt-1 text-xs text-ink-muted">{externalCheck.scope_note}</p>
+              {externalCheck.semantic && <p className="mt-1 text-xs">{externalCheck.semantic.fields_preserved}/{externalCheck.semantic.fields_total} selected semantic fields preserved.</p>}
+              <p className="mt-1 text-[10px] text-ink-faint">{externalCheck.endpoint} · {externalCheck.checked_at}</p>
+            </div>}
+          </section>
           <section className={CARD}>
             <h2 className="text-xl">
               Evidence Passport / continue the journey

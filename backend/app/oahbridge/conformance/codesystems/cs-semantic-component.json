@@ -1,0 +1,27 @@
+{
+  "resourceType": "CodeSystem",
+  "id": "oah-semantic-component",
+  "url": "http://oneaquahealth.eu/fhir/cs/semantic-component",
+  "version": "0.1.0",
+  "name": "OAHSemanticComponent",
+  "title": "OneAquaHealth Observation & Group Semantic Components",
+  "status": "active",
+  "experimental": true,
+  "date": "2026-10-02",
+  "publisher": "OneAquaHealth Consortium - Semantic Interoperability Working Group",
+  "description": "Component and characteristic category codes for structuring sub-elements of environmental hazard observations and definitional cohorts.",
+  "caseSensitive": true,
+  "content": "complete",
+  "concept": [
+    {
+      "code": "exposure-pathway",
+      "display": "Exposure Pathway",
+      "definition": "Identifies the human exposure route associated with the ascertained environmental hazard."
+    },
+    {
+      "code": "spatial-exposure-zone",
+      "display": "Spatial Exposure Zone",
+      "definition": "Identifies the geographic exposure zone characteristic in a definitional population Group."
+    }
+  ]
+}

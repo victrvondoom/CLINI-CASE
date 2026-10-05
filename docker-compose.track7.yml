@@ -27,10 +27,13 @@ services:
       CORS_ORIGINS: http://localhost:5173
       INTEROP_RECEIVER_URL: http://receiver:8091
       INTEROP_RECEIVER_TOKEN: ${INTEROP_RECEIVER_TOKEN:?Set INTEROP_RECEIVER_TOKEN in .env}
+      EXTERNAL_FHIR_BASE_URL: http://hapi:8080/fhir
     depends_on:
       postgres:
         condition: service_healthy
       receiver:
+        condition: service_healthy
+      hapi:
         condition: service_healthy
     ports:
       - "127.0.0.1:8000:8000"
@@ -53,10 +56,26 @@ services:
       timeout: 3s
       retries: 20
 
+  hapi:
+    # Local, unauthenticated HAPI is restricted to loopback and synthetic demo data.
+    image: hapiproject/hapi:v8.10.0-3
+    ports:
+      - "127.0.0.1:18080:8080"
+    healthcheck:
+      test: ["CMD", "java", "-cp", "/app", "HealthCheck"]
+      interval: 10s
+      timeout: 10s
+      start_period: 90s
+      retries: 18
+
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        VITE_SMART_FHIR_BASE: ${VITE_SMART_FHIR_BASE:-}
+        VITE_SMART_CLIENT_ID: ${VITE_SMART_CLIENT_ID:-}
+        VITE_SMART_REDIRECT_URI: ${VITE_SMART_REDIRECT_URI:-}
     depends_on:
       - api
     ports:

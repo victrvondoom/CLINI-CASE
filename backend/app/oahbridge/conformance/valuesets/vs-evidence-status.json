@@ -1,0 +1,20 @@
+{
+  "resourceType": "ValueSet",
+  "id": "oah-evidence-status-vs",
+  "url": "http://oneaquahealth.eu/fhir/vs/evidence-status",
+  "version": "0.1.0",
+  "name": "OAHEvidenceStatusValueSet",
+  "title": "OneAquaHealth Epistemic Evidence Status Value Set",
+  "status": "active",
+  "experimental": true,
+  "date": "2026-10-02",
+  "publisher": "OneAquaHealth Consortium",
+  "description": "Allowed epistemic statuses for the oah-evidence-status extension.",
+  "compose": {
+    "include": [
+      {
+        "system": "http://oneaquahealth.eu/fhir/cs/evidence-status"
+      }
+    ]
+  }
+}

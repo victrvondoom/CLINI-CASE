@@ -37,6 +37,19 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_org   ON users(organization_id);
 
+-- User opt-in Web Push endpoints are encrypted by the application before storage.
+CREATE TABLE IF NOT EXISTS web_push_subscriptions (
+    organization_id TEXT NOT NULL,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    endpoint_hash TEXT NOT NULL,
+    encrypted_payload BYTEA NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (user_id, endpoint_hash)
+);
+
+CREATE INDEX IF NOT EXISTS idx_web_push_subscriptions_org_user
+    ON web_push_subscriptions (organization_id, user_id);
+
 -- =============================================================================
 -- cases  — one row per prior-authorisation request
 -- =============================================================================

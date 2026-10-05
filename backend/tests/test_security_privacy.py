@@ -88,6 +88,10 @@ def test_mcp_no_longer_depends_on_a_shared_secret():
         JWT_SECRET="x" * 40,
         DEMO_USER_PASSWORD="different",
         MCP_AUTH_TOKEN="",
+        # config.py also exports the repo-root .env into os.environ; pin the dev-only demo
+        # flags so a developer's local demo settings cannot leak into this production check.
+        AUTH_DBLESS_DEMO_ENABLED=False,
+        DEMO_PASSWORDLESS_LOGIN=False,
     )
 
 

@@ -1,0 +1,37 @@
+{
+  "resourceType": "CodeSystem",
+  "id": "oah-observation-technique",
+  "url": "http://oneaquahealth.eu/fhir/cs/observation-technique",
+  "version": "0.1.0",
+  "name": "OAHObservationTechnique",
+  "title": "OneAquaHealth Observation Ascertainment Techniques",
+  "status": "active",
+  "experimental": true,
+  "date": "2026-10-02",
+  "publisher": "OneAquaHealth Consortium - Semantic Interoperability Working Group",
+  "description": "Physical, instrument, or algorithmic ascertainment techniques compliant with FHIR R4 Observation.method semantics.",
+  "caseSensitive": true,
+  "content": "complete",
+  "concept": [
+    {
+      "code": "citizen-visual-observation",
+      "display": "Citizen Science Visual Observation",
+      "definition": "Visual sighting or qualitative photographic report submitted by citizen scientists via the OneAquaHealth mobile application."
+    },
+    {
+      "code": "in-situ-sensor-probe",
+      "display": "In-situ Sensor Telemetry Probe",
+      "definition": "Automated, calibrated hardware sensor telemetry measuring physical-chemical aquatic parameters (e.g., pH, dissolved oxygen, water temperature, turbidity)."
+    },
+    {
+      "code": "predictive-model-inference",
+      "display": "Predictive Algorithmic Model Inference",
+      "definition": "Synthetic ecological or vector prediction produced by algorithmic models such as DipteraCAST."
+    },
+    {
+      "code": "laboratory-chemical-assay",
+      "display": "Reference Laboratory Chemical Assay",
+      "definition": "Reference analytical chemistry, mass spectrometry, or microbial culturing performed on physical water grab samples."
+    }
+  ]
+}

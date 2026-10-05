@@ -10,7 +10,7 @@
  * Selecting a marker shows that observation's summary beside the plot.
  */
 import { MapPin, Maximize2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { aqua } from "../aquahealth/api";
@@ -36,13 +36,25 @@ const STATUS_FILL: Record<EcosystemStatus, string> = {
   insufficient_data: "rgb(var(--ink-faint))",
 };
 
+/** WebGL needs literal colours (CSS variables do not resolve inside three.js). */
+const STATUS_HEX: Record<EcosystemStatus, string> = {
+  critical_signal: "#ef4444",
+  potential_stress: "#f59e0b",
+  watch: "#3b82f6",
+  healthy_signal: "#22c55e",
+  insufficient_data: "#94a3b8",
+};
+
 const PAD = 0.12; // fraction of span added as breathing room around the extremes
+const ObservationGlobe = lazy(() => import("../globe/ObservationGlobe"));
+const AquaHealthMapLibre = lazy(() => import("../globe/AquaHealthMapLibre"));
 
 export default function AquaMap() {
   const [data, setData] = useState<MapView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<MapPoint | null>(null);
   const [statusFilter, setStatusFilter] = useState<EcosystemStatus | "all">("all");
+  const [mapMode, setMapMode] = useState<"street" | "globe">("street");
 
   useEffect(() => {
     aqua
@@ -55,6 +67,19 @@ export default function AquaMap() {
     const all = data?.points ?? [];
     return statusFilter === "all" ? all : all.filter((p) => p.status === statusFilter);
   }, [data, statusFilter]);
+  const selectPoint = useCallback((point: MapPoint) => setSelected(point), []);
+
+  const globeMarkers = useMemo(
+    () =>
+      points.map((p) => ({
+        id: p.observation_id,
+        latitude: p.latitude,
+        longitude: p.longitude,
+        label: `${p.reference} · ${p.waterbody_name}`,
+        color: STATUS_HEX[p.status],
+      })),
+    [points],
+  );
 
   /** Project lat/lon into the 0..1000 x 0..600 viewBox. */
   const project = useCallback(
@@ -110,6 +135,30 @@ export default function AquaMap() {
         description="Where each freshwater observation was recorded, coloured by its prototype ecosystem status."
       />
 
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent-cyan/30 bg-accent-cyan/5 p-4">
+        <div>
+          <h2 className="text-sm font-semibold text-ink-primary">Related Track 7 tools</h2>
+          <p className="mt-1 text-xs text-ink-muted">Explore a synthetic environmental scenario, or open the separate Track 7 workbench for governed mapping and exchange.</p>
+        </div>
+        <div className="flex flex-wrap gap-3 text-sm">
+          <Link to="/oah-bridge" className="text-accent-cyan underline">Context explorer</Link>
+          <Link to="/interop" className="text-accent-cyan underline">Track 7 exchange</Link>
+        </div>
+      </div>
+
+      <section className="mb-4 rounded-2xl border border-surface-border bg-surface-raised p-4">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <div><h2 className="text-sm font-semibold text-ink-primary">Geographic evidence map</h2><p className="mt-1 text-[11px] text-ink-muted">Select a marker to open its AquaHealth observation.</p></div>
+          <div className="flex gap-2" role="group" aria-label="Map display">
+            <button type="button" aria-pressed={mapMode === "street"} onClick={() => setMapMode("street")} className="rounded-md border border-surface-border px-3 py-1.5 text-xs aria-pressed:border-accent-cyan aria-pressed:text-accent-cyan">Street map</button>
+            <button type="button" aria-pressed={mapMode === "globe"} onClick={() => setMapMode("globe")} className="rounded-md border border-surface-border px-3 py-1.5 text-xs aria-pressed:border-accent-cyan aria-pressed:text-accent-cyan">3D globe & optional GPS</button>
+          </div>
+        </div>
+        <Suspense fallback={<div className="h-[360px] animate-pulse rounded-xl bg-surface-bg" role="status">Loading map…</div>}>
+          {mapMode === "street" ? <AquaHealthMapLibre points={points} selectedId={selected?.observation_id ?? null} onSelect={selectPoint} /> : <ObservationGlobe markers={globeMarkers} selectedId={selected?.observation_id ?? null} onSelect={(id) => setSelected(data.points.find((p) => p.observation_id === id) ?? null)} />}
+        </Suspense>
+      </section>
+
       {data.points.length === 0 ? (
         <EmptyState
           title="No mapped observations yet"
@@ -125,8 +174,10 @@ export default function AquaMap() {
         />
       ) : (
         <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
-          {/* Plot */}
-          <div className="rounded-2xl border border-surface-border bg-surface-raised p-4">
+          {/* Retained relative plot and filters for offline review. */}
+          <details className="rounded-2xl border border-surface-border bg-surface-raised p-4">
+            <summary className="cursor-pointer text-sm font-semibold text-ink-primary">Offline coordinate plot and status filters</summary>
+            <div className="mt-3">
             <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
               <div className="flex items-center gap-2">
                 <Maximize2 size={13} className="text-ink-muted" aria-hidden="true" />
@@ -244,7 +295,8 @@ export default function AquaMap() {
               reflects real coordinates but is scaled to fit the observations
               currently shown.
             </p>
-          </div>
+            </div>
+          </details>
 
           {/* Selection */}
           <div className="space-y-3">

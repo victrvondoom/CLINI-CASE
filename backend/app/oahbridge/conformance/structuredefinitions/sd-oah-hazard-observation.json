@@ -1,0 +1,110 @@
+{
+  "resourceType": "StructureDefinition",
+  "id": "oah-hazard-observation",
+  "url": "http://oneaquahealth.eu/fhir/StructureDefinition/oah-hazard-observation",
+  "version": "0.1.0",
+  "name": "OAHHazardObservationProfile",
+  "title": "OneAquaHealth Aquatic Environmental Hazard Observation Profile",
+  "status": "active",
+  "experimental": true,
+  "date": "2026-10-02",
+  "publisher": "OneAquaHealth Consortium",
+  "description": "FHIR R4 Observation profile representing ascertained or modeled aquatic environmental hazards.",
+  "fhirVersion": "4.0.1",
+  "kind": "resource",
+  "abstract": false,
+  "type": "Observation",
+  "baseDefinition": "http://hl7.org/fhir/StructureDefinition/Observation",
+  "derivation": "constraint",
+  "differential": {
+    "element": [
+      {
+        "id": "Observation.extension:evidenceStatus",
+        "path": "Observation.extension",
+        "sliceName": "evidenceStatus",
+        "min": 1,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://oneaquahealth.eu/fhir/StructureDefinition/oah-evidence-status"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "Observation.code",
+        "path": "Observation.code",
+        "min": 1,
+        "binding": {
+          "strength": "required",
+          "valueSet": "http://oneaquahealth.eu/fhir/vs/hazard-type"
+        }
+      },
+      {
+        "id": "Observation.subject",
+        "path": "Observation.subject",
+        "min": 1,
+        "type": [
+          {
+            "code": "Reference",
+            "targetProfile": [
+              "http://hl7.org/fhir/StructureDefinition/Location"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "Observation.method",
+        "path": "Observation.method",
+        "min": 1,
+        "binding": {
+          "strength": "required",
+          "valueSet": "http://oneaquahealth.eu/fhir/vs/observation-technique"
+        }
+      },
+      {
+        "id": "Observation.component",
+        "path": "Observation.component",
+        "slicing": {
+          "discriminator": [
+            {
+              "type": "value",
+              "path": "code"
+            }
+          ],
+          "rules": "open"
+        }
+      },
+      {
+        "id": "Observation.component:exposurePathway",
+        "path": "Observation.component",
+        "sliceName": "exposurePathway",
+        "min": 1,
+        "max": "1"
+      },
+      {
+        "id": "Observation.component:exposurePathway.code",
+        "path": "Observation.component.code",
+        "patternCodeableConcept": {
+          "coding": [
+            {
+              "system": "http://oneaquahealth.eu/fhir/cs/semantic-component",
+              "code": "exposure-pathway"
+            }
+          ]
+        }
+      },
+      {
+        "id": "Observation.component:exposurePathway.valueCodeableConcept",
+        "path": "Observation.component.valueCodeableConcept",
+        "min": 1,
+        "binding": {
+          "strength": "required",
+          "valueSet": "http://oneaquahealth.eu/fhir/vs/exposure-pathway"
+        }
+      }
+    ]
+  }
+}

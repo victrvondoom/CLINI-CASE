@@ -1,0 +1,20 @@
+{
+  "resourceType": "ValueSet",
+  "id": "oah-assessment-metrics-vs",
+  "url": "http://oneaquahealth.eu/fhir/vs/assessment-metrics",
+  "version": "0.1.0",
+  "name": "OAHAssessmentMetricsValueSet",
+  "title": "OneAquaHealth Assessment Metrics Value Set",
+  "status": "active",
+  "experimental": true,
+  "date": "2026-10-02",
+  "publisher": "OneAquaHealth Consortium",
+  "description": "Allowed assessment metric codes and subcomponent indicators.",
+  "compose": {
+    "include": [
+      {
+        "system": "http://oneaquahealth.eu/fhir/cs/assessment-metrics"
+      }
+    ]
+  }
+}

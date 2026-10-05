@@ -1,0 +1,37 @@
+{
+  "resourceType": "CodeSystem",
+  "id": "oah-exposure-pathway",
+  "url": "http://oneaquahealth.eu/fhir/cs/exposure-pathway",
+  "version": "0.1.0",
+  "name": "OAHExposurePathway",
+  "title": "OneAquaHealth Environmental Exposure Pathways",
+  "status": "active",
+  "experimental": true,
+  "date": "2026-10-02",
+  "publisher": "OneAquaHealth Consortium - Semantic Interoperability Working Group",
+  "description": "Pathways through which human populations encounter aquatic hazards in urban water environments.",
+  "caseSensitive": true,
+  "content": "complete",
+  "concept": [
+    {
+      "code": "recreational-contact",
+      "display": "Recreational Water Contact",
+      "definition": "Primary or secondary dermal/mucosal contact during urban water recreation (swimming, kayaking, paddleboarding, wading)."
+    },
+    {
+      "code": "drinking-water-intake",
+      "display": "Drinking Water Abstraction Intake",
+      "definition": "Ingestion of untreated or compromised water abstracted from raw surface water intake zones."
+    },
+    {
+      "code": "aerosol-inhalation",
+      "display": "Aerosolized Inhalation Exposure",
+      "definition": "Inhalation of wind-borne or fountain/aerator aerosolized cyanotoxins or microbial particulates."
+    },
+    {
+      "code": "vector-borne-bite",
+      "display": "Vector-Borne Arthropod Bite",
+      "definition": "Transmission via bites from hematophagous dipteran vectors breeding along urban riparian margins."
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "resourceType": "CodeSystem",
+  "id": "oah-hazard-type",
+  "url": "http://oneaquahealth.eu/fhir/cs/hazard-type",
+  "version": "0.1.0",
+  "name": "OAHHazardType",
+  "title": "OneAquaHealth Aquatic Environmental Hazard Types",
+  "status": "active",
+  "experimental": true,
+  "date": "2026-10-02",
+  "publisher": "OneAquaHealth Consortium - Semantic Interoperability Working Group",
+  "description": "Taxonomy of aquatic environmental health hazards identified across urban aquatic ecosystems.",
+  "caseSensitive": true,
+  "content": "complete",
+  "concept": [
+    {
+      "code": "cyanobacteria-proliferation",
+      "display": "Suspected Cyanobacterial Proliferation",
+      "definition": "Proliferation surge or visual bloom of potential microcystin-producing cyanobacteria in urban freshwater."
+    },
+    {
+      "code": "diptera-vector-surge",
+      "display": "Diptera Vector Proliferation Surge",
+      "definition": "Ecological surge in disease-transmitting diptera (Culicidae/Chironomidae) breeding in urban aquatic buffer zones."
+    },
+    {
+      "code": "enteropathogen-surge",
+      "display": "Post-Surge Enteropathogen Contamination",
+      "definition": "Microbial enteropathogenic contamination spike following combined sewer runoff or severe storm surge."
+    },
+    {
+      "code": "chemical-contaminant-spill",
+      "display": "Chemical Contaminant Influx",
+      "definition": "Point-source or surface-runoff acute chemical or heavy metal influx into urban river reaches."
+    }
+  ]
+}

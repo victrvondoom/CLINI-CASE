@@ -2,6 +2,9 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 export default defineConfig({
+  // Use the shared repository-root .env for explicitly VITE_-prefixed public
+  // settings (e.g. SMART public client ID); other backend secrets stay private.
+  envDir: "..",
   plugins: [react()],
   server: {
     port: 5173,

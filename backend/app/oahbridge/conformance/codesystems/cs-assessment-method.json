@@ -1,0 +1,22 @@
+{
+  "resourceType": "CodeSystem",
+  "id": "oah-assessment-method",
+  "url": "http://oneaquahealth.eu/fhir/cs/assessment-method",
+  "version": "0.1.0",
+  "name": "OAHAssessmentMethod",
+  "title": "OneAquaHealth Risk Assessment Methods",
+  "status": "active",
+  "experimental": true,
+  "date": "2026-10-02",
+  "publisher": "OneAquaHealth Consortium - Semantic Interoperability Working Group",
+  "description": "Algorithms and processes used to evaluate population-level risk from aquatic environmental exposure.",
+  "caseSensitive": true,
+  "content": "complete",
+  "concept": [
+    {
+      "code": "oah-environmental-exposure-assessment",
+      "display": "OAH Environmental Exposure Risk Assessment",
+      "definition": "Deterministic multi-factor algorithm combining evidence support score, exposure pathway, spatial GIS buffer, definitional cohort criteria, and clinical outcome likelihood."
+    }
+  ]
+}
