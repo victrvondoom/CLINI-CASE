@@ -13,6 +13,7 @@ CLINI-CASE connects intake, environmental and clinical evidence, interoperabilit
 | Sign in | https://clini-case.onrender.com/login — click **Admin**, **Reviewer** or **Coordinator**; no password needed |
 | API documentation | https://clini-case.onrender.com/docs |
 | Health check | https://clini-case.onrender.com/api/v1/healthz |
+| Real-world globe | https://clini-case.onrender.com/oah-bridge — sign in first, then scroll down one screen (or **Evidence → Map → "Context explorer"**) |
 | Source | https://github.com/victrvondoom/CLINI-CASE |
 
 The demo runs on a free instance, so the first request after a quiet period can take about a minute to wake it. Every push to `main` redeploys automatically from the root [`Dockerfile`](Dockerfile) and [`render.yaml`](render.yaml): one container serves the React interface and the FastAPI backend on a single address.
@@ -34,11 +35,63 @@ One platform combines evidence intake, environmental observations, laboratory da
 | Purpose | Entry point |
 |---|---|
 | Complete evidence journey | `/journey` · [workflow guide](docs/UNIFIED_JOURNEY.md) |
+| Citizen report to final output | [step-by-step path](#from-citizen-report-to-final-output) |
+| Real-world globe and city matrix | `/oah-bridge` (**Evidence → Map → "Context explorer"**) · [details](#real-world-context-oah-bridge-and-the-cesiumjs-globe) |
 | Deterministic local demo | `./start-track7.ps1 -SQLite` · [runbook](docs/DEMO_RUNBOOK.md) |
 | Independent HTTP proof | `python backend/scripts/track7_network_demo.py` |
 | Actual deployment topology | `/runtime` · [Kubernetes runbook](docs/KUBERNETES.md) |
 | Standards evidence | [validation](docs/track7/VALIDATION.md) · [conformance](docs/track7/CONFORMANCE.md) |
 | Publication checks | [final verification](docs/FINAL_PUBLICATION_VERIFICATION.md) |
+
+## Who it is for
+
+CLINI-CASE is designed for the people who must decide what shared environmental and health data *means* before someone acts on it. It is demonstrated with synthetic data; no pilot, real user or production deployment is claimed.
+
+| Who | What they do here | What they get |
+|---|---|---|
+| Community volunteers | Record what they saw; "not sure" and "skip" are valid answers | A traceable, reviewed report with follow-up |
+| Laboratories and environmental agencies | Supply measurements, for example an arsenic result | Their data keeps its exact meaning when another system receives it |
+| Reviewers / data stewards | Approve, edit or reject what an ambiguous field means | A recorded human decision instead of a silent guess |
+| Public-health and water inspectors | Receive standardized evidence and retests | What is observed, inferred or lab-confirmed, with provenance |
+| Clinicians | See informational exposure context (the OAH-Bridge CDS Hooks demonstration) | Environmental context at the point of care, with no diagnosis or treatment advice |
+| Integration teams | Connect System A to System B | A test showing meaning survived even when every ID changed |
+| Admins | Manage users and roles | Separation between who can create and who can approve |
+
+## From citizen report to final output
+
+The whole path in one picture. The **final output** is the retained Evidence Passport together with a returned bundle whose meaning matches the original, plus a follow-up/retest trail.
+
+```mermaid
+flowchart LR
+    C["Citizen / volunteer report"] --> M["Map and real-world context<br/>Globe, weather, city matrix"]
+    M --> L["Laboratory evidence joins<br/>Consent and six evidence gates"]
+    L --> S["System A data<br/>Ambiguity made visible"]
+    S --> R["Human review<br/>AI may suggest, never decide"]
+    R --> F["FHIR R4 / OAH Bundle"]
+    F --> V{"Validation"}
+    V -->|invalid| B["Transfer blocked"]
+    B --> R
+    V -->|valid| X["Independent System B<br/>IDs rewritten"]
+    X --> RT["Round trip<br/>Semantic fields compared"]
+    RT --> P["Evidence Passport<br/>FINAL OUTPUT"]
+    P --> K["Clinical context<br/>Follow-up / retest"]
+    K --> C
+```
+
+| # | Step | Where | Who acts | Boundary |
+|---|---|---|---|---|
+| 1 | Record an observation | `/aquahealth/observations/new` | Volunteer / coordinator | An observation is a reason to investigate, not a measurement |
+| 2 | See where it was recorded | `/aquahealth/map`, `/aquahealth/observations` | Reviewer | Pins show review state; locations depend on the configured data |
+| 3 | Add real-world context | `/oah-bridge` | Reviewer | Synthetic scenarios; weather is context, never proof |
+| 4 | Join laboratory evidence | `/onehealth` | Reviewer | Consent and six gates set an epistemic ceiling |
+| 5 | Receive System A data | `/interop`, panel 1 | Data steward | A bare `arsenic` field does not say which arsenic |
+| 6 | Discover meaning | `/interop`, panel 2 | System | Rules first; optional AI sees field names only |
+| 7 | Human review | `/interop`, panel 3 | Authenticated reviewer | AI cannot set the analyte or approve a mapping |
+| 8 | Standardize | `/interop`, panel 4 | System | FHIR R4 with selected pinned OAH constraints |
+| 9 | Validate ("break it") | `/interop`, panel 5 | System | `ppm` blocks transfer; `ug/L` passes |
+| 10 | Exchange and prove | `/interop`, panels 6–7 | System | Separate System B, new IDs, field-level comparison |
+| 11 | Inspect the Passport | `/interop`, `/journey/<job>` | Reviewer | Hashes show integrity, not lab truth or causation |
+| 12 | Clinical context and follow-up | `/onehealth`, `/journey` | Clinician / reviewer | Contextual association only; a retest preserves earlier history |
 
 ## One connected evidence journey
 
@@ -227,6 +280,33 @@ sequenceDiagram
 ```
 
 The separate-process network fixture preserves **13/13 semantic fields** despite rewritten IDs and blocks invalid-unit/malformed-bundle transfers. Richer reviewed-evidence fixtures add fields; the UI reports the actual comparison count. Reproduce using the [network demo](backend/scripts/track7_network_demo.py) and [judge script](docs/track7/DEMO_SCRIPT.md).
+
+## Real-world context: OAH-Bridge and the CesiumJS globe
+
+`/oah-bridge` shows *where* and *when* a scenario applies. Open it from **Evidence → Map → "Context explorer"** and scroll down one screen. It combines the ported **OAH-Bridge** semantic decision layer (engine and conformance pack from OneAquaHealth-Bridge, [MIT](backend/app/oahbridge/LICENSE-OAH-BRIDGE)) with a real-world globe.
+
+- **Globe:** CesiumJS Earth with Esri satellite imagery and place names. Beacons mark three OneAquaHealth research cities: Coimbra (Mondego), Toulouse (Garonne) and Figueira da Foz (lower Mondego). Selecting one flies to its river reach, draws the exposure zone and synthetic citizen reports, and opens its matrix card. If WebGL or the CDN is unavailable the page falls back to the offline globe.
+- **City matrix:** hazard, key inputs, epistemic status and score, exposed cohort (FHIR `Group`, `actual = false`) and the pinned SNOMED CT outcome, all computed live by the engine: `S = 0.40·Cs + 0.30·Cc + 0.30·Ct`. Coimbra and Toulouse are *inferred*; only Figueira da Foz is lab-confirmed (a simulated assay overrides the score).
+- **Live weather:** Open-Meteo through the backend, rounded to about 1 km, cached for 10 minutes, labelled LIVE / CACHED / STALE / UNAVAILABLE with the point's IANA local time. A 48-hour forecast can be played on the globe. Weather is context, never proof of a hazard. Nothing is invented when the lookup fails.
+- **Optional GPS:** opt-in, coarsened to about 1 km; only that coarsened point is used, for weather.
+- **Live chain and monitor:** run the 8-step chain on the server with measured per-stage timings, 44 application-level assertions across six tiers, FHIR search, an informational CDS Hooks `patient-view` card and a system monitor with process-local counters.
+
+| Endpoint (signed-in users, under `/api/v1/oah-bridge`) | Purpose |
+|---|---|
+| `GET /scenarios` | Cities, zones, scores and matrix columns |
+| `GET /demo/run?scenario=` | 8-step chain, timings, validation report, FHIR bundle |
+| `GET /fhir/metadata`, `GET /fhir/{type}` | CapabilityStatement; search with `oah-hazard` / `oah-location` |
+| `GET /cds-services`, `POST /cds-services/oah-exposure-advisory` | CDS Hooks 1.0 discovery and informational advisory |
+| `GET /conformance`, `GET /terminology` | Conformance pack; pinned SNOMED CT manifest |
+| `POST /weather` | Open-Meteo context (coordinates in the body, not the URL) |
+| `GET /monitor` | Component health and counters |
+
+**Boundaries:**
+
+- The three scenarios are synthetic and deterministic. They are **not imported into the `/interop` exchange job**; see the [workflow map](docs/TRACK7_WORKFLOW_MAP.md).
+- The 44 assertions are this project's pinned application-level checks, not the official HL7 validator or OAH certification.
+- Not implemented: live public-health or news ingestion with relevance scoring, a multi-agent evidence graph, a unified OAH-Bridge Passport.
+- Figures come from the engine and differ from some prose in the upstream README; for example Coimbra is inferred, not lab-confirmed.
 
 ## From environmental evidence to human-health context
 
@@ -425,6 +505,9 @@ Runtime does not fabricate CPU metrics, replicas, SLAs or accuracy. A separate l
 | Synthetic clinical/twins | CLINI-CASE packets, trajectories, outcomes | Repository terms; local scripts | Demo/offline evaluation, not licensed live clinical feeds. |
 | Real water adapter | WQP; NWQMC, USGS, EPA | Retrieval recorded 2026-10-02; raw rows **not committed**, redistribution permission unconfirmed | Curated stream sample; source/query/time/transform history retained locally; proxies require review. |
 | Real CardioTwin cohort | UCI dataset 411 | **CC BY 4.0**; attribution/import/SHA pins in [dataset README](backend/data/cardiotwin/README.md) | 303-row cross-sectional data; derived artifact, not live EHR/prospective validation. |
+| OAH-Bridge engine and conformance pack | OneAquaHealth-Bridge contributors | **MIT**; notice kept at `backend/app/oahbridge/LICENSE-OAH-BRIDGE` | Ported to package imports; FHIR base URL parameter, stage timings and matrix fields added. Synthetic scenarios only. |
+| Globe imagery and basemaps | Esri World Imagery and places layer; CesiumJS (Apache-2.0, loaded from jsDelivr with integrity hashes, no Cesium ion token); OpenFreeMap / OpenStreetMap contributors; Natural Earth land outline | Attribution is shown in the interface; Esri and OSM tile terms apply | Display only. Confirm tile terms before production traffic. |
+| Weather context | Open-Meteo | CC BY 4.0 attribution shown; free-tier terms apply (non-commercial) | Server-proxied, rounded to about 1 km, cached; context only. |
 | Derived exchanges/scores | Corresponding evidence/model inputs | Inherit source restrictions/provenance | Normalization/probabilities do not create independent clinical evidence. |
 
 The WQP fetcher records query URLs, retrieval time, verbatim source/station rows and transformations. It retains explicit dissolved/total fraction and skips unsupported qualifiers/units. This is not a monitoring dataset and supports no health inference. Keep fetched output outside Git until terms are confirmed. [Source/license decision](docs/track7/DATA_SOURCES.md).
@@ -525,7 +608,9 @@ python k8s/cluster.py verify
 git diff --check
 ```
 
-Default pytest excludes marked `integration`/`live` tests. PostgreSQL contracts and metered models need separate checks; green offline tests are not clinical validation. [Final verification](docs/FINAL_PUBLICATION_VERIFICATION.md) records totals/browser proof/infrastructure limits.
+Default pytest excludes marked `integration`/`live` tests. PostgreSQL contracts and metered models need separate checks; green offline tests are not clinical validation.
+
+Latest local run (2026-10-05): backend 814 passed (108 integration tests deselected), frontend 151 passed, `ruff` clean on `app` and `tests`, production build succeeds. [Final verification](docs/FINAL_PUBLICATION_VERIFICATION.md) records totals/browser proof/infrastructure limits.
 
 ## Repository map
 
@@ -534,11 +619,14 @@ CLINI-CASE/
 ├── frontend/
 │   ├── src/routes/        Journey, Runtime, Interop, OneHealth, clinical/twin pages
 │   ├── src/components/    Shell, agent console, review and evidence views
+│   ├── src/globe/         CesiumJS and offline globes, weather layers
+│   ├── src/oahbridge/     OAH-Bridge client, city matrix, weather, live chain, monitor
 │   ├── src/lib/           API, SSE and clinical intake conversion
 │   └── tests/             UI/workflow regressions
 ├── backend/
 │   ├── app/interop/       Mapping, safety, exchange and System B
 │   ├── app/onehealth/     Evidence gates, FHIR and Passport
+│   ├── app/oahbridge/     Ported OAH-Bridge engine, weather proxy, conformance pack
 │   ├── app/journey/       Persisted stage projection
 │   ├── app/api/           Authenticated APIs and Runtime
 │   ├── app/agents/        Clinical agents, intake and sub-agents
@@ -571,6 +659,7 @@ Remaining work: broader external profile/terminology coverage, licensed/current 
 ## Documentation and project terms
 
 - [Track 7 APIs](docs/ONEHEALTH_TRACK7.md) · [judge demo](docs/track7/DEMO_SCRIPT.md)
+- [Workflow map](docs/TRACK7_WORKFLOW_MAP.md) · [service integrations](docs/SERVICE_INTEGRATIONS.md) · [demo video guide](docs/DEMO_VIDEO_SCRIPT.md)
 - [Passport](docs/EVIDENCE_PASSPORT.md) · [epistemic ceiling](docs/EPISTEMIC_CEILING.md) · [conformance](docs/OAH_CONFORMANCE.md)
 - [Build scope/reuse](docs/HACKATHON_BUILD_SCOPE.md) · [self-audit](docs/TRACK7_SELF_AUDIT.md) · [judge access](docs/JUDGE_ACCESS.md)
 - [AquaHealth](docs/AQUAHEALTH_TRACK3.md) · [OncoTwin](docs/ONCOTWIN.md) · [CardioTwin](docs/CARDIOTWIN.md)
